@@ -103,9 +103,6 @@ const AdminBusinessTypeConfiguration = lazyWithRetry(
 const AdminVendorDashboardView = lazyWithRetry(
   () => import("./modules/Admin/pages/b2b-vendors/AdminVendorDashboardView"),
 );
-const AdminSecureDeals = lazyWithRetry(
-  () => import("./modules/Admin/pages/b2b-vendors/AdminSecureDeals"),
-);
 const SupportSettings = lazyWithRetry(
   () => import("./modules/Admin/pages/SupportSettings"),
 );
@@ -211,9 +208,6 @@ const B2BVendorNotifications = lazyWithRetry(
 const B2BVendorShopListing = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/shop/ShopListing"),
 );
-const B2BVendorSecureDeals = lazyWithRetry(
-  () => import("./modules/B2BVendor/pages/SecureDeals"),
-);
 
 // B2B User App Routes
 const B2BUserLogin = lazyWithRetry(
@@ -272,9 +266,6 @@ const PropertyDetail = lazyWithRetry(
 );
 const RealEstatePropertyUpload = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/PropertyUpload"),
-);
-const B2BUserSecureDeals = lazyWithRetry(
-  () => import("./modules/B2BUserApp/pages/SecureDeals"),
 );
 
 // Inner component that has access to useLocation
@@ -385,10 +376,6 @@ const AppRoutes = () => {
               element={<AdminVendorDashboardView />}
             />
             <Route
-              path="secure-deals"
-              element={<AdminSecureDeals />}
-            />
-            <Route
               path="manage/:id/contact-analytics"
               element={<B2BVendorContactAnalytics mode="admin" />}
             />
@@ -487,14 +474,6 @@ const AppRoutes = () => {
         />
         <Route path="/b2b/product/:id" element={<B2BProductDetail />} />
         <Route path="/b2b/vendor/:id" element={<B2BVendorStore />} />
-        <Route
-          path="/b2b/secure-deals"
-          element={
-            <ProtectedRoute>
-              <B2BUserSecureDeals />
-            </ProtectedRoute>
-          }
-        />
 
         {/* B2B Vendor Routes */}
         <Route path="/b2b-vendor/login" element={<B2BVendorLogin />} />
@@ -569,7 +548,6 @@ const AppRoutes = () => {
           />
           <Route path="profile" element={<B2BVendorProfile />} />
           <Route path="notifications" element={<B2BVendorNotifications />} />
-          <Route path="secure-deals" element={<B2BVendorSecureDeals />} />
         </Route>
         <Route path="*" element={<Navigate to="/b2b/landing" replace />} />
       </Routes>

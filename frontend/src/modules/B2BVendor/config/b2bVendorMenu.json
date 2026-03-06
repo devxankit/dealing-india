@@ -13,11 +13,6 @@
         ]
     },
     {
-        "title": "Secure Deals",
-        "route": "/b2b-vendor/secure-deals",
-        "children": []
-    },
-    {
         "title": "Shop Listing",
         "route": "/b2b-vendor/shop-listing",
         "children": []

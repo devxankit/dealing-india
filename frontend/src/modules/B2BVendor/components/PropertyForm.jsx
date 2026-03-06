@@ -7,6 +7,7 @@ import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import MapPickerModal from "../../../shared/components/MapPickerModal";
 import { getGoogleMapsUrl } from "../../../shared/utils/helpers";
+import { fetchCurrentLocationPayload } from "../../../shared/utils/location";
 
 const PropertyForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
@@ -293,6 +294,19 @@ const PropertyForm = ({ initialData, isEdit }) => {
             location: { ...prev.location, mapUrl }
         }));
         toast.success("Location updated");
+    };
+
+    const handleUseCurrentLocation = async () => {
+        try {
+            const payload = await fetchCurrentLocationPayload();
+            setFormData(prev => ({
+                ...prev,
+                location: { ...prev.location, mapUrl: payload.mapUrl }
+            }));
+            toast.success(`Location added: ${payload.label}`);
+        } catch (error) {
+            toast.error(error?.message || "Unable to fetch current location");
+        }
     };
 
     const steps = [
@@ -819,6 +833,13 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                 <div className="md:col-span-2">
                                     <div className="flex items-center gap-2">
                                         <input name="location.mapUrl" placeholder="Google Map URL" value={formData.location.mapUrl} onChange={handleChange} className="input-field flex-1" />
+                                        <button
+                                            type="button"
+                                            onClick={handleUseCurrentLocation}
+                                            className="px-4 py-3 bg-slate-100 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-slate-200 hover:bg-slate-200 transition-all whitespace-nowrap"
+                                        >
+                                            Use Current Location
+                                        </button>
                                         <button
                                             type="button"
                                             onClick={() => setIsMapPickerOpen(true)}

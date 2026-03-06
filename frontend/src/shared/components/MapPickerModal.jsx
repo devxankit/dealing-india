@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { FiCheck, FiSearch, FiX } from "react-icons/fi";
+import {
+  fetchCurrentLocationPayload,
+  generateGoogleMapsLink,
+  reverseGeocodeFromOpenStreetMap,
+} from "../utils/location";
 
 const LEAFLET_CSS_ID = "leaflet-css-cdn";
 const LEAFLET_JS_ID = "leaflet-js-cdn";
@@ -67,20 +72,6 @@ const MapPickerModal = ({ isOpen, onClose, onSelect }) => {
     }
   };
 
-  const reverseLookup = async (lat, lng) => {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`
-    );
-    if (!response.ok) return "";
-    const data = await response.json();
-    return normalizeLabel(data?.display_name);
-  };
-
-  const getCurrentPosition = (options) =>
-    new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, options);
-    });
-
   const selectPoint = async (lat, lng) => {
     if (!window.L) return;
     setLoading(true);
@@ -88,7 +79,7 @@ const MapPickerModal = ({ isOpen, onClose, onSelect }) => {
     try {
       setMarkerAt(window.L, lat, lng);
       mapRef.current.setView([lat, lng], Math.max(mapRef.current.getZoom(), 15));
-      const label = await reverseLookup(lat, lng);
+      const label = await reverseGeocodeFromOpenStreetMap(lat, lng);
       const safeLabel = label || `Location near ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
       setSelected({ lat, lng, label: safeLabel });
       setStatus("Location selected");
@@ -150,40 +141,12 @@ const MapPickerModal = ({ isOpen, onClose, onSelect }) => {
   };
 
   const handleUseCurrentLocation = async () => {
-    if (!navigator.geolocation) {
-      setStatus("Geolocation is not supported in this browser");
-      return;
-    }
-
     setLoading(true);
     setStatus("Fetching current location...");
     try {
-      const first = await getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 0,
-      });
-
-      let best = first;
-      if (typeof first.coords?.accuracy === "number" && first.coords.accuracy > 80) {
-        try {
-          const second = await getCurrentPosition({
-            enableHighAccuracy: true,
-            timeout: 18000,
-            maximumAge: 0,
-          });
-          if (
-            typeof second.coords?.accuracy === "number" &&
-            second.coords.accuracy < first.coords.accuracy
-          ) {
-            best = second;
-          }
-        } catch {
-          // keep first result
-        }
-      }
-      const lat = Number(best.coords.latitude);
-      const lng = Number(best.coords.longitude);
+      const payload = await fetchCurrentLocationPayload();
+      const lat = Number(payload.lat);
+      const lng = Number(payload.lng);
       await selectPoint(lat, lng);
     } catch (error) {
       setStatus("Unable to fetch current location");
@@ -334,9 +297,7 @@ const MapPickerModal = ({ isOpen, onClose, onSelect }) => {
               onClick={() => {
                 if (!selected) return;
                 const label = getSafeLabel(selected.label, selected.lat, selected.lng);
-                const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(
-                  `loc:${selected.lat},${selected.lng} (${label})`
-                )}`;
+                const mapUrl = generateGoogleMapsLink(selected.lat, selected.lng, label);
                 onSelect({
                   mapUrl,
                   label,

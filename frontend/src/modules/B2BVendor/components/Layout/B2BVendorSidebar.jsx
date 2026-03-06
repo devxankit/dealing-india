@@ -14,8 +14,7 @@ import {
     FiCreditCard,
     FiLogOut,
     FiPlus,
-    FiBell,
-    FiShield
+    FiBell
 } from "react-icons/fi";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
@@ -28,7 +27,6 @@ const iconMap = {
     "Product Listings": FiPackage,
     "Manage Products": FiPackage,
     "Add Product": FiPackage,
-    "Secure Deals": FiShield,
     "Shop Listing": FiPackage,
     "Property Management": FiHome,
     "Manage Properties": FiHome,
@@ -101,7 +99,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     }, []);
 
     const filteredMenu = b2bVendorMenu.filter(item => {
-        if (item.title === "Dashboard" || item.title === "Secure Deals") return true;
+        if (item.title === "Dashboard") return true;
 
         const alwaysVisible = ["Subscription", "Banner Booking", "Notifications", "Account Settings"];
         if (alwaysVisible.includes(item.title)) return true;

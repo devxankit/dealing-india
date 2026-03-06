@@ -6,6 +6,7 @@ import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import MapPickerModal from "../../../shared/components/MapPickerModal";
+import { fetchCurrentLocationPayload } from "../../../shared/utils/location";
 
 const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
     const navigate = useNavigate();
@@ -299,6 +300,19 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
             location: { ...prev.location, mapUrl }
         }));
         toast.success("Selected location added");
+    };
+
+    const handleUseCurrentLocation = async () => {
+        try {
+            const payload = await fetchCurrentLocationPayload();
+            setFormData(prev => ({
+                ...prev,
+                location: { ...prev.location, mapUrl: payload.mapUrl }
+            }));
+            toast.success(`Location added: ${payload.label}`);
+        } catch (error) {
+            toast.error(error?.message || "Unable to fetch current location");
+        }
     };
 
     return (
@@ -626,6 +640,13 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                                 onChange={handleChange}
                                                 className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs flex-1"
                                             />
+                                            <button
+                                                type="button"
+                                                onClick={handleUseCurrentLocation}
+                                                className="px-3 py-3 bg-slate-100 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-slate-200 hover:bg-slate-200 transition-all disabled:opacity-60"
+                                            >
+                                                Use Current Location
+                                            </button>
                                             <button
                                                 type="button"
                                                 onClick={handleSelectLocation}

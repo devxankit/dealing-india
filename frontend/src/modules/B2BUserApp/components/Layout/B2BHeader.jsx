@@ -154,8 +154,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         title === "Company Profile" ||
                         title === "Personal Profile" ||
                         title === "Support & Help" ||
-                        title === "Notifications" ||
-                        title === "My Secure Deals" ? (
+                        title === "Notifications" ? (
                         <Link
                             to={location.pathname === '/b2b/catalog' ? '/b2b/landing' : '/b2b/catalog'}
                             className="flex items-center gap-2"

@@ -6,6 +6,7 @@ import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import MapPickerModal from "../../../shared/components/MapPickerModal";
+import { fetchCurrentLocationPayload } from "../../../shared/utils/location";
 
 const ShopListingForm = ({ onSubmit, isLoading = false }) => {
     const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
@@ -167,6 +168,17 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         toast.success("Selected location added");
     };
 
+    const handleUseCurrentLocation = async () => {
+        try {
+            const payload = await fetchCurrentLocationPayload();
+            setFormData(prev => ({ ...prev, mapUrl: payload.mapUrl }));
+            setIsShopModified(true);
+            toast.success(`Location added: ${payload.label}`);
+        } catch (error) {
+            toast.error(error?.message || "Unable to fetch current location");
+        }
+    };
+
     // Styling constants matching ProductForm.jsx
     const inputStyle = "w-full px-4 py-3 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none font-medium text-gray-700 placeholder:text-gray-400 shadow-sm";
     const labelStyle = "block text-xs font-black text-gray-600 uppercase tracking-wider mb-2 ml-1";
@@ -305,6 +317,13 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                                 placeholder="https://maps.google.com/..."
                                 className={`${inputStyle} flex-1`}
                             />
+                            <button
+                                type="button"
+                                onClick={handleUseCurrentLocation}
+                                className="px-3 py-3 bg-slate-100 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-slate-200 hover:bg-slate-200 transition-all disabled:opacity-60 whitespace-nowrap"
+                            >
+                                Use Current Location
+                            </button>
                             <button
                                 type="button"
                                 onClick={handleSelectLocation}

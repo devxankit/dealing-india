@@ -78,7 +78,6 @@ import vendorNotificationRoutes from "./routes/vendorNotification.routes.js";
 import userNotificationRoutes from "./routes/userNotification.routes.js";
 import fcmTokenRoutes from "./routes/fcmToken.routes.js";
 import supportConfigRoutes from "./routes/supportConfig.routes.js";
-import secureDealRoutes from "./routes/secureDeal.routes.js";
 import referralRoutes from "./routes/referral.routes.js";
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 import { syncVendorViewsCron } from "./Cron/VendorViewSync.cron.js";
@@ -289,7 +288,6 @@ app.use("/api/auth/vendor", vendorAuthRoutes);
 app.use("/api/auth/admin", adminAuthRoutes);
 app.use("/api/auth/user", userAuthRoutes);
 app.use("/api/user", userAuthRoutes); // Alias for user data routes like /addresses
-app.use("/api/order-deals", secureDealRoutes);
 
 // Public routes
 app.use("/api/vendors", publicVendorRoutes);
