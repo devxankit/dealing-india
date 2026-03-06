@@ -1,16 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag, FiX, FiShield } from 'react-icons/fi';
+import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag, FiX, FiShield, FiCopy, FiShare2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
+import { getMyReferralSummary } from '../../../shared/services/referralService';
 
 const Profile = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuthStore();
+    const [referralData, setReferralData] = useState(null);
+    const [referralLoading, setReferralLoading] = useState(false);
+    const [referralError, setReferralError] = useState('');
 
     const menuItems = [
         { icon: FiBriefcase, label: 'Company Profile', desc: 'Manage your business details & GST', path: '/b2b/company' },
@@ -23,6 +27,36 @@ const Profile = () => {
         logout();
         toast.success('Logged out successfully');
         navigate('/app/login');
+    };
+
+    useEffect(() => {
+        const loadReferral = async () => {
+            setReferralLoading(true);
+            setReferralError('');
+            try {
+                const data = await getMyReferralSummary();
+                setReferralData(data);
+            } catch (error) {
+                console.error('Failed to load referral summary:', error);
+                setReferralError(error?.response?.data?.message || error?.message || 'Unable to load referral details');
+            } finally {
+                setReferralLoading(false);
+            }
+        };
+
+        if (user?._id) {
+            loadReferral();
+        }
+    }, [user?._id]);
+
+    const copyReferralLink = async () => {
+        if (!referralData?.referralLink) return;
+        try {
+            await navigator.clipboard.writeText(referralData.referralLink);
+            toast.success('Referral link copied');
+        } catch (error) {
+            toast.error('Failed to copy link');
+        }
     };
 
     return (
@@ -49,6 +83,40 @@ const Profile = () => {
                         <span className="px-4 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold uppercase tracking-widest">
                             Verified Buyer
                         </span>
+                    </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-6 text-white shadow-xl mb-8">
+                    <p className="text-xs uppercase tracking-widest text-emerald-100 font-bold mb-2">Referral Program</p>
+                    <p className="text-sm font-semibold">Code: {referralData?.referralCode || 'Not available'}</p>
+                    <p className="text-sm text-emerald-100 mt-1">
+                        Referrals: {referralData?.referralCount || 0} | Wallet Points: {referralData?.wallet?.pointsBalance || 0}
+                    </p>
+                    {referralLoading && <p className="text-xs text-emerald-100 mt-2">Loading referral details...</p>}
+                    {referralError && (
+                        <p className="text-xs text-amber-100 mt-2">
+                            {referralError}. Restart backend and refresh this page.
+                        </p>
+                    )}
+                    <div className="mt-4 flex gap-2">
+                        <button
+                            onClick={copyReferralLink}
+                            disabled={!referralData?.referralLink}
+                            className="px-3 py-2 rounded-xl bg-white text-emerald-700 text-xs font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <FiCopy /> Copy Link
+                        </button>
+                        <a
+                            href={referralData?.whatsappShareLink || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => {
+                                if (!referralData?.whatsappShareLink) e.preventDefault();
+                            }}
+                            className="px-3 py-2 rounded-xl bg-emerald-900/30 text-white text-xs font-bold flex items-center gap-2 border border-white/20"
+                        >
+                            <FiShare2 /> WhatsApp
+                        </a>
                     </div>
                 </div>
 

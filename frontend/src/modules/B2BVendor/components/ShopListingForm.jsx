@@ -5,12 +5,15 @@ import toast from "react-hot-toast";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
+import MapPickerModal from "../../../shared/components/MapPickerModal";
 
 const ShopListingForm = ({ onSubmit, isLoading = false }) => {
+    const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
     const [formData, setFormData] = useState({
         shopName: "",
         description: "",
         businessCategory: "",
+        mapUrl: "",
         minPrice: "",
         maxPrice: "",
         images: [],
@@ -18,7 +21,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         shopUnitId: null,
     });
 
-    const BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier'];
+    const BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier', 'Developer', 'Property'];
 
     const { vendor } = useB2BVendorAuthStore();
     const [hasExistingUnit, setHasExistingUnit] = useState(false);
@@ -36,6 +39,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                         shopName: unit.name || "",
                         description: unit.description || "",
                         businessCategory: unit.businessCategory || "",
+                        mapUrl: unit.mapUrl || "",
                         images: unit.images || [],
                         minPrice: unit.minPrice || "",
                         maxPrice: unit.maxPrice || "",
@@ -143,6 +147,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
             name: formData.shopName.trim(),
             description: formData.description,
             businessCategory: formData.businessCategory || undefined,
+            mapUrl: formData.mapUrl || undefined,
             minPrice: String(formData.minPrice),
             maxPrice: String(formData.maxPrice),
             images: formData.images,
@@ -150,6 +155,16 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         };
 
         onSubmit(payload);
+    };
+
+    const handleSelectLocation = () => {
+        setIsMapPickerOpen(true);
+    };
+
+    const handleMapPicked = ({ mapUrl }) => {
+        setFormData(prev => ({ ...prev, mapUrl }));
+        setIsShopModified(true);
+        toast.success("Selected location added");
     };
 
     // Styling constants matching ProductForm.jsx
@@ -260,22 +275,45 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <label className={labelStyle}>Business Category</label>
-                            <select
-                                value={formData.businessCategory}
+                    <div className="space-y-2">
+                        <label className={labelStyle}>Business Category</label>
+                        <select
+                            value={formData.businessCategory}
+                            onChange={(e) => {
+                                setFormData({ ...formData, businessCategory: e.target.value });
+                                setIsShopModified(true);
+                            }}
+                            className={inputStyle}
+                        >
+                            <option value="">Select Business Category</option>
+                            {BUSINESS_CATEGORIES.map((cat) => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className={labelStyle}>Location URL (Google Maps)</label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={formData.mapUrl}
                                 onChange={(e) => {
-                                    setFormData({ ...formData, businessCategory: e.target.value });
+                                    setFormData({ ...formData, mapUrl: e.target.value });
                                     setIsShopModified(true);
                                 }}
-                                className={inputStyle}
+                                placeholder="https://maps.google.com/..."
+                                className={`${inputStyle} flex-1`}
+                            />
+                            <button
+                                type="button"
+                                onClick={handleSelectLocation}
+                                className="px-3 py-3 bg-primary-50 text-primary-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-primary-100 hover:bg-primary-100 transition-all disabled:opacity-60"
                             >
-                                <option value="">Select Business Category</option>
-                                {BUSINESS_CATEGORIES.map((cat) => (
-                                    <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                            </select>
+                                Select Location
+                            </button>
                         </div>
+                    </div>
 
                         <div className="space-y-2">
                             <label className={labelStyle}>Manual Price Range <span className="text-red-500">*</span></label>
@@ -421,6 +459,12 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                     </div>
                 </div>
             </div>
+
+            <MapPickerModal
+                isOpen={isMapPickerOpen}
+                onClose={() => setIsMapPickerOpen(false)}
+                onSelect={handleMapPicked}
+            />
 
             {/* ACTION BUTTON AT BOTTOM */}
             <div className="flex justify-end pt-8">

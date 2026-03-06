@@ -63,8 +63,8 @@ const B2BVendorHeader = ({ onMenuClick }) => {
 
             "manage-properties": "Manage Properties",
             "add-commercial": "Add Commercial",
-            "add-villa": "Add Villa",
-            "add-plot": "Add Villa",
+            "add-villa": "Add Villa / Row House",
+            "add-plot": "Add Villa / Row House",
             "manage-lots": "Manage Lots",
             "add-lotslot": "Add Lot/Slot",
             subscription: "Subscription Plans",
@@ -138,7 +138,7 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                                         <p className="text-sm font-bold text-gray-900 truncate">{displayVendorName}</p>
                                         <p className="text-xs text-gray-500 truncate break-all mt-0.5" title={vendor?.email}>{vendor?.email}</p>
                                     </div>
-                                    <Link to="/b2b-vendor/settings/profile" onClick={() => setShowUserMenu(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                                    <Link to="/b2b-vendor/profile" onClick={() => setShowUserMenu(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
                                         <FiUser className="text-lg" />
                                         <span className="font-medium">My Profile</span>
                                     </Link>

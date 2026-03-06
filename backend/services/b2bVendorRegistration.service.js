@@ -8,6 +8,7 @@ import razorpayService from './razorpay.service.js';
 import notificationService from './notification.service.js';
 import mongoose from 'mongoose';
 import { geocodeAddress } from '../utils/geocoding.util.js';
+import { ensureReferralCodeForOwner } from './referral.service.js';
 
 /**
  * Register B2B vendor without immediate subscription/payment
@@ -220,6 +221,7 @@ export const registerB2BVendor = async (vendorData) => {
     }
 
     await session.commitTransaction();
+    await ensureReferralCodeForOwner({ userId: createdVendor._id, userModel: 'Vendor' });
 
     // Generate token
     const token = generateToken({
@@ -603,6 +605,7 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
 
     // Commit transaction
     await session.commitTransaction();
+    await ensureReferralCodeForOwner({ userId: createdVendor._id, userModel: 'Vendor' });
 
     // Verify data was saved after commit (outside transaction)
     const finalVendor = await Vendor.findById(createdVendor._id).lean();

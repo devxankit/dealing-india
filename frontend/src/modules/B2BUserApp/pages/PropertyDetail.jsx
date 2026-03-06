@@ -258,19 +258,43 @@ const PropertyDetail = () => {
                                 <span className="h-[2px] w-8 md:w-12 bg-primary-600"></span>
                                 <h2 className="text-xl md:text-3xl font-black text-gray-900 uppercase tracking-tighter">Specifications</h2>
                             </div>
+                            {Array.isArray(property.flatVariants) && property.flatVariants.length > 0 && (
+                                <div className="mb-6">
+                                    <h4 className="text-[10px] md:text-xs font-black text-primary-600 uppercase tracking-widest mb-3">Flat Variants</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {property.flatVariants.map((fv, idx) => (
+                                            <div key={idx} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-1">
+                                                <div className="text-xs font-black text-gray-900 uppercase">{fv.flatType || `Variant ${idx + 1}`}</div>
+                                                <div className="text-[10px] text-gray-500 font-bold uppercase">
+                                                    {fv.builtUpArea ? `Built-up: ${fv.builtUpArea} ${fv.carpetAreaUnit || ''}` : 'Built-up N/A'}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500 font-bold uppercase">
+                                                    {fv.commonArea ? `Common: ${fv.commonArea} ${fv.carpetAreaUnit || ''}` : 'Common N/A'}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500 font-bold uppercase">
+                                                    {fv.floorNumber ? `Floor ${fv.floorNumber}/${fv.totalFloors || 'NA'}` : 'Floor N/A'}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500 font-bold uppercase">
+                                                    {fv.possessionType || 'Possession N/A'}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
                                 {[
                                     {
                                         label: 'Built up Area',
-                                        val: (property.specifications?.builtUpArea || property.plotDetails?.builtUpArea)
-                                            ? `${property.specifications?.builtUpArea || property.plotDetails?.builtUpArea} ${property.specifications?.builtUpAreaUnit || property.plotDetails?.builtUpAreaUnit || ''}`
+                                        val: (property.specifications?.builtUpArea || property.flatDetails?.builtUpArea || property.plotDetails?.builtUpArea)
+                                            ? `${property.specifications?.builtUpArea || property.flatDetails?.builtUpArea || property.plotDetails?.builtUpArea} ${property.specifications?.builtUpAreaUnit || property.flatDetails?.carpetAreaUnit || property.plotDetails?.builtUpAreaUnit || ''}`
                                             : null,
                                         icon: <FiMaximize />
                                     },
                                     {
-                                        label: 'Carpet Area',
-                                        val: (property.specifications?.carpetArea || property.flatDetails?.carpetArea)
-                                            ? `${property.specifications?.carpetArea || property.flatDetails?.carpetArea} ${property.specifications?.carpetAreaUnit || property.flatDetails?.carpetAreaUnit || ''}`
+                                        label: 'Common Area',
+                                        val: (property.flatDetails?.commonArea || property.plotDetails?.commonArea)
+                                            ? `${property.flatDetails?.commonArea || property.plotDetails?.commonArea} ${property.flatDetails?.carpetAreaUnit || property.plotDetails?.builtUpAreaUnit || ''}`
                                             : null,
                                         icon: <FiMaximize />
                                     },
@@ -286,6 +310,7 @@ const PropertyDetail = () => {
                                     { label: 'Bathrooms', val: property.plotDetails?.bathrooms, icon: <FiUnlock /> },
                                     { label: 'Balcony', val: property.plotDetails?.balcony, icon: <FiLayers /> },
                                     { label: 'Terrace', val: property.plotDetails?.terrace, icon: <FiLayers /> },
+                                    { label: 'Possession', val: property.flatDetails?.possessionType || property.plotDetails?.possessionType, icon: <FiHome /> },
                                     { label: 'Age of Prop.', val: property.status?.propertyCondition || property.flatDetails?.ageOfProperty || property.plotDetails?.ageOfProperty, icon: <FiClock /> },
                                     { label: 'Furnishing', val: property.status?.furnishing || property.flatDetails?.furnishing || property.plotDetails?.furnishing, icon: <FiBox /> },
                                 ].map((spec, i) => spec.val && (
@@ -328,7 +353,8 @@ const PropertyDetail = () => {
                                             { label: 'CCTV', val: fa.cctv, icon: <FiActivity /> },
                                             { label: 'Swimming Pool', val: fa.swimmingPool, icon: <FiActivity /> },
                                             { label: 'Gym', val: fa.gym, icon: <FiActivity /> },
-                                            { label: 'Garden', val: fa.garden, icon: <FiActivity /> }
+                                            { label: 'Garden', val: fa.garden, icon: <FiActivity /> },
+                                            { label: 'Game Zone', val: fa.gameZone, icon: <FiActivity /> }
                                         );
                                     }
                                     if (property.plotDetails?.privateFacilities) {

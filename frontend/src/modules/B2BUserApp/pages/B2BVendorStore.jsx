@@ -20,7 +20,7 @@ import B2BProductCard from "../components/B2BProductCard";
 import SecureDealModal from "../components/SecureDealModal";
 import api from "../../../shared/utils/api";
 import { useAuthStore } from "../../../shared/store/authStore";
-import { getGoogleMapsUrl } from "../../../shared/utils/helpers";
+import { getGoogleMapsUrl, maskPhone } from "../../../shared/utils/helpers";
 import RealEstateCard from "../components/RealEstateCard";
 import toast from "../../../shared/utils/toast";
 
@@ -334,10 +334,7 @@ const B2BVendorStore = () => {
                         <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[240px] pt-4 md:pt-0">
                             {vendor.phone && (
                                 <p className="text-[12px] md:text-sm font-black text-gray-900 uppercase tracking-widest text-center md:text-right px-4 mb-1">
-                                    PH: +91 {(() => {
-                                        const p = String(vendor.phone).replace(/\D/g, "").slice(-10);
-                                        return p.length >= 4 ? `${p.substring(0, 2)}******${p.substring(p.length - 2)}` : vendor.phone;
-                                    })()}
+                                    PH: +91 {maskPhone(vendor.phone, 2)}
                                 </p>
                             )}
                             {vendor.phone && (
@@ -365,10 +362,10 @@ const B2BVendorStore = () => {
                             {vendor.phone && (
                                 <button
                                     onClick={() => {
-                                        const mapsUrl = getGoogleMapsUrl(vendor);
-                                        if (mapsUrl) window.open(mapsUrl, '_blank');
-                                        else toast.error('Location details not provided');
-                                    }}
+                                    const mapsUrl = getGoogleMapsUrl(shopListing?.mapUrl ? { mapUrl: shopListing.mapUrl } : (vendor.shopUnit || vendor));
+                                    if (mapsUrl) window.open(mapsUrl, '_blank');
+                                    else toast.error('Location details not provided');
+                                }}
                                     className="w-full px-8 py-5 md:py-6 bg-orange-600 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-orange-700 transition-all shadow-xl shadow-orange-100/50 flex items-center justify-center gap-3 active:scale-95"
                                 >
                                     <FiMapPin size={20} />
@@ -423,7 +420,7 @@ const B2BVendorStore = () => {
                                         <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-2 opacity-70">{contact.post || 'Staff'}</p>
                                         {contact.mobile && (
                                             <div className="flex items-center gap-3">
-                                                <p className="text-[11px] font-bold text-gray-500">+91 {contact.mobile}</p>
+                                                <p className="text-[11px] font-bold text-gray-500">+91 {maskPhone(contact.mobile, 2)}</p>
                                                 <a
                                                     href={`https://wa.me/91${String(contact.mobile).replace(/\D/g, '')}`}
                                                     target="_blank"

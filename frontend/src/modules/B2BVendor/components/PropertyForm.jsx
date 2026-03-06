@@ -5,10 +5,13 @@ import { useNavigate } from "react-router-dom";
 import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
+import MapPickerModal from "../../../shared/components/MapPickerModal";
+import { getGoogleMapsUrl } from "../../../shared/utils/helpers";
 
 const PropertyForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
     const [step, setStep] = useState(1);
     const [media, setMedia] = useState([]); // { url, data, name }
 
@@ -282,6 +285,14 @@ const PropertyForm = ({ initialData, isEdit }) => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleMapPicked = ({ mapUrl }) => {
+        setFormData(prev => ({
+            ...prev,
+            location: { ...prev.location, mapUrl }
+        }));
+        toast.success("Location updated");
     };
 
     const steps = [
@@ -806,7 +817,27 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                 <input name="location.city" placeholder="City" value={formData.location.city} onChange={handleChange} className="input-field" />
                                 <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="input-field" />
                                 <div className="md:col-span-2">
-                                    <input name="location.mapUrl" placeholder="Google Map URL" value={formData.location.mapUrl} onChange={handleChange} className="input-field" />
+                                    <div className="flex items-center gap-2">
+                                        <input name="location.mapUrl" placeholder="Google Map URL" value={formData.location.mapUrl} onChange={handleChange} className="input-field flex-1" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsMapPickerOpen(true)}
+                                            className="px-4 py-3 bg-primary-50 text-primary-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-primary-100 hover:bg-primary-100 transition-all whitespace-nowrap"
+                                        >
+                                            Select Location
+                                        </button>
+                                    </div>
+                                    {getGoogleMapsUrl({ location: formData.location }) && (
+                                        <div className="mt-3 rounded-xl overflow-hidden border border-slate-200">
+                                            <iframe
+                                                src={getGoogleMapsUrl({ location: formData.location })}
+                                                title="Selected Property Location"
+                                                className="w-full h-64"
+                                                loading="lazy"
+                                                referrerPolicy="no-referrer-when-downgrade"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>
@@ -871,6 +902,12 @@ const PropertyForm = ({ initialData, isEdit }) => {
                     )}
                 </div>
             </div>
+
+            <MapPickerModal
+                isOpen={isMapPickerOpen}
+                onClose={() => setIsMapPickerOpen(false)}
+                onSelect={handleMapPicked}
+            />
 
             <style>{`
                 .input-field {

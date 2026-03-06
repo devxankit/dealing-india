@@ -109,12 +109,27 @@ const RealEstate = () => {
                 // Fallback client-side filter for mixed legacy data (Plot used for Villa).
                 if (selectedPropertyType !== 'All') {
                     const selected = selectedPropertyType.toLowerCase();
+                    const normalizedSelectedFlatType = String(selectedFlatType || 'All').replace(/\s+/g, '').toUpperCase();
                     nextProperties = nextProperties.filter((property) => {
                         const type = String(property?.propertyType || '').toLowerCase();
+                        const propertyFlatType = String(property?.flatDetails?.flatType || '').replace(/\s+/g, '').toUpperCase();
+                        const variantTypes = Array.isArray(property.flatVariants)
+                            ? property.flatVariants.map(v => String(v.flatType || '').replace(/\s+/g, '').toUpperCase())
+                            : [];
 
                         // Priority 1: Explicit Match
                         if (selected === 'villa' && (type === 'villa' || type === 'plot')) return true;
-                        if (selected === 'flat' && type === 'flat') return true;
+                        if (selected === 'flat') {
+                            const isFlatProperty =
+                                type === 'flat' ||
+                                property?.flatDetails?.builtUpArea > 0 ||
+                                property?.flatDetails?.carpetArea > 0 ||
+                                !!property?.flatDetails?.flatType ||
+                                (Array.isArray(property?.flatVariants) && property.flatVariants.length > 0);
+                            if (!isFlatProperty) return false;
+                            if (normalizedSelectedFlatType === 'ALL') return true;
+                            return propertyFlatType === normalizedSelectedFlatType || variantTypes.includes(normalizedSelectedFlatType);
+                        }
 
                         // Priority 2: Commercial Group
                         const commercialTypes = ['shop', 'office', 'showroom', 'godown', 'factory', 'commercial building', 'commercial'];
@@ -122,7 +137,6 @@ const RealEstate = () => {
 
                         // Priority 3: Structural Match (for legacy/missing types)
                         if (selected === 'villa' && property?.plotDetails?.plotArea > 0) return true;
-                        if (selected === 'flat' && property?.flatDetails?.carpetArea > 0) return true;
 
                         return type === selected;
                     });
@@ -186,7 +200,7 @@ const RealEstate = () => {
             fetchProperties();
         }, 500);
         return () => clearTimeout(timeoutId);
-    }, [searchQuery, selectedCity, selectedArea, selectedMarket, selectedPropertyType, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType, selectedVendorId, sortBy, sortOrder]);
+    }, [searchQuery, selectedCity, selectedArea, selectedMarket, selectedPropertyType, selectedFlatType, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType, selectedVendorId, sortBy, sortOrder]);
 
     // Sync URL searchParams to local state for back/forward navigation and external links
     useEffect(() => {
@@ -497,7 +511,7 @@ const RealEstate = () => {
                     onClick={() => toggleSection('businessType')}
                     className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
                 >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Property By</h3>
+                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Business Category</h3>
                     <FiChevronDown className={`text-gray-400 transition-transform ${openSections.businessType ? 'rotate-180' : ''}`} />
                 </button>
                 <AnimatePresence>

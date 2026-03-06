@@ -1,17 +1,53 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FiArrowLeft, FiPlus, FiTrash2, FiCheck } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
+import MapPickerModal from "../../../shared/components/MapPickerModal";
 
 const FlatForm = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
     const [step, setStep] = useState(1);
     const [media, setMedia] = useState([]);
 
+    const baseFlat = {
+        flatType: '',
+        builtUpArea: '',
+        commonArea: '',
+        possessionType: 'Ready to Move',
+        carpetAreaUnit: 'Sq. Ft.',
+        floorNumber: '',
+        totalFloors: '',
+        furnishing: 'Unfurnished',
+        ageOfProperty: '',
+        amenities: {
+            lift: 'No',
+            parking: ['Ground Parking'],
+            security: 'No',
+            cctv: 'No',
+            powerBackup: 'No',
+            waterSupply: ['Municipal'],
+            gasPipeline: 'No',
+            swimmingPool: 'No',
+            gym: 'No',
+            garden: 'No',
+            childrenPlayArea: 'No',
+            clubHouse: 'No',
+            temple: 'No',
+            societyOffice: 'No',
+            gameZone: 'No'
+        },
+        legal: {
+            loanAvailable: 'No',
+            reraApproved: 'No'
+        }
+    };
+
+    const [flatVariants, setFlatVariants] = useState([baseFlat]);
     const [formData, setFormData] = useState({
         title: '',
         listingType: 'Rent',
@@ -41,38 +77,7 @@ const FlatForm = () => {
         },
 
         // Flat Specific Details
-        flatDetails: {
-            flatType: '2BHK',
-            carpetArea: '',
-            carpetAreaUnit: 'Sq. Ft.',
-            floorNumber: '',
-            totalFloors: '',
-            furnishing: 'Unfurnished',
-            ageOfProperty: '',
-            amenities: {
-                lift: 'No',
-                parking: 'Open',
-                security: 'No',
-                cctv: 'No',
-                powerBackup: 'No',
-                waterSupply: ['Municipal'],
-                gasPipeline: 'No',
-                swimmingPool: 'No',
-                gym: 'No',
-                garden: 'No',
-                childrenPlayArea: 'No',
-                clubHouse: 'No',
-                temple: 'No',
-                societyOffice: 'No'
-            },
-            legal: {
-                loanAvailable: 'No',
-                reraApproved: 'No',
-                maintenanceCharges: '',
-                propertyTaxStatus: ''
-            }
-        },
-
+        flatDetails: { ...baseFlat },
         location: {
             address: '',
             area: '',
@@ -82,18 +87,102 @@ const FlatForm = () => {
         }
     });
 
-    const handleChange = (e) => {
+    useEffect(() => {
+        // keep primary flatDetails in sync with first variant
+        setFormData(prev => ({ ...prev, flatDetails: { ...flatVariants[0] } }));
+    }, [flatVariants]);
+
+    const addVariant = () => {
+        if (flatVariants.length >= 6) return;
+        setFlatVariants(prev => [...prev, { ...baseFlat }]);
+    };
+
+    const removeVariant = (idx) => {
+        if (flatVariants.length === 1) return;
+        const next = flatVariants.filter((_, i) => i !== idx);
+        setFlatVariants(next);
+    };
+
+    const updateVariant = (idx, updater) => {
+        setFlatVariants(prev => {
+            const next = [...prev];
+            next[idx] = typeof updater === 'function' ? updater(next[idx] || {}) : updater;
+            return next;
+        });
+    };
+
+    const handleChange = (e, variantIndex = 0) => {
         const { name, value } = e.target;
         if (name.includes('.')) {
             const parts = name.split('.');
             if (parts.length === 2) {
                 const [parent, child] = parts;
-                setFormData(prev => ({
-                    ...prev,
-                    [parent]: { ...prev[parent], [child]: value }
-                }));
+                if (parent === 'flatDetails') {
+                    if (variantIndex === 0) {
+                        setFormData(prev => ({
+                            ...prev,
+                            [parent]: { ...prev[parent], [child]: value }
+                        }));
+                        updateVariant(0, v => ({ ...v, [child]: value }));
+                    } else {
+                        updateVariant(variantIndex, v => ({ ...v, [child]: value }));
+                    }
+                } else {
+                    setFormData(prev => ({
+                        ...prev,
+                        [parent]: { ...prev[parent], [child]: value }
+                    }));
+                }
             } else if (parts.length === 3) {
                 const [grandparent, parent, child] = parts;
+                if (grandparent === 'flatDetails') {
+                    if (variantIndex === 0) {
+                        setFormData(prev => ({
+                            ...prev,
+                            [grandparent]: {
+                                ...prev[grandparent],
+                                [parent]: { ...prev[grandparent][parent], [child]: value }
+                            }
+                        }));
+                    }
+                    updateVariant(variantIndex, v => ({
+                        ...v,
+                        [parent]: { ...(v[parent] || {}), [child]: value }
+                    }));
+                } else {
+                    setFormData(prev => ({
+                        ...prev,
+                        [grandparent]: {
+                            ...prev[grandparent],
+                            [parent]: { ...prev[grandparent][parent], [child]: value }
+                        }
+                    }));
+                }
+            }
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
+    };
+
+    const handleToggle = (name, value, variantIndex = 0) => {
+        const parts = name.split('.');
+        if (parts.length === 3) {
+            const [grandparent, parent, child] = parts;
+            if (grandparent === 'flatDetails') {
+                if (variantIndex === 0) {
+                    setFormData(prev => ({
+                        ...prev,
+                        [grandparent]: {
+                            ...prev[grandparent],
+                            [parent]: { ...prev[grandparent][parent], [child]: value }
+                        }
+                    }));
+                }
+                updateVariant(variantIndex, v => ({
+                    ...v,
+                    [parent]: { ...(v[parent] || {}), [child]: value }
+                }));
+            } else {
                 setFormData(prev => ({
                     ...prev,
                     [grandparent]: {
@@ -102,28 +191,22 @@ const FlatForm = () => {
                     }
                 }));
             }
-        } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
-        }
-    };
-
-    const handleToggle = (name, value) => {
-        const parts = name.split('.');
-        if (parts.length === 3) {
-            const [grandparent, parent, child] = parts;
-            setFormData(prev => ({
-                ...prev,
-                [grandparent]: {
-                    ...prev[grandparent],
-                    [parent]: { ...prev[grandparent][parent], [child]: value }
-                }
-            }));
         } else if (parts.length === 2) {
             const [parent, child] = parts;
-            setFormData(prev => ({
-                ...prev,
-                [parent]: { ...prev[parent], [child]: value }
-            }));
+            if (parent === 'flatDetails') {
+                if (variantIndex === 0) {
+                    setFormData(prev => ({
+                        ...prev,
+                        [parent]: { ...prev[parent], [child]: value }
+                    }));
+                }
+                updateVariant(variantIndex, v => ({ ...v, [child]: value }));
+            } else {
+                setFormData(prev => ({
+                    ...prev,
+                    [parent]: { ...prev[parent], [child]: value }
+                }));
+            }
         }
     };
 
@@ -174,16 +257,25 @@ const FlatForm = () => {
             setLoading(true);
 
             // Deep copy and format numerical fields
-            const payload = {
-                ...formData,
-                flatDetails: {
-                    ...formData.flatDetails,
-                    carpetArea: parseNumber(formData.flatDetails.carpetArea),
-                    floorNumber: parseNumber(formData.flatDetails.floorNumber),
-                    totalFloors: parseNumber(formData.flatDetails.totalFloors),
-                },
-                media: media.map(m => ({ url: m.data }))
-            };
+        const normalizedVariants = flatVariants
+            .map(v => ({
+                ...v,
+                builtUpArea: parseNumber(v.builtUpArea),
+                carpetArea: parseNumber(v.builtUpArea),
+                commonArea: parseNumber(v.commonArea),
+                floorNumber: parseNumber(v.floorNumber),
+                totalFloors: parseNumber(v.totalFloors),
+            }))
+            .filter(v => String(v.flatType || '').trim() !== '');
+
+        const payload = {
+            ...formData,
+            flatDetails: {
+                ...(normalizedVariants[0] || flatVariants[0]),
+            },
+            flatVariants: normalizedVariants,
+            media: media.map(m => ({ url: m.data }))
+        };
 
             const response = await api.post('/property/add', payload);
             if (response.success) {
@@ -223,7 +315,20 @@ const FlatForm = () => {
         </div>
     );
 
+    const handleSelectLocation = () => {
+        setIsMapPickerOpen(true);
+    };
+
+    const handleMapPicked = ({ mapUrl }) => {
+        setFormData(prev => ({
+            ...prev,
+            location: { ...prev.location, mapUrl }
+        }));
+        toast.success("Selected location added");
+    };
+
     return (
+        <>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-5xl mx-auto p-4 md:p-6 space-y-6 md:space-y-8 pb-20">
             {/* Header */}
             <div className="flex items-center gap-4">
@@ -276,49 +381,93 @@ const FlatForm = () => {
                     )}
 
                     {step === 2 && (
-                        <motion.div key="step2" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
-                            <div className="text-xl font-black text-slate-900 uppercase">Flat Details</div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Flat Type</label>
-                                    <select name="flatDetails.flatType" value={formData.flatDetails.flatType} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
-                                        {['1BHK', '2BHK', '3BHK', '4BHK', '5BHK', '6BHK'].map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
+                        <motion.div key="step2" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-6">
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="text-xl font-black text-slate-900 uppercase">Flat Details</div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={addVariant}
+                                        disabled={flatVariants.length >= 6}
+                                        className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
+                                    >
+                                        + Add BHK (Max 6)
+                                    </button>
                                 </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Carpet Area</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <input type="text" name="flatDetails.carpetArea" value={formData.flatDetails.carpetArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1200" />
-                                        <select name="flatDetails.carpetAreaUnit" value={formData.flatDetails.carpetAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
-                                            {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
-                                        </select>
+                            </div>
+
+                            <div className="space-y-4">
+                                {flatVariants.map((flat, idx) => (
+                                    <div key={idx} className="border border-gray-100 rounded-2xl p-4 md:p-6 shadow-sm space-y-4 bg-white">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[11px] font-black text-gray-700 uppercase tracking-widest">BHK Option {idx + 1}</span>
+                                            {flatVariants.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeVariant(idx)}
+                                                    className="text-red-500 text-xs font-black uppercase tracking-widest hover:text-red-700"
+                                                >
+                                                    Remove
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase">Flat Type</label>
+                                                <select name="flatDetails.flatType" value={flat.flatType} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
+                                                    {['', '1BHK', '2BHK', '3BHK', '4BHK', '5BHK', '6BHK'].map(t => <option key={t || 'none'} value={t}>{t || 'Select'}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase">Built-up Area</label>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <input type="text" name="flatDetails.builtUpArea" value={flat.builtUpArea} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1200" />
+                                                    <select name="flatDetails.carpetAreaUnit" value={flat.carpetAreaUnit} onChange={(e) => handleChange(e, idx)} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
+                                                        {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase">Common Area</label>
+                                                <input type="text" name="flatDetails.commonArea" value={flat.commonArea} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 200" />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase">Possession Type</label>
+                                                <select name="flatDetails.possessionType" value={flat.possessionType} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
+                                                    {['Ready to Move', 'Under Construction'].map(t => <option key={t} value={t}>{t}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase">Floor Number</label>
+                                                    <input type="text" name="flatDetails.floorNumber" value={flat.floorNumber} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 5" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase">Total Floors</label>
+                                                    <input type="text" name="flatDetails.totalFloors" value={flat.totalFloors} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 15" />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase">Furnishing</label>
+                                                <select name="flatDetails.furnishing" value={flat.furnishing} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
+                                                    {['Unfurnished', 'Semi Furnished', 'Fully Furnished'].map(t => <option key={t} value={t}>{t}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase">Age of Property</label>
+                                                <select name="flatDetails.ageOfProperty" value={flat.ageOfProperty} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-600">
+                                                    <option value="">Select</option>
+                                                    <option value="New">New</option>
+                                                    <option value="0-5 years">0-5 years</option>
+                                                    <option value="5-10 years">5-10 years</option>
+                                                    <option value="10+ years">10+ years</option>
+                                                    <option value="Under Construction">Under Construction</option>
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase">Floor Number</label>
-                                        <input type="text" name="flatDetails.floorNumber" value={formData.flatDetails.floorNumber} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 5" />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase">Total Floors</label>
-                                        <input type="text" name="flatDetails.totalFloors" value={formData.flatDetails.totalFloors} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 15" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Furnishing</label>
-                                    <select name="flatDetails.furnishing" value={formData.flatDetails.furnishing} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
-                                        {['Unfurnished', 'Semi Furnished', 'Fully Furnished'].map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Age of Property</label>
-                                    <select name="flatDetails.ageOfProperty" value={formData.flatDetails.ageOfProperty} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-600">
-                                        <option value="New">New</option>
-                                        <option value="0-5 years">0-5 years</option>
-                                        <option value="5-10 years">5-10 years</option>
-                                        <option value="10+ years">10+ years</option>
-                                    </select>
-                                </div>
+                                ))}
                             </div>
                         </motion.div>
                     )}
@@ -392,33 +541,33 @@ const FlatForm = () => {
                                             <span className="text-[10px] font-black uppercase">Lift</span>
                                             <div className="w-32">{renderToggle('flatDetails.amenities.lift', formData.flatDetails.amenities.lift)}</div>
                                         </div>
-                                        <div className="flex flex-col gap-2">
-                                            <span className="text-[10px] font-black uppercase">Parking</span>
-                                            <div className="flex gap-1 flex-wrap">
-                                                {['Ground Parking', 'Basement 1', 'Basement 2', 'Open', 'Covered'].map(type => (
-                                                    <label
-                                                        key={type}
-                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black border cursor-pointer transition-all ${(Array.isArray(formData.flatDetails.amenities.parking) ? formData.flatDetails.amenities.parking : [formData.flatDetails.amenities.parking]).includes(type)
-                                                            ? 'bg-primary-600 text-white border-primary-600'
-                                                            : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
-                                                            }`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            className="hidden"
-                                                            checked={(Array.isArray(formData.flatDetails.amenities.parking) ? formData.flatDetails.amenities.parking : [formData.flatDetails.amenities.parking]).includes(type)}
-                                                            onChange={() => {
-                                                                const current = Array.isArray(formData.flatDetails.amenities.parking) ? formData.flatDetails.amenities.parking : (formData.flatDetails.amenities.parking ? [formData.flatDetails.amenities.parking] : []);
-                                                                const next = current.includes(type) ? current.filter(t => t !== type) : [...current, type];
-                                                                handleToggle('flatDetails.amenities.parking', next);
-                                                            }}
-                                                        />
-                                                        {type}
-                                                    </label>
-                                                ))}
-                                            </div>
+                                    <div className="flex flex-col gap-2">
+                                        <span className="text-[10px] font-black uppercase">Parking</span>
+                                        <div className="flex gap-1 flex-wrap">
+                                            {['Ground Parking', 'Basement 1', 'Basement 2'].map(type => (
+                                                <label
+                                                    key={type}
+                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black border cursor-pointer transition-all ${(Array.isArray(formData.flatDetails.amenities.parking) ? formData.flatDetails.amenities.parking : [formData.flatDetails.amenities.parking]).includes(type)
+                                                        ? 'bg-primary-600 text-white border-primary-600'
+                                                        : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
+                                                        }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        className="hidden"
+                                                        checked={(Array.isArray(formData.flatDetails.amenities.parking) ? formData.flatDetails.amenities.parking : [formData.flatDetails.amenities.parking]).includes(type)}
+                                                        onChange={() => {
+                                                            const current = Array.isArray(formData.flatDetails.amenities.parking) ? formData.flatDetails.amenities.parking : (formData.flatDetails.amenities.parking ? [formData.flatDetails.amenities.parking] : []);
+                                                            const next = current.includes(type) ? current.filter(t => t !== type) : [...current, type];
+                                                            handleToggle('flatDetails.amenities.parking', next, 0);
+                                                        }}
+                                                    />
+                                                    {type}
+                                                </label>
+                                            ))}
                                         </div>
-                                        {['security', 'cctv', 'powerBackup', 'gasPipeline'].map(field => (
+                                    </div>
+                                        {['security', 'cctv', 'powerBackup', 'gasPipeline', 'gameZone'].map(field => (
                                             <div key={field} className="flex items-center justify-between">
                                                 <span className="text-[10px] font-black uppercase">{field.replace(/([A-Z])/g, ' $1')}</span>
                                                 <div className="w-32">{renderToggle(`flatDetails.amenities.${field}`, formData.flatDetails.amenities[field])}</div>
@@ -435,48 +584,55 @@ const FlatForm = () => {
                                                             : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
                                                             }`}
                                                     >
-                                                        <input
-                                                            type="checkbox"
-                                                            className="hidden"
-                                                            checked={(Array.isArray(formData.flatDetails.amenities.waterSupply) ? formData.flatDetails.amenities.waterSupply : [formData.flatDetails.amenities.waterSupply]).includes(type)}
-                                                            onChange={() => {
-                                                                const current = Array.isArray(formData.flatDetails.amenities.waterSupply) ? formData.flatDetails.amenities.waterSupply : [formData.flatDetails.amenities.waterSupply];
-                                                                let updated;
-                                                                if (type === 'No') {
-                                                                    updated = ['No'];
+                                                    <input
+                                                        type="checkbox"
+                                                        className="hidden"
+                                                        checked={(Array.isArray(formData.flatDetails.amenities.waterSupply) ? formData.flatDetails.amenities.waterSupply : [formData.flatDetails.amenities.waterSupply]).includes(type)}
+                                                        onChange={() => {
+                                                            const current = Array.isArray(formData.flatDetails.amenities.waterSupply) ? formData.flatDetails.amenities.waterSupply : [formData.flatDetails.amenities.waterSupply];
+                                                            let updated;
+                                                            if (type === 'No') {
+                                                                updated = ['No'];
+                                                            } else {
+                                                                const withoutNo = current.filter(t => t !== 'No');
+                                                                if (withoutNo.includes(type)) {
+                                                                    updated = withoutNo.filter(t => t !== type);
                                                                 } else {
-                                                                    const withoutNo = current.filter(t => t !== 'No');
-                                                                    if (withoutNo.includes(type)) {
-                                                                        updated = withoutNo.filter(t => t !== type);
-                                                                    } else {
-                                                                        updated = [...withoutNo, type];
-                                                                    }
-                                                                    if (updated.length === 0) updated = ['No'];
+                                                                    updated = [...withoutNo, type];
                                                                 }
-                                                                setFormData(prev => ({
-                                                                    ...prev,
-                                                                    flatDetails: {
-                                                                        ...prev.flatDetails,
-                                                                        amenities: {
-                                                                            ...prev.flatDetails.amenities,
-                                                                            waterSupply: updated
-                                                                        }
+                                                                if (updated.length === 0) updated = ['No'];
+                                                            }
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                flatDetails: {
+                                                                    ...prev.flatDetails,
+                                                                    amenities: {
+                                                                        ...prev.flatDetails.amenities,
+                                                                        waterSupply: updated
                                                                     }
-                                                                }));
-                                                            }}
-                                                        />
-                                                        {type}
-                                                    </label>
-                                                ))}
-                                            </div>
+                                                                }
+                                                            }));
+                                                            updateVariant(0, v => ({
+                                                                ...v,
+                                                                amenities: {
+                                                                    ...(v.amenities || {}),
+                                                                    waterSupply: updated
+                                                                }
+                                                            }));
+                                                        }}
+                                                    />
+                                                    {type}
+                                                </label>
+                                            ))}
                                         </div>
+                                    </div>
                                     </div>
                                 </div>
 
                                 <div className="space-y-4">
                                     <h4 className="text-[10px] font-black uppercase text-primary-600">Premium Amenities</h4>
                                     <div className="grid grid-cols-1 gap-4">
-                                        {['swimmingPool', 'gym', 'garden', 'childrenPlayArea', 'clubHouse', 'temple', 'societyOffice'].map(field => (
+                                        {['swimmingPool', 'gym', 'garden', 'childrenPlayArea', 'clubHouse', 'temple', 'societyOffice', 'gameZone'].map(field => (
                                             <div key={field} className="flex items-center justify-between">
                                                 <span className="text-[10px] font-black uppercase">{field.replace(/([A-Z])/g, ' $1')}</span>
                                                 <div className="w-32">{renderToggle(`flatDetails.amenities.${field}`, formData.flatDetails.amenities[field])}</div>
@@ -494,16 +650,16 @@ const FlatForm = () => {
                                 <div className="space-y-6">
                                     <div className="text-xl font-black text-slate-900 uppercase">Legal & Financial</div>
                                     <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black uppercase">Loan Available</span>
-                                            <div className="w-32">{renderToggle('flatDetails.legal.loanAvailable', formData.flatDetails.legal.loanAvailable)}</div>
-                                        </div>
+                                        {formData.listingType === 'Sale' && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-black uppercase">Loan Available</span>
+                                                <div className="w-32">{renderToggle('flatDetails.legal.loanAvailable', formData.flatDetails.legal.loanAvailable)}</div>
+                                            </div>
+                                        )}
                                         <div className="flex items-center justify-between">
                                             <span className="text-[10px] font-black uppercase">RERA Approved</span>
                                             <div className="w-32">{renderToggle('flatDetails.legal.reraApproved', formData.flatDetails.legal.reraApproved)}</div>
                                         </div>
-                                        <input type="text" name="flatDetails.legal.maintenanceCharges" placeholder="Maintenance Charges" value={formData.flatDetails.legal.maintenanceCharges} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
-                                        <input type="text" name="flatDetails.legal.propertyTaxStatus" placeholder="Property Tax Status" value={formData.flatDetails.legal.propertyTaxStatus} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
                                     </div>
 
                                     <div className="text-xl font-black text-slate-900 uppercase pt-4">Location</div>
@@ -514,13 +670,22 @@ const FlatForm = () => {
                                             <input name="location.area" placeholder="Area" value={formData.location.area} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                             <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                         </div>
-                                        <input
-                                            name="location.mapUrl"
-                                            placeholder="Google Map URL"
-                                            value={formData.location.mapUrl}
-                                            onChange={handleChange}
-                                            className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs"
-                                        />
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                name="location.mapUrl"
+                                                placeholder="Google Map URL"
+                                                value={formData.location.mapUrl}
+                                                onChange={handleChange}
+                                                className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs flex-1"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleSelectLocation}
+                                                className="px-3 py-3 bg-primary-50 text-primary-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-primary-100 hover:bg-primary-100 transition-all disabled:opacity-60"
+                                            >
+                                                Select Location
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -563,6 +728,12 @@ const FlatForm = () => {
                 </div>
             </div>
         </motion.div>
+        <MapPickerModal
+            isOpen={isMapPickerOpen}
+            onClose={() => setIsMapPickerOpen(false)}
+            onSelect={handleMapPicked}
+        />
+        </>
     );
 };
 

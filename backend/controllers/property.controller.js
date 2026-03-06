@@ -8,7 +8,9 @@ import ShopUnit from '../models/ShopUnit.model.js';
 
 const DEFAULT_FLAT_DETAILS = {
     flatType: '2BHK',
-    carpetArea: 0,
+    builtUpArea: 0,
+    commonArea: 0,
+    possessionType: 'Ready to Move',
     carpetAreaUnit: 'Sq. Ft.',
     floorNumber: 0,
     totalFloors: 0,
@@ -16,11 +18,11 @@ const DEFAULT_FLAT_DETAILS = {
     ageOfProperty: 'New',
     amenities: {
         lift: 'No',
-        parking: 'Open',
+        parking: ['Ground Parking'],
         security: 'No',
         cctv: 'No',
         powerBackup: 'No',
-        waterSupply: 'Municipal',
+        waterSupply: ['Municipal'],
         gasPipeline: 'No',
         swimmingPool: 'No',
         gym: 'No',
@@ -28,7 +30,8 @@ const DEFAULT_FLAT_DETAILS = {
         childrenPlayArea: 'No',
         clubHouse: 'No',
         temple: 'No',
-        societyOffice: 'No'
+        societyOffice: 'No',
+        gameZone: 'No'
     },
     legal: {
         loanAvailable: 'No',
@@ -37,11 +40,36 @@ const DEFAULT_FLAT_DETAILS = {
         propertyTaxStatus: ''
     }
 };
+const sanitizeFlatVariant = (variant = {}) => {
+    const num = (v) => {
+        if (v === null || v === undefined || v === '') return 0;
+        const parsed = parseFloat(v);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+    return {
+        ...DEFAULT_FLAT_DETAILS,
+        ...variant,
+        builtUpArea: num(variant.builtUpArea),
+        commonArea: num(variant.commonArea),
+        floorNumber: num(variant.floorNumber),
+        totalFloors: num(variant.totalFloors),
+        amenities: {
+            ...DEFAULT_FLAT_DETAILS.amenities,
+            ...(variant.amenities || {})
+        },
+        legal: {
+            ...DEFAULT_FLAT_DETAILS.legal,
+            ...(variant.legal || {})
+        }
+    };
+};
 
 const DEFAULT_PLOT_DETAILS = {
     plotArea: 0,
     plotAreaUnit: 'Sq. Ft.',
     builtUpArea: 0,
+    commonArea: 0,
+    possessionType: 'Ready to Move',
     builtUpAreaUnit: 'Sq. Ft.',
     floors: 'G+1',
     masterRoom: 'No',
@@ -60,11 +88,11 @@ const DEFAULT_PLOT_DETAILS = {
         servantRoom: 'No'
     },
     amenities: {
-        parking: 'Open',
+        parking: ['Ground Parking'],
         security: 'No',
         cctv: 'No',
         powerBackup: 'No',
-        waterSupply: 'Municipal',
+        waterSupply: ['Municipal'],
         gasPipeline: 'No',
         swimmingPool: 'No',
         gym: 'No',
@@ -72,7 +100,8 @@ const DEFAULT_PLOT_DETAILS = {
         childrenPlayArea: 'No',
         clubHouse: 'No',
         temple: 'No',
-        societyOffice: 'No'
+        societyOffice: 'No',
+        gameZone: 'No'
     },
     legal: {
         loanAvailable: 'No',
@@ -206,6 +235,20 @@ export const addProperty = asyncHandler(async (req, res) => {
             ...((propertyData.flatDetails || {}).legal || {})
         }
     };
+    const normalizedFlatVariants = Array.isArray(req.body.flatVariants)
+        ? req.body.flatVariants
+            .map(sanitizeFlatVariant)
+            .filter(v => String(v.flatType || '').trim() !== '')
+        : [];
+    if (normalizedFlatVariants.length > 0) {
+        propertyData.flatVariants = normalizedFlatVariants;
+        propertyData.flatDetails = {
+            ...propertyData.flatDetails,
+            ...normalizedFlatVariants[0]
+        };
+    } else if (String(propertyData.flatDetails?.flatType || '').trim() !== '') {
+        propertyData.flatVariants = [sanitizeFlatVariant(propertyData.flatDetails)];
+    }
     propertyData.plotDetails = {
         ...DEFAULT_PLOT_DETAILS,
         ...(propertyData.plotDetails || {}),
@@ -334,6 +377,18 @@ export const updateProperty = asyncHandler(async (req, res) => {
                 ...(updateData.flatDetails.legal || {})
             }
         };
+    }
+    if (Array.isArray(req.body.flatVariants)) {
+        const normalizedFlatVariants = req.body.flatVariants
+            .map(sanitizeFlatVariant)
+            .filter(v => String(v.flatType || '').trim() !== '');
+        updateData.flatVariants = normalizedFlatVariants;
+        if (normalizedFlatVariants.length > 0) {
+            updateData.flatDetails = {
+                ...(updateData.flatDetails || property.flatDetails || DEFAULT_FLAT_DETAILS),
+                ...normalizedFlatVariants[0]
+            };
+        }
     }
     if (updateData.plotDetails) {
         updateData.plotDetails = {
@@ -526,7 +581,18 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     if (listingType && listingType !== 'All') queryConditions.push({ listingType });
 
     if (flatType && flatType !== 'All') {
-        queryConditions.push({ 'flatDetails.flatType': flatType });
+        const normalizedFlatType = String(flatType).replace(/\s+/g, '').toUpperCase();
+        const bhkMatch = normalizedFlatType.match(/^(\d+)BHK$/);
+        const flatRegex = bhkMatch
+            ? new RegExp(`^\\s*${bhkMatch[1]}\\s*BHK\\s*$`, 'i')
+            : new RegExp(`^${String(flatType).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
+        queryConditions.push({
+            $or: [
+                { 'flatDetails.flatType': { $regex: flatRegex } },
+                { 'flatVariants.flatType': { $regex: flatRegex } }
+            ]
+        });
     }
 
     if (propertyType && propertyType !== 'All') {
@@ -544,6 +610,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
             queryConditions.push({
                 $or: [
                     { propertyType: { $regex: '^Flat$', $options: 'i' } },
+                    { 'flatDetails.builtUpArea': { $gt: 0 } },
                     { 'flatDetails.carpetArea': { $gt: 0 } },
                     { 'flatDetails.flatType': { $exists: true, $ne: '' } }
                 ]
@@ -552,9 +619,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
             queryConditions.push({
                 $or: [
                     { propertyType: { $in: ['Shop', 'Office', 'Showroom', 'Godown', 'Factory', 'Commercial Building'] } },
-                    { propertyTypes: { $in: ['Shop', 'Office', 'Showroom', 'Godown', 'Factory', 'Commercial Building'] } },
-                    { 'specifications.builtUpArea': { $exists: true } },
-                    { 'specifications.floorNumber': { $exists: true } }
+                    { propertyTypes: { $in: ['Shop', 'Office', 'Showroom', 'Godown', 'Factory', 'Commercial Building'] } }
                 ]
             });
         } else {

@@ -10,6 +10,7 @@ import SubscriptionService from './subscription.service.js';
 import notificationService from './notification.service.js';
 import { geocodeAddress } from '../utils/geocoding.util.js';
 import { normalizeAddress } from '../utils/addressNormalizer.util.js';
+import { ensureReferralCodeForOwner } from './referral.service.js';
 
 /**
  * Register a new vendor (temporary - only creates record after email verification)
@@ -626,6 +627,7 @@ export const verifyVendorEmail = async (email, otp) => {
     }
 
     const vendor = await Vendor.create(vendorData);
+    await ensureReferralCodeForOwner({ userId: vendor._id, userModel: 'Vendor' });
 
     // Notify admins about new vendor registration
     try {

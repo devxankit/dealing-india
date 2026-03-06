@@ -5,12 +5,25 @@ import { generateToken } from '../utils/jwt.util.js';
 import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } from './email.service.js';
 import { generateOTP, verifyOTP } from './otp.service.js';
 import notificationService from './notification.service.js';
+import {
+    ensureReferralCodeForOwner,
+    validateReferralCode,
+    processSuccessfulUserReferral,
+} from './referral.service.js';
 
 /**
  * Register a new user
  */
 export const registerUser = async (userData) => {
-    const { name, email, password, phone, userType, businessInfo } = userData;
+    const { name, email, password, phone, userType, businessInfo, referralCode } = userData;
+    const normalizedReferralCode = String(referralCode || '').trim().toUpperCase();
+
+    if (normalizedReferralCode) {
+        const validReferral = await validateReferralCode(normalizedReferralCode);
+        if (!validReferral) {
+            throw new Error('Invalid referral code');
+        }
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -32,7 +45,8 @@ export const registerUser = async (userData) => {
                 phone,
                 currentMarketplace: 'b2b',
                 businessInfo,
-                role: 'user'
+                role: 'user',
+                referralCode: normalizedReferralCode || undefined,
             },
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
             isVerified: false
@@ -72,6 +86,7 @@ export const verifyUserEmail = async (email, otp) => {
         // Check if user already exists (maybe already verified)
         const existingUser = await User.findOne({ email });
         if (existingUser && existingUser.isEmailVerified) {
+            await ensureReferralCodeForOwner({ userId: existingUser._id, userModel: 'User' });
             // Generate token for already verified user
             const token = generateToken({ id: existingUser._id, role: existingUser.role });
             return { user: existingUser, token };
@@ -87,6 +102,19 @@ export const verifyUserEmail = async (email, otp) => {
         isEmailVerified: true,
         isActive: true
     });
+
+    await ensureReferralCodeForOwner({ userId: user._id, userModel: 'User' });
+
+    if (registrationData?.referralCode) {
+        try {
+            await processSuccessfulUserReferral({
+                referredUserId: user._id,
+                referralCode: registrationData.referralCode,
+            });
+        } catch (referralError) {
+            console.error('Referral processing skipped:', referralError.message);
+        }
+    }
 
     // Delete temporary registration
     await TemporaryRegistration.deleteOne({ _id: tempReg._id });

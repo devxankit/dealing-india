@@ -289,18 +289,21 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                 <FiPhone size={11} />
                                 <span className="hidden md:inline">Call</span>
                             </a>
-                            <button
-                                onClick={(e) => {
-                                    if (redirectToLoginIfRequired(e)) return;
-                                    e.stopPropagation();
-                                    const mapsUrl = getGoogleMapsUrl(vendor);
-                                    if (mapsUrl) {
-                                        if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'map');
-                                        window.open(mapsUrl, '_blank');
-                                    } else {
-                                        toast.error('Location details not provided');
-                                    }
-                                }}
+                    <button
+                        onClick={(e) => {
+                            if (redirectToLoginIfRequired(e)) return;
+                            e.stopPropagation();
+                            const mapTarget = product.shopUnit?.mapUrl
+                                ? { mapUrl: product.shopUnit.mapUrl }
+                                : (product.shopUnit || vendor);
+                            const mapsUrl = getGoogleMapsUrl(mapTarget);
+                            if (mapsUrl) {
+                                if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'map');
+                                window.open(mapsUrl, '_blank');
+                            } else {
+                                toast.error('Location details not provided');
+                            }
+                        }}
                                 className="flex-1 min-w-[30%] py-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-600 hover:text-white transition-all border border-orange-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
                                 title="Shop Location"
                             >

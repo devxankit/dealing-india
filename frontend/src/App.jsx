@@ -3,6 +3,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import React, { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
@@ -277,6 +278,11 @@ const B2BUserSecureDeals = lazyWithRetry(
 );
 
 // Inner component that has access to useLocation
+const RegisterRedirect = () => {
+  const location = useLocation();
+  return <Navigate to={`/b2b/register${location.search || ""}`} replace />;
+};
+
 const AppRoutes = () => {
   // Test System Toast
   useEffect(() => {
@@ -393,6 +399,7 @@ const AppRoutes = () => {
         </Route>
 
         {/* B2B User App Routes */}
+        <Route path="/register" element={<RegisterRedirect />} />
         <Route path="/b2b/login" element={<B2BUserLogin />} />
         <Route path="/b2b/register" element={<B2BUserRegister />} />
         <Route path="/b2b/verification" element={<B2BUserVerification />} />

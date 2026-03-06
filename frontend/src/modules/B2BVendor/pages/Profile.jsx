@@ -1,9 +1,47 @@
-import { FiMapPin, FiPhone, FiMail, FiEdit2, FiCheckCircle } from "react-icons/fi";
+import { FiMapPin, FiPhone, FiMail, FiEdit2, FiCheckCircle, FiCopy, FiShare2 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { getMyReferralSummary } from "../../../shared/services/referralService";
+import { useNavigate } from "react-router-dom";
 
 const B2BVendorProfile = () => {
     const { vendor } = useB2BVendorAuthStore();
+    const navigate = useNavigate();
+    const [referralData, setReferralData] = useState(null);
+    const [referralLoading, setReferralLoading] = useState(false);
+    const [referralError, setReferralError] = useState("");
+
+    useEffect(() => {
+        const loadReferral = async () => {
+            setReferralLoading(true);
+            setReferralError("");
+            try {
+                const data = await getMyReferralSummary();
+                setReferralData(data);
+            } catch (error) {
+                console.error("Failed to load vendor referral summary:", error);
+                setReferralError(error?.response?.data?.message || error?.message || "Unable to load referral details");
+            } finally {
+                setReferralLoading(false);
+            }
+        };
+
+        if (vendor?._id) {
+            loadReferral();
+        }
+    }, [vendor?._id]);
+
+    const copyReferralLink = async () => {
+        if (!referralData?.referralLink) return;
+        try {
+            await navigator.clipboard.writeText(referralData.referralLink);
+            toast.success("Referral link copied");
+        } catch (error) {
+            toast.error("Failed to copy link");
+        }
+    };
 
     return (
 
@@ -29,9 +67,12 @@ const B2BVendorProfile = () => {
                         <p className="text-white/90 text-sm md:text-base font-medium drop-shadow-sm">Verified B2B Vendor</p>
                     </div>
                 </div>
-                {/* <button className="absolute top-4 right-4 md:top-auto md:bottom-10 md:right-10 flex items-center gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-white text-gray-800 text-sm md:text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all">
+                <button
+                    onClick={() => navigate("/b2b-vendor/settings/profile")}
+                    className="absolute top-4 right-4 md:top-auto md:bottom-10 md:right-10 flex items-center gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-white text-gray-800 text-sm md:text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
+                >
                     <FiEdit2 /> <span className="hidden sm:inline">Edit Profile</span><span className="sm:hidden">Edit</span>
-                </button> */}
+                </button>
             </div>
 
             <div className="pt-12 md:pt-16 grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
@@ -107,6 +148,43 @@ const B2BVendorProfile = () => {
                                 </div>
                                 <FiCheckCircle className="text-blue-500 text-xl" />
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-4 md:p-6 text-white shadow-sm">
+                        <h3 className="text-lg font-bold mb-2">Referral Program</h3>
+                        <p className="text-sm font-semibold">Code: {referralData?.referralCode || "Not available"}</p>
+                        <p className="text-sm text-emerald-100 mt-1">Referrals: {referralData?.referralCount || 0} | Wallet Points: {referralData?.wallet?.pointsBalance || 0}</p>
+                        {referralLoading && <p className="text-xs text-emerald-100 mt-2">Loading referral details...</p>}
+                        {referralError && (
+                            <p className="text-xs text-amber-100 mt-2">
+                                {referralError}. Restart backend and refresh this page.
+                            </p>
+                        )}
+                        {!referralData?.milestoneUnlocked && !referralLoading && (
+                            <p className="text-xs text-emerald-100 mt-2">
+                                Refer {Math.max((referralData?.milestoneThreshold || 10) - (referralData?.referralCount || 0), 0)} more users to unlock higher rewards.
+                            </p>
+                        )}
+                        <div className="mt-4 flex gap-2">
+                            <button
+                                onClick={copyReferralLink}
+                                disabled={!referralData?.referralLink}
+                                className="px-3 py-2 rounded-xl bg-white text-emerald-700 text-xs font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <FiCopy /> Copy Link
+                            </button>
+                            <a
+                                href={referralData?.whatsappShareLink || "#"}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => {
+                                    if (!referralData?.whatsappShareLink) e.preventDefault();
+                                }}
+                                className="px-3 py-2 rounded-xl bg-emerald-900/30 text-white text-xs font-bold flex items-center gap-2 border border-white/20"
+                            >
+                                <FiShare2 /> WhatsApp
+                            </a>
                         </div>
                     </div>
 

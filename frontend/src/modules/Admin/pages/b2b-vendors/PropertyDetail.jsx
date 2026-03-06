@@ -69,8 +69,8 @@ const PropertyDetail = () => {
 
     const builtUpAreaValue = hasValue(specObj?.builtUpArea) ? specObj?.builtUpArea : property.plotDetails?.builtUpArea;
     const builtUpAreaUnit = specObj?.builtUpAreaUnit || property.plotDetails?.builtUpAreaUnit || 'Sq. Ft.';
-    const carpetAreaValue = hasValue(specObj?.carpetArea) ? specObj?.carpetArea : property.flatDetails?.carpetArea;
-    const carpetAreaUnit = specObj?.carpetAreaUnit || property.flatDetails?.carpetAreaUnit || 'Sq. Ft.';
+    const commonAreaValue = hasValue(property.flatDetails?.commonArea) ? property.flatDetails?.commonArea : property.plotDetails?.commonArea;
+    const commonAreaUnit = property.flatDetails?.carpetAreaUnit || property.plotDetails?.builtUpAreaUnit || 'Sq. Ft.';
     const plotAreaValue = property.plotDetails?.plotArea ?? specObj?.plotArea;
     const plotAreaUnit = property.plotDetails?.plotAreaUnit || 'Sq. Ft.';
     const facilities = {
@@ -90,10 +90,11 @@ const PropertyDetail = () => {
 
     const specCards = [
         { label: "Built Up Area", value: hasValue(builtUpAreaValue) ? `${builtUpAreaValue} ${builtUpAreaUnit}` : "-" },
-        { label: "Carpet Area", value: hasValue(carpetAreaValue) ? `${carpetAreaValue} ${carpetAreaUnit}` : "-" },
+        { label: "Common Area", value: hasValue(commonAreaValue) ? `${commonAreaValue} ${commonAreaUnit}` : "-" },
         { label: "Plot Area", value: hasValue(plotAreaValue) ? `${plotAreaValue} ${plotAreaUnit}` : "-" },
         { label: "Floor Info", value: hasValue(property.flatDetails?.floorNumber) ? `${property.flatDetails.floorNumber} / ${property.flatDetails.totalFloors || 'N/A'}` : (hasValue(specObj?.floorNumber) ? `${specObj.floorNumber} / ${specObj.totalFloors || 'N/A'}` : (property.plotDetails?.floors || "-")) },
         { label: "Flat Type", value: property.flatDetails?.flatType || "-" },
+        { label: "Possession", value: property.flatDetails?.possessionType || property.plotDetails?.possessionType || "-" },
         { label: "Bedrooms", value: hasValue(property.plotDetails?.bedrooms) ? property.plotDetails?.bedrooms : (hasValue(specObj?.bedrooms) ? specObj?.bedrooms : "-") },
         { label: "Bathrooms", value: hasValue(property.plotDetails?.bathrooms) ? property.plotDetails?.bathrooms : (hasValue(specObj?.bathrooms) ? specObj?.bathrooms : "-") },
         { label: "Balcony", value: hasValue(property.plotDetails?.balcony) ? property.plotDetails?.balcony : (hasValue(specObj?.balcony) ? specObj?.balcony : "-") },
@@ -243,10 +244,13 @@ const PropertyDetail = () => {
                                     <SpecCard label="Terrace" value={renderValue(property.plotDetails.terrace)} />
                                     <SpecCard label="Furnishing" value={renderValue(property.plotDetails.furnishing)} />
                                     <SpecCard label="Age Of Property" value={renderValue(property.plotDetails.ageOfProperty)} />
+                                    <SpecCard label="Common Area" value={renderValue(property.plotDetails.commonArea)} />
+                                    <SpecCard label="Possession Type" value={renderValue(property.plotDetails.possessionType)} />
                                     <SpecCard label="Bedrooms" value={renderValue(property.plotDetails.bedrooms)} />
                                     <SpecCard label="Bathrooms" value={renderValue(property.plotDetails.bathrooms)} />
                                     <SpecCard label="Balcony" value={renderValue(property.plotDetails.balcony)} />
                                     <SpecCard label="Floors" value={renderValue(property.plotDetails.floors)} />
+                                    <SpecCard label="Game Zone" value={renderValue(property.plotDetails.amenities?.gameZone)} />
                                 </div>
                                 <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
                                     <SpecCard label="Private Parking" value={renderValue(property.plotDetails.privateFacilities?.privateParking)} />
@@ -269,9 +273,27 @@ const PropertyDetail = () => {
                                     <SpecCard label="Total Floors" value={renderValue(property.flatDetails.totalFloors)} />
                                     <SpecCard label="Furnishing" value={renderValue(property.flatDetails.furnishing)} />
                                     <SpecCard label="Age Of Property" value={renderValue(property.flatDetails.ageOfProperty)} />
-                                    <SpecCard label="Carpet Area Unit" value={renderValue(property.flatDetails.carpetAreaUnit)} />
+                                    <SpecCard label="Built-up Area" value={renderValue(property.flatDetails.builtUpArea)} />
+                                    <SpecCard label="Common Area" value={renderValue(property.flatDetails.commonArea)} />
+                                    <SpecCard label="Possession Type" value={renderValue(property.flatDetails.possessionType)} />
+                                    <SpecCard label="Area Unit" value={renderValue(property.flatDetails.carpetAreaUnit)} />
                                     <SpecCard label="Loan Available" value={renderValue(property.flatDetails.legal?.loanAvailable)} />
                                     <SpecCard label="RERA Approved" value={renderValue(property.flatDetails.legal?.reraApproved)} />
+                                    <SpecCard label="Game Zone" value={renderValue(property.flatDetails.amenities?.gameZone)} />
+                                </div>
+                            </div>
+                        )}
+                        {Array.isArray(property.flatVariants) && property.flatVariants.length > 0 && (
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 mb-4 uppercase tracking-wide">Flat BHK Variants</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {property.flatVariants.map((variant, index) => (
+                                        <SpecCard
+                                            key={`${variant.flatType || 'bhk'}-${index}`}
+                                            label={variant.flatType || `Variant ${index + 1}`}
+                                            value={`Built-up: ${renderValue(variant.builtUpArea)} ${renderValue(variant.carpetAreaUnit)} | Common: ${renderValue(variant.commonArea)} | Possession: ${renderValue(variant.possessionType)}`}
+                                        />
+                                    ))}
                                 </div>
                             </div>
                         )}

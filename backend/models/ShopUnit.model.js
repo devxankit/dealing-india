@@ -19,7 +19,12 @@ const shopUnitSchema = new mongoose.Schema(
         businessCategory: {
             type: String,
             trim: true,
-            enum: ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier'],
+            enum: ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier', 'Developer', 'Property'],
+            default: null,
+        },
+        mapUrl: {
+            type: String,
+            trim: true,
             default: null,
         },
         images: [String],

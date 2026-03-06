@@ -5,10 +5,12 @@ import { useNavigate } from "react-router-dom";
 import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
+import MapPickerModal from "../../../shared/components/MapPickerModal";
 
 const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
     const [step, setStep] = useState(1);
     const [media, setMedia] = useState([]);
 
@@ -49,6 +51,8 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
             plotArea: '',
             plotAreaUnit: 'Sq. Ft.',
             builtUpArea: '',
+            commonArea: '',
+            possessionType: 'Ready to Move',
             builtUpAreaUnit: 'Sq. Ft.',
             floors: 'G+1',
             masterRoom: 'No',
@@ -67,7 +71,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                 servantRoom: 'No'
             },
             amenities: {
-                parking: 'Open',
+                parking: ['Ground Parking'],
                 security: 'No',
                 cctv: 'No',
                 powerBackup: 'No',
@@ -79,13 +83,12 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                 childrenPlayArea: 'No',
                 clubHouse: 'No',
                 temple: 'No',
-                societyOffice: 'No'
+                societyOffice: 'No',
+                gameZone: 'No'
             },
             legal: {
                 loanAvailable: 'No',
-                reraApproved: 'No',
-                maintenanceCharges: '',
-                propertyTaxStatus: ''
+                reraApproved: 'No'
             }
         },
 
@@ -237,6 +240,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                     ...formData.plotDetails,
                     plotArea: parseNumber(formData.plotDetails.plotArea),
                     builtUpArea: parseNumber(formData.plotDetails.builtUpArea),
+                    commonArea: parseNumber(formData.plotDetails.commonArea),
                     bedrooms: parseNumber(formData.plotDetails.bedrooms),
                     bathrooms: parseNumber(formData.plotDetails.bathrooms),
                     balcony: parseNumber(formData.plotDetails.balcony),
@@ -285,7 +289,20 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
         </div>
     );
 
+    const handleSelectLocation = () => {
+        setIsMapPickerOpen(true);
+    };
+
+    const handleMapPicked = ({ mapUrl }) => {
+        setFormData(prev => ({
+            ...prev,
+            location: { ...prev.location, mapUrl }
+        }));
+        toast.success("Selected location added");
+    };
+
     return (
+        <>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-5xl mx-auto p-4 md:p-6 space-y-6 md:space-y-8 pb-20">
             {/* Header */}
             <div className="flex items-center gap-4">
@@ -360,9 +377,19 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                     </div>
                                 </div>
                                 <div>
+                                    <label className="text-[10px] font-black uppercase">Common Area</label>
+                                    <input type="text" name="plotDetails.commonArea" value={formData.plotDetails.commonArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 200" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Possession Type</label>
+                                    <select name="plotDetails.possessionType" value={formData.plotDetails.possessionType} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
+                                        {['Ready to Move', 'Under Construction'].map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                </div>
+                                <div>
                                     <label className="text-[10px] font-black uppercase">Floors</label>
                                     <select name="plotDetails.floors" value={formData.plotDetails.floors} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
-                                        {['G+1', 'G+2'].map(t => <option key={t} value={t}>{t}</option>)}
+                                        {['Ground', 'G+1', 'G+2'].map(t => <option key={t} value={t}>{t}</option>)}
                                     </select>
                                 </div>
                                 <div className="flex items-center justify-between">
@@ -398,6 +425,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                         <option value="0-5 years">0-5 years</option>
                                         <option value="5-10 years">5-10 years</option>
                                         <option value="10+ years">10+ years</option>
+                                        <option value="Under Construction">Under Construction</option>
                                     </select>
                                 </div>
                             </div>
@@ -483,7 +511,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                         <div className="flex flex-col gap-2">
                                             <span className="text-[10px] font-black uppercase">Parking</span>
                                             <div className="flex gap-1 flex-wrap">
-                                                {['Ground Parking', 'Basement 1', 'Basement 2', 'Open', 'Covered'].map(type => (
+                                                {['Ground Parking', 'Basement 1', 'Basement 2'].map(type => (
                                                     <label
                                                         key={type}
                                                         className={`px-3 py-1.5 rounded-lg text-[10px] font-black border cursor-pointer transition-all ${(Array.isArray(formData.plotDetails.amenities.parking) ? formData.plotDetails.amenities.parking : [formData.plotDetails.amenities.parking]).includes(type)
@@ -506,7 +534,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                                 ))}
                                             </div>
                                         </div>
-                                        {['security', 'cctv', 'powerBackup', 'swimmingPool', 'gym', 'clubHouse'].map(field => (
+                                        {['security', 'cctv', 'powerBackup', 'swimmingPool', 'gym', 'clubHouse', 'gameZone'].map(field => (
                                             <div key={field} className="flex items-center justify-between">
                                                 <span className="text-[10px] font-black uppercase">{field.replace(/([A-Z])/g, ' $1')}</span>
                                                 <div className="w-32">{renderToggle(`plotDetails.amenities.${field}`, formData.plotDetails.amenities[field])}</div>
@@ -570,16 +598,16 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                 <div className="space-y-6">
                                     <div className="text-xl font-black text-slate-900 uppercase">Legal & Financial</div>
                                     <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black uppercase">Loan Available</span>
-                                            <div className="w-32">{renderToggle('plotDetails.legal.loanAvailable', formData.plotDetails.legal.loanAvailable)}</div>
-                                        </div>
+                                        {formData.listingType === 'Sale' && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-black uppercase">Loan Available</span>
+                                                <div className="w-32">{renderToggle('plotDetails.legal.loanAvailable', formData.plotDetails.legal.loanAvailable)}</div>
+                                            </div>
+                                        )}
                                         <div className="flex items-center justify-between">
                                             <span className="text-[10px] font-black uppercase">RERA Approved</span>
                                             <div className="w-32">{renderToggle('plotDetails.legal.reraApproved', formData.plotDetails.legal.reraApproved)}</div>
                                         </div>
-                                        <input type="text" name="plotDetails.legal.maintenanceCharges" placeholder="Maintenance Charges" value={formData.plotDetails.legal.maintenanceCharges} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
-                                        <input type="text" name="plotDetails.legal.propertyTaxStatus" placeholder="Property Tax Status" value={formData.plotDetails.legal.propertyTaxStatus} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
                                     </div>
 
                                     <div className="text-xl font-black text-slate-900 uppercase pt-4">Location</div>
@@ -590,13 +618,22 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                             <input name="location.area" placeholder="Area" value={formData.location.area} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                             <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                         </div>
-                                        <input
-                                            name="location.mapUrl"
-                                            placeholder="Google Map URL"
-                                            value={formData.location.mapUrl}
-                                            onChange={handleChange}
-                                            className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs"
-                                        />
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                name="location.mapUrl"
+                                                placeholder="Google Map URL"
+                                                value={formData.location.mapUrl}
+                                                onChange={handleChange}
+                                                className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs flex-1"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleSelectLocation}
+                                                className="px-3 py-3 bg-primary-50 text-primary-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-primary-100 hover:bg-primary-100 transition-all disabled:opacity-60"
+                                            >
+                                                Select Location
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -639,6 +676,12 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                 </div>
             </div>
         </motion.div>
+        <MapPickerModal
+            isOpen={isMapPickerOpen}
+            onClose={() => setIsMapPickerOpen(false)}
+            onSelect={handleMapPicked}
+        />
+        </>
     );
 };
 
