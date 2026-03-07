@@ -76,8 +76,10 @@ const B2BLanding = () => {
     // Refs
     const searchRef = useRef(null);
     const categoryRef = useRef(null);
-    const cityDropdownRef = useRef(null);
-    const priceRef = useRef(null);
+    const cityDropdownDesktopRef = useRef(null);
+    const cityDropdownMobileRef = useRef(null);
+    const priceDesktopRef = useRef(null);
+    const priceMobileRef = useRef(null);
     const businessTypeRef = useRef(null);
 
     const [citySearchQuery, setCitySearchQuery] = useState('');
@@ -378,10 +380,16 @@ const B2BLanding = () => {
             if (categoryRef.current && !categoryRef.current.contains(event.target)) {
                 setIsCategoryDropdownOpen(false);
             }
-            if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
+            const isInsideCityDropdown =
+                (cityDropdownDesktopRef.current && cityDropdownDesktopRef.current.contains(event.target)) ||
+                (cityDropdownMobileRef.current && cityDropdownMobileRef.current.contains(event.target));
+            if (!isInsideCityDropdown) {
                 setIsCityDropdownOpen(false);
             }
-            if (priceRef.current && !priceRef.current.contains(event.target)) {
+            const isInsidePriceDropdown =
+                (priceDesktopRef.current && priceDesktopRef.current.contains(event.target)) ||
+                (priceMobileRef.current && priceMobileRef.current.contains(event.target));
+            if (!isInsidePriceDropdown) {
                 setIsPriceFilterOpen(false);
             }
             if (businessTypeRef.current && !businessTypeRef.current.contains(event.target)) {
@@ -865,7 +873,7 @@ const B2BLanding = () => {
                                         )}
                                     </AnimatePresence>
                                 </div>
-                                <div className="relative" ref={priceRef}>
+                                <div className="relative" ref={priceDesktopRef}>
                                     <button
                                         onClick={() => setIsPriceFilterOpen(!isPriceFilterOpen)}
                                         className="flex items-center justify-between gap-2 px-4 md:px-5 py-2.5 border border-gray-200 rounded-xl text-sm font-black text-gray-600 hover:bg-gray-50 hover:border-primary-300 transition-all uppercase tracking-wider"
@@ -904,10 +912,10 @@ const B2BLanding = () => {
                                         )}
                                     </AnimatePresence>
                                 </div>
-                                <div className="relative" ref={cityDropdownRef}>
+                                <div className="relative" ref={cityDropdownDesktopRef}>
                                     <button
                                         onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
-                                        disabled={locationsLoading}
+                                        disabled={locationsLoading && uniqueCities.length === 0}
                                         className="flex items-center justify-between gap-2 px-4 md:px-5 py-2.5 border border-gray-200 rounded-xl text-sm font-black text-gray-600 hover:bg-gray-50 hover:border-primary-300 transition-all uppercase tracking-wider"
                                     >
                                         <div className="flex items-center gap-2 " >
@@ -1207,7 +1215,7 @@ const B2BLanding = () => {
 
 
                         {/* 3. Price Filter - Now shows Business Types */}
-                        <div className="relative flex-1 md:flex-none" ref={priceRef}>
+                        <div className="relative flex-1 md:flex-none" ref={priceMobileRef}>
                             <button
                                 onClick={() => setIsPriceFilterOpen(!isPriceFilterOpen)}
                                 className="flex items-center justify-between gap-2 px-4 md:px-5 py-2.5 md:py-3 border border-gray-200 rounded-xl text-[10px] md:text-sm font-black text-gray-600 hover:bg-gray-50 hover:border-primary-300 transition-all w-full uppercase tracking-wider md:tracking-widest"
@@ -1220,7 +1228,7 @@ const B2BLanding = () => {
                                 {isPriceFilterOpen && (
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                                        className="absolute top-full right-0 md:left-auto mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-5"
+                                        className="absolute top-full right-2 md:right-0 md:left-auto mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-5"
                                     >
                                         <h4 className="font-black text-gray-400 mb-4 text-[9px] uppercase tracking-[0.2em]">Quick Business Filters</h4>
                                         <div className="space-y-1">
@@ -1253,10 +1261,10 @@ const B2BLanding = () => {
                         </div>
 
                         {/* 3. City Dropdown (Search Station) */}
-                        <div className="relative flex-1 md:flex-none" ref={cityDropdownRef}>
+                        <div className="relative flex-1 md:flex-none" ref={cityDropdownMobileRef}>
                             <button
                                 onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
-                                disabled={locationsLoading}
+                                disabled={locationsLoading && uniqueCities.length === 0}
                                 className="flex items-center justify-between gap-2 px-4 md:px-5 py-2.5 md:py-3 border border-gray-200 rounded-xl text-[10px] md:text-sm font-black text-gray-600 hover:bg-gray-50 hover:border-primary-300 transition-all w-full uppercase tracking-wider md:tracking-widest"
                             >
                                 <div className="flex items-center gap-2">
@@ -1369,17 +1377,17 @@ const B2BLanding = () => {
             </section>
 
             {/* --- BANNER SECTION --- */}
-            <section className="w-full bg-white py-1">
+            <section className="w-full bg-white pt-2 pb-2">
                 <div className="max-w-[1920px] mx-auto px-2 md:px-4">
-                    <div className="rounded-[1.2rem] md:rounded-[2rem] overflow-hidden shadow-lg border border-gray-50">
+                    <div className="rounded-[1rem] md:rounded-[1.4rem] overflow-hidden border border-gray-50">
                         <B2BBanner />
                     </div>
                 </div>
             </section>
 
             {/* --- VENDOR SHIPS AUTO-SCROLL --- */}
-            <section className="w-full bg-white pt-1 pb-20 md:pb-12 overflow-hidden flex-none">
-                <div className="max-w-[1920px] mx-auto px-4 md:px-6 mb-1 flex items-center justify-between">
+            <section className="w-full bg-white pt-6 pb-0 md:pt-6 md:pb-8 overflow-hidden flex-none">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6 mb-3 md:mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="flex -space-x-2">
                             {[...Array(3)].map((_, i) => (
@@ -1395,7 +1403,7 @@ const B2BLanding = () => {
                 </div>
 
                 <div className="relative group">
-                    <div className="flex gap-4 md:gap-6 animate-scroll hover:pause-scroll py-2">
+                    <div className="flex gap-4 md:gap-6 animate-scroll hover:pause-scroll py-3">
                         {/* Render twice for infinite loop effect */}
                         {[...allVendors, ...allVendors].map((vendor, idx) => (
                             <div

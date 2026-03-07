@@ -13,12 +13,20 @@ const BusinessTypeConfiguration = () => {
     const [newType, setNewType] = useState({ name: '', description: '' });
     const [newSubType, setNewSubType] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+    const [referralSettings, setReferralSettings] = useState({
+        vendorReferrerRewardPoints: 50,
+        userReferrerRewardPoints: 50,
+        newUserRewardPoints: 25,
+        referralMilestoneMin: 10,
+    });
+    const [savingReferralSettings, setSavingReferralSettings] = useState(false);
     const fetchedRef = useRef(false);
 
     useEffect(() => {
         if (!fetchedRef.current) {
             fetchSettings();
             fetchPlans();
+            fetchReferralSettings();
             fetchedRef.current = true;
         }
     }, []);
@@ -71,6 +79,45 @@ const BusinessTypeConfiguration = () => {
             allowedPlans: Array.isArray(settings.allowedPlans) ? settings.allowedPlans : [],
             propertyForms: Array.isArray(settings.propertyForms) ? settings.propertyForms : []
         });
+    };
+
+    const fetchReferralSettings = async () => {
+        try {
+            const response = await api.get('/admin/referral-settings');
+            if (response.success && response.data) {
+                setReferralSettings({
+                    vendorReferrerRewardPoints: Number(response.data.vendorReferrerRewardPoints || 0),
+                    userReferrerRewardPoints: Number(response.data.userReferrerRewardPoints || 0),
+                    newUserRewardPoints: Number(response.data.newUserRewardPoints || 0),
+                    referralMilestoneMin: Number(response.data.referralMilestoneMin || 0),
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching referral settings:', error);
+            toast.error('Failed to load referral settings');
+        }
+    };
+
+    const handleSaveReferralSettings = async () => {
+        try {
+            setSavingReferralSettings(true);
+            const payload = {
+                vendorReferrerRewardPoints: Number(referralSettings.vendorReferrerRewardPoints || 0),
+                userReferrerRewardPoints: Number(referralSettings.userReferrerRewardPoints || 0),
+                newUserRewardPoints: Number(referralSettings.newUserRewardPoints || 0),
+                referralMilestoneMin: Number(referralSettings.referralMilestoneMin || 0),
+            };
+            const response = await api.put('/admin/referral-settings', payload);
+            if (response.success) {
+                toast.success('Referral reward settings updated');
+                await fetchReferralSettings();
+            }
+        } catch (error) {
+            console.error('Error updating referral settings:', error);
+            toast.error('Failed to update referral settings');
+        } finally {
+            setSavingReferralSettings(false);
+        }
     };
 
     const handleSave = async () => {
@@ -159,6 +206,65 @@ const BusinessTypeConfiguration = () => {
                 >
                     <FiPlus className="mr-2" /> Add Business Type
                 </button>
+            </div>
+
+            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Referral Reward Settings</h3>
+                        <p className="text-xs text-slate-500">Dynamic points for vendor/user referrals (applies globally).</p>
+                    </div>
+                    <button
+                        onClick={handleSaveReferralSettings}
+                        disabled={savingReferralSettings}
+                        className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-60"
+                    >
+                        {savingReferralSettings ? 'Saving...' : 'Save Rewards'}
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Vendor Referrer Points</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={referralSettings.vendorReferrerRewardPoints}
+                            onChange={(e) => setReferralSettings((prev) => ({ ...prev, vendorReferrerRewardPoints: e.target.value }))}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">User Referrer Points</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={referralSettings.userReferrerRewardPoints}
+                            onChange={(e) => setReferralSettings((prev) => ({ ...prev, userReferrerRewardPoints: e.target.value }))}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">New User Points</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={referralSettings.newUserRewardPoints}
+                            onChange={(e) => setReferralSettings((prev) => ({ ...prev, newUserRewardPoints: e.target.value }))}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Milestone Minimum</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={referralSettings.referralMilestoneMin}
+                            onChange={(e) => setReferralSettings((prev) => ({ ...prev, referralMilestoneMin: e.target.value }))}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                        />
+                    </div>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

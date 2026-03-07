@@ -4,13 +4,14 @@ import api from "../shared/utils/api";
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 const ENABLE_FCM = true;
+const FCM_SW_VERSION = "2026-03-06-1";
 
 async function registerServiceWorker() {
   if (!ENABLE_FCM) return null;
   if ("serviceWorker" in navigator) {
     console.log("[FCM] Registering service worker");
     const registration = await navigator.serviceWorker.register(
-      "/firebase-messaging-sw.js",
+      `/firebase-messaging-sw.js?v=${FCM_SW_VERSION}`,
     );
     console.log("[FCM] Service worker registered", { scope: registration.scope });
     return registration;

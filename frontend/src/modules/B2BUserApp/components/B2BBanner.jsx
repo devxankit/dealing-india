@@ -131,7 +131,7 @@ const B2BBanner = () => {
             <div className="hidden md:block">
                 <div
                     ref={containerRef}
-                    className="group relative w-full overflow-hidden rounded-2xl shadow-lg"
+                    className="group relative w-full overflow-hidden rounded-xl"
                     style={{
                         aspectRatio: "5/1",
                     }}>
@@ -219,7 +219,7 @@ const B2BBanner = () => {
             {/* Mobile Layout */}
             <div className="md:hidden">
                 <div
-                    className="relative w-full overflow-hidden rounded-xl shadow-md"
+                    className="relative w-full overflow-hidden rounded-xl"
                     style={{
                         aspectRatio: "16/9",
                     }}>

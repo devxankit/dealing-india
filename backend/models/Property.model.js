@@ -230,12 +230,17 @@ const propertySchema = new mongoose.Schema(
             type: String,
             enum: ['Main Road', 'Internal Road']
         },
+        legal: {
+            loanAvailable: { type: String, enum: ['Yes', 'No'], default: 'No' },
+            reraApproved: { type: String, enum: ['Yes', 'No'], default: 'No' },
+            load: { type: String, trim: true, default: '' }
+        },
 
         specifications: [{
             builtUpArea: String,
             builtUpAreaUnit: { type: String, enum: ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'] },
             carpetArea: String,
-            carpetAreaUnit: { type: String, enum: ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'] },
+            carpetAreaUnit: { type: String, enum: ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj', '%'] },
             floorNumber: String,
             totalFloors: String,
             ceilingHeight: String,

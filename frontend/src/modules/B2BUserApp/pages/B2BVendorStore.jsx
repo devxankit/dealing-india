@@ -9,7 +9,8 @@ import {
     FiList,
     FiLoader,
     FiChevronDown,
-    FiMapPin
+    FiMapPin,
+    FiShield
 } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import { motion } from "framer-motion";

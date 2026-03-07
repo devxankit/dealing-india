@@ -6,10 +6,7 @@ import Wallet from '../models/Wallet.model.js';
 import User from '../models/User.model.js';
 import Vendor from '../models/Vendor.model.js';
 import vendorWalletService from './vendorWallet.service.js';
-
-const REFERRER_REWARD_POINTS = Number(process.env.REFERRER_REWARD_POINTS || 50);
-const NEW_USER_REWARD_POINTS = Number(process.env.NEW_USER_REWARD_POINTS || 25);
-const REFERRAL_MILESTONE_MIN = Number(process.env.REFERRAL_MILESTONE_MIN || 10);
+import { getReferralSettings } from './referralSettings.service.js';
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || process.env.FRONTEND_URL || 'https://yourdomain.com';
 
 const normalizeReferralCode = (code = '') => String(code || '').trim().toUpperCase();
@@ -100,6 +97,7 @@ export const validateReferralCode = async (referralCode) => {
 };
 
 export const processSuccessfulUserReferral = async ({ referredUserId, referralCode }) => {
+    const settings = await getReferralSettings();
     const normalizedCode = normalizeReferralCode(referralCode);
     if (!normalizedCode) return null;
 
@@ -133,7 +131,7 @@ export const processSuccessfulUserReferral = async ({ referredUserId, referralCo
     if (referrerCode.userModel === 'User') {
         await creditUserPoints({
             userId: referrerCode.userId,
-            points: REFERRER_REWARD_POINTS,
+            points: settings.userReferrerRewardPoints,
             description: 'Referral reward points',
             sourceType: 'referral_reward',
             sourceId: history._id.toString(),
@@ -141,7 +139,7 @@ export const processSuccessfulUserReferral = async ({ referredUserId, referralCo
     } else {
         await vendorWalletService.creditWallet(
             referrerCode.userId,
-            REFERRER_REWARD_POINTS,
+            settings.vendorReferrerRewardPoints,
             'Referral reward points',
             history._id.toString(),
             'manual'
@@ -150,7 +148,7 @@ export const processSuccessfulUserReferral = async ({ referredUserId, referralCo
 
     await creditUserPoints({
         userId: referredUserObjectId,
-        points: NEW_USER_REWARD_POINTS,
+        points: settings.newUserRewardPoints,
         description: 'Welcome referral points',
         sourceType: 'referral_welcome',
         sourceId: history._id.toString(),
@@ -160,11 +158,12 @@ export const processSuccessfulUserReferral = async ({ referredUserId, referralCo
         referrerId: referrerCode.userId,
         referrerType: referrerCode.userModel,
         referralCount: referrerCode.referralCount,
-        milestoneUnlocked: referrerCode.userModel === 'Vendor' && referrerCode.referralCount >= REFERRAL_MILESTONE_MIN,
+        milestoneUnlocked: referrerCode.userModel === 'Vendor' && referrerCode.referralCount >= settings.referralMilestoneMin,
     };
 };
 
 export const getReferralSummaryForAuthUser = async (authUser) => {
+    const settings = await getReferralSettings();
     const owner = getOwnerMetaFromAuth(authUser);
     const referral = await ensureReferralCodeForOwner(owner);
 
@@ -208,8 +207,8 @@ export const getReferralSummaryForAuthUser = async (authUser) => {
     return {
         referralCode: referral.referralCode,
         referralCount: referral.referralCount,
-        milestoneUnlocked: owner.userModel === 'Vendor' && referral.referralCount >= REFERRAL_MILESTONE_MIN,
-        milestoneThreshold: REFERRAL_MILESTONE_MIN,
+        milestoneUnlocked: owner.userModel === 'Vendor' && referral.referralCount >= settings.referralMilestoneMin,
+        milestoneThreshold: settings.referralMilestoneMin,
         referralLink,
         whatsappShareLink: `https://wa.me/?text=${message}`,
         wallet: walletData,

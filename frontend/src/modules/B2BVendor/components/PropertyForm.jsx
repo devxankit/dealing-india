@@ -5,14 +5,10 @@ import { useNavigate } from "react-router-dom";
 import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
-import MapPickerModal from "../../../shared/components/MapPickerModal";
-import { getGoogleMapsUrl } from "../../../shared/utils/helpers";
-import { fetchCurrentLocationPayload } from "../../../shared/utils/location";
 
 const PropertyForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
-    const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
     const [step, setStep] = useState(1);
     const [media, setMedia] = useState([]); // { url, data, name }
 
@@ -66,6 +62,11 @@ const PropertyForm = ({ initialData, isEdit }) => {
             mapUrl: ''
         },
         roadFacing: 'Main Road',
+        legal: {
+            loanAvailable: 'No',
+            reraApproved: 'No',
+            load: ''
+        },
 
         // 5. Specs & Facilities
         // 5. Specs & Facilities
@@ -73,7 +74,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
             builtUpArea: '',
             builtUpAreaUnit: 'Sq. Ft.',
             carpetArea: '',
-            carpetAreaUnit: 'Sq. Ft.',
+            carpetAreaUnit: '%',
             floorNumber: '',
             totalFloors: '',
             ceilingHeight: '',
@@ -116,7 +117,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 // Default if empty
                 specs = [{
                     builtUpArea: '', builtUpAreaUnit: 'Sq. Ft.',
-                    carpetArea: '', carpetAreaUnit: 'Sq. Ft.',
+                    carpetArea: '', carpetAreaUnit: '%',
                     floorNumber: '', totalFloors: '',
                     ceilingHeight: '', ceilingHeightUnit: 'Ft.',
                     entranceWidth: '', entranceWidthUnit: 'Ft.',
@@ -134,6 +135,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 leaseDetails: { ...prev.leaseDetails, ...(initialData.leaseDetails || {}) },
                 status: { ...prev.status, ...(initialData.status || {}) },
                 location: { ...prev.location, ...(initialData.location || {}) },
+                legal: { ...prev.legal, ...(initialData.legal || {}) },
                 specifications: specs,
                 facilities: { ...prev.facilities, ...(initialData.facilities || {}) },
             }));
@@ -185,7 +187,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 ...prev.specifications,
                 {
                     builtUpArea: '', builtUpAreaUnit: 'Sq. Ft.',
-                    carpetArea: '', carpetAreaUnit: 'Sq. Ft.',
+                    carpetArea: '', carpetAreaUnit: '%',
                     floorNumber: '', totalFloors: '',
                     ceilingHeight: '', ceilingHeightUnit: 'Ft.',
                     entranceWidth: '', entranceWidthUnit: 'Ft.',
@@ -285,27 +287,6 @@ const PropertyForm = ({ initialData, isEdit }) => {
             toast.error(error.message || 'Failed to process property');
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleMapPicked = ({ mapUrl }) => {
-        setFormData(prev => ({
-            ...prev,
-            location: { ...prev.location, mapUrl }
-        }));
-        toast.success("Location updated");
-    };
-
-    const handleUseCurrentLocation = async () => {
-        try {
-            const payload = await fetchCurrentLocationPayload();
-            setFormData(prev => ({
-                ...prev,
-                location: { ...prev.location, mapUrl: payload.mapUrl }
-            }));
-            toast.success(`Location added: ${payload.label}`);
-        } catch (error) {
-            toast.error(error?.message || "Unable to fetch current location");
         }
     };
 
@@ -526,11 +507,11 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                             </div>
 
                                             <div className="space-y-2">
-                                                <label className="label">Carpet Area</label>
+                                                <label className="label">Common Area (CAP %)</label>
                                                 <div className="flex gap-2">
                                                     <input
                                                         name="specifications.carpetArea"
-                                                        placeholder="Area Value"
+                                                        placeholder="CAP %"
                                                         value={spec.carpetArea}
                                                         onChange={(e) => handleChange(e, index)}
                                                         className="input-field flex-[2]"
@@ -541,7 +522,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                                         onChange={(e) => handleChange(e, index)}
                                                         className="input-select flex-1 bg-primary-50 text-primary-700 font-bold"
                                                     >
-                                                        {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
+                                                        {['%'].map(u => <option key={u} value={u}>{u}</option>)}
                                                     </select>
                                                 </div>
                                             </div>
@@ -817,6 +798,37 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                     </select>
                                 </div>
                             </div>
+
+                            <h3 className="text-xl font-black text-slate-900 uppercase">Legal & Load</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {formData.listingType === 'Sale' && (
+                                    <div>
+                                        <label className="label">Loan Available</label>
+                                        <select name="legal.loanAvailable" value={formData.legal.loanAvailable} onChange={handleChange} className="input-select">
+                                            <option value="No">No</option>
+                                            <option value="Yes">Yes</option>
+                                        </select>
+                                    </div>
+                                )}
+                                <div>
+                                    <label className="label">RERA Approved</label>
+                                    <select name="legal.reraApproved" value={formData.legal.reraApproved} onChange={handleChange} className="input-select">
+                                        <option value="No">No</option>
+                                        <option value="Yes">Yes</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="label">Load</label>
+                                    <input
+                                        type="text"
+                                        name="legal.load"
+                                        placeholder="E.g. 10 kW"
+                                        value={formData.legal.load}
+                                        onChange={handleChange}
+                                        className="input-field"
+                                    />
+                                </div>
+                            </div>
                         </motion.div>
                     )}
 
@@ -831,34 +843,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                 <input name="location.city" placeholder="City" value={formData.location.city} onChange={handleChange} className="input-field" />
                                 <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="input-field" />
                                 <div className="md:col-span-2">
-                                    <div className="flex items-center gap-2">
-                                        <input name="location.mapUrl" placeholder="Google Map URL" value={formData.location.mapUrl} onChange={handleChange} className="input-field flex-1" />
-                                        <button
-                                            type="button"
-                                            onClick={handleUseCurrentLocation}
-                                            className="px-4 py-3 bg-slate-100 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-slate-200 hover:bg-slate-200 transition-all whitespace-nowrap"
-                                        >
-                                            Use Current Location
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsMapPickerOpen(true)}
-                                            className="px-4 py-3 bg-primary-50 text-primary-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-primary-100 hover:bg-primary-100 transition-all whitespace-nowrap"
-                                        >
-                                            Select Location
-                                        </button>
-                                    </div>
-                                    {getGoogleMapsUrl({ location: formData.location }) && (
-                                        <div className="mt-3 rounded-xl overflow-hidden border border-slate-200">
-                                            <iframe
-                                                src={getGoogleMapsUrl({ location: formData.location })}
-                                                title="Selected Property Location"
-                                                className="w-full h-64"
-                                                loading="lazy"
-                                                referrerPolicy="no-referrer-when-downgrade"
-                                            />
-                                        </div>
-                                    )}
+                                    <input name="location.mapUrl" placeholder="Google Map URL" value={formData.location.mapUrl} onChange={handleChange} className="input-field" />
                                 </div>
 
                                 <div>
@@ -923,12 +908,6 @@ const PropertyForm = ({ initialData, isEdit }) => {
                     )}
                 </div>
             </div>
-
-            <MapPickerModal
-                isOpen={isMapPickerOpen}
-                onClose={() => setIsMapPickerOpen(false)}
-                onSelect={handleMapPicked}
-            />
 
             <style>{`
                 .input-field {

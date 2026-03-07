@@ -129,6 +129,12 @@ const DEFAULT_STATUS = {
     propertyPosition: 'Ready to Move'
 };
 
+const DEFAULT_COMMERCIAL_LEGAL = {
+    loanAvailable: 'No',
+    reraApproved: 'No',
+    load: ''
+};
+
 /**
  * Helper function to process media uploads to Cloudinary
  * @param {Array} mediaArray - Array of media objects with url field (base64 or existing URL)
@@ -272,6 +278,10 @@ export const addProperty = asyncHandler(async (req, res) => {
     propertyData.status = {
         ...DEFAULT_STATUS,
         ...(propertyData.status || {})
+    };
+    propertyData.legal = {
+        ...DEFAULT_COMMERCIAL_LEGAL,
+        ...(propertyData.legal || {})
     };
 
     // Compatibility: allow "Villa" from new UI even when runtime enum still has only "Plot".
@@ -417,6 +427,11 @@ export const updateProperty = asyncHandler(async (req, res) => {
         ...DEFAULT_STATUS,
         ...(property.status || {}),
         ...(updateData.status || {})
+    };
+    updateData.legal = {
+        ...DEFAULT_COMMERCIAL_LEGAL,
+        ...(property.legal || {}),
+        ...(updateData.legal || {})
     };
 
     // Compatibility: allow "Villa" updates even when runtime enum still has only "Plot".

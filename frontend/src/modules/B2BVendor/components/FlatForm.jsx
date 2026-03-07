@@ -5,13 +5,10 @@ import { useNavigate } from "react-router-dom";
 import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
-import MapPickerModal from "../../../shared/components/MapPickerModal";
-import { fetchCurrentLocationPayload } from "../../../shared/utils/location";
 
 const FlatForm = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
-    const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
     const [step, setStep] = useState(1);
     const [media, setMedia] = useState([]);
 
@@ -316,31 +313,6 @@ const FlatForm = () => {
         </div>
     );
 
-    const handleSelectLocation = () => {
-        setIsMapPickerOpen(true);
-    };
-
-    const handleMapPicked = ({ mapUrl }) => {
-        setFormData(prev => ({
-            ...prev,
-            location: { ...prev.location, mapUrl }
-        }));
-        toast.success("Selected location added");
-    };
-
-    const handleUseCurrentLocation = async () => {
-        try {
-            const payload = await fetchCurrentLocationPayload();
-            setFormData(prev => ({
-                ...prev,
-                location: { ...prev.location, mapUrl: payload.mapUrl }
-            }));
-            toast.success(`Location added: ${payload.label}`);
-        } catch (error) {
-            toast.error(error?.message || "Unable to fetch current location");
-        }
-    };
-
     return (
         <>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-5xl mx-auto p-4 md:p-6 space-y-6 md:space-y-8 pb-20">
@@ -443,8 +415,8 @@ const FlatForm = () => {
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="text-[10px] font-black uppercase">Common Area</label>
-                                                <input type="text" name="flatDetails.commonArea" value={flat.commonArea} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 200" />
+                                                <label className="text-[10px] font-black uppercase">Common Area (CAP %)</label>
+                                                <input type="text" name="flatDetails.commonArea" value={flat.commonArea} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 15" />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-black uppercase">Possession Type</label>
@@ -581,7 +553,7 @@ const FlatForm = () => {
                                             ))}
                                         </div>
                                     </div>
-                                        {['security', 'cctv', 'powerBackup', 'gasPipeline', 'gameZone'].map(field => (
+                                        {['security', 'cctv', 'powerBackup', 'gasPipeline'].map(field => (
                                             <div key={field} className="flex items-center justify-between">
                                                 <span className="text-[10px] font-black uppercase">{field.replace(/([A-Z])/g, ' $1')}</span>
                                                 <div className="w-32">{renderToggle(`flatDetails.amenities.${field}`, formData.flatDetails.amenities[field])}</div>
@@ -692,20 +664,6 @@ const FlatForm = () => {
                                                 onChange={handleChange}
                                                 className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs flex-1"
                                             />
-                                            <button
-                                                type="button"
-                                                onClick={handleUseCurrentLocation}
-                                                className="px-3 py-3 bg-slate-100 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-slate-200 hover:bg-slate-200 transition-all disabled:opacity-60"
-                                            >
-                                                Use Current Location
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleSelectLocation}
-                                                className="px-3 py-3 bg-primary-50 text-primary-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-primary-100 hover:bg-primary-100 transition-all disabled:opacity-60"
-                                            >
-                                                Select Location
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -749,11 +707,6 @@ const FlatForm = () => {
                 </div>
             </div>
         </motion.div>
-        <MapPickerModal
-            isOpen={isMapPickerOpen}
-            onClose={() => setIsMapPickerOpen(false)}
-            onSelect={handleMapPicked}
-        />
         </>
     );
 };

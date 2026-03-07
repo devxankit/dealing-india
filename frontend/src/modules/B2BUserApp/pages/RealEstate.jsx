@@ -1110,14 +1110,14 @@ const RealEstate = () => {
                 </div>
 
                 {/* layout container */}
-                <div className="flex flex-col lg:flex-row gap-8">
+                <div className="flex flex-col lg:flex-row lg:items-start gap-8">
                     {/* Filter Sidebar */}
-                    <aside className="hidden lg:block w-72 flex-shrink-0 space-y-6">
+                    <aside className="hidden lg:block w-72 flex-shrink-0 space-y-6 lg:sticky lg:top-28 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto pr-1">
                         {renderFilters(false)}
                     </aside>
 
                     {/* Listing Area */}
-                    <div className="flex-1">
+                    <div className="flex-1 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-1">
                         {/* Active Filter Tags */}
                         <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-gray-100 pb-10">
                             <div>

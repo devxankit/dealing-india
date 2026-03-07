@@ -2368,7 +2368,7 @@ const ProductCatalog = () => {
           {/* Mobile search already rendered above */}
 
           {/* Main Category Dropdown Selection */}
-          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+          <div className="w-full flex flex-col md:flex-row gap-4 items-stretch md:items-center">
             {(!isBigTextilePlayer || selectedItemType === "lotslot") && (
               <div
                 className="relative hidden md:block md:w-72"
@@ -2555,14 +2555,14 @@ const ProductCatalog = () => {
           </AnimatePresence>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="mt-4 md:mt-6 flex flex-col lg:flex-row lg:items-start gap-8">
           {/* IndiaMart Style Sidebar */}
-          <aside className="hidden lg:block w-72 flex-shrink-0 space-y-6">
+          <aside className="hidden lg:block w-72 flex-shrink-0 space-y-6 lg:sticky lg:top-28 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto pr-1">
             {renderFilters()}
           </aside>
 
           {/* Product Listing Area */}
-          <div className="flex-1">
+          <div className="flex-1 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-1">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-32">
                 <div className="relative">

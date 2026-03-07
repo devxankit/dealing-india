@@ -79,6 +79,7 @@ import userNotificationRoutes from "./routes/userNotification.routes.js";
 import fcmTokenRoutes from "./routes/fcmToken.routes.js";
 import supportConfigRoutes from "./routes/supportConfig.routes.js";
 import referralRoutes from "./routes/referral.routes.js";
+import adminReferralSettingsRoutes from "./routes/adminReferralSettings.routes.js";
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 import { syncVendorViewsCron } from "./Cron/VendorViewSync.cron.js";
 import bannerBookingCron from "./Cron/BannerBooking.cron.js";
@@ -328,6 +329,7 @@ app.use("/api/b2b-vendor/shop-units", b2bVendorShopUnitRoutes);
 app.use("/api/b2b-vendor/lot-slots", lotSlotRoutes);
 app.use("/api/support-config", supportConfigRoutes);
 app.use("/api/referrals", referralRoutes);
+app.use("/api/admin/referral-settings", adminReferralSettingsRoutes);
 
 // New Feature Routes
 app.use("/api/business-types", businessTypeRoutes);
