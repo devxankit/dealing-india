@@ -24,7 +24,7 @@ import {
   FiX,
   FiUser,
   FiGift,
-
+  FiVideo,
 } from "react-icons/fi";
 import { useAdminAuthStore } from "../../store/adminStore";
 import adminMenu from "../../config/adminMenu.json";
@@ -49,7 +49,7 @@ const iconMap = {
   "Properties": FiHome,
   "Support Settings": FiMessageCircle,
   Settings: FiSettings,
-
+  "Reel Moderation": FiVideo,
   Firebase: FiDatabase,
 };
 

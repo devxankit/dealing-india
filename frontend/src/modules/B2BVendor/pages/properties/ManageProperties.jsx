@@ -470,8 +470,8 @@ const ManageProperties = () => {
                                                 </div>
                                             )}
                                             <div className="pl-3 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-3">
-                                                <div className={`w-2 h-2 ${selectedProperty.facilities?.waterSupply === 'Yes' ? 'bg-green-500' : 'bg-slate-200'} rounded-full`} />
-                                                <span className="text-[10px] font-black uppercase text-slate-700">Water: {selectedProperty.facilities?.waterSupply}</span>
+                                                <div className={`w-2 h-2 ${(Array.isArray(selectedProperty.facilities?.waterSupply) ? selectedProperty.facilities.waterSupply.length > 0 : selectedProperty.facilities?.waterSupply === 'Yes') ? 'bg-green-500' : 'bg-slate-200'} rounded-full`} />
+                                                <span className="text-[10px] font-black uppercase text-slate-700">Water: {Array.isArray(selectedProperty.facilities?.waterSupply) ? selectedProperty.facilities.waterSupply.join(', ') : (selectedProperty.facilities?.waterSupply || 'No')}</span>
                                             </div>
                                             <div className="pl-3 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-3">
                                                 <div className="w-2 h-2 bg-blue-500 rounded-full" />

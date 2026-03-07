@@ -256,7 +256,7 @@ const propertySchema = new mongoose.Schema(
             liftPassenger: { type: String, enum: ['Yes', 'No'] },
             liftLoading: { type: String, enum: ['Yes', 'No'] },
             powerBackup: { type: String, enum: ['Yes', 'No'] },
-            waterSupply: { type: String, enum: ['Yes', 'No'] },
+            waterSupply: { type: [String], enum: ['24hr', 'Borewell', 'Municipal', 'No'] },
             washroom: { type: [String], enum: ['Private', 'Common', 'No'], default: ['Common'] },
             fireSafety: { type: String, enum: ['Yes', 'No'] }
         },

@@ -80,13 +80,17 @@ import fcmTokenRoutes from "./routes/fcmToken.routes.js";
 import supportConfigRoutes from "./routes/supportConfig.routes.js";
 import referralRoutes from "./routes/referral.routes.js";
 import adminReferralSettingsRoutes from "./routes/adminReferralSettings.routes.js";
+import reelRoutes from "./routes/reel.routes.js";
+import adminReelRoutes from "./routes/adminReel.routes.js";
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 import { syncVendorViewsCron } from "./Cron/VendorViewSync.cron.js";
 import bannerBookingCron from "./Cron/BannerBooking.cron.js";
+import { startReelExpiryCron } from "./Cron/ReelExpiry.cron.js";
 
 B2BSubscriptionExpiryCron.start();
 syncVendorViewsCron.start();
 bannerBookingCron();
+startReelExpiryCron();
 
 // Initialize Express app
 const app = express();
@@ -330,6 +334,8 @@ app.use("/api/b2b-vendor/lot-slots", lotSlotRoutes);
 app.use("/api/support-config", supportConfigRoutes);
 app.use("/api/referrals", referralRoutes);
 app.use("/api/admin/referral-settings", adminReferralSettingsRoutes);
+app.use("/api/reels", reelRoutes);
+app.use("/api/admin/reels", adminReelRoutes);
 
 // New Feature Routes
 app.use("/api/business-types", businessTypeRoutes);

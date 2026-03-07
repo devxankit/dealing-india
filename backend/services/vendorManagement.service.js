@@ -25,7 +25,8 @@ export const getAllVendors = async (filters = {}) => {
       sortOrder = 'desc',
       excludeBusinessTypes,
       businessType,
-      strict
+      strict,
+      city
     } = filters;
 
     // Build query
@@ -75,7 +76,12 @@ export const getAllVendors = async (filters = {}) => {
         query.businessType = { $nin: excludeArr.map(t => new RegExp(`^${t}$`, 'i')) };
       }
     }
-    
+
+    // Filter by city (address.city, case-insensitive)
+    if (city && String(city).trim()) {
+      const cityEscaped = String(city).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query['address.city'] = new RegExp('^' + cityEscaped + '$', 'i');
+    }
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);

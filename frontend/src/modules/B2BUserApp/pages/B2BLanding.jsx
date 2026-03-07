@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiSearch, FiX, FiChevronDown, FiGrid, FiShoppingBag,
     FiUser, FiArrowRight, FiArrowLeft, FiBriefcase, FiTrendingUp, FiHome, FiMapPin, FiFilter,
-    FiTruck, FiPhone, FiShoppingCart
+    FiTruck, FiPhone, FiShoppingCart, FiVideo
 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { appLogo } from '../../../data/logos';
@@ -125,7 +125,12 @@ const B2BLanding = () => {
 
         fetchBusinessTypes();
         fetchAllVendors();
-    }, [fetchCategories, fetchLocations]);
+    }, [fetchCategories, fetchLocations, selectedCity]);
+
+    // Only show vendors that have a shop (shopUnit) in the strip
+    const vendorsWithShop = useMemo(() => {
+        return (allVendors || []).filter((v) => v.shopUnit != null && (typeof v.shopUnit === 'object' ? Object.keys(v.shopUnit).length > 0 : true));
+    }, [allVendors]);
 
     const uniqueCities = useMemo(() => {
         const citiesList = (availableStates || []).flatMap(state => state.cities || []);
@@ -814,6 +819,12 @@ const B2BLanding = () => {
                                     >
                                         <img src={realEstateIcon} alt="Real Estate" className="h-7 md:h-8 w-auto object-contain" /> Real Estate
                                     </button>
+                                    <button
+                                        onClick={() => navigate('/b2b/reels')}
+                                        className="px-3 py-2 text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
+                                    >
+                                        <FiVideo className="h-5 w-5" /> Reels
+                                    </button>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -1042,6 +1053,12 @@ const B2BLanding = () => {
                                     className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
                                 >
                                     <img src={realEstateIcon} alt="Real Estate" className="h-7 w-auto object-contain" /> Real Estate
+                                </button>
+                                <button
+                                    onClick={() => navigate('/b2b/reels')}
+                                    className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
+                                >
+                                    <FiVideo className="h-4 w-4" /> Reels
                                 </button>
                                 <button
                                     onClick={() => navigate('/b2b-vendor/register')}
@@ -1385,7 +1402,7 @@ const B2BLanding = () => {
                 </div>
             </section>
 
-            {/* --- VENDOR SHIPS AUTO-SCROLL --- */}
+            {/* --- VENDOR SHOPS AUTO-SCROLL (hide when no shops) --- */}
             <section className="w-full bg-white pt-6 pb-0 md:pt-6 md:pb-8 overflow-hidden flex-none">
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6 mb-3 md:mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -1402,53 +1419,72 @@ const B2BLanding = () => {
                     </div>
                 </div>
 
-                <div className="relative group">
-                    <div className="flex gap-4 md:gap-6 animate-scroll hover:pause-scroll py-3">
-                        {/* Render twice for infinite loop effect */}
-                        {[...allVendors, ...allVendors].map((vendor, idx) => (
-                            <div
-                                key={`${vendor._id}-${idx}`}
-                                className="flex-shrink-0 w-[140px] md:w-[160px]"
-                            >
-                                <B2BVendorCard
-                                    vendor={vendor}
-                                    viewMode="grid"
-                                    trackContactClick={trackContactClick}
-                                    compact={true}
-                                    requireAuthForActions={true}
-                                />
-                            </div>
-                        ))}
-
-                        {vendorsLoading && [...Array(6)].map((_, i) => (
-                            <div key={i} className="flex-shrink-0 w-[240px] md:w-[280px] aspect-[4/5] bg-gray-50 animate-pulse rounded-2xl"></div>
+                {vendorsLoading ? (
+                    <div className="flex gap-4 md:gap-6 py-3">
+                        {[...Array(6)].map((_, i) => (
+                            <div key={i} className="flex-shrink-0 w-[140px] md:w-[160px] aspect-[4/5] bg-gray-50 animate-pulse rounded-2xl"></div>
                         ))}
                     </div>
-                </div>
-
-                <style>{`
-                    @keyframes scroll {
-                        0% { transform: translateX(0); }
-                        100% { transform: translateX(calc(-140px * ${allVendors.length} - 1rem * ${allVendors.length})); }
-                    }
-                    @media (min-width: 768px) {
-                        @keyframes scroll {
-                            0% { transform: translateX(0); }
-                            100% { transform: translateX(calc(-160px * ${allVendors.length} - 1.5rem * ${allVendors.length})); }
-                        }
-                    }
-                    .animate-scroll {
-                        display: flex;
-                        width: max-content;
-                        animation: scroll 40s linear infinite;
-                    }
-                    .pause-scroll:hover {
-                        animation-play-state: paused;
-                    }
-                    .no-scrollbar::-webkit-scrollbar {
-                        display: none;
-                    }
-                `}</style>
+                ) : vendorsWithShop.length === 0 ? (
+                    <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-8 md:py-10 text-center">
+                        <p className="text-gray-500 text-sm md:text-base font-medium">No shops listed yet. Check back soon or explore categories above.</p>
+                    </div>
+                ) : vendorsWithShop.length === 1 ? (
+                    <div className="flex gap-4 md:gap-6 py-3 px-4 md:px-8 max-w-[1920px] mx-auto justify-center">
+                        <div className="flex-shrink-0 w-[140px] md:w-[160px]">
+                            <B2BVendorCard
+                                vendor={vendorsWithShop[0]}
+                                viewMode="grid"
+                                trackContactClick={trackContactClick}
+                                compact={true}
+                                requireAuthForActions={true}
+                            />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="relative group">
+                        <div className="flex gap-4 md:gap-6 animate-scroll hover:pause-scroll py-3">
+                            {/* Render twice for infinite loop effect when multiple shops */}
+                            {[...vendorsWithShop, ...vendorsWithShop].map((vendor, idx) => (
+                                <div
+                                    key={`${vendor._id}-${idx}`}
+                                    className="flex-shrink-0 w-[140px] md:w-[160px]"
+                                >
+                                    <B2BVendorCard
+                                        vendor={vendor}
+                                        viewMode="grid"
+                                        trackContactClick={trackContactClick}
+                                        compact={true}
+                                        requireAuthForActions={true}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        <style>{`
+                            @keyframes scroll {
+                                0% { transform: translateX(0); }
+                                100% { transform: translateX(calc(-140px * ${vendorsWithShop.length} - 1rem * ${vendorsWithShop.length})); }
+                            }
+                            @media (min-width: 768px) {
+                                @keyframes scroll {
+                                    0% { transform: translateX(0); }
+                                    100% { transform: translateX(calc(-160px * ${vendorsWithShop.length} - 1.5rem * ${vendorsWithShop.length})); }
+                                }
+                            }
+                            .animate-scroll {
+                                display: flex;
+                                width: max-content;
+                                animation: scroll 40s linear infinite;
+                            }
+                            .pause-scroll:hover {
+                                animation-play-state: paused;
+                            }
+                            .no-scrollbar::-webkit-scrollbar {
+                                display: none;
+                            }
+                        `}</style>
+                    </div>
+                )}
             </section>
 
             {/* --- SUPPORT SECTION --- */}

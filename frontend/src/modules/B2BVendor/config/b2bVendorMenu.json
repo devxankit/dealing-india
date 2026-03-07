@@ -46,6 +46,11 @@
         "children": []
     },
     {
+        "title": "Reels",
+        "route": "/b2b-vendor/reels",
+        "children": []
+    },
+    {
         "title": "Notifications",
         "route": "/b2b-vendor/notifications",
         "children": []

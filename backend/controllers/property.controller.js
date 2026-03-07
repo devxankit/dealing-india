@@ -117,7 +117,7 @@ const DEFAULT_FACILITIES = {
     liftPassenger: 'No',
     liftLoading: 'No',
     powerBackup: 'No',
-    waterSupply: 'No',
+    waterSupply: [],
     washroom: ['Common'],
     fireSafety: 'No'
 };

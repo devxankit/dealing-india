@@ -18,6 +18,7 @@ import B2BHeader from "../components/Layout/B2BHeader";
 import B2BBottomNav from "../components/Layout/B2BBottomNav";
 import B2BProductCard from "../components/B2BProductCard";
 import B2BVendorCard from "../components/B2BVendorCard";
+import CategoryPlaylistEmbed from "../components/CategoryPlaylistEmbed";
 import api from "../../../shared/utils/api";
 import { useAuthStore } from "../../../shared/store/authStore";
 import { debounce, getGoogleMapsUrl } from "../../../shared/utils/helpers";
@@ -2479,6 +2480,16 @@ const ProductCatalog = () => {
               </div>
             )}
           </div>
+
+          {/* Category playlist (YouTube) when a category is selected */}
+          {selectedCategory && selectedCategory !== "All" && (
+            <div className="mb-6">
+              <CategoryPlaylistEmbed
+                categoryName={selectedCategory}
+                title={`Videos: ${selectedCategory}`}
+              />
+            </div>
+          )}
 
           {/* Full Width Subcategory Explorer Card */}
           <AnimatePresence mode="wait">

@@ -78,5 +78,10 @@
     "title": "Notifications",
     "route": "/admin/notifications",
     "children": []
+  },
+  {
+    "title": "Reel Moderation",
+    "route": "/admin/reels",
+    "children": []
   }
 ]

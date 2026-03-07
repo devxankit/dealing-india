@@ -1,10 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { FiUpload, FiX, FiTag, FiHome, FiLock, FiUnlock, FiEdit3, FiSave, FiPlus } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
+
+const ALL_BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier', 'Developer', 'Property'];
+const DEVELOPER_BUSINESS_CATEGORIES = ['Developer', 'Property'];
 
 const ShopListingForm = ({ onSubmit, isLoading = false }) => {
     const [formData, setFormData] = useState({
@@ -19,9 +22,16 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         shopUnitId: null,
     });
 
-    const BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier', 'Developer', 'Property'];
-
     const { vendor } = useB2BVendorAuthStore();
+
+    const businessCategories = useMemo(() => {
+        const vendorType = (vendor?.businessType || "").toString().trim().toLowerCase().replace(/\s+/g, " ");
+        const restrictedTypes = ["developer", "property broker"];
+        if (restrictedTypes.includes(vendorType)) {
+            return DEVELOPER_BUSINESS_CATEGORIES;
+        }
+        return ALL_BUSINESS_CATEGORIES;
+    }, [vendor?.businessType]);
     const [hasExistingUnit, setHasExistingUnit] = useState(false);
     const [isShopLocked, setIsShopLocked] = useState(false);
     const [isShopModified, setIsShopModified] = useState(false);
@@ -56,6 +66,13 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         };
         fetchUnit();
     }, []);
+
+    // When vendor is Developer, ensure selected businessCategory is in allowed list
+    useEffect(() => {
+        if (formData.businessCategory && !businessCategories.includes(formData.businessCategory)) {
+            setFormData(prev => ({ ...prev, businessCategory: "" }));
+        }
+    }, [businessCategories]);
 
     const MAX_PHOTOS = 5;
 
@@ -274,7 +291,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                             className={inputStyle}
                         >
                             <option value="">Select Business Category</option>
-                            {BUSINESS_CATEGORIES.map((cat) => (
+                            {businessCategories.map((cat) => (
                                 <option key={cat} value={cat}>{cat}</option>
                             ))}
                         </select>

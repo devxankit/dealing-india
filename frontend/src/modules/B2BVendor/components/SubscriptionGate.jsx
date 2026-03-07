@@ -122,10 +122,10 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true }) => {
                                             Abhi Nahi
                                         </button>
                                         <button
-                                            onClick={() => navigate('/b2b-vendor/shop')}
+                                            onClick={() => { setShowShopModal(false); navigate('/b2b-vendor/shop-listing'); }}
                                             className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-md shadow-indigo-100"
                                         >
-                                            Go to Shop <FiArrowRight />
+                                            Go to Shop Listing <FiArrowRight />
                                         </button>
                                     </div>
                                 </div>

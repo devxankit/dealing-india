@@ -106,6 +106,9 @@ const AdminVendorDashboardView = lazyWithRetry(
 const SupportSettings = lazyWithRetry(
   () => import("./modules/Admin/pages/SupportSettings"),
 );
+const AdminReelModeration = lazyWithRetry(
+  () => import("./modules/Admin/pages/ReelModeration"),
+);
 const RouteWrapper = lazyWithRetry(
   () => import("./shared/components/RouteWrapper"),
 );
@@ -196,6 +199,12 @@ const B2BVendorForgotPassword = lazyWithRetry(
 const B2BVendorManageLots = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/lotslot/ManageLotSlot"),
 );
+const B2BVendorReels = lazyWithRetry(
+  () => import("./modules/B2BVendor/pages/Reels"),
+);
+const B2BVendorUploadReel = lazyWithRetry(
+  () => import("./modules/B2BVendor/pages/UploadReel"),
+);
 const B2BVendorAddLot = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/lotslot/AddLotSlot"),
 );
@@ -257,6 +266,9 @@ const SellerTypeSelection = lazyWithRetry(
 );
 const B2BLanding = lazyWithRetry(
   () => import("./modules/B2BUserApp/pages/B2BLanding"),
+);
+const ReelFeed = lazyWithRetry(
+  () => import("./modules/B2BUserApp/pages/ReelFeed"),
 );
 const RealEstate = lazyWithRetry(
   () => import("./modules/B2BUserApp/pages/RealEstate"),
@@ -382,6 +394,7 @@ const AppRoutes = () => {
           </Route>
 
           <Route path="notifications" element={<Notifications />} />
+          <Route path="reels" element={<AdminReelModeration />} />
           <Route path="support-settings" element={<SupportSettings />} />
         </Route>
 
@@ -397,6 +410,7 @@ const AppRoutes = () => {
 
         <Route path="/b2b" element={<Navigate to="/b2b/landing" replace />} />
         <Route path="/b2b/landing" element={<B2BLanding />} />
+        <Route path="/b2b/reels" element={<ReelFeed />} />
         <Route path="/b2b/catalog" element={<B2BProductCatalog />} />
         <Route path="/b2b/real-estate">
           <Route index element={<RealEstate />} />
@@ -548,6 +562,8 @@ const AppRoutes = () => {
           />
           <Route path="profile" element={<B2BVendorProfile />} />
           <Route path="notifications" element={<B2BVendorNotifications />} />
+          <Route path="reels" element={<B2BVendorReels />} />
+          <Route path="reels/upload" element={<B2BVendorUploadReel />} />
         </Route>
         <Route path="*" element={<Navigate to="/b2b/landing" replace />} />
       </Routes>
