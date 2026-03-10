@@ -1,10 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiGrid, FiBriefcase } from 'react-icons/fi';
+import { FiHome, FiGrid, FiBriefcase, FiVideo } from 'react-icons/fi';
 
 const B2BBottomNav = () => {
     const navItems = [
         { icon: FiHome, label: 'Home', path: '/b2b/landing' },
+        { icon: FiVideo, label: 'Reels', path: '/b2b/reels' },
         { icon: FiGrid, label: 'Browse', path: '/b2b/catalog' },
         { icon: FiBriefcase, label: 'Business', path: '/b2b/catalog?open=business' },
     ];
@@ -16,7 +17,7 @@ const B2BBottomNav = () => {
                     <NavLink
                         key={item.path}
                         to={item.path}
-                        end
+                        end={item.path === '/b2b/landing'}
                         className={({ isActive }) => `
                             flex flex-col items-center gap-1 transition-all
                             ${isActive ? 'text-primary-600' : 'text-gray-400'}

@@ -34,13 +34,13 @@ export default function Reels() {
   }, [page]);
 
   const statusBadge = (status) => {
+    const normalized = status === 'expired' ? 'approved' : status;
     const map = {
       pending: { label: 'Pending', class: 'bg-amber-100 text-amber-800' },
       approved: { label: 'Approved', class: 'bg-emerald-100 text-emerald-800' },
       rejected: { label: 'Rejected', class: 'bg-red-100 text-red-800' },
-      expired: { label: 'Expired', class: 'bg-gray-100 text-gray-600' },
     };
-    const s = map[status] || map.pending;
+    const s = map[normalized] || map.pending;
     return <span className={`text-xs font-medium px-2 py-0.5 rounded ${s.class}`}>{s.label}</span>;
   };
 

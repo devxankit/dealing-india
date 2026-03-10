@@ -17,11 +17,13 @@ export default function UploadReel() {
     title: '',
     description: '',
     categoryId: '',
+    subCategoryId: '',
     categoryName: '',
   });
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
 
+  // Load categories for playlist selection from public endpoint
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -31,8 +33,9 @@ export default function UploadReel() {
         } else if (res?.data?.categories) {
           setCategories(res.data.categories);
         }
-      } catch (_) {
+      } catch {
         setCategories([]);
+        toast.error('Failed to load categories for reels');
       }
     };
     fetchCategories();
@@ -63,8 +66,9 @@ export default function UploadReel() {
       toast.error('Title is required');
       return;
     }
-    const cat = categories.find((c) => c.id === form.categoryId || c._id === form.categoryId);
-    const categoryName = form.categoryName?.trim() || (cat?.name ?? '');
+    const selected = categories.find((c) => (c.id || c._id)?.toString() === form.categoryId);
+    // For playlist creation we use the selected sub-category name directly (e.g. Saree, Flat/Villa/Row House, Commercial Property)
+    const categoryName = (form.categoryName?.trim() || selected?.name || '').trim();
     if (!categoryName) {
       toast.error('Please select a category');
       return;
@@ -175,12 +179,14 @@ export default function UploadReel() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Playlist Category (sub-category) *
+          </label>
           <select
             value={form.categoryId}
             onChange={(e) => {
               const id = e.target.value;
-              const cat = categories.find((c) => (c.id || c._id) === id);
+              const cat = categories.find((c) => (c.id || c._id)?.toString() === id);
               setForm((f) => ({
                 ...f,
                 categoryId: id,
@@ -190,13 +196,16 @@ export default function UploadReel() {
             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             required
           >
-            <option value="">Select category</option>
+            <option value="">Select sub-category</option>
             {categories.map((c) => (
-              <option key={c.id || c._id} value={c.id || c._id}>
+              <option key={c.id || c._id} value={(c.id || c._id)?.toString()}>
                 {c.name}
               </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-gray-400">
+            Choose the most specific sub-category (e.g. Saree, Flat/Villa/Row House, Commercial Property).
+          </p>
         </div>
 
         <div className="flex gap-3 pt-4">

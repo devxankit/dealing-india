@@ -1,6 +1,7 @@
 import Reel from '../models/Reel.model.js';
 import ReelLike from '../models/ReelLike.model.js';
 import ReelComment from '../models/ReelComment.model.js';
+import ReelView from '../models/ReelView.model.js';
 import YouTubePlaylistMap from '../models/YouTubePlaylistMap.model.js';
 import Vendor from '../models/Vendor.model.js';
 import User from '../models/User.model.js';
@@ -8,7 +9,7 @@ import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadToCloudinary } from '../utils/cloudinary.util.js';
 import { publishReelToYouTube } from '../services/youtubeReel.service.js';
 
-const REEL_ACTIVE_HOURS = 24;
+const REEL_ACTIVE_HOURS = 24; // kept for backwards compatibility only
 
 /** Get uploader display name */
 async function getUploaderName(uploaderId, uploaderType) {
@@ -218,17 +219,21 @@ export const adminDeleteReel = asyncHandler(async (req, res) => {
 });
 
 /**
- * Public feed: approved reels within last 24 hours
+ * Public feed: all visible reels (approved + previously expired)
  * GET /api/reels/feed
  */
 export const getFeed = asyncHandler(async (req, res) => {
-  const cutoff = new Date(Date.now() - REEL_ACTIVE_HOURS * 60 * 60 * 1000);
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(30, Math.max(1, parseInt(req.query.limit) || 10));
   const skip = (page - 1) * limit;
   const categoryName = req.query.category;
 
-  const filter = { status: 'approved', approvedAt: { $gte: cutoff } };
+  // Include both approved and previously expired reels,
+  // but only ones that have a YouTube video attached
+  const filter = {
+    status: { $in: ['approved', 'expired'] },
+    youtubeVideoId: { $ne: null },
+  };
   if (categoryName) filter.categoryName = new RegExp(categoryName, 'i');
 
   const reels = await Reel.find(filter)
@@ -305,23 +310,38 @@ export const trackView = asyncHandler(async (req, res) => {
   if (!reel) {
     return res.status(404).json({ success: false, message: 'Reel not found' });
   }
-  if (reel.status !== 'approved' || !reel.approvedAt) {
+  if (!['approved', 'expired'].includes(reel.status)) {
     return res.status(400).json({ success: false, message: 'Reel is not active' });
   }
-  const cutoff = new Date(Date.now() - REEL_ACTIVE_HOURS * 60 * 60 * 1000);
-  if (reel.approvedAt < cutoff) {
-    return res.status(400).json({ success: false, message: 'Reel has expired' });
-  }
 
-  const updated = await Reel.findByIdAndUpdate(
-    req.params.id,
-    { $inc: { viewCount: 1 } },
-    { new: true, select: 'viewCount' }
-  ).lean();
+  const userId = req.user?.id || req.user?.vendorId || null;
+  let updatedViewCount = reel.viewCount ?? 0;
+
+  if (userId) {
+    // One counted view per user per reel
+    const existing = await ReelView.findOne({ reelId: reel._id, userId }).lean();
+    if (!existing) {
+      await ReelView.create({ reelId: reel._id, userId });
+      const updated = await Reel.findByIdAndUpdate(
+        req.params.id,
+        { $inc: { viewCount: 1 } },
+        { new: true, select: 'viewCount' }
+      ).lean();
+      updatedViewCount = updated?.viewCount ?? updatedViewCount + 1;
+    }
+  } else {
+    // Anonymous viewer: count every activation
+    const updated = await Reel.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { viewCount: 1 } },
+      { new: true, select: 'viewCount' }
+    ).lean();
+    updatedViewCount = updated?.viewCount ?? updatedViewCount + 1;
+  }
 
   res.status(200).json({
     success: true,
-    data: { viewCount: updated?.viewCount ?? reel.viewCount ?? 0 },
+    data: { viewCount: updatedViewCount },
   });
 });
 
@@ -336,12 +356,8 @@ export const likeReel = asyncHandler(async (req, res) => {
   }
   const reel = await Reel.findById(req.params.id).lean();
   if (!reel) return res.status(404).json({ success: false, message: 'Reel not found' });
-  if (reel.status !== 'approved' || !reel.approvedAt) {
+  if (!['approved', 'expired'].includes(reel.status)) {
     return res.status(400).json({ success: false, message: 'Reel is not active' });
-  }
-  const cutoff = new Date(Date.now() - REEL_ACTIVE_HOURS * 60 * 60 * 1000);
-  if (reel.approvedAt < cutoff) {
-    return res.status(400).json({ success: false, message: 'Reel has expired' });
   }
 
   await ReelLike.findOneAndUpdate(
@@ -401,12 +417,8 @@ export const addComment = asyncHandler(async (req, res) => {
   }
   const reel = await Reel.findById(req.params.id);
   if (!reel) return res.status(404).json({ success: false, message: 'Reel not found' });
-  if (reel.status !== 'approved' || !reel.approvedAt) {
+  if (!['approved', 'expired'].includes(reel.status)) {
     return res.status(400).json({ success: false, message: 'Reel is not active' });
-  }
-  const cutoff = new Date(Date.now() - REEL_ACTIVE_HOURS * 60 * 60 * 1000);
-  if (reel.approvedAt < cutoff) {
-    return res.status(400).json({ success: false, message: 'Reel has expired' });
   }
   const text = req.body?.text?.trim();
   if (!text || text.length > 500) {

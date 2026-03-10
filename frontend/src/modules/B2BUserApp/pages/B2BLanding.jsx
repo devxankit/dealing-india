@@ -1062,12 +1062,6 @@ const B2BLanding = () => {
                                     <img src={realEstateIcon} alt="Real Estate" className="h-7 w-auto object-contain" /> Real Estate
                                 </button>
                                 <button
-                                    onClick={() => navigate('/b2b/reels')}
-                                    className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
-                                >
-                                    <FiVideo className="h-4 w-4" /> Reels
-                                </button>
-                                <button
                                     onClick={() => navigate('/b2b-vendor/register')}
                                     className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-black text-white"
                                 >
@@ -1145,21 +1139,32 @@ const B2BLanding = () => {
                 )}
             </AnimatePresence>
 
-            {/* Mobile footer bar */}
+            {/* Mobile footer bar - bottom tab style */}
             <footer className="md:hidden fixed bottom-0 left-0 right-0 z-[70] bg-white border-t border-gray-100 shadow-lg">
-                <div className="max-w-[1920px] mx-auto px-4 py-2 flex items-center justify-between">
+                <div className="max-w-[1920px] mx-auto px-2 py-2 flex items-center justify-around gap-1">
                     <button
                         onClick={() => navigate(isAuthenticated ? '/b2b/profile' : '/b2b/login')}
-                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary-600 text-white font-black text-[10px] uppercase tracking-widest"
+                        className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl text-gray-500 hover:text-primary-600 hover:bg-primary-50 transition-colors min-w-0 flex-1"
                         aria-label="Profile"
                     >
-                        <FiUser size={16} /> Profile
+                        <FiUser size={18} />
+                        <span className="text-[9px] font-bold uppercase tracking-wider">Profile</span>
+                    </button>
+                    <button
+                        onClick={() => navigateWithAuth('/b2b/reels')}
+                        className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl text-gray-500 hover:text-primary-600 hover:bg-primary-50 transition-colors min-w-0 flex-1"
+                        aria-label="Reels"
+                    >
+                        <FiVideo size={18} />
+                        <span className="text-[9px] font-bold uppercase tracking-wider">Reels</span>
                     </button>
                     <button
                         onClick={() => setIsMobileBusinessTypeOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-700 font-black text-[10px] uppercase tracking-widest"
+                        className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl text-gray-500 hover:text-primary-600 hover:bg-primary-50 transition-colors min-w-0 flex-1"
+                        aria-label="Business Type"
                     >
-                        <FiBriefcase className="text-primary-600" /> Business Type
+                        <FiBriefcase size={18} className="text-primary-600" />
+                        <span className="text-[9px] font-bold uppercase tracking-wider">Business</span>
                     </button>
                 </div>
             </footer>
