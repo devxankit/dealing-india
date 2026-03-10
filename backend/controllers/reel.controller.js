@@ -237,6 +237,18 @@ export const getFeed = asyncHandler(async (req, res) => {
     .limit(limit)
     .lean();
 
+  // Map vendor details for WhatsApp/contact (only for vendor uploaders)
+  const vendorIds = reels
+    .filter((r) => r.uploaderType === 'vendor')
+    .map((r) => r.uploaderId);
+  let vendorMap = new Map();
+  if (vendorIds.length) {
+    const vendors = await Vendor.find({ _id: { $in: vendorIds } })
+      .select('phone storeName')
+      .lean();
+    vendorMap = new Map(vendors.map((v) => [v._id.toString(), v]));
+  }
+
   const reelIds = reels.map((r) => r._id);
   const likesCount = await ReelLike.aggregate([
     { $match: { reelId: { $in: reelIds } } },
@@ -258,18 +270,58 @@ export const getFeed = asyncHandler(async (req, res) => {
     userLikedSet = new Set(userLikes.map((l) => l.reelId.toString()));
   }
 
-  const feed = reels.map((r) => ({
-    ...r,
-    likeCount: likeMap.get(r._id.toString()) || 0,
-    commentCount: commentMap.get(r._id.toString()) || 0,
-    userLiked: userLikedSet.has(r._id.toString()),
-  }));
+  const feed = reels.map((r) => {
+    const vendorInfo =
+      r.uploaderType === 'vendor'
+        ? vendorMap.get(r.uploaderId?.toString() || '') || null
+        : null;
+
+    return {
+      ...r,
+      likeCount: likeMap.get(r._id.toString()) || 0,
+      commentCount: commentMap.get(r._id.toString()) || 0,
+      userLiked: userLikedSet.has(r._id.toString()),
+      vendorPhone: vendorInfo?.phone || null,
+      vendorStoreName: vendorInfo?.storeName || r.uploaderName || null,
+      viewCount: typeof r.viewCount === 'number' ? r.viewCount : 0,
+      vendorId: r.uploaderType === 'vendor' ? (vendorInfo?._id || r.uploaderId) : null,
+    };
+  });
 
   const total = await Reel.countDocuments(filter);
   res.status(200).json({
     success: true,
     data: { reels: feed },
     pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+  });
+});
+
+/**
+ * Track a view for a reel (used by reel feed when a reel becomes active)
+ * POST /api/reels/:id/view
+ */
+export const trackView = asyncHandler(async (req, res) => {
+  const reel = await Reel.findById(req.params.id).select('status approvedAt viewCount').lean();
+  if (!reel) {
+    return res.status(404).json({ success: false, message: 'Reel not found' });
+  }
+  if (reel.status !== 'approved' || !reel.approvedAt) {
+    return res.status(400).json({ success: false, message: 'Reel is not active' });
+  }
+  const cutoff = new Date(Date.now() - REEL_ACTIVE_HOURS * 60 * 60 * 1000);
+  if (reel.approvedAt < cutoff) {
+    return res.status(400).json({ success: false, message: 'Reel has expired' });
+  }
+
+  const updated = await Reel.findByIdAndUpdate(
+    req.params.id,
+    { $inc: { viewCount: 1 } },
+    { new: true, select: 'viewCount' }
+  ).lean();
+
+  res.status(200).json({
+    success: true,
+    data: { viewCount: updated?.viewCount ?? reel.viewCount ?? 0 },
   });
 });
 

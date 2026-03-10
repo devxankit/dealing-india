@@ -150,9 +150,9 @@ export default function ReelModeration() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-2xl bg-gray-100 animate-pulse aspect-[9/16] max-h-[320px]" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="rounded-2xl bg-gray-100 animate-pulse aspect-[9/16] max-h-[280px]" />
           ))}
         </div>
       ) : reels.length === 0 ? (
@@ -165,18 +165,18 @@ export default function ReelModeration() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {reels.map((reel) => (
               <motion.div
                 key={reel._id}
                 layout
                 className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
-                <div className="aspect-[9/16] max-h-[320px] bg-gray-900 relative group">
+                <div className="aspect-[28/16] max-h-[280px] bg-gray-900 relative group overflow-hidden">
                   {reel.videoUrl ? (
                     <video
                       src={reel.videoUrl}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover"
                       muted
                       playsInline
                       preload="metadata"

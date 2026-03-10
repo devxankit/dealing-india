@@ -188,6 +188,19 @@ const ProductCatalog = () => {
     return [...new Set(names)].sort();
   }, [allCategories]);
 
+  // Subcategories shown in filter: only those belonging to the selected category
+  const subcategoriesForFilter = useMemo(() => {
+    if (!selectedCategory || selectedCategory === "All") return allSubcategories;
+    const cat = allCategories.find(
+      (c) => (c.name || "").trim().toLowerCase() === (selectedCategory || "").trim().toLowerCase(),
+    );
+    if (!cat || !cat.subcategories?.length) return [];
+    const names = (cat.subcategories || [])
+      .map((s) => (typeof s === "string" ? s : s?.name))
+      .filter(Boolean);
+    return [...new Set(names)].sort();
+  }, [allCategories, selectedCategory, allSubcategories]);
+
   const [dynamicFilters, setDynamicFilters] = useState({});
   const [dynamicSearchQueries, setDynamicSearchQueries] = useState({});
 
@@ -201,6 +214,16 @@ const ProductCatalog = () => {
     }
     return null;
   }, [selectedSubcategory, allCategories]);
+
+  // When category changes, clear subcategory if it doesn't belong to the selected category
+  useEffect(() => {
+    if (!selectedSubcategory || !selectedCategory || selectedCategory === "All") return;
+    const allowed = subcategoriesForFilter.map((s) => (s || "").trim().toLowerCase());
+    const current = (selectedSubcategory || "").trim().toLowerCase();
+    if (allowed.length > 0 && !allowed.includes(current)) {
+      setSelectedSubcategory(null);
+    }
+  }, [selectedCategory, subcategoriesForFilter]);
 
   // Reset dynamic filters when subcategory changes
   useEffect(() => {
@@ -360,7 +383,7 @@ const ProductCatalog = () => {
                     </div>
                   </div>
                   <div className="p-5 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                    {allSubcategories
+                    {subcategoriesForFilter
                       .filter((sub) =>
                         sub
                           .toLowerCase()
@@ -957,6 +980,11 @@ const ProductCatalog = () => {
       if (selectedArea) {
         params.area = selectedArea;
       }
+      // Filter cities (and areas/markets) by selected business type so only relevant locations show
+      if (selectedBusinessType && selectedBusinessType.trim()) {
+        params.businessTypeFilter = "include";
+        params.businessTypes = selectedBusinessType.trim();
+      }
 
       const response = await api.get("/public/b2b-listing-locations", { params });
       if (response.success && response.data) {
@@ -1317,7 +1345,7 @@ const ProductCatalog = () => {
   useEffect(() => {
     fetchListingLocationFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCity, selectedArea]);
+  }, [selectedCity, selectedArea, selectedBusinessType]);
 
   // Update markets from store when available
   // availableMarkets is intentionally left for potential local modifications 
@@ -1800,6 +1828,13 @@ const ProductCatalog = () => {
     )
     : uniqueCities;
 
+  // When a business type is selected and location API returns no cities, that business type has no products
+  const noProductsInBusinessType = Boolean(
+    selectedBusinessType &&
+    listingLocationFilters.cities &&
+    listingLocationFilters.cities.length === 0,
+  );
+
   const filteredAreasList = useMemo(() => {
     const areas =
       Array.isArray(listingLocationFilters.areas) &&
@@ -2050,11 +2085,18 @@ const ProductCatalog = () => {
             className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center">
             Category
           </button>
-          <button
-            onClick={() => setIsCityDropdownOpen(true)}
-            className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center">
-            City
-          </button>
+          {!noProductsInBusinessType && (
+            <button
+              onClick={() => setIsCityDropdownOpen(true)}
+              className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center">
+              City
+            </button>
+          )}
+          {noProductsInBusinessType && (
+            <div className="w-full px-3 py-2 bg-amber-50 border border-amber-100 rounded-full text-[10px] font-bold text-amber-800 text-center">
+              No products listed in this business type
+            </div>
+          )}
         </div>
         {isCityDropdownOpen && (
           <div
@@ -2271,98 +2313,106 @@ const ProductCatalog = () => {
         <div className="space-y-4 md:space-y-6 mb-6 md:mb-10">
           {/* Location Filters */}
           <div className="hidden md:flex flex-col md:flex-row gap-4 items-stretch md:items-center">
-            {/* City Searchable Dropdown */}
-            <div className="relative w-full md:w-64" ref={cityDropdownRef}>
-              <button
-                onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
-                disabled={locationsLoading}
-                className="w-full px-4 py-3 md:py-3.5 bg-white border border-gray-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-primary-500 font-bold text-xs md:text-sm shadow-sm transition-all outline-none flex items-center justify-between gap-2">
-                <span className="truncate">{selectedCity}</span>
-                <FiChevronDown
-                  className={`transition-transform duration-200 ${isCityDropdownOpen ? "rotate-180" : ""}`}
-                />
-              </button>
+            {noProductsInBusinessType ? (
+              <div className="px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl text-[11px] font-bold text-amber-800">
+                No products listed in this business type
+              </div>
+            ) : (
+              <>
+                {/* City Searchable Dropdown */}
+                <div className="relative w-full md:w-64" ref={cityDropdownRef}>
+                  <button
+                    onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
+                    disabled={locationsLoading}
+                    className="w-full px-4 py-3 md:py-3.5 bg-white border border-gray-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-primary-500 font-bold text-xs md:text-sm shadow-sm transition-all outline-none flex items-center justify-between gap-2">
+                    <span className="truncate">{selectedCity}</span>
+                    <FiChevronDown
+                      className={`transition-transform duration-200 ${isCityDropdownOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
 
-              <AnimatePresence>
-                {isCityDropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl md:rounded-2xl shadow-xl z-[100] overflow-hidden">
-                    <div className="p-3 border-b border-gray-50">
-                      <div className="relative">
-                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
-                        <input
-                          autoFocus
-                          type="text"
-                          placeholder="Search city..."
-                          className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                          value={citySearchQuery}
-                          onChange={(e) => setCitySearchQuery(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    </div>
+                  <AnimatePresence>
+                    {isCityDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl md:rounded-2xl shadow-xl z-[100] overflow-hidden">
+                        <div className="p-3 border-b border-gray-50">
+                          <div className="relative">
+                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                            <input
+                              autoFocus
+                              type="text"
+                              placeholder="Search city..."
+                              className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                              value={citySearchQuery}
+                              onChange={(e) => setCitySearchQuery(e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        </div>
 
-                    <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
-                      <button
-                        onClick={() => {
-                          setSelectedCity("All Cities");
-                          setIsCityDropdownOpen(false);
-                          setCitySearchQuery("");
-                        }}
-                        className={`w-full px-4 py-2.5 text-left text-[10px] md:text-xs font-black transition-colors hover:bg-primary-50 ${selectedCity === "All Cities" ? "text-primary-600 bg-primary-50/50" : "text-gray-600"}`}>
-                        ALL CITIES
-                      </button>
-
-                      {filteredCitiesList.length > 0 ? (
-                        filteredCitiesList.map((city, index) => (
+                        <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
                           <button
-                            key={`${city}-${index}`}
                             onClick={() => {
-                              setSelectedCity(city);
+                              setSelectedCity("All Cities");
                               setIsCityDropdownOpen(false);
                               setCitySearchQuery("");
                             }}
-                            className={`w-full px-4 py-2.5 text-left text-[10px] md:text-xs font-bold transition-colors hover:bg-primary-50 ${selectedCity === city ? "text-primary-600 bg-primary-50/50" : "text-gray-600"}`}>
-                            {city.toUpperCase()}
+                            className={`w-full px-4 py-2.5 text-left text-[10px] md:text-xs font-black transition-colors hover:bg-primary-50 ${selectedCity === "All Cities" ? "text-primary-600 bg-primary-50/50" : "text-gray-600"}`}>
+                            ALL CITIES
                           </button>
-                        ))
-                      ) : (
-                        <div className="px-4 py-6 text-center text-[10px] text-gray-400 font-bold">
-                          NO CITIES FOUND
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
 
-            {/* Horizontal Scrollable Cities List */}
-            {selectedItemType !== "lotslot" && (
-              <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4 md:mx-0 md:px-0">
-                <button
-                  onClick={() => setSelectedCity("All Cities")}
-                  className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === "All Cities"
-                    ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100"
-                    : "bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm"
-                    }`}>
-                  All Cities
-                </button>
-                {uniqueCities.slice(0, 15).map((city, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedCity(city)}
-                    className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === city
-                      ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100"
-                      : "bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm"
-                      }`}>
-                    {city}
-                  </button>
-                ))}
-              </div>
+                          {filteredCitiesList.length > 0 ? (
+                            filteredCitiesList.map((city, index) => (
+                              <button
+                                key={`${city}-${index}`}
+                                onClick={() => {
+                                  setSelectedCity(city);
+                                  setIsCityDropdownOpen(false);
+                                  setCitySearchQuery("");
+                                }}
+                                className={`w-full px-4 py-2.5 text-left text-[10px] md:text-xs font-bold transition-colors hover:bg-primary-50 ${selectedCity === city ? "text-primary-600 bg-primary-50/50" : "text-gray-600"}`}>
+                                {city.toUpperCase()}
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-4 py-6 text-center text-[10px] text-gray-400 font-bold">
+                              NO CITIES FOUND
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Horizontal Scrollable Cities List */}
+                {selectedItemType !== "lotslot" && (
+                  <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4 md:mx-0 md:px-0">
+                    <button
+                      onClick={() => setSelectedCity("All Cities")}
+                      className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === "All Cities"
+                        ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100"
+                        : "bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm"
+                        }`}>
+                      All Cities
+                    </button>
+                    {uniqueCities.slice(0, 15).map((city, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setSelectedCity(city)}
+                        className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === city
+                          ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100"
+                          : "bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm"
+                          }`}>
+                        {city}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
 

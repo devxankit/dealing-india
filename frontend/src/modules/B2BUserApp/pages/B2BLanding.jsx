@@ -127,9 +127,16 @@ const B2BLanding = () => {
         fetchAllVendors();
     }, [fetchCategories, fetchLocations, selectedCity]);
 
-    // Only show vendors that have a shop (shopUnit) in the strip
+    // Only show vendors that have a shop (shopUnit) in the strip; dedupe by id so same card never appears twice
     const vendorsWithShop = useMemo(() => {
-        return (allVendors || []).filter((v) => v.shopUnit != null && (typeof v.shopUnit === 'object' ? Object.keys(v.shopUnit).length > 0 : true));
+        const withShop = (allVendors || []).filter((v) => v.shopUnit != null && (typeof v.shopUnit === 'object' ? Object.keys(v.shopUnit).length > 0 : true));
+        const seen = new Set();
+        return withShop.filter((v) => {
+            const id = (v._id || v.id || '').toString();
+            if (!id || seen.has(id)) return false;
+            seen.add(id);
+            return true;
+        });
     }, [allVendors]);
 
     const uniqueCities = useMemo(() => {

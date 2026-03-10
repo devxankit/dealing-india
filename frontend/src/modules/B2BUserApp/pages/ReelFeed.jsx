@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiHeart, FiMessageCircle, FiChevronUp, FiChevronDown, FiVideo } from 'react-icons/fi';
+import { FiHeart, FiVideo, FiShare2, FiEye } from 'react-icons/fi';
+import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
+import { useAuthStore } from '../../../shared/store/authStore';
+import { getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
 
 export default function ReelFeed() {
   const navigate = useNavigate();
@@ -13,19 +16,27 @@ export default function ReelFeed() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [comments, setComments] = useState({});
-  const [showComments, setShowComments] = useState(null);
-  const [newComment, setNewComment] = useState('');
-  const [submittingComment, setSubmittingComment] = useState(false);
-  const containerRef = useRef(null);
+  const viewedRef = useRef(new Set());
+  const wheelLockRef = useRef(false);
+  const touchStartYRef = useRef(null);
+  const loadingMoreRef = useRef(false);
+  const scrollStateRef = useRef({ hasNext: false, hasPrev: false, loadMore: () => {} });
+  const { user } = useAuthStore();
 
   const fetchFeed = useCallback(async (pageNum = 1, append = false) => {
     try {
       if (!append) setLoading(true);
+      if (append) loadingMoreRef.current = true;
       const res = await api.get(`/reels/feed?page=${pageNum}&limit=10`);
-      if (res.success && res.data?.reels?.length) {
-        setReels((prev) => (append ? [...prev, ...res.data.reels] : res.data.reels));
-        if (!append) setCurrentIndex(0);
+      if (res.success && res.data?.reels) {
+        const newReels = res.data.reels;
+        if (append) {
+          setReels((prev) => (newReels.length ? [...prev, ...newReels] : prev));
+        } else {
+          setReels(newReels.length ? newReels : []);
+          setCurrentIndex(0);
+        }
+        if (!newReels.length && !append) setReels([]);
       } else if (!append) {
         setReels([]);
       }
@@ -34,6 +45,7 @@ export default function ReelFeed() {
       if (!append) setReels([]);
     } finally {
       setLoading(false);
+      loadingMoreRef.current = false;
     }
   }, []);
 
@@ -42,19 +54,11 @@ export default function ReelFeed() {
   }, [fetchFeed]);
 
   const loadMore = useCallback(() => {
-    setPage((p) => {
-      fetchFeed(p + 1, true);
-      return p + 1;
-    });
-  }, [fetchFeed]);
-
-  const fetchComments = async (reelId) => {
-    if (comments[reelId] !== undefined) return;
-    try {
-      const res = await api.get(`/reels/${reelId}/comments`);
-      if (res.success) setComments((c) => ({ ...c, [reelId]: res.data?.comments || [] }));
-    } catch (_) {}
-  };
+    if (loadingMoreRef.current) return;
+    const nextPage = page + 1;
+    fetchFeed(nextPage, true);
+    setPage(nextPage);
+  }, [fetchFeed, page]);
 
   const toggleLike = async (reel) => {
     try {
@@ -82,33 +86,137 @@ export default function ReelFeed() {
     }
   };
 
-  const submitComment = async (reelId) => {
-    const text = newComment.trim();
-    if (!text) return;
-    setSubmittingComment(true);
-    try {
-      const res = await api.post(`/reels/${reelId}/comments`, { text });
-      if (res.success && res.data?.comment) {
-        setComments((c) => ({ ...c, [reelId]: [...(c[reelId] || []), res.data.comment] }));
-        setReels((prev) =>
-          prev.map((r) => (r._id === reelId ? { ...r, commentCount: (r.commentCount || 0) + 1 } : r))
-        );
-        setNewComment('');
-      }
-    } catch (err) {
-      toast.error(err.message || 'Could not post comment');
-    } finally {
-      setSubmittingComment(false);
-    }
-  };
-
   const currentReel = reels[currentIndex];
   const hasNext = currentIndex < reels.length - 1;
   const hasPrev = currentIndex > 0;
 
+  scrollStateRef.current = { hasNext, hasPrev, loadMore };
+
+  // Track a view when a reel becomes active (once per reel per session)
   useEffect(() => {
-    setShowComments(null);
-  }, [currentIndex]);
+    if (!currentReel?._id) return;
+    const id = currentReel._id;
+    if (viewedRef.current.has(id)) return;
+    viewedRef.current.add(id);
+    api
+      .post(`/reels/${id}/view`)
+      .then((res) => {
+        if (res?.data?.viewCount != null) {
+          setReels((prev) =>
+            prev.map((r) => (r._id === id ? { ...r, viewCount: res.data.viewCount } : r))
+          );
+        }
+      })
+      .catch(() => {});
+  }, [currentReel?._id]);
+
+  const handleWheel = useCallback((e) => {
+    const { hasNext: next, hasPrev: prev, loadMore: load } = scrollStateRef.current;
+    if (wheelLockRef.current) return;
+    wheelLockRef.current = true;
+    setTimeout(() => {
+      wheelLockRef.current = false;
+    }, 280);
+
+    if (e.deltaY > 0) {
+      if (next) {
+        setCurrentIndex((i) => i + 1);
+      } else {
+        load();
+      }
+    } else if (e.deltaY < 0 && prev) {
+      setCurrentIndex((i) => Math.max(0, i - 1));
+    }
+  }, []);
+
+  // Capture phase: run before YouTube iframe gets the event so scroll works over the video
+  useEffect(() => {
+    const listener = (e) => {
+      if (reels.length === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      handleWheel(e);
+    };
+    document.addEventListener('wheel', listener, { passive: false, capture: true });
+    return () => document.removeEventListener('wheel', listener, { capture: true });
+  }, [reels.length, handleWheel]);
+
+  const handleTouchStart = useCallback((e) => {
+    if (!e.touches || !e.touches[0]) return;
+    touchStartYRef.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e) => {
+      if (touchStartYRef.current == null) return;
+      const endY = e.changedTouches?.[0]?.clientY ?? touchStartYRef.current;
+      const diff = touchStartYRef.current - endY;
+      touchStartYRef.current = null;
+      const threshold = 40;
+      if (Math.abs(diff) < threshold) return;
+
+      if (diff > 0) {
+        // swipe up → next reel
+        if (hasNext) {
+          setCurrentIndex((i) => i + 1);
+        } else {
+          loadMore();
+        }
+      } else if (diff < 0 && hasPrev) {
+        // swipe down → previous reel
+        setCurrentIndex((i) => Math.max(0, i - 1));
+      }
+    },
+    [hasNext, hasPrev, loadMore]
+  );
+
+  const handleShare = () => {
+    if (!currentReel) return;
+    const youtubeUrl = currentReel.youtubeVideoId
+      ? `https://www.youtube.com/watch?v=${currentReel.youtubeVideoId}`
+      : window.location.href;
+    const shareData = {
+      title: currentReel.title || 'Reel',
+      text: currentReel.description || `Check out this reel from ${currentReel.uploaderName || 'vendor'}`,
+      url: youtubeUrl,
+    };
+
+    if (navigator.share) {
+      navigator
+        .share(shareData)
+        .catch(() => {});
+    } else {
+      navigator.clipboard
+        ?.writeText(youtubeUrl)
+        .then(() => toast.success('Link copied to clipboard'))
+        .catch(() => toast.success('Share this link: ' + youtubeUrl));
+    }
+  };
+
+  const handleWhatsApp = () => {
+    if (!currentReel) return;
+    const rawPhone = currentReel.vendorPhone || '';
+    const cleanedPhone = rawPhone.replace(/\D/g, '');
+    if (!cleanedPhone) {
+      toast.error('Vendor phone number not available');
+      return;
+    }
+    const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
+    const youtubeUrl = currentReel.youtubeVideoId
+      ? `https://www.youtube.com/watch?v=${currentReel.youtubeVideoId}`
+      : window.location.href;
+
+    const baseMsg =
+      `🎥 *I'm interested in your reel!*` +
+      `\n\n📌 *Title:* ${currentReel.title || 'Reel'}` +
+      `\n🏷️ *Category:* ${currentReel.categoryName || 'N/A'}` +
+      `\n🏢 *Store:* ${currentReel.vendorStoreName || currentReel.uploaderName || 'Vendor'}` +
+      `\n\n🔗 *Watch Reel:* ${youtubeUrl}` +
+      getWhatsAppUserDetailsSuffix(user);
+
+    const message = encodeURIComponent(baseMsg);
+    window.open(`https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`, '_blank');
+  };
 
   if (loading && reels.length === 0) {
     return (
@@ -142,7 +250,15 @@ export default function ReelFeed() {
   return (
     <div className="h-screen bg-black flex flex-col overflow-hidden">
       <B2BHeader hideSearch />
-      <div ref={containerRef} className="flex-1 relative overflow-hidden">
+      <div
+        className="flex-1 relative overflow-hidden"
+        onWheel={(e) => {
+          e.preventDefault();
+          handleWheel(e);
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <AnimatePresence initial={false} mode="wait">
           {currentReel && (
             <motion.div
@@ -179,8 +295,26 @@ export default function ReelFeed() {
               </div>
 
               <div className="absolute bottom-0 left-0 right-0 p-4 pb-24 bg-gradient-to-t from-black/80 to-transparent">
-                <p className="text-white font-semibold truncate">{currentReel.title}</p>
-                <p className="text-gray-300 text-sm truncate">{currentReel.uploaderName} · {currentReel.categoryName}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-white font-semibold truncate">{currentReel.title}</p>
+                    <p className="text-gray-300 text-sm truncate">
+                      {currentReel.uploaderName} · {currentReel.categoryName}
+                      {typeof currentReel.viewCount === 'number' && (
+                        <> · {currentReel.viewCount} views</>
+                      )}
+                    </p>
+                  </div>
+                  {currentReel.vendorId && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/b2b/vendor/${currentReel.vendorId}`)}
+                      className="shrink-0 px-3 py-1.5 rounded-full bg-white/90 text-gray-900 text-xs font-semibold hover:bg-white"
+                    >
+                      Visit Store
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-6">
@@ -194,91 +328,34 @@ export default function ReelFeed() {
                   />
                   <span className="text-xs">{currentReel.likeCount ?? 0}</span>
                 </button>
+                <div className="flex flex-col items-center gap-1 text-white">
+                  <FiEye className="text-3xl text-white/90" />
+                  <span className="text-xs">{currentReel.viewCount ?? 0}</span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowComments(showComments === currentReel._id ? null : currentReel._id);
-                    if (showComments !== currentReel._id) fetchComments(currentReel._id);
-                  }}
+                  onClick={handleShare}
                   className="flex flex-col items-center gap-1 text-white"
                 >
-                  <FiMessageCircle className="text-3xl" />
-                  <span className="text-xs">{currentReel.commentCount ?? 0}</span>
+                  <FiShare2 className="text-3xl" />
+                  <span className="text-xs">Share</span>
                 </button>
+                {currentReel.vendorPhone && (
+                  <button
+                    type="button"
+                    onClick={handleWhatsApp}
+                    className="flex flex-col items-center gap-1 text-[#25D366]"
+                  >
+                    <FaWhatsapp className="text-3xl" />
+                    <span className="text-xs text-white">WhatsApp</span>
+                  </button>
+                )}
               </div>
 
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-                  disabled={!hasPrev}
-                  className="p-2 rounded-full bg-white/20 text-white disabled:opacity-30"
-                >
-                  <FiChevronUp className="text-xl" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (hasNext) setCurrentIndex((i) => i + 1);
-                    else loadMore();
-                  }}
-                  className="p-2 rounded-full bg-white/20 text-white disabled:opacity-30"
-                >
-                  <FiChevronDown className="text-xl" />
-                </button>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-
-      <AnimatePresence>
-        {showComments === currentReel?._id && (
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            className="absolute inset-0 z-50 bg-gray-900 flex flex-col"
-          >
-            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-              <h3 className="font-bold text-white">Comments</h3>
-              <button
-                type="button"
-                onClick={() => setShowComments(null)}
-                className="text-gray-400 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {(comments[currentReel?._id] || []).map((c) => (
-                <div key={c._id} className="text-sm">
-                  <span className="font-medium text-white">{c.userName}</span>
-                  <span className="text-gray-400 ml-2">{c.text}</span>
-                </div>
-              ))}
-            </div>
-            <div className="p-4 border-t border-gray-700 flex gap-2">
-              <input
-                type="text"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                className="flex-1 px-4 py-3 rounded-xl bg-gray-800 text-white placeholder-gray-500 border border-gray-700"
-                onKeyDown={(e) => e.key === 'Enter' && submitComment(currentReel._id)}
-              />
-              <button
-                type="button"
-                onClick={() => submitComment(currentReel._id)}
-                disabled={submittingComment || !newComment.trim()}
-                className="px-4 py-3 bg-primary-600 text-white rounded-xl font-medium disabled:opacity-50"
-              >
-                Post
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <B2BBottomNav />
     </div>

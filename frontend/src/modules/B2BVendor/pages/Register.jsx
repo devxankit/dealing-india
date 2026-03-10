@@ -14,8 +14,11 @@ import api from '../../../shared/utils/api';
  * DO NOT fetch or render subscription plans here.
  * Subscription selection happens strictly AFTER login in the dashboard.
  * 
- * Production Fix: Removed all subscription plan logic.
+ * For Property broker, Other broker, Gray broker: GST and document upload are optional.
+ * For all other business types: GST and document upload are compulsory.
  */
+
+const BROKER_BUSINESS_TYPES = ['property broker', 'other broker', 'gray broker'];
 
 const B2BVendorRegister = () => {
     const navigate = useNavigate();
@@ -177,15 +180,22 @@ const B2BVendorRegister = () => {
             return;
         }
 
-        if (!businessLicense || !panCard) {
-            toast.error('Please upload both Business License and PAN Card');
-            return;
+        const businessTypeName = (formData.businessType || '').toString().trim().toLowerCase();
+        const isBrokerType = BROKER_BUSINESS_TYPES.includes(businessTypeName);
+
+        if (!isBrokerType) {
+            if (!businessLicense || !panCard) {
+                toast.error('Please upload both Business License and PAN Card');
+                return;
+            }
+            if (!formData.gstNumber || !formData.gstNumber.trim()) {
+                toast.error('GST number is required for this business type');
+                return;
+            }
         }
 
-        
-
-        // GST Validation
-        if (formData.gstNumber) {
+        // GST Validation (when provided)
+        if (formData.gstNumber && formData.gstNumber.trim()) {
             const cleanGst = formData.gstNumber.trim().toUpperCase();
             const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/;
             if (!gstRegex.test(cleanGst)) {
@@ -205,22 +215,14 @@ const B2BVendorRegister = () => {
                 storeName: formData.companyName,
                 storeDescription: `B2B Vendor`,
                 address: formData.address,
-                gstNumber: formData.gstNumber,
+                gstNumber: (formData.gstNumber && formData.gstNumber.trim()) ? formData.gstNumber.trim() : undefined,
                 mfgOfWork: formData.mfgOfWork,
                 businessType: formData.businessType,
                 businessTypeRef: formData.businessTypeRef,
                 vendorType: 'b2b',
                 documents: {
-                    panCard: {
-                        data: panCard.data,
-                        name: panCard.name,
-                        type: panCard.type
-                    },
-                    businessLicense: {
-                        data: businessLicense.data,
-                        name: businessLicense.name,
-                        type: businessLicense.type
-                    }
+                    panCard: panCard ? { data: panCard.data, name: panCard.name, type: panCard.type } : {},
+                    businessLicense: businessLicense ? { data: businessLicense.data, name: businessLicense.name, type: businessLicense.type } : {}
                 }
             };
 
@@ -368,8 +370,10 @@ const B2BVendorRegister = () => {
                                 <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Global Exports Pvt Ltd" />
                             </div>
                             <div className="md:col-span-2">
-                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">GST Number</label>
-                                <input type="text" name="gstNumber" value={formData.gstNumber} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" placeholder="Enter GST Number (Optional)" />
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">
+                                    GST Number {BROKER_BUSINESS_TYPES.includes((formData.businessType || '').toString().trim().toLowerCase()) ? '(Optional)' : <span className="text-red-500">*</span>}
+                                </label>
+                                <input type="text" name="gstNumber" value={formData.gstNumber} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" placeholder={BROKER_BUSINESS_TYPES.includes((formData.businessType || '').toString().trim().toLowerCase()) ? 'Enter GST Number (Optional)' : 'Enter GST Number'} />
                             </div>
                             <div className="md:col-span-2">
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Mfg Of Work</label>
@@ -388,7 +392,7 @@ const B2BVendorRegister = () => {
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase">Business License / GST <span className="text-red-500">*</span></label>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase">Business License / GST {BROKER_BUSINESS_TYPES.includes((formData.businessType || '').toString().trim().toLowerCase()) ? '(Optional)' : <span className="text-red-500">*</span>}</label>
                                 {!businessLicense ? (
                                     <div className="relative">
                                         <input type="file" onChange={(e) => handleDocumentUpload(e, 'license')} className="hidden" id="license-upload" disabled={isUploadingDocs} />
@@ -416,7 +420,7 @@ const B2BVendorRegister = () => {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase">PAN Card <span className="text-red-500">*</span></label>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase">PAN Card {BROKER_BUSINESS_TYPES.includes((formData.businessType || '').toString().trim().toLowerCase()) ? '(Optional)' : <span className="text-red-500">*</span>}</label>
                                 {!panCard ? (
                                     <div className="relative">
                                         <input type="file" onChange={(e) => handleDocumentUpload(e, 'pan')} className="hidden" id="pan-upload" disabled={isUploadingDocs} />

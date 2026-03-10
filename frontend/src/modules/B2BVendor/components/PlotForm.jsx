@@ -93,7 +93,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
         location: {
             address: '',
             area: '',
-            market: '',
+            state: '',
             city: '',
             mapUrl: ''
         }
@@ -105,6 +105,11 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
             setFormData(prev => ({
                 ...prev,
                 ...initialData,
+                location: {
+                    ...prev.location,
+                    ...(initialData.location || {}),
+                    state: initialData.location?.state ?? initialData.location?.market ?? ''
+                },
                 plotDetails: {
                     ...prev.plotDetails,
                     ...(initialData.plotDetails || {})
@@ -602,7 +607,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                         <div className="grid grid-cols-3 gap-2">
                                             <input name="location.city" placeholder="City *" value={formData.location.city} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                             <input name="location.area" placeholder="Area" value={formData.location.area} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
-                                            <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
+                                            <input name="location.state" placeholder="State" value={formData.location.state} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <input

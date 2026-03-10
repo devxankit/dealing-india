@@ -18,12 +18,14 @@ import B2BHeader from "../components/Layout/B2BHeader";
 import B2BBottomNav from "../components/Layout/B2BBottomNav";
 import B2BProductCard from "../components/B2BProductCard";
 import api from "../../../shared/utils/api";
-import { getGoogleMapsUrl, maskPhone } from "../../../shared/utils/helpers";
+import { getGoogleMapsUrl, maskPhone, getWhatsAppUserDetailsSuffix } from "../../../shared/utils/helpers";
+import { useAuthStore } from "../../../shared/store/authStore";
 import RealEstateCard from "../components/RealEstateCard";
 
 const B2BVendorStore = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuthStore();
     const [searchParams] = useSearchParams();
     const itemType = searchParams.get('itemType') || 'product';
     const [vendor, setVendor] = useState(null);
@@ -335,12 +337,12 @@ const B2BVendorStore = () => {
                                     href={(() => {
                                         const cleanedPhone = (vendor.phone || '').replace(/\D/g, '');
                                         const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
-                                        const message = encodeURIComponent(
-                                            `👋 *I'm interested in your business services!*\n\n` +
+                                        const baseMsg = `👋 *I'm interested in your business services!*\n\n` +
                                             `🏢 *Business:* ${shopListing?.name || vendor.storeName || 'Verified Vendor'}\n` +
                                             `📍 *City:* ${vendor?.address?.city || 'N/A'}\n\n` +
-                                            `🔗 *View Store:* ${window.location.href}`
-                                        );
+                                            `🔗 *View Store:* ${window.location.href}` +
+                                            getWhatsAppUserDetailsSuffix(user);
+                                        const message = encodeURIComponent(baseMsg);
                                         return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`;
                                     })()}
                                     target="_blank"

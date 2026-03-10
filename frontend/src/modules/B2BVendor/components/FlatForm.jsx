@@ -6,7 +6,7 @@ import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 
-const FlatForm = () => {
+const FlatForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1);
@@ -79,7 +79,7 @@ const FlatForm = () => {
         location: {
             address: '',
             area: '',
-            market: '',
+            state: '',
             city: '',
             mapUrl: ''
         }
@@ -89,6 +89,29 @@ const FlatForm = () => {
         // keep primary flatDetails in sync with first variant
         setFormData(prev => ({ ...prev, flatDetails: { ...flatVariants[0] } }));
     }, [flatVariants]);
+
+    useEffect(() => {
+        if (initialData && isEdit) {
+            const variants = initialData.flatVariants?.length
+                ? initialData.flatVariants.map((f) => ({ ...baseFlat, ...f }))
+                : initialData.flatDetails
+                    ? [{ ...baseFlat, ...initialData.flatDetails }]
+                    : [baseFlat];
+            setFlatVariants(variants);
+            setFormData((prev) => ({
+                ...prev,
+                ...initialData,
+                location: { ...prev.location, ...(initialData.location || {}), state: initialData.location?.state ?? initialData.location?.market ?? '' },
+                saleDetails: { ...prev.saleDetails, ...(initialData.saleDetails || {}) },
+                rentDetails: { ...prev.rentDetails, ...(initialData.rentDetails || {}) },
+                leaseDetails: { ...prev.leaseDetails, ...(initialData.leaseDetails || {}) },
+                flatDetails: { ...baseFlat, ...(initialData.flatDetails || {}) },
+            }));
+            if (initialData.media?.length) {
+                setMedia(initialData.media.map((m) => ({ data: m.url || m.data, name: "Existing" })));
+            }
+        }
+    }, [initialData, isEdit]);
 
     const addVariant = () => {
         if (flatVariants.length >= 6) return;
@@ -275,13 +298,15 @@ const FlatForm = () => {
             media: media.map(m => ({ url: m.data }))
         };
 
-            const response = await api.post('/property/add', payload);
+            const response = isEdit
+                ? await api.put(`/property/update/${initialData._id}`, payload)
+                : await api.post('/property/add', payload);
             if (response.success) {
-                toast.success('Flat listed successfully!');
+                toast.success(isEdit ? 'Flat updated successfully!' : 'Flat listed successfully!');
                 navigate('/b2b-vendor/properties/manage-properties');
             }
         } catch (error) {
-            toast.error(error.message || 'Failed to list flat');
+            toast.error(error.message || (isEdit ? 'Failed to update flat' : 'Failed to list flat'));
         } finally {
             setLoading(false);
         }
@@ -322,7 +347,7 @@ const FlatForm = () => {
                     <FiArrowLeft size={20} />
                 </button>
                 <div>
-                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Add Flat</h1>
+                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{isEdit ? 'Edit' : 'Add'} Flat</h1>
                     <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">Growth your business with Dealing India</p>
                 </div>
             </div>
@@ -654,7 +679,7 @@ const FlatForm = () => {
                                         <div className="grid grid-cols-3 gap-2">
                                             <input name="location.city" placeholder="City *" value={formData.location.city} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                             <input name="location.area" placeholder="Area" value={formData.location.area} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
-                                            <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
+                                            <input name="location.state" placeholder="State" value={formData.location.state} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <input

@@ -4,13 +4,13 @@ import { FiMapPin, FiPhone, FiHome, FiMaximize, FiChevronLeft, FiChevronRight, F
 import { FaWhatsapp } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../shared/utils/api';
-import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
+import { getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
 import StarRating from './StarRating';
 import { useAuthStore } from '../../../shared/store/authStore';
 
 const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForActions = false }) => {
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuthStore();
+    const { isAuthenticated, user } = useAuthStore();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     const redirectToLoginIfRequired = (event) => {
@@ -310,14 +310,14 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                         href={(() => {
                             const cleanedPhone = (sellerPhone || '').replace(/\D/g, '');
                             const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
-                            const message = encodeURIComponent(
-                                `🏠 *I'm interested in this property!*\n\n` +
+                            const baseMsg = `🏠 *I'm interested in this property!*\n\n` +
                                 `🏢 *Property:* ${property.title || 'Property'}\n` +
                                 `💰 *Price:* ${displayPrice || 'Price on Request'}\n` +
                                 `👤 *Seller:* ${sellerName}\n` +
                                 `📍 *Location:* ${displayLocation || 'N/A'}\n\n` +
-                                `🔗 *View Item:* ${window.location.origin}/b2b/real-estate/property/${property._id}`
-                            );
+                                `🔗 *View Item:* ${window.location.origin}/b2b/real-estate/property/${property._id}` +
+                                getWhatsAppUserDetailsSuffix(user);
+                            const message = encodeURIComponent(baseMsg);
                             return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`;
                         })()}
                         target="_blank"

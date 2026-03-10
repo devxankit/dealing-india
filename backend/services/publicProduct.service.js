@@ -329,7 +329,7 @@ export const getPublicProducts = async (filters) => {
                         from: 'vendors',
                         localField: 'vendorId',
                         foreignField: '_id',
-                        pipeline: [{ $project: { _id: 1, name: 1, storeName: 1, address: 1, phone: 1, logo: 1 } }],
+                        pipeline: [{ $project: { _id: 1, name: 1, storeName: 1, address: 1, phone: 1, logo: 1, mfgOfWork: 1 } }],
                         as: 'vendorId'
                     }
                 },
@@ -414,13 +414,13 @@ export const getPublicProducts = async (filters) => {
 // Product schema has no shopUnitId; LotSlot has shopUnitId – only populate where defined
 export const getPublicProductById = async (id) => {
     let item = await Product.findById(id)
-        .populate('vendorId', 'name storeName description logo phone address')
+        .populate('vendorId', 'name storeName description logo phone address mfgOfWork')
         .lean();
 
     let isLotSlot = false;
     if (!item) {
         item = await LotSlot.findById(id)
-            .populate('vendorId', 'name storeName description logo phone address')
+            .populate('vendorId', 'name storeName description logo phone address mfgOfWork')
             .populate('shopUnitId')
             .lean();
         isLotSlot = true;

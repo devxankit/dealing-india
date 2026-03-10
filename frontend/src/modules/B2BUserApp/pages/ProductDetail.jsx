@@ -12,12 +12,12 @@ import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import api from '../../../shared/utils/api';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
-import { formatPrice, getGoogleMapsUrl } from '../../../shared/utils/helpers';
+import { formatPrice, getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
 
 const B2BProductDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuthStore();
+    const { isAuthenticated, user } = useAuthStore();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(0);
@@ -79,15 +79,15 @@ const B2BProductDetail = () => {
         const cleanedPhone = (product.vendorId?.phone || '').replace(/\D/g, '');
         const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
 
-        const message = encodeURIComponent(
-            `🛒 *I'm interested in this product!*\n\n` +
+        const baseMsg = `🛒 *I'm interested in this product!*\n\n` +
             `📦 *Product:* ${product.name}\n` +
             `💰 *Price:* ${product.price ? `₹${product.price}/${product.unit || 'pcs'}` : 'Price on Request'}\n` +
             `📦 *Min Order:* ${product.moq || product.minimumOrderQuantity || '1'} ${product.unit || 'pcs'}\n` +
             `🏢 *Shop:* ${product.vendorId?.storeName || 'Verified Vendor'}\n` +
             `📍 *City:* ${product.vendorId?.address?.city || 'N/A'}\n\n` +
-            `🔗 *View Item:* ${window.location.href}`
-        );
+            `🔗 *View Item:* ${window.location.href}` +
+            getWhatsAppUserDetailsSuffix(user);
+        const message = encodeURIComponent(baseMsg);
         window.open(`https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`, '_blank');
     };
 
@@ -261,7 +261,7 @@ const B2BProductDetail = () => {
                         <div className="bg-white p-6 md:p-10 rounded-3xl md:rounded-[3.5rem] shadow-xl border border-gray-100 relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-primary-600/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000"></div>
 
-                            <div className="flex items-start justify-between mb-8 md:mb-10 relative z-10">
+                            <div className="flex items-start justify-between gap-6 mb-8 md:mb-10 relative z-10">
                                 <div>
                                     <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">
                                         {product.formType === 'shop-listing' ? 'Item Rate' : 'Market Value'}
@@ -279,15 +279,19 @@ const B2BProductDetail = () => {
                                         </span>
                                     </div>
                                 </div>
-                                {product.formType !== 'shop-listing' && (
-                                    <div className="text-right">
-                                        <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">Minimum Order</span>
-                                        <span className="text-lg md:text-2xl font-black text-gray-900 tracking-tight">
-                                            {product.moq || 1}
-                                            <span className="text-[10px] md:text-xs text-gray-400 uppercase ml-1">{product.unit || 'Units'}</span>
+                                <div className="text-right shrink-0">
+                                    <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">Minimum Order</span>
+                                    <span className="text-lg md:text-2xl font-black text-gray-900 tracking-tight">
+                                        {product.formType === 'shop-listing' && product.items?.[0]
+                                            ? (product.items[0].minOrder ?? product.moq ?? 1)
+                                            : (product.moq || 1)}
+                                        <span className="text-[10px] md:text-xs text-gray-400 uppercase ml-1">
+                                            {product.formType === 'shop-listing' && product.items?.[0]?.unit
+                                                ? product.items[0].unit
+                                                : (product.unit || 'Units')}
                                         </span>
-                                    </div>
-                                )}
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="space-y-6 relative z-10">
@@ -305,20 +309,20 @@ const B2BProductDetail = () => {
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pt-6 md:pt-8 border-t border-gray-50">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-6 md:pt-8 border-t border-gray-50">
                                     {product.vendorId?.phone && (
                                         <>
                                             <button
                                                 onClick={handleWhatsAppClick}
-                                                className="py-4 md:py-6 bg-[#25D366] text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-green-100 hover:bg-[#128C7E] transition-all active:scale-95 flex items-center justify-center gap-2 md:gap-3"
+                                                className="py-3 md:py-4 px-3 md:px-4 bg-[#25D366] text-white rounded-xl md:rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wide shadow-lg shadow-green-100/50 hover:bg-[#128C7E] transition-all active:scale-95 flex items-center justify-center gap-1.5 md:gap-2"
                                             >
-                                                <FaWhatsapp className="text-lg md:text-xl" /> WhatsApp
+                                                <FaWhatsapp className="text-base md:text-lg shrink-0" /> WhatsApp
                                             </button>
                                             <button
                                                 onClick={handleCallClick}
-                                                className="py-4 md:py-6 bg-gray-900 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-gray-200 hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-2 md:gap-3"
+                                                className="py-3 md:py-4 px-3 md:px-4 bg-gray-900 text-white rounded-xl md:rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wide shadow-lg shadow-gray-200/50 hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-1.5 md:gap-2"
                                             >
-                                                <FiPhone className="text-lg md:text-xl" /> Call
+                                                <FiPhone className="text-base md:text-lg shrink-0" /> Call
                                             </button>
                                             <button
                                                 onClick={() => {
@@ -330,9 +334,9 @@ const B2BProductDetail = () => {
                                                         toast.error('Location details not provided');
                                                     }
                                                 }}
-                                                className="py-4 md:py-6 bg-orange-600 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-orange-100 hover:bg-orange-700 transition-all active:scale-95 flex items-center justify-center gap-2 md:gap-3"
+                                                className="py-3 md:py-4 px-3 md:px-4 bg-orange-600 text-white rounded-xl md:rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wide shadow-lg shadow-orange-100/50 hover:bg-orange-700 transition-all active:scale-95 flex items-center justify-center gap-1.5 md:gap-2"
                                             >
-                                                <FiMapPin className="text-lg md:text-xl" /> Map
+                                                <FiMapPin className="text-base md:text-lg shrink-0" /> Map
                                             </button>
                                         </>
                                     )}
@@ -373,7 +377,7 @@ const B2BProductDetail = () => {
                         </div>
                         <div className="bg-white p-6 md:p-12 rounded-3xl md:rounded-[3rem] border border-gray-50 shadow-sm">
                             <p className="text-gray-500 text-base md:text-xl font-medium leading-[1.8] whitespace-pre-line">
-                                {product.unitDetails?.description || product.description}
+                                {product.unitDetails?.description || product.description || (product.formType === 'shop-listing' && product.items?.[0]?.description) || 'No description provided.'}
                             </p>
                         </div>
                     </div>

@@ -67,6 +67,23 @@ export const maskPhone = (phone, visible = 2) => {
 };
 
 /**
+ * Append logged-in user details to WhatsApp predefined message (raw text, not encoded).
+ * Returns empty string if no user or no details.
+ */
+export const getWhatsAppUserDetailsSuffix = (user) => {
+  if (!user) return "";
+  const name = (user.name || "").trim();
+  const email = (user.email || "").trim();
+  const phone = (user.phone || "").trim();
+  if (!name && !email && !phone) return "";
+  let suffix = "\n\n---\n*My Details:*\n";
+  if (name) suffix += `*Name:* ${name}\n`;
+  if (email) suffix += `*Email:* ${email}\n`;
+  if (phone) suffix += `*Phone:* ${phone}`;
+  return suffix.trimEnd();
+};
+
+/**
  * Get image URL (with fallback)
  */
 export const getImageUrl = (image, fallback = "/placeholder.jpg") => {

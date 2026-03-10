@@ -11,6 +11,7 @@ import {
   getComments,
   addComment,
   getPlaylistByCategory,
+  trackView,
 } from '../controllers/reel.controller.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
@@ -32,5 +33,6 @@ router.post('/:id/like', authenticate, authorize('user', 'vendor'), asyncHandler
 router.delete('/:id/like', authenticate, authorize('user', 'vendor'), asyncHandler(unlikeReel));
 router.get('/:id/comments', asyncHandler(getComments));
 router.post('/:id/comments', authenticate, authorize('user', 'vendor'), asyncHandler(addComment));
+router.post('/:id/view', optionalAuthenticate, asyncHandler(trackView));
 
 export default router;

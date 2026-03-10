@@ -13,11 +13,13 @@ import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import RateThisBlock from '../components/RateThisBlock';
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
-import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
+import { getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
+import { useAuthStore } from '../../../shared/store/authStore';
 
 const PropertyDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuthStore();
     const [property, setProperty] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(0);
@@ -147,14 +149,14 @@ const PropertyDetail = () => {
         const cleanedPhone = (sellerPhone || '').replace(/\D/g, '');
         const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
 
-        const message = encodeURIComponent(
-            `🏠 *I'm interested in this property!*\n\n` +
+        const baseMsg = `🏠 *I'm interested in this property!*\n\n` +
             `🏢 *Property:* ${property.title || 'Property'}\n` +
             `💰 *Price:* ${formatPrice(property)}\n` +
             `👤 *Seller:* ${sellerName}\n` +
             `📍 *Location:* ${[property.location?.city, property.location?.area].filter(Boolean).join(', ') || 'N/A'}\n\n` +
-            `🔗 *View Item:* ${window.location.href}`
-        );
+            `🔗 *View Item:* ${window.location.href}` +
+            getWhatsAppUserDetailsSuffix(user);
+        const message = encodeURIComponent(baseMsg);
         window.open(`https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`, '_blank');
     };
 
@@ -190,7 +192,11 @@ const PropertyDetail = () => {
                                 animate={{ opacity: 1, scale: 1 }}
                                 className="aspect-[16/9] rounded-3xl md:rounded-[3.5rem] overflow-hidden bg-gray-50 shadow-xl border border-gray-100"
                             >
-                                <img src={propertyImages[selectedImage]} alt={property.title} className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-105" />
+                                <img
+                                    src={propertyImages[selectedImage]}
+                                    alt={property.title}
+                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.01]"
+                                />
 
                                 {/* Status Overlays */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
@@ -313,7 +319,7 @@ const PropertyDetail = () => {
                                     { label: 'Possession', val: property.flatDetails?.possessionType || property.plotDetails?.possessionType, icon: <FiHome /> },
                                     { label: 'Age of Prop.', val: property.status?.propertyCondition || property.flatDetails?.ageOfProperty || property.plotDetails?.ageOfProperty, icon: <FiClock /> },
                                     { label: 'Furnishing', val: property.status?.furnishing || property.flatDetails?.furnishing || property.plotDetails?.furnishing, icon: <FiBox /> },
-                                ].map((spec, i) => spec.val && (
+                                ].map((spec, i) => (spec.val || spec.val === '0') && (
                                     <div key={i} className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group flex items-start gap-4 md:gap-5">
                                         <div className="w-10 h-10 md:w-12 md:h-12 bg-primary-50 text-primary-600 rounded-xl md:rounded-2xl flex items-center justify-center group-hover:bg-primary-600 group-hover:text-white transition-all transform group-hover:rotate-6">
                                             {spec.icon}
@@ -335,47 +341,66 @@ const PropertyDetail = () => {
                                 <span className="h-[2px] w-8 md:w-12 bg-primary-600"></span>
                                 <h2 className="text-xl md:text-3xl font-black text-gray-900 uppercase tracking-tighter">Site Infrastructure</h2>
                             </div>
-                            <div className="bg-white rounded-3xl md:rounded-[3rem] border border-gray-100 overflow-hidden shadow-sm divide-y divide-gray-50">
-                                {(() => {
-                                    const rawFacs = [];
-                                    rawFacs.push(
-                                        { label: 'Parking Space', val: facilities.parking?.join(', ') || facilities.parking, icon: <FiBox /> },
-                                        { label: 'Power Backup', val: facilities.powerBackup, icon: <FiActivity /> },
-                                        { label: 'Water Supply', val: facilities.waterSupply, icon: <FiActivity /> },
-                                        { label: 'Lift Access', val: facilities.lift, icon: <FiLayers /> },
-                                        { label: 'Washroom', val: facilities.washroom?.join(', ') || facilities.washroom, icon: <FiBriefcase /> },
-                                        { label: 'Fire Safety', val: facilities.fireSafety, icon: <FiShield /> }
-                                    );
-                                    if (property.flatDetails?.amenities) {
-                                        const fa = property.flatDetails.amenities;
+                            <div className="bg-white rounded-3xl md:rounded-[3rem] border border-gray-100 shadow-sm p-6 md:p-10">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                                    {(() => {
+                                        const rawFacs = [];
                                         rawFacs.push(
-                                            { label: 'Security', val: fa.security, icon: <FiShield /> },
-                                            { label: 'CCTV', val: fa.cctv, icon: <FiActivity /> },
-                                            { label: 'Swimming Pool', val: fa.swimmingPool, icon: <FiActivity /> },
-                                            { label: 'Gym', val: fa.gym, icon: <FiActivity /> },
-                                            { label: 'Garden', val: fa.garden, icon: <FiActivity /> },
-                                            { label: 'Game Zone', val: fa.gameZone, icon: <FiActivity /> }
+                                            { label: 'Parking Space', val: facilities.parking?.join(', ') || facilities.parking, icon: <FiBox /> },
+                                            { label: 'Power Backup', val: facilities.powerBackup, icon: <FiActivity /> },
+                                            { label: 'Water Supply', val: facilities.waterSupply, icon: <FiActivity /> },
+                                            { label: 'Lift Access', val: facilities.lift, icon: <FiLayers /> },
+                                            { label: 'Washroom', val: facilities.washroom?.join(', ') || facilities.washroom, icon: <FiBriefcase /> },
+                                            { label: 'Fire Safety', val: facilities.fireSafety, icon: <FiShield /> }
                                         );
-                                    }
-                                    if (property.plotDetails?.privateFacilities) {
-                                        const pf = property.plotDetails.privateFacilities;
-                                        rawFacs.push(
-                                            { label: 'Private Parking', val: pf.privateParking, icon: <FiBox /> },
-                                            { label: 'Solar System', val: pf.solarSystem, icon: <FiActivity /> }
-                                        );
-                                    }
-                                    return rawFacs.map((fac, i) => fac.val && (
-                                        <div key={i} className="flex items-center justify-between p-6 md:p-8 hover:bg-gray-50 transition-colors">
-                                            <div className="flex items-center gap-4 md:gap-6">
-                                                <div className="w-8 h-8 md:w-10 md:h-10 bg-gray-100 rounded-lg md:rounded-xl flex items-center justify-center text-gray-400">{fac.icon}</div>
-                                                <span className="text-[10px] md:text-xs font-black text-gray-700 uppercase tracking-widest">{fac.label}</span>
-                                            </div>
-                                            <div className={`px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm ${fac.val === 'Yes' || fac.val === 'Covered' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                                                {Array.isArray(fac.val) ? fac.val.join(', ') : fac.val}
-                                            </div>
-                                        </div>
-                                    ));
-                                })()}
+                                        if (property.flatDetails?.amenities) {
+                                            const fa = property.flatDetails.amenities;
+                                            rawFacs.push(
+                                                { label: 'Security', val: fa.security, icon: <FiShield /> },
+                                                { label: 'CCTV', val: fa.cctv, icon: <FiActivity /> },
+                                                { label: 'Swimming Pool', val: fa.swimmingPool, icon: <FiActivity /> },
+                                                { label: 'Gym', val: fa.gym, icon: <FiActivity /> },
+                                                { label: 'Garden', val: fa.garden, icon: <FiActivity /> },
+                                                { label: 'Game Zone', val: fa.gameZone, icon: <FiActivity /> }
+                                            );
+                                        }
+                                        if (property.plotDetails?.privateFacilities) {
+                                            const pf = property.plotDetails.privateFacilities;
+                                            rawFacs.push(
+                                                { label: 'Private Parking', val: pf.privateParking, icon: <FiBox /> },
+                                                { label: 'Solar System', val: pf.solarSystem, icon: <FiActivity /> }
+                                            );
+                                        }
+                                        return rawFacs
+                                            .filter((fac) => fac.val)
+                                            .map((fac, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="flex flex-col gap-3 p-4 md:p-5 rounded-2xl border border-gray-100 bg-gray-50/60 hover:bg-white hover:shadow-sm transition-all"
+                                                >
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 md:w-9 md:h-9 bg-white rounded-xl flex items-center justify-center text-gray-500 shadow-sm">
+                                                                {fac.icon}
+                                                            </div>
+                                                            <span className="text-[9px] md:text-[10px] font-black text-gray-600 uppercase tracking-[0.18em]">
+                                                                {fac.label}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div
+                                                        className={`inline-flex px-3 md:px-4 py-1.5 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.18em] ${
+                                                            fac.val === 'Yes' || fac.val === 'Covered'
+                                                                ? 'bg-primary-600 text-white'
+                                                                : 'bg-white text-gray-600 border border-gray-200'
+                                                        }`}
+                                                    >
+                                                        {Array.isArray(fac.val) ? fac.val.join(', ') : fac.val}
+                                                    </div>
+                                                </div>
+                                            ));
+                                    })()}
+                                </div>
                             </div>
                         </section>
                     </div>

@@ -48,7 +48,7 @@ export default function Reels() {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-4xl mx-auto"
+      className="max-w-7xl mx-auto px-4"
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
@@ -69,9 +69,9 @@ export default function Reels() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-2xl bg-gray-100 animate-pulse aspect-[9/16] max-h-[280px]" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="rounded-2xl bg-gray-100 animate-pulse aspect-[9/16] max-h-[260px]" />
           ))}
         </div>
       ) : reels.length === 0 ? (
@@ -89,17 +89,17 @@ export default function Reels() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {reels.map((reel) => (
               <div
                 key={reel._id}
                 className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden"
               >
-                <div className="aspect-[9/16] max-h-[280px] bg-gray-900 relative">
+                <div className="aspect-[28/16] max-h-[260px] bg-gray-900 relative overflow-hidden">
                   {reel.videoUrl ? (
                     <video
                       src={reel.videoUrl}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover"
                       muted
                       playsInline
                       preload="metadata"

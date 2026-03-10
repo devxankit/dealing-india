@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiTruck, FiShield, FiPhone, FiMapPin, FiChevronDown, FiCheck, FiMail } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
-import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
+import { getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
 import toast from '../../../shared/utils/toast';
 import { useAuthStore } from '../../../shared/store/authStore';
 
 const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemType, requireAuthForActions = false, showSecureDeal = false }) => {
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuthStore();
+    const { isAuthenticated, user } = useAuthStore();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     let allImages = [];
     if (product.formType === 'shop-listing' && product.items?.length > 0) {
@@ -161,13 +161,9 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                     </h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
                         <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
-                            {product.formType === 'shop-listing' && product.items?.length > 0
-                                ? (product.items[0].category || product.subcategory || 'General')
-                                : (product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value || 'General')}
+                            <span className="text-gray-500">Mfg:</span>{' '}
+                            {vendor?.mfgOfWork ? vendor.mfgOfWork : '—'}
                         </p>
-                        {vendor?.address?.city && (
-                            <span className="text-[8px] text-gray-500 font-bold">• {vendor.address.city}</span>
-                        )}
                     </div>
                 </div>
 
@@ -252,15 +248,15 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                 href={(() => {
                                     const cleanedPhone = (vendor?.phone || '').replace(/\D/g, '');
                                     const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
-                                    const message = encodeURIComponent(
-                                        `🛒 *I'm interested in this product!*\n\n` +
+                                    const baseMsg = `🛒 *I'm interested in this product!*\n\n` +
                                         `📦 *Product:* ${product.name || 'Product'}\n` +
                                         `💰 *Price:* ${product.price ? `₹${product.price}/${unitDisplay}` : 'Price on Request'}\n` +
                                         `📦 *Min Order:* ${moqValue || '1'} ${unitDisplay}\n` +
                                         `🏢 *Shop:* ${shopDisplayName}\n` +
                                         `📍 *City:* ${vendor?.address?.city || 'N/A'}\n\n` +
-                                        `🔗 *View Item:* ${window.location.origin}/b2b/product/${product._id}`
-                                    );
+                                        `🔗 *View Item:* ${window.location.origin}/b2b/product/${product._id}` +
+                                        getWhatsAppUserDetailsSuffix(user);
+                                    const message = encodeURIComponent(baseMsg);
                                     return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`;
                                 })()}
                                 target="_blank"

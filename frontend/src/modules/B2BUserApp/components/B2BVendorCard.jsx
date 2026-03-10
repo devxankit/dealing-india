@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiShoppingBag, FiMapPin, FiPhone, FiTruck, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
-import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
+import { getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
 import toast from '../../../shared/utils/toast';
 import { useAuthStore } from '../../../shared/store/authStore';
 
 const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType, compact = false, requireAuthForActions = false }) => {
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuthStore();
+    const { isAuthenticated, user } = useAuthStore();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const vendorIdStr = vendor._id || vendor.id;
     const isRealEstate = (vendor.businessType || '').toLowerCase().includes('developer') ||
@@ -149,7 +149,8 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                         )}
                     </div>
                     <p className="text-[9px] text-gray-600 font-medium line-clamp-2 mt-1 leading-tight">
-                        {vendor.shopUnit?.description || vendor.storeDescription || ''}
+                        <span className="text-gray-500 font-bold uppercase tracking-tighter">Mfg:</span>{' '}
+                        {vendor.mfgOfWork || '—'}
                     </p>
                 </div>
 
@@ -171,12 +172,12 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                                 href={(() => {
                                     const cleanedPhone = (vendor.phone || '').replace(/\D/g, '');
                                     const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
-                                    const message = encodeURIComponent(
-                                        `👋 *I'm interested in your business services!*\n\n` +
+                                    const baseMsg = `👋 *I'm interested in your business services!*\n\n` +
                                         `🏢 *Business:* ${displayStoreName || 'Verified Vendor'}\n` +
                                         `📍 *City:* ${vendor?.address?.city || 'N/A'}\n\n` +
-                                        `🔗 *View Store:* ${window.location.origin}/b2b/vendor/${vendorIdStr}`
-                                    );
+                                        `🔗 *View Store:* ${window.location.origin}/b2b/vendor/${vendorIdStr}` +
+                                        getWhatsAppUserDetailsSuffix(user);
+                                    const message = encodeURIComponent(baseMsg);
                                     return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`;
                                 })()}
                                 target="_blank"

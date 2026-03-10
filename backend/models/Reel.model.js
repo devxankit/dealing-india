@@ -27,6 +27,7 @@ const reelSchema = new mongoose.Schema(
     youtubePlaylistId: { type: String, default: null },
     youtubeUploadFailed: { type: Boolean, default: false },
     youtubeUploadError: { type: String, default: null },
+    viewCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

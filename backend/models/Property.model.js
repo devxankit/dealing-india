@@ -61,6 +61,7 @@ const propertySchema = new mongoose.Schema(
             address: { type: String, required: true },
             area: { type: String, required: true },
             market: { type: String },
+            state: { type: String },
             city: { type: String, required: true },
             mapUrl: { type: String, trim: true },
         },

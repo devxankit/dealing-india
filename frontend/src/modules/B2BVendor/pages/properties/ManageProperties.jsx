@@ -180,31 +180,68 @@ const ManageProperties = () => {
                                     </div>
                                 </div>
 
-                                {/* Specs Row */}
-                                <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl mb-4">
-                                    <div className="text-center">
-                                        <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Area</p>
-                                        <p className="text-[10px] font-black text-slate-700 truncate">
-                                            {property.flatDetails?.carpetArea ? `${property.flatDetails.carpetArea} ${property.flatDetails.carpetAreaUnit || 'Sq. Ft.'}` :
-                                                property.plotDetails?.plotArea ? `${property.plotDetails.plotArea} sqft` :
-                                                    property.specifications?.builtUpArea || property.totalArea || 'N/A'}
-                                        </p>
-                                    </div>
-                                    <div className="text-center border-x border-slate-200">
-                                        <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Floor/Total</p>
-                                        <p className="text-[10px] font-black text-slate-700 truncate">
-                                            {property.flatDetails?.floorNumber ? `${property.flatDetails.floorNumber}/${property.flatDetails.totalFloors}` :
-                                                property.plotDetails?.floors ? `${property.plotDetails.floors}` :
-                                                    property.specifications?.floorNumber || '0'}
-                                        </p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Type</p>
-                                        <p className="text-[10px] font-black text-slate-700 truncate">
-                                            {property.flatDetails?.flatType || (property.plotDetails ? 'Villa' : property.propertyType)}
-                                        </p>
-                                    </div>
-                                </div>
+                                {/* Specs Row - show fields relevant to property type (commercial / flat / villa) */}
+                                {(() => {
+                                    const bucket = getPropertyBucket(property);
+                                    const spec0 = Array.isArray(property.specifications) && property.specifications[0] ? property.specifications[0] : property.specifications;
+                                    if (bucket === 'commercial') {
+                                        const area = spec0?.builtUpArea || spec0?.carpetArea || property.totalArea;
+                                        const areaUnit = spec0?.builtUpAreaUnit || spec0?.carpetAreaUnit || 'Sq. Ft.';
+                                        const floorTotal = (spec0?.floorNumber && spec0?.totalFloors) ? `${spec0.floorNumber}/${spec0.totalFloors}` : (spec0?.floorNumber || spec0?.totalFloors || '—');
+                                        const typeLabel = (property.propertyTypes && property.propertyTypes.length > 0) ? property.propertyTypes[0] : (property.propertyType || '—');
+                                        return (
+                                            <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl mb-4">
+                                                <div className="text-center">
+                                                    <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Area</p>
+                                                    <p className="text-[10px] font-black text-slate-700 truncate">{area ? `${area} ${areaUnit}` : 'N/A'}</p>
+                                                </div>
+                                                <div className="text-center border-x border-slate-200">
+                                                    <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Floor/Total</p>
+                                                    <p className="text-[10px] font-black text-slate-700 truncate">{floorTotal}</p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Type</p>
+                                                    <p className="text-[10px] font-black text-slate-700 truncate">{typeLabel}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    if (bucket === 'flat') {
+                                        return (
+                                            <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl mb-4">
+                                                <div className="text-center">
+                                                    <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Area</p>
+                                                    <p className="text-[10px] font-black text-slate-700 truncate">{property.flatDetails?.carpetArea ? `${property.flatDetails.carpetArea} ${property.flatDetails.carpetAreaUnit || 'Sq. Ft.'}` : 'N/A'}</p>
+                                                </div>
+                                                <div className="text-center border-x border-slate-200">
+                                                    <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Floor/Total</p>
+                                                    <p className="text-[10px] font-black text-slate-700 truncate">{property.flatDetails?.floorNumber && property.flatDetails?.totalFloors ? `${property.flatDetails.floorNumber}/${property.flatDetails.totalFloors}` : '—'}</p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Type</p>
+                                                    <p className="text-[10px] font-black text-slate-700 truncate">{property.flatDetails?.flatType || '—'}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    // villa / plot
+                                    return (
+                                        <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl mb-4">
+                                            <div className="text-center">
+                                                <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Area</p>
+                                                <p className="text-[10px] font-black text-slate-700 truncate">{property.plotDetails?.plotArea ? `${property.plotDetails.plotArea} sqft` : 'N/A'}</p>
+                                            </div>
+                                            <div className="text-center border-x border-slate-200">
+                                                <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Floor/Total</p>
+                                                <p className="text-[10px] font-black text-slate-700 truncate">{property.plotDetails?.floors ?? '—'}</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Type</p>
+                                                <p className="text-[10px] font-black text-slate-700 truncate">{property.propertyType === 'Plot' ? 'Plot' : 'Villa'}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* Bottom: Price and Actions */}
                                 <div className="flex items-center justify-between pt-4 border-t border-slate-50">
@@ -338,7 +375,7 @@ const ManageProperties = () => {
                                             <FiMapPin className="text-red-500" />
                                             {selectedProperty.location.address ? `${selectedProperty.location.address}, ` : ''}
                                             {selectedProperty.location.area}, {selectedProperty.location.city}
-                                            {selectedProperty.location.market && <span className="text-slate-300">• {selectedProperty.location.market}</span>}
+                                            {(selectedProperty.location.state || selectedProperty.location.market) && <span className="text-slate-300">• {selectedProperty.location.state || selectedProperty.location.market}</span>}
                                         </div>
                                     </div>
                                     <button
@@ -406,37 +443,85 @@ const ManageProperties = () => {
                                         </div>
                                     </div>
 
-                                    {/* Specifications Grid */}
+                                    {/* Specifications Grid - type-specific fields */}
                                     <div className="space-y-6">
                                         <h4 className="text-[10px] font-black uppercase text-slate-900 tracking-[0.2em] flex items-center gap-2">
                                             <div className="w-8 h-[2px] bg-primary-600 rounded-full" /> Detailed Specs
                                         </h4>
                                         <div className="grid grid-cols-2 gap-x-12 gap-y-6">
                                             <div className="space-y-4">
-                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Area</span>
-                                                    <span className="text-xs font-black text-slate-900">
-                                                        {selectedProperty.flatDetails?.carpetArea ? `${selectedProperty.flatDetails.carpetArea} ${selectedProperty.flatDetails.carpetAreaUnit || 'Sq. Ft.'}` :
-                                                            selectedProperty.plotDetails?.plotArea ? `${selectedProperty.plotDetails.plotArea} sq ft` :
-                                                                selectedProperty.specifications?.builtUpArea || 'N/A'}
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Floor/Type</span>
-                                                    <span className="text-xs font-black text-slate-900">
-                                                        {selectedProperty.flatDetails?.flatType ? `${selectedProperty.flatDetails.flatType} on floor ${selectedProperty.flatDetails.floorNumber}` :
-                                                            selectedProperty.plotDetails?.floors ? `${selectedProperty.plotDetails.floors} floors` :
-                                                                selectedProperty.specifications?.floorNumber || '0'}
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Age</span>
-                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.flatDetails?.ageOfProperty || selectedProperty.plotDetails?.ageOfProperty || selectedProperty.status?.propertyCondition || 'N/A'}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Furnishing</span>
-                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.flatDetails?.furnishing || selectedProperty.plotDetails?.furnishing || selectedProperty.status?.furnishing || 'N/A'}</span>
-                                                </div>
+                                                {(() => {
+                                                    const bucket = getPropertyBucket(selectedProperty);
+                                                    const spec0 = Array.isArray(selectedProperty.specifications) && selectedProperty.specifications[0] ? selectedProperty.specifications[0] : selectedProperty.specifications;
+                                                    if (bucket === 'commercial') {
+                                                        const area = spec0?.builtUpArea || spec0?.carpetArea;
+                                                        const areaUnit = spec0?.builtUpAreaUnit || spec0?.carpetAreaUnit || 'Sq. Ft.';
+                                                        return (
+                                                            <>
+                                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                    <span className="text-xs font-bold text-slate-400">Area</span>
+                                                                    <span className="text-xs font-black text-slate-900">{area ? `${area} ${areaUnit}` : 'N/A'}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                    <span className="text-xs font-bold text-slate-400">Floor/Total</span>
+                                                                    <span className="text-xs font-black text-slate-900">{(spec0?.floorNumber && spec0?.totalFloors) ? `${spec0.floorNumber}/${spec0.totalFloors}` : (spec0?.floorNumber || spec0?.totalFloors || '—')}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                    <span className="text-xs font-bold text-slate-400">Type</span>
+                                                                    <span className="text-xs font-black text-slate-900">{(selectedProperty.propertyTypes && selectedProperty.propertyTypes[0]) || selectedProperty.propertyType || '—'}</span>
+                                                                </div>
+                                                                {spec0?.ceilingHeight && (
+                                                                    <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                        <span className="text-xs font-bold text-slate-400">Ceiling</span>
+                                                                        <span className="text-xs font-black text-slate-900">{spec0.ceilingHeight} {spec0.ceilingHeightUnit || ''}</span>
+                                                                    </div>
+                                                                )}
+                                                            </>
+                                                        );
+                                                    }
+                                                    if (bucket === 'flat') {
+                                                        return (
+                                                            <>
+                                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                    <span className="text-xs font-bold text-slate-400">Area</span>
+                                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.flatDetails?.carpetArea ? `${selectedProperty.flatDetails.carpetArea} ${selectedProperty.flatDetails.carpetAreaUnit || 'Sq. Ft.'}` : 'N/A'}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                    <span className="text-xs font-bold text-slate-400">Floor/Type</span>
+                                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.flatDetails?.flatType ? `${selectedProperty.flatDetails.flatType} on floor ${selectedProperty.flatDetails.floorNumber}` : (selectedProperty.flatDetails?.floorNumber && selectedProperty.flatDetails?.totalFloors ? `${selectedProperty.flatDetails.floorNumber}/${selectedProperty.flatDetails.totalFloors}` : '—')}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                    <span className="text-xs font-bold text-slate-400">Age</span>
+                                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.flatDetails?.ageOfProperty || 'N/A'}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                    <span className="text-xs font-bold text-slate-400">Furnishing</span>
+                                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.flatDetails?.furnishing || selectedProperty.status?.furnishing || 'N/A'}</span>
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <>
+                                                            <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                <span className="text-xs font-bold text-slate-400">Area</span>
+                                                                <span className="text-xs font-black text-slate-900">{selectedProperty.plotDetails?.plotArea ? `${selectedProperty.plotDetails.plotArea} sq ft` : 'N/A'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                <span className="text-xs font-bold text-slate-400">Floor/Type</span>
+                                                                <span className="text-xs font-black text-slate-900">{selectedProperty.plotDetails?.floors ? `${selectedProperty.plotDetails.floors} floors` : '—'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                <span className="text-xs font-bold text-slate-400">Age</span>
+                                                                <span className="text-xs font-black text-slate-900">{selectedProperty.plotDetails?.ageOfProperty || selectedProperty.status?.propertyCondition || 'N/A'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                <span className="text-xs font-bold text-slate-400">Furnishing</span>
+                                                                <span className="text-xs font-black text-slate-900">{selectedProperty.plotDetails?.furnishing || selectedProperty.status?.furnishing || 'N/A'}</span>
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     </div>
