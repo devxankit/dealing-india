@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiVideo, FiArrowLeft, FiUpload } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
+import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
 
 const MAX_VIDEO_MB = 100;
 const MAX_TITLE = 100;
@@ -11,7 +12,7 @@ const MAX_DESC = 500;
 
 export default function UploadReel() {
   const navigate = useNavigate();
-  const [categories, setCategories] = useState([]);
+  const { categories: allCategories, initialize: fetchB2BCategories } = useB2BCategoryStore();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: '',
@@ -23,23 +24,33 @@ export default function UploadReel() {
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
 
-  // Load categories for playlist selection from public endpoint
+  // Load B2B categories (used to derive all subcategories for playlist selection)
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await api.get('/public/b2b-categories');
-        if (res?.data && Array.isArray(res.data)) {
-          setCategories(res.data);
-        } else if (res?.data?.categories) {
-          setCategories(res.data.categories);
-        }
-      } catch {
-        setCategories([]);
-        toast.error('Failed to load categories for reels');
-      }
-    };
-    fetchCategories();
-  }, []);
+    fetchB2BCategories();
+  }, [fetchB2BCategories]);
+
+  // Build the flat list of unique subcategory names across all B2B categories
+  // and append extra playlist categories for properties.
+  const playlistCategories = useMemo(() => {
+    const subs = allCategories.flatMap((cat) => cat.subcategories || []);
+    const names = subs
+      .map((s) => (typeof s === 'string' ? s : s?.name))
+      .filter(Boolean);
+
+    const extra = ['Flat', 'Villa/Row House', 'Commercial Property'];
+    const merged = [...names, ...extra];
+
+    const unique = Array.from(
+      new Map(
+        merged
+          .map((name) => (name || '').trim())
+          .filter(Boolean)
+          .map((name) => [name.toLowerCase(), name])
+      ).values()
+    );
+
+    return unique.sort((a, b) => a.localeCompare(b));
+  }, [allCategories]);
 
   const onFileChange = (e) => {
     const f = e.target.files?.[0];
@@ -66,9 +77,9 @@ export default function UploadReel() {
       toast.error('Title is required');
       return;
     }
-    const selected = categories.find((c) => (c.id || c._id)?.toString() === form.categoryId);
-    // For playlist creation we use the selected sub-category name directly (e.g. Saree, Flat/Villa/Row House, Commercial Property)
-    const categoryName = (form.categoryName?.trim() || selected?.name || '').trim();
+    // For playlist creation we rely on the chosen subcategory name directly
+    // (e.g. Saree, Flat, Villa/Row House, Commercial Property).
+    const categoryName = (form.categoryName || '').trim();
     if (!categoryName) {
       toast.error('Please select a category');
       return;
@@ -180,31 +191,48 @@ export default function UploadReel() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Playlist Category (sub-category) *
+            Category *
           </label>
           <select
-            value={form.categoryId}
+            value={form.categoryName}
             onChange={(e) => {
-              const id = e.target.value;
-              const cat = categories.find((c) => (c.id || c._id)?.toString() === id);
+              const selectedName = e.target.value;
+
+              // Try to map subcategory name back to its parent category id, if any.
+              let parentCategoryId = '';
+              if (selectedName) {
+                for (const cat of allCategories) {
+                  const subs = cat.subcategories || [];
+                  if (
+                    subs.some(
+                      (s) =>
+                        (typeof s === 'string' ? s : s?.name) === selectedName
+                    )
+                  ) {
+                    parentCategoryId = (cat.id || cat._id || '').toString();
+                    break;
+                  }
+                }
+              }
+
               setForm((f) => ({
                 ...f,
-                categoryId: id,
-                categoryName: cat?.name || '',
+                categoryId: parentCategoryId,
+                categoryName: selectedName,
               }));
             }}
             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             required
           >
-            <option value="">Select sub-category</option>
-            {categories.map((c) => (
-              <option key={c.id || c._id} value={(c.id || c._id)?.toString()}>
-                {c.name}
+            <option value="">Select category</option>
+            {playlistCategories.map((name) => (
+              <option key={name} value={name}>
+                {name}
               </option>
             ))}
           </select>
           <p className="mt-1 text-xs text-gray-400">
-            Choose the most specific sub-category (e.g. Saree, Flat/Villa/Row House, Commercial Property).
+            Choose the most specific option (sub-category) to categorize this reel playlist.
           </p>
         </div>
 

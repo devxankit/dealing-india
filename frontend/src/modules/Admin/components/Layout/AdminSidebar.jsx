@@ -28,6 +28,7 @@ import {
 } from "react-icons/fi";
 import { useAdminAuthStore } from "../../store/adminStore";
 import adminMenu from "../../config/adminMenu.json";
+import api from "../../../../shared/utils/api";
 
 // Icon mapping for menu items
 const iconMap = {
@@ -78,6 +79,38 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   const { admin } = useAdminAuthStore();
   const [expandedItems, setExpandedItems] = useState({});
   const [isMobile, setIsMobile] = useState(false);
+  const [pendingReelsCount, setPendingReelsCount] = useState(0);
+
+  // Fetch count of pending reels for moderation badge
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchPendingReelsCount = async () => {
+      try {
+        const params = new URLSearchParams({
+          page: "1",
+          limit: "1",
+          status: "pending",
+        });
+        const res = await api.get(`/admin/reels?${params.toString()}`);
+        if (!cancelled && res?.pagination?.total != null) {
+          setPendingReelsCount(res.pagination.total);
+        }
+      } catch {
+        if (!cancelled) {
+          setPendingReelsCount(0);
+        }
+      }
+    };
+
+    fetchPendingReelsCount();
+    const interval = setInterval(fetchPendingReelsCount, 60000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -207,9 +240,10 @@ const AdminSidebar = ({ isOpen, onClose }) => {
         <div
           className={`
             flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer
-            ${active
-              ? "bg-primary-600 text-white shadow-sm"
-              : "text-gray-300 hover:bg-slate-700"
+            ${
+              active
+                ? "bg-primary-600 text-white shadow-sm"
+                : "text-gray-300 hover:bg-slate-700"
             }
           `}
           onClick={() => {
@@ -220,12 +254,21 @@ const AdminSidebar = ({ isOpen, onClose }) => {
               // Close all expanded items when clicking on a parent without children
               handleMenuItemClick(item.route);
             }
-          }}>
+          }}
+        >
           <Icon
-            className={`text-xl flex-shrink-0 ${active ? "text-white" : "text-gray-400"
-              }`}
+            className={`text-xl flex-shrink-0 ${
+              active ? "text-white" : "text-gray-400"
+            }`}
           />
-          <span className="font-medium flex-1 text-sm">{item.title}</span>
+          <span className="font-medium flex-1 text-sm flex items-center gap-2">
+            {item.title}
+            {item.route === "/admin/reels" && pendingReelsCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] px-1.5 py-0.5 rounded-full bg-red-500 text-[11px] font-semibold text-white">
+                {pendingReelsCount > 99 ? "99+" : pendingReelsCount}
+              </span>
+            )}
+          </span>
           {hasChildren && (
             <motion.div
               animate={{ rotate: isExpanded ? 180 : 0 }}

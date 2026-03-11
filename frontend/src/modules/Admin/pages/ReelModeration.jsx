@@ -23,6 +23,13 @@ const STATUS_TABS = [
   { key: '', label: 'All', color: 'gray' },
 ];
 
+// Some backends can send "expired" for reels that are effectively approved.
+// We normalize that here so the UI only ever shows: pending, approved, rejected.
+const normalizeStatus = (status) => {
+  if (status === 'expired') return 'approved';
+  return status || '';
+};
+
 export default function ReelModeration() {
   const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -232,12 +239,18 @@ export default function ReelModeration() {
                     )}
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                      reel.status === 'pending' ? 'bg-amber-500/90 text-white' :
-                      reel.status === 'approved' ? 'bg-emerald-500/90 text-white' :
-                      reel.status === 'rejected' ? 'bg-red-500/90 text-white' : 'bg-gray-500/90 text-white'
-                    }`}>
-                      {reel.status}
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded ${
+                        normalizeStatus(reel.status) === 'pending'
+                          ? 'bg-amber-500/90 text-white'
+                          : normalizeStatus(reel.status) === 'approved'
+                          ? 'bg-emerald-500/90 text-white'
+                          : normalizeStatus(reel.status) === 'rejected'
+                          ? 'bg-red-500/90 text-white'
+                          : 'bg-gray-500/90 text-white'
+                      }`}
+                    >
+                      {normalizeStatus(reel.status)}
                     </span>
                   </div>
                 </div>
@@ -360,9 +373,10 @@ export default function ReelModeration() {
                 <h3 className="font-bold text-gray-900">{previewReel.title}</h3>
                 <p className="text-sm text-gray-500 mt-1">{previewReel.description || '—'}</p>
                 <p className="text-xs text-gray-400 mt-2">
-                  {previewReel.categoryName} · {previewReel.uploaderName} · {dayjs(previewReel.createdAt).format('MMM D, YYYY')}
+                  {previewReel.categoryName} · {previewReel.uploaderName} ·{' '}
+                  {dayjs(previewReel.createdAt).format('MMM D, YYYY')}
                 </p>
-                {previewReel.status === 'approved' && (
+                {normalizeStatus(previewReel.status) === 'approved' && (
                   <div className="mt-2">
                     {previewReel.youtubeVideoId ? (
                       <a
