@@ -258,7 +258,8 @@ export default function ReelModeration() {
                   <h3 className="font-semibold text-gray-900 truncate">{reel.title}</h3>
                   <p className="text-xs text-gray-500 mt-0.5">{reel.categoryName} · {reel.uploaderName}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{dayjs(reel.createdAt).format('MMM D, YYYY HH:mm')}</p>
-                  {reel.status === 'approved' && (
+                  {/* Always show "View on YouTube" when reel is on YouTube; never remove it */}
+                  {(reel.youtubeVideoId || (normalizeStatus(reel.status) === 'approved' && reel.youtubeUploadFailed)) && (
                     <div className="mt-2">
                       {reel.youtubeVideoId ? (
                         <a
@@ -269,11 +270,11 @@ export default function ReelModeration() {
                         >
                           <FiExternalLink className="flex-shrink-0" /> View on YouTube
                         </a>
-                      ) : reel.youtubeUploadFailed ? (
+                      ) : (
                         <p className="text-xs text-amber-600 flex items-center gap-1" title={reel.youtubeUploadError || ''}>
                           <FiAlertCircle className="flex-shrink-0" /> YouTube upload failed
                         </p>
-                      ) : null}
+                      )}
                     </div>
                   )}
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -376,7 +377,8 @@ export default function ReelModeration() {
                   {previewReel.categoryName} · {previewReel.uploaderName} ·{' '}
                   {dayjs(previewReel.createdAt).format('MMM D, YYYY')}
                 </p>
-                {normalizeStatus(previewReel.status) === 'approved' && (
+                {/* Always show "View on YouTube" when reel is on YouTube; never remove it */}
+                {(previewReel.youtubeVideoId || (normalizeStatus(previewReel.status) === 'approved' && previewReel.youtubeUploadFailed)) && (
                   <div className="mt-2">
                     {previewReel.youtubeVideoId ? (
                       <a
@@ -387,11 +389,11 @@ export default function ReelModeration() {
                       >
                         <FiExternalLink /> View on YouTube
                       </a>
-                    ) : previewReel.youtubeUploadFailed ? (
+                    ) : (
                       <p className="text-sm text-amber-600 flex items-center gap-2" title={previewReel.youtubeUploadError || ''}>
                         <FiAlertCircle /> YouTube upload failed — video plays from platform for 24h
                       </p>
-                    ) : null}
+                    )}
                   </div>
                 )}
                 {previewReel.status === 'pending' && (

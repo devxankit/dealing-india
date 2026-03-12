@@ -1,8 +1,15 @@
 /**
  * Publish reel video to YouTube and add to category playlist.
  * Requires: YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN
- * (Or use service account / other OAuth2 flow and set access token.)
+ * (Optional: YOUTUBE_VIDEO_PRIVACY=public)
+ *
  * If not configured, throws so controller can set youtubeUploadFailed and still approve reel.
+ *
+ * Why it may work locally but fail on live (e.g. dealingindia.com):
+ * 1. Env vars not set on production: YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN
+ * 2. Refresh token was generated for local OAuth redirect; production may need its own token
+ * 3. reel.videoUrl must be reachable by the server (e.g. Cloudinary URL). Localhost or
+ *    signed-only URLs that the production server cannot fetch will cause downloadToTemp to fail.
  */
 
 import axios from 'axios';

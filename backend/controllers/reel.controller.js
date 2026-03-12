@@ -160,6 +160,8 @@ export const adminApproveReel = asyncHandler(async (req, res) => {
   } catch (err) {
     youtubeUploadFailed = true;
     youtubeUploadError = err.message || 'YouTube upload failed';
+    // Log so production admins can see why upload failed (e.g. missing env, unreachable videoUrl)
+    console.error('[Reel approve] YouTube upload failed:', err.message, { reelId: reel._id, videoUrl: reel.videoUrl ? 'set' : 'missing' });
   }
 
   reel.status = 'approved';
