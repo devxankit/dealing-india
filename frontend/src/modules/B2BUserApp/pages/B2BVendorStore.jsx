@@ -581,7 +581,13 @@ const B2BVendorStore = () => {
                                             <h3 className="text-xl font-bold text-gray-800">No properties listed yet</h3>
                                         </div>
                                     ) : (
-                                        <div className="space-y-6">
+                                        <div
+                                            className={
+                                                viewMode === "grid"
+                                                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
+                                                    : "space-y-6"
+                                            }
+                                        >
                                             {filteredProperties.map((property) => (
                                                 <RealEstateCard key={property._id} property={property} />
                                             ))}
