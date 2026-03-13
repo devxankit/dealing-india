@@ -31,10 +31,13 @@ const B2BVendorStore = () => {
     const [vendor, setVendor] = useState(null);
     const [products, setProducts] = useState([]);
     const [properties, setProperties] = useState([]);
+    const [reels, setReels] = useState([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState("grid");
     const [sortBy, setSortBy] = useState("popular");
     const [searchQuery, setSearchQuery] = useState("");
+    // Tabs: "main" (products or properties) and "reels"
+    const [activeTab, setActiveTab] = useState("main");
 
     // Fetch vendor details and products
     useEffect(() => {
@@ -43,7 +46,7 @@ const B2BVendorStore = () => {
             try {
 
                 // OPTIMIZED: Fetch vendor, products, and properties in parallel
-                const [vendorRes, productsRes, propertiesRes] = await Promise.all([
+                const [vendorRes, productsRes, propertiesRes, reelsRes] = await Promise.all([
                     api.get(`/vendors/${id}`, { silent: true }),
                     api.get(`/products`, {
                         params: {
@@ -56,6 +59,10 @@ const B2BVendorStore = () => {
                     }),
                     api.get(`/property/all`, {
                         params: { vendorId: id },
+                        silent: true
+                    }),
+                    api.get(`/reels/feed`, {
+                        params: { vendorId: id, limit: 50 },
                         silent: true
                     })
                 ]);
@@ -76,6 +83,12 @@ const B2BVendorStore = () => {
                 // Process properties response
                 if (propertiesRes?.success) {
                     setProperties(propertiesRes.data);
+                }
+
+                // Process reels response
+                if (reelsRes?.success) {
+                    const list = reelsRes.data?.reels || [];
+                    setReels(list);
                 }
             } catch (error) {
                 console.error("Error fetching vendor store data:", error);
@@ -198,6 +211,13 @@ const B2BVendorStore = () => {
             </div>
         );
     }
+
+    const hasProducts = filteredProducts.length > 0;
+    const hasProperties = filteredProperties.length > 0;
+    const hasReels = reels.length > 0;
+
+    const isPropertyVendor = !hasProducts && hasProperties;
+    const mainTabLabel = isPropertyVendor ? "Properties" : "Products";
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
@@ -434,82 +454,186 @@ const B2BVendorStore = () => {
                     </div>
                 )}
 
-                {/* Filter & View Controls */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-10">
-                    <div className="flex items-center gap-4 w-full">
-                        <h2 className="text-xl font-black text-gray-800 tracking-tight uppercase">
-                            Current <span className="text-primary-600">Inventory</span>
-                        </h2>
-                        <div className="relative flex-1 max-w-md sm:max-w-xs ml-auto">
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search this shop inventory..."
-                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-500 outline-none focus:border-primary-200 transition-all"
-                            />
-                            <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85Zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
-                            </svg>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 w-full sm:w-auto flex-wrap">
-                        <div className="relative group">
-                            <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-600 transition-colors" />
-                            <select
-                                value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value)}
-                                className="pl-10 pr-6 py-3 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-500 outline-none focus:border-primary-200 transition-all appearance-none"
-                            >
-                                <option value="popular">Most Relevant</option>
-                                <option value="newest">Newest Stock</option>
-                                <option value="price-low">Price: Low to High</option>
-                                <option value="price-high">Price: High to Low</option>
-                            </select>
-                        </div>
-
-                        <div className="flex items-center p-1 bg-white border border-gray-100 rounded-xl shadow-sm">
-                            <button
-                                onClick={() => setViewMode("grid")}
-                                className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-primary-600 text-white shadow-lg shadow-primary-100" : "text-gray-400 hover:text-gray-600"}`}
-                            >
-                                <FiGrid size={18} />
-                            </button>
-                            <button
-                                onClick={() => setViewMode("list")}
-                                className={`p-2 rounded-lg transition-all ${viewMode === "list" ? "bg-primary-600 text-white shadow-lg shadow-primary-100" : "text-gray-400 hover:text-gray-600"}`}
-                            >
-                                <FiList size={18} />
-                            </button>
-                        </div>
-                    </div>
+                {/* Tabs: Main (Products or Properties) / Reels – after Shop Presentation */}
+                <div className="mt-4 mb-6 flex gap-2 overflow-x-auto no-scrollbar">
+                    {(hasProducts || hasProperties) && (
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab("main")}
+                            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-[0.2em] border ${
+                                activeTab === "main"
+                                    ? "bg-primary-600 text-white border-primary-600"
+                                    : "bg-white text-gray-600 border-gray-200"
+                            }`}
+                        >
+                            {mainTabLabel}
+                        </button>
+                    )}
+                    {hasReels && (
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab("reels")}
+                            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-[0.2em] border ${
+                                activeTab === "reels"
+                                    ? "bg-primary-600 text-white border-primary-600"
+                                    : "bg-white text-gray-600 border-gray-200"
+                            }`}
+                        >
+                            Reels
+                        </button>
+                    )}
                 </div>
 
-                {/* Products & Properties Display */}
-                {products.length === 0 && properties.length === 0 ? (
-                    <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 shadow-inner">
-                        <FiShoppingBag className="text-6xl text-gray-200 mx-auto mb-6" />
-                        <h3 className="text-xl font-bold text-gray-800">No products match your criteria</h3>
-                        <p className="text-gray-400 mt-2">Try adjusting your filters or search terms.</p>
-                    </div>
-                ) : (
-                    <div className={viewMode === "grid"
-                        ? `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 ${filteredProducts.length + filteredProperties.length === 1 ? "px-4 md:px-8 max-w-2xl mx-auto" : ""}`
-                        : "space-y-6"
-                    }>
-                        {filteredProducts.map((product) => (
-                            <B2BProductCard
-                                key={product._id}
-                                product={product}
-                                viewMode={viewMode}
-                                trackContactClick={trackContactClick}
-                            />
-                        ))}
-                        {filteredProperties.map((property) => (
-                            <RealEstateCard key={property._id} property={property} />
-                        ))}
-                    </div>
+                {/* Filter & View Controls + Main tab content only when main tab is active */}
+                {activeTab === "main" && (
+                    <>
+                        {/* Filter & View Controls */}
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-10">
+                            <div className="flex items-center gap-4 w-full">
+                                <h2 className="text-xl font-black text-gray-800 tracking-tight uppercase">
+                                    Current <span className="text-primary-600">Inventory</span>
+                                </h2>
+                                <div className="relative flex-1 max-w-md sm:max-w-xs ml-auto">
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Search this shop inventory..."
+                                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-500 outline-none focus:border-primary-200 transition-all"
+                                    />
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85Zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 w-full sm:w-auto flex-wrap">
+                                <div className="relative group">
+                                    <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-600 transition-colors" />
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value)}
+                                        className="pl-10 pr-6 py-3 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-500 outline-none focus:border-primary-200 transition-all appearance-none"
+                                    >
+                                        <option value="popular">Most Relevant</option>
+                                        <option value="newest">Newest Stock</option>
+                                        <option value="price-low">Price: Low to High</option>
+                                        <option value="price-high">Price: High to Low</option>
+                                    </select>
+                                </div>
+
+                                <div className="flex items-center p-1 bg-white border border-gray-100 rounded-xl shadow-sm">
+                                    <button
+                                        onClick={() => setViewMode("grid")}
+                                        className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-primary-600 text-white shadow-lg shadow-primary-100" : "text-gray-400 hover:text-gray-600"}`}
+                                    >
+                                        <FiGrid size={18} />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode("list")}
+                                        className={`p-2 rounded-lg transition-all ${viewMode === "list" ? "bg-primary-600 text-white shadow-lg shadow-primary-100" : "text-gray-400 hover:text-gray-600"}`}
+                                    >
+                                        <FiList size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Main tab: Products or Properties (depending on vendor) */}
+                        {(!hasProducts && !hasProperties) ? (
+                            <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 shadow-inner">
+                                <FiShoppingBag className="text-6xl text-gray-200 mx-auto mb-6" />
+                                <h3 className="text-xl font-bold text-gray-800">No listings yet</h3>
+                                <p className="text-gray-400 mt-2">This vendor has not added any items yet.</p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* If main tab is Products */}
+                                {!isPropertyVendor && (
+                                    products.length === 0 ? (
+                                        <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 shadow-inner">
+                                            <FiShoppingBag className="text-6xl text-gray-200 mx-auto mb-6" />
+                                            <h3 className="text-xl font-bold text-gray-800">No products match your criteria</h3>
+                                            <p className="text-gray-400 mt-2">Try adjusting your filters or search terms.</p>
+                                        </div>
+                                    ) : (
+                                        <div className={viewMode === "grid"
+                                            ? `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 ${filteredProducts.length === 1 ? "px-4 md:px-8 max-w-2xl mx-auto" : ""}`
+                                            : "space-y-6"
+                                        }>
+                                            {filteredProducts.map((product) => (
+                                                <B2BProductCard
+                                                    key={product._id}
+                                                    product={product}
+                                                    viewMode={viewMode}
+                                                    trackContactClick={trackContactClick}
+                                                />
+                                            ))}
+                                        </div>
+                                    )
+                                )}
+
+                                {/* If main tab is Properties */}
+                                {isPropertyVendor && (
+                                    properties.length === 0 ? (
+                                        <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 shadow-inner">
+                                            <FiShoppingBag className="text-6xl text-gray-200 mx-auto mb-6" />
+                                            <h3 className="text-xl font-bold text-gray-800">No properties listed yet</h3>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6">
+                                            {filteredProperties.map((property) => (
+                                                <RealEstateCard key={property._id} property={property} />
+                                            ))}
+                                        </div>
+                                    )
+                                )}
+                            </>
+                        )}
+                    </>
+                )}
+
+                {activeTab === "reels" && (
+                    hasReels ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            {reels.map((reel) => (
+                                <button
+                                    key={reel._id}
+                                    type="button"
+                                    onClick={() => navigate(`/b2b/reels/${reel._id}`)}
+                                    className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col text-left"
+                                >
+                                    <div className="relative pb-[140%] bg-gray-900">
+                                        {(
+                                            reel.thumbnailUrl ||
+                                            (reel.youtubeVideoId && `https://img.youtube.com/vi/${reel.youtubeVideoId}/hqdefault.jpg`)
+                                        ) && (
+                                            <img
+                                                src={reel.thumbnailUrl || `https://img.youtube.com/vi/${reel.youtubeVideoId}/hqdefault.jpg`}
+                                                alt={reel.title}
+                                                className="absolute inset-0 w-full h-full object-cover"
+                                            />
+                                        )}
+                                        {!reel.thumbnailUrl && (
+                                            <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-xs">
+                                                Reel
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="p-2">
+                                        <p className="text-xs font-semibold text-gray-900 truncate">
+                                            {reel.title}
+                                        </p>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 shadow-inner">
+                            <FiShoppingBag className="text-6xl text-gray-200 mx-auto mb-6" />
+                            <h3 className="text-xl font-bold text-gray-800">No reels from this vendor yet</h3>
+                        </div>
+                    )
                 )}
             </main>
 

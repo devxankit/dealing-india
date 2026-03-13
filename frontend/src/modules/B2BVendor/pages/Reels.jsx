@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { FiVideo, FiPlus, FiClock, FiCheck, FiX } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiVideo, FiPlus, FiClock, FiCheck, FiX, FiPlay } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import dayjs from 'dayjs';
@@ -12,6 +12,7 @@ export default function Reels() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [previewReel, setPreviewReel] = useState(null);
 
   const fetchReels = async () => {
     setLoading(true);
@@ -95,7 +96,7 @@ export default function Reels() {
                 key={reel._id}
                 className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden"
               >
-                <div className="aspect-[28/16] max-h-[260px] bg-gray-900 relative overflow-hidden">
+                <div className="aspect-[28/16] max-h-[210px] bg-gray-900 relative overflow-hidden group">
                   {reel.videoUrl ? (
                     <video
                       src={reel.videoUrl}
@@ -103,12 +104,24 @@ export default function Reels() {
                       muted
                       playsInline
                       preload="metadata"
+                      poster={reel.thumbnailUrl}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-500">
                       <FiVideo className="text-4xl" />
                     </div>
                   )}
+                  {/* Hover overlay with preview button */}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewReel(reel)}
+                      className="p-3 rounded-full bg-white/90 text-gray-900 hover:bg-white shadow-lg"
+                      title="Preview reel"
+                    >
+                      <FiPlay className="text-lg" />
+                    </button>
+                  </div>
                   <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
                     {statusBadge(reel.status)}
                   </div>
@@ -141,6 +154,51 @@ export default function Reels() {
               </button>
             </div>
           )}
+
+          {/* Fullscreen preview modal (vendor-side only, no moderation actions) */}
+          <AnimatePresence>
+            {previewReel && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.85 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black z-40"
+                  onClick={() => setPreviewReel(null)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center px-4"
+                >
+                  <div className="relative w-full max-w-md aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewReel(null)}
+                      className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black"
+                      aria-label="Close preview"
+                    >
+                      <FiX className="text-lg" />
+                    </button>
+                    {previewReel?.videoUrl ? (
+                      <video
+                        src={previewReel.videoUrl}
+                        className="w-full h-full object-contain bg-black"
+                        controls
+                        autoPlay
+                        playsInline
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <FiVideo className="text-4xl" />
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </>
       )}
     </motion.div>

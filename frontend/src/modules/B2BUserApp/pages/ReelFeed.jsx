@@ -347,9 +347,9 @@
 //   );
 // }
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiHeart, FiVideo, FiShare2, FiEye } from "react-icons/fi";
+import { FiHeart, FiVideo, FiShare2, FiEye, FiCopy, FiX } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
@@ -360,40 +360,53 @@ import { getWhatsAppUserDetailsSuffix } from "../../../shared/utils/helpers";
 
 export default function ReelFeed() {
   const navigate = useNavigate();
+  const { reelId: reelIdFromUrl } = useParams();
   const { user } = useAuthStore();
 
   const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [nextPageToken, setNextPageToken] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const viewedRef = useRef(new Set());
   const wheelLockRef = useRef(false);
   const touchStartYRef = useRef(null);
   const loadingMoreRef = useRef(false);
+  const hasAppliedInitialReelRef = useRef(false);
 
-  const fetchFeed = useCallback(async (pageNum = 1, append = false) => {
+  const fetchFeed = useCallback(async (pageNum = 1, append = false, pageToken = null) => {
     try {
       if (!append) setLoading(true);
       if (append) loadingMoreRef.current = true;
 
-      const res = await api.get(`/reels/feed?page=${pageNum}&limit=10`);
+      const params = new URLSearchParams({ limit: "10" });
+      if (pageToken) params.set("pageToken", pageToken);
+      else params.set("page", String(pageNum));
+
+      const res = await api.get(`/reels/feed?${params.toString()}`);
 
       if (res.success && res.data?.reels) {
         const newReels = res.data.reels;
-        const pages = res.pagination?.pages ?? null;
-        const currentPage = res.pagination?.page ?? pageNum;
+        const pagination = res.pagination || {};
+        const token = pagination.nextPageToken;
+        const pages = pagination.pages ?? null;
+        const currentPage = pagination.page ?? pageNum;
 
         if (append) {
           setReels((prev) => (newReels.length ? [...prev, ...newReels] : prev));
         } else {
           setReels(newReels);
           setCurrentIndex(0);
+          setNextPageToken(null);
         }
 
-        // determine if more pages are available
-        if (pages != null) {
+        if (token != null) {
+          setNextPageToken(token);
+          setHasMore(!!token);
+        } else if (pages != null) {
           setHasMore(currentPage < pages);
         } else {
           setHasMore(newReels.length > 0);
@@ -401,12 +414,14 @@ export default function ReelFeed() {
       } else if (!append) {
         setReels([]);
         setHasMore(false);
+        setNextPageToken(null);
       }
     } catch (err) {
       toast.error(err.message || "Failed to load reels");
       if (!append) {
         setReels([]);
         setHasMore(false);
+        setNextPageToken(null);
       }
     } finally {
       setLoading(false);
@@ -415,15 +430,47 @@ export default function ReelFeed() {
   }, []);
 
   useEffect(() => {
+    hasAppliedInitialReelRef.current = false;
     fetchFeed(1, false);
-  }, [fetchFeed]);
+  }, [fetchFeed, reelIdFromUrl]);
+
+  /* When opened via shared link /b2b/reels/:reelId – show that reel */
+  useEffect(() => {
+    if (loading || !reelIdFromUrl) return;
+    if (hasAppliedInitialReelRef.current) return;
+
+    const idx = reels.findIndex((r) => r._id === reelIdFromUrl);
+    if (idx >= 0) {
+      setCurrentIndex(idx);
+      hasAppliedInitialReelRef.current = true;
+      return;
+    }
+
+    hasAppliedInitialReelRef.current = true;
+    api
+      .get(`/reels/${reelIdFromUrl}`)
+      .then((res) => {
+        if (res.success && res.data?.reel) {
+          const single = res.data.reel;
+          setReels((prev) =>
+            prev.some((r) => r._id === single._id) ? prev : [single, ...prev]
+          );
+          setCurrentIndex(0);
+        }
+      })
+      .catch(() => toast.error("Reel not found"));
+  }, [loading, reelIdFromUrl, reels]);
 
   const loadMore = useCallback(() => {
     if (loadingMoreRef.current || !hasMore) return;
-    const nextPage = page + 1;
-    fetchFeed(nextPage, true);
-    setPage(nextPage);
-  }, [fetchFeed, page, hasMore]);
+    if (nextPageToken) {
+      fetchFeed(page, true, nextPageToken);
+    } else {
+      const nextPage = page + 1;
+      fetchFeed(nextPage, true);
+      setPage(nextPage);
+    }
+  }, [fetchFeed, page, hasMore, nextPageToken]);
 
   const currentReel = reels[currentIndex];
   const hasNext = currentIndex < reels.length - 1;
@@ -529,15 +576,55 @@ export default function ReelFeed() {
 
   /* ---------------- SHARE ---------------- */
 
-  const handleShare = () => {
+  const getShareUrl = useCallback(() => {
+    if (!currentReel) return "";
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return `${origin}/b2b/reels/${currentReel._id}`;
+  }, [currentReel]);
+
+  const openShareModal = () => {
     if (!currentReel) return;
+    setShowShareModal(true);
+  };
 
-    const url = currentReel.youtubeVideoId
-      ? `https://www.youtube.com/watch?v=${currentReel.youtubeVideoId}`
-      : window.location.href;
+  const closeShareModal = () => setShowShareModal(false);
 
-    navigator.clipboard.writeText(url);
-    toast.success("Link copied");
+  const copyLink = async () => {
+    const url = getShareUrl();
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard");
+      closeShareModal();
+    } catch {
+      toast.error("Could not copy link");
+    }
+  };
+
+  const shareOnWhatsApp = () => {
+    const url = getShareUrl();
+    if (!url) return;
+    const text = encodeURIComponent(
+      `Check out this reel: ${currentReel?.title || "Reel"}\n\n${url}`
+    );
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+    closeShareModal();
+  };
+
+  const nativeShare = async () => {
+    const url = getShareUrl();
+    if (!url || !navigator.share) return;
+    try {
+      await navigator.share({
+        title: currentReel?.title || "Reel",
+        text: currentReel?.description || "Check out this reel",
+        url,
+      });
+      closeShareModal();
+      toast.success("Shared!");
+    } catch (e) {
+      if (e.name !== "AbortError") toast.error("Share failed");
+    }
   };
 
   /* ---------------- WHATSAPP ---------------- */
@@ -598,7 +685,7 @@ export default function ReelFeed() {
                   <div className="w-full h-full pointer-events-none">
                     <iframe
                       title={currentReel.title}
-                      src={`https://www.youtube.com/embed/${currentReel.youtubeVideoId}?autoplay=1`}
+                      src={`https://www.youtube.com/embed/${currentReel.youtubeVideoId}?autoplay=1&rel=0&modestbranding=1`}
                       className="w-full h-full"
                       allow="autoplay; encrypted-media"
                       allowFullScreen
@@ -659,10 +746,12 @@ export default function ReelFeed() {
                 </div>
 
                 <button
-                  onClick={handleShare}
+                  onClick={openShareModal}
                   className="flex flex-col items-center text-white"
+                  aria-label="Share reel"
                 >
                   <FiShare2 className="text-3xl" />
+                  <span className="text-xs">Share</span>
                 </button>
 
                 {currentReel.vendorPhone && (
@@ -678,6 +767,78 @@ export default function ReelFeed() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Share options modal */}
+      <AnimatePresence>
+        {showShareModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 z-40"
+              onClick={closeShareModal}
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              transition={{ type: "tween", duration: 0.25 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 rounded-t-2xl shadow-xl border-t border-gray-700 px-4 pt-4 pb-8 safe-area-pb"
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-semibold text-white">Share this reel</h3>
+                <button
+                  type="button"
+                  onClick={closeShareModal}
+                  className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/10"
+                  aria-label="Close"
+                >
+                  <FiX className="text-xl" />
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <button
+                  type="button"
+                  onClick={copyLink}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-white transition-colors"
+                >
+                  <span className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-700">
+                    <FiCopy className="text-2xl" />
+                  </span>
+                  <span className="text-sm font-medium">Copy link</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={shareOnWhatsApp}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-white transition-colors"
+                >
+                  <span className="flex items-center justify-center w-12 h-12 rounded-full bg-[#25D366]/20">
+                    <FaWhatsapp className="text-2xl text-[#25D366]" />
+                  </span>
+                  <span className="text-sm font-medium">WhatsApp</span>
+                </button>
+                {typeof navigator !== "undefined" && navigator.share && (
+                  <button
+                    type="button"
+                    onClick={nativeShare}
+                    className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-white transition-colors"
+                  >
+                    <span className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-700">
+                      <FiShare2 className="text-2xl" />
+                    </span>
+                    <span className="text-sm font-medium">More options</span>
+                  </button>
+                )}
+              </div>
+              <p className="mt-4 text-center text-gray-500 text-sm">
+                Share with anyone via link or apps
+              </p>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <B2BBottomNav />
     </div>

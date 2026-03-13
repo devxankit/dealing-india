@@ -154,6 +154,85 @@ async function addVideoToPlaylist(accessToken, playlistId, videoId) {
 }
 
 /**
+ * Fetch playlist items from YouTube (read-only). Used when reels come from YouTube only (no DB).
+ * Requires YOUTUBE_REELS_PLAYLIST_ID to be set.
+ * @param {string} playlistId - YouTube playlist ID
+ * @param {string} [pageToken] - nextPageToken for pagination
+ * @param {number} [maxResults=20] - items per page (max 50)
+ * @returns {Promise<{ items: Array<{ id, youtubeVideoId, title, description, thumbnailUrl }>, nextPageToken?: string }>}
+ */
+export async function fetchPlaylistItems(playlistId, pageToken, maxResults = 20) {
+  ensureYouTubeConfigured();
+  const accessToken = await fetchAccessToken();
+  const params = {
+    part: 'snippet,contentDetails',
+    playlistId,
+    maxResults: Math.min(50, Math.max(1, maxResults)),
+  };
+  if (pageToken) params.pageToken = pageToken;
+
+  const res = await axios.get('https://www.googleapis.com/youtube/v3/playlistItems', {
+    params,
+    headers: { Authorization: `Bearer ${accessToken}` },
+    timeout: 15000,
+  });
+
+  const rawItems = res.data?.items || [];
+  const items = rawItems
+    .filter((item) => item.snippet?.title && item.contentDetails?.videoId)
+    .map((item) => {
+      const videoId = item.contentDetails.videoId;
+      const thumb = item.snippet?.thumbnails?.maxres?.url
+        || item.snippet?.thumbnails?.high?.url
+        || item.snippet?.thumbnails?.medium?.url
+        || item.snippet?.thumbnails?.default?.url;
+      return {
+        id: videoId,
+        youtubeVideoId: videoId,
+        title: item.snippet.title || 'Reel',
+        description: item.snippet.description || '',
+        thumbnailUrl: thumb || null,
+        uploaderName: item.snippet?.channelTitle || '',
+      };
+    });
+
+  return {
+    items,
+    nextPageToken: res.data?.nextPageToken || null,
+  };
+}
+
+/**
+ * Fetch a single video by YouTube video ID (for shared links). No DB.
+ * @param {string} videoId - YouTube video ID
+ * @returns {Promise<{ id, youtubeVideoId, title, description, thumbnailUrl, uploaderName } | null>}
+ */
+export async function fetchVideoById(videoId) {
+  if (!videoId) return null;
+  ensureYouTubeConfigured();
+  const accessToken = await fetchAccessToken();
+  const res = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
+    params: { part: 'snippet', id: videoId },
+    headers: { Authorization: `Bearer ${accessToken}` },
+    timeout: 10000,
+  });
+  const raw = res.data?.items?.[0];
+  if (!raw?.snippet) return null;
+  const thumb = raw.snippet.thumbnails?.maxres?.url
+    || raw.snippet.thumbnails?.high?.url
+    || raw.snippet.thumbnails?.medium?.url
+    || raw.snippet.thumbnails?.default?.url;
+  return {
+    id: raw.id,
+    youtubeVideoId: raw.id,
+    title: raw.snippet.title || 'Reel',
+    description: raw.snippet.description || '',
+    thumbnailUrl: thumb || null,
+    uploaderName: raw.snippet?.channelTitle || '',
+  };
+}
+
+/**
  * Publish reel to YouTube: upload video, get or create category playlist, add video to playlist.
  * @param {Object} reel - Reel document with videoUrl, title, description, categoryName
  * @returns {Promise<{ youtubeVideoId, youtubePlaylistId }>}

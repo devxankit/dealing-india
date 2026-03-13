@@ -7,7 +7,7 @@ import Vendor from '../models/Vendor.model.js';
 import User from '../models/User.model.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadToCloudinary } from '../utils/cloudinary.util.js';
-import { publishReelToYouTube } from '../services/youtubeReel.service.js';
+import { publishReelToYouTube, fetchPlaylistItems, fetchVideoById } from '../services/youtubeReel.service.js';
 
 const REEL_ACTIVE_HOURS = 24; // kept for backwards compatibility only
 
@@ -220,23 +220,73 @@ export const adminDeleteReel = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, message: 'Reel deleted' });
 });
 
+/** True if id looks like a MongoDB ObjectId (24 hex chars); else treat as YouTube video id */
+function isMongoId(id) {
+  return typeof id === 'string' && /^[a-fA-F0-9]{24}$/.test(id);
+}
+
 /**
- * Public feed: all visible reels (approved + previously expired)
+ * Public feed: from YouTube playlist (no DB) when YOUTUBE_REELS_PLAYLIST_ID is set,
+ * otherwise from DB (approved reels with youtubeVideoId).
  * GET /api/reels/feed
  */
 export const getFeed = asyncHandler(async (req, res) => {
+  const playlistId = process.env.YOUTUBE_REELS_PLAYLIST_ID;
+
+  if (playlistId) {
+    // Reels from YouTube only – no DB storage
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+    const pageToken = req.query.pageToken || null;
+    let result;
+    try {
+      result = await fetchPlaylistItems(playlistId, pageToken, limit);
+    } catch (err) {
+      console.error('[Reels] YouTube playlist fetch failed:', err.message);
+      return res.status(502).json({
+        success: false,
+        message: err.message || 'Failed to load reels from YouTube',
+      });
+    }
+    const reels = result.items.map((item) => ({
+      _id: item.id,
+      youtubeVideoId: item.youtubeVideoId,
+      title: item.title,
+      description: item.description,
+      thumbnailUrl: item.thumbnailUrl,
+      uploaderName: item.uploaderName,
+      likeCount: 0,
+      viewCount: 0,
+      userLiked: false,
+      vendorPhone: null,
+      vendorStoreName: null,
+      vendorId: null,
+    }));
+    return res.status(200).json({
+      success: true,
+      data: { reels },
+      pagination: {
+        nextPageToken: result.nextPageToken || null,
+        pages: result.nextPageToken ? undefined : 1,
+      },
+    });
+  }
+
+  // Original: feed from DB (approved reels with YouTube video)
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(30, Math.max(1, parseInt(req.query.limit) || 10));
   const skip = (page - 1) * limit;
   const categoryName = req.query.category;
+  const vendorIdFilter = req.query.vendorId || null;
 
-  // Include both approved and previously expired reels,
-  // but only ones that have a YouTube video attached
   const filter = {
     status: { $in: ['approved', 'expired'] },
     youtubeVideoId: { $ne: null },
   };
   if (categoryName) filter.categoryName = new RegExp(categoryName, 'i');
+  if (vendorIdFilter) {
+    filter.uploaderType = 'vendor';
+    filter.uploaderId = vendorIdFilter;
+  }
 
   const reels = await Reel.find(filter)
     .sort({ approvedAt: -1 })
@@ -244,7 +294,6 @@ export const getFeed = asyncHandler(async (req, res) => {
     .limit(limit)
     .lean();
 
-  // Map vendor details for WhatsApp/contact (only for vendor uploaders)
   const vendorIds = reels
     .filter((r) => r.uploaderType === 'vendor')
     .map((r) => r.uploaderId);
@@ -304,10 +353,83 @@ export const getFeed = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get a single public reel by ID (for shared links). ID can be MongoDB _id or YouTube video id.
+ * GET /api/reels/:id
+ */
+export const getReelById = asyncHandler(async (req, res) => {
+  const id = req.params.id;
+
+  if (!isMongoId(id)) {
+    // YouTube video id – fetch from YouTube, no DB
+    const video = await fetchVideoById(id).catch(() => null);
+    if (!video) {
+      return res.status(404).json({ success: false, message: 'Reel not found' });
+    }
+    const feedItem = {
+      _id: video.id,
+      youtubeVideoId: video.youtubeVideoId,
+      title: video.title,
+      description: video.description,
+      thumbnailUrl: video.thumbnailUrl,
+      uploaderName: video.uploaderName,
+      likeCount: 0,
+      viewCount: 0,
+      userLiked: false,
+      vendorPhone: null,
+      vendorStoreName: null,
+      vendorId: null,
+    };
+    return res.status(200).json({ success: true, data: { reel: feedItem } });
+  }
+
+  const reel = await Reel.findById(id).lean();
+  if (!reel) {
+    return res.status(404).json({ success: false, message: 'Reel not found' });
+  }
+  if (!['approved', 'expired'].includes(reel.status)) {
+    return res.status(404).json({ success: false, message: 'Reel not found' });
+  }
+
+  let vendorInfo = null;
+  if (reel.uploaderType === 'vendor' && reel.uploaderId) {
+    const v = await Vendor.findById(reel.uploaderId).select('phone storeName').lean();
+    vendorInfo = v;
+  }
+
+  const [likeCount, commentCount, userLiked] = await Promise.all([
+    ReelLike.countDocuments({ reelId: reel._id }),
+    ReelComment.countDocuments({ reelId: reel._id }),
+    req.user?.id || req.user?.vendorId
+      ? ReelLike.exists({ reelId: reel._id, userId: req.user.id || req.user.vendorId })
+      : Promise.resolve(null),
+  ]);
+
+  const feedItem = {
+    ...reel,
+    likeCount: likeCount || 0,
+    commentCount: commentCount || 0,
+    userLiked: !!userLiked,
+    vendorPhone: vendorInfo?.phone || null,
+    vendorStoreName: vendorInfo?.storeName || reel.uploaderName || null,
+    viewCount: typeof reel.viewCount === 'number' ? reel.viewCount : 0,
+    vendorId: reel.uploaderType === 'vendor' ? (reel.uploaderId || null) : null,
+  };
+
+  res.status(200).json({
+    success: true,
+    data: { reel: feedItem },
+  });
+});
+
+/**
  * Track a view for a reel (used by reel feed when a reel becomes active)
  * POST /api/reels/:id/view
+ * For YouTube-only reels (id = video id), no-op and return 200.
  */
 export const trackView = asyncHandler(async (req, res) => {
+  if (!isMongoId(req.params.id)) {
+    return res.status(200).json({ success: true, data: { viewCount: 0 } });
+  }
   const reel = await Reel.findById(req.params.id).select('status approvedAt viewCount').lean();
   if (!reel) {
     return res.status(404).json({ success: false, message: 'Reel not found' });
@@ -350,11 +472,15 @@ export const trackView = asyncHandler(async (req, res) => {
 /**
  * Like reel
  * POST /api/reels/:id/like
+ * For YouTube-only reels (id = video id), no-op and return 200.
  */
 export const likeReel = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?.vendorId;
   if (!userId) {
     return res.status(401).json({ success: false, message: 'Login required to like' });
+  }
+  if (!isMongoId(req.params.id)) {
+    return res.status(200).json({ success: true, data: { liked: true, likeCount: 0 } });
   }
   const reel = await Reel.findById(req.params.id).lean();
   if (!reel) return res.status(404).json({ success: false, message: 'Reel not found' });
@@ -379,6 +505,9 @@ export const unlikeReel = asyncHandler(async (req, res) => {
   const userId = req.user?.id || req.user?.vendorId;
   if (!userId) {
     return res.status(401).json({ success: false, message: 'Login required' });
+  }
+  if (!isMongoId(req.params.id)) {
+    return res.status(200).json({ success: true, data: { liked: false, likeCount: 0 } });
   }
   await ReelLike.findOneAndDelete({ reelId: req.params.id, userId });
   const count = await ReelLike.countDocuments({ reelId: req.params.id });

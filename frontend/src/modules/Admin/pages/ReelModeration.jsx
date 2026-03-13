@@ -63,6 +63,14 @@ export default function ReelModeration() {
     fetchReels();
   }, [statusFilter, page]);
 
+  // Lightweight auto-refresh so new reels and status changes appear without a full page reload
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchReels();
+    }, 30000); // 30 seconds
+    return () => clearInterval(interval);
+  }, [statusFilter, page]);
+
   const handleApprove = async (reel) => {
     setActionLoading(reel._id);
     try {
@@ -357,16 +365,16 @@ export default function ReelModeration() {
               initial={{ scale: 0.95 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
+              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="aspect-[9/16] max-h-[70vh] bg-black">
+              <div className="w-full bg-black">
                 {previewReel.videoUrl && (
                   <video
                     src={previewReel.videoUrl}
                     controls
                     autoPlay
-                    className="w-full h-full object-contain"
+                    className="w-full h-auto max-h-[80vh] object-contain"
                   />
                 )}
               </div>

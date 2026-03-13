@@ -411,6 +411,7 @@ const AppRoutes = () => {
         <Route path="/b2b" element={<Navigate to="/b2b/landing" replace />} />
         <Route path="/b2b/landing" element={<B2BLanding />} />
         <Route path="/b2b/reels" element={<ReelFeed />} />
+        <Route path="/b2b/reels/:reelId" element={<ReelFeed />} />
         <Route path="/b2b/catalog" element={<B2BProductCatalog />} />
         <Route path="/b2b/real-estate">
           <Route index element={<RealEstate />} />

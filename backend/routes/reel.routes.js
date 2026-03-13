@@ -6,6 +6,7 @@ import {
   uploadReel,
   getMyReels,
   getFeed,
+  getReelById,
   likeReel,
   unlikeReel,
   getComments,
@@ -28,6 +29,7 @@ router.get('/my', authenticate, authorize('vendor', 'user'), asyncHandler(getMyR
 
 router.get('/feed', optionalAuthenticate, asyncHandler(getFeed));
 router.get('/playlist/:categoryName', asyncHandler(getPlaylistByCategory));
+router.get('/:id', optionalAuthenticate, asyncHandler(getReelById));
 
 router.post('/:id/like', authenticate, authorize('user', 'vendor'), asyncHandler(likeReel));
 router.delete('/:id/like', authenticate, authorize('user', 'vendor'), asyncHandler(unlikeReel));
