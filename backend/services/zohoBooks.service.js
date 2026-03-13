@@ -19,10 +19,16 @@ let cachedAccessTokenExpiresAt = 0;
 async function getAccessToken() {
   const now = Date.now();
   if (cachedAccessToken && now < cachedAccessTokenExpiresAt - 60_000) {
+    console.log('[Zoho] Using cached access token');
     return cachedAccessToken;
   }
 
   if (!ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET || !ZOHO_REFRESH_TOKEN) {
+    console.error('[Zoho] Missing OAuth env vars', {
+      hasClientId: !!ZOHO_CLIENT_ID,
+      hasClientSecret: !!ZOHO_CLIENT_SECRET,
+      hasRefreshToken: !!ZOHO_REFRESH_TOKEN,
+    });
     throw new Error('Zoho OAuth env vars are not fully configured');
   }
 
@@ -35,12 +41,14 @@ async function getAccessToken() {
 
   const url = `${ZOHO_ACCOUNTS_BASE}/oauth/v2/token`;
 
+  console.log('[Zoho] Requesting new access token from', url);
   const res = await axios.post(url, params.toString(), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     timeout: 10000,
   });
 
   if (!res.data?.access_token) {
+    console.error('[Zoho] Token response without access_token', res.data);
     throw new Error(
       `Failed to obtain Zoho access token: ${res.data?.error || 'unknown error'}`
     );
@@ -49,17 +57,20 @@ async function getAccessToken() {
   cachedAccessToken = res.data.access_token;
   const expiresInSec = Number(res.data.expires_in || 3600);
   cachedAccessTokenExpiresAt = Date.now() + expiresInSec * 1000;
+  console.log('[Zoho] Access token obtained, expires in', expiresInSec, 'seconds');
   return cachedAccessToken;
 }
 
 async function zohoRequest(method, path, { params = {}, data = {} } = {}) {
   if (!ZOHO_ORG_ID) {
+    console.error('[Zoho] ZOHO_ORG_ID not configured');
     throw new Error('ZOHO_ORG_ID is not configured');
   }
 
   const token = await getAccessToken();
   const url = `${ZOHO_BOOKS_BASE}${path}`;
 
+  console.log('[Zoho] Request', { method, url, params });
   const res = await axios.request({
     method,
     url,
@@ -74,6 +85,7 @@ async function zohoRequest(method, path, { params = {}, data = {} } = {}) {
   });
 
   if (res.data?.code && res.data.code !== 0) {
+    console.error('[Zoho] API error payload', res.data);
     throw new Error(
       `Zoho API error (${res.data.code}): ${res.data.message || 'Unknown error'}`
     );

@@ -384,6 +384,12 @@ class SubscriptionService {
       }
 
       // Payment successful - create subscription with 'active' status
+      console.log('[SubPay] Payment successful from Razorpay, creating active subscription', {
+        vendorId: vendorId.toString(),
+        planId: planId.toString(),
+        razorpayPaymentId,
+        paymentStatus,
+      });
       const startDate = new Date();
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + (plan.duration || 12));
@@ -475,12 +481,14 @@ class SubscriptionService {
 
       // Zoho Books + emails: do not affect payment result if they fail
       try {
+        console.log('[SubPay][Zoho] Starting Zoho + email flow for subscription', subscription[0]._id.toString());
         const vendorDoc = populatedSubscription.vendorId;
         const planDoc = populatedSubscription.planId;
         const amount = planDoc?.price || planPrice;
 
         // 1. Ensure Zoho contact
         const contactId = await zohoBooksService.ensureZohoContactForVendor(vendorDoc);
+        console.log('[SubPay][Zoho] Contact OK', { contactId });
 
         // Persist contact on Vendor and VendorSubscription
         await Vendor.findByIdAndUpdate(vendorDoc._id, { zohoContactId: contactId });
@@ -495,6 +503,7 @@ class SubscriptionService {
           currency: 'INR',
           referenceNumber: invoiceRef,
         });
+        console.log('[SubPay][Zoho] Invoice created', invoice);
 
         // 3. Record payment
         const payment = await zohoBooksService.recordInvoicePayment({
@@ -504,6 +513,7 @@ class SubscriptionService {
           paymentDate: new Date(),
           razorpayPaymentId,
         });
+        console.log('[SubPay][Zoho] Payment recorded', payment);
 
         // 4. Fetch invoice PDF (optional best-effort)
         let invoicePdfBuffer = null;
@@ -529,6 +539,7 @@ class SubscriptionService {
         const adminEmail = process.env.EMAIL_FROM;
 
         if (vendorEmail) {
+          console.log('[SubPay][Email] Sending success email to vendor', vendorEmail);
           await sendPaymentSuccessEmail({
             to: vendorEmail,
             amount,
@@ -539,6 +550,7 @@ class SubscriptionService {
           });
         }
         if (adminEmail) {
+          console.log('[SubPay][Email] Sending success email to admin', adminEmail);
           await sendPaymentSuccessEmail({
             to: adminEmail,
             amount,
@@ -571,7 +583,7 @@ class SubscriptionService {
             select: 'businessName storeName email phone',
           });
       } catch (accountingErr) {
-        console.error('Zoho/email integration failed for subscription:', accountingErr.message);
+        console.error('Zoho/email integration failed for subscription:', accountingErr);
         await VendorSubscription.findByIdAndUpdate(subscription[0]._id, {
           $push: {
             accountingErrors: {

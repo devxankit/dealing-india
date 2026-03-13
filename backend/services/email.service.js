@@ -298,6 +298,14 @@ export const sendPaymentSuccessEmail = async ({
 
   const subject = `Payment Successful - ${planName || 'Subscription'} (${amount} ${currency})`;
 
+  console.log('[Email][Success] Preparing payment success email', {
+    to,
+    amount,
+    currency,
+    planName,
+    transactionId,
+  });
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -365,6 +373,14 @@ export const sendPaymentCancelledEmail = async ({
     : new Date().toLocaleString();
 
   const subject = `Payment Cancelled - ${planName || 'Subscription'} (${amount} ${currency})`;
+
+  console.log('[Email][Cancel] Preparing payment cancelled email', {
+    to,
+    amount,
+    currency,
+    planName,
+    transactionId,
+  });
 
   const html = `
     <!DOCTYPE html>

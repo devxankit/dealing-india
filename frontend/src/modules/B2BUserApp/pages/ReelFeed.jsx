@@ -635,11 +635,17 @@ export default function ReelFeed() {
     const phone = currentReel.vendorPhone.replace(/\D/g, "");
     const formatted = phone.startsWith("91") ? phone : `91${phone}`;
 
-    const youtubeUrl = `https://www.youtube.com/watch?v=${currentReel.youtubeVideoId}`;
+    const siteUrl = getShareUrl();
+
+    const lines = [
+      "🎥 I'm interested in your reel",
+      currentReel?.title ? `Reel: ${currentReel.title}` : null,
+      "",
+      siteUrl ? `Dealing India link: ${siteUrl}` : null,
+    ].filter(Boolean);
 
     const msg = encodeURIComponent(
-      `🎥 I'm interested in your reel\n\n${youtubeUrl}` +
-        getWhatsAppUserDetailsSuffix(user)
+      `${lines.join("\n")}${getWhatsAppUserDetailsSuffix(user)}`
     );
 
     window.open(

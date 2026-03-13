@@ -386,11 +386,13 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 
     // Zoho Books + email integration (best-effort, non-blocking)
     try {
+        console.log('[BannerPay][Zoho] Starting Zoho + email flow for booking', booking._id.toString());
         const vendorDoc = booking.vendorId; // populated above
         const amount = booking.amount;
 
         // 1. Ensure Zoho contact
         const contactId = await zohoBooksService.ensureZohoContactForVendor(vendorDoc);
+        console.log('[BannerPay][Zoho] Contact OK', { contactId });
 
         // Persist contact on Vendor and Booking
         await Vendor.findByIdAndUpdate(vendorDoc._id, { zohoContactId: contactId });
@@ -405,6 +407,7 @@ export const confirmPayment = asyncHandler(async (req, res) => {
             currency: 'INR',
             referenceNumber: invoiceRef,
         });
+        console.log('[BannerPay][Zoho] Invoice created', invoice);
 
         // 3. Record payment
         const payment = await zohoBooksService.recordInvoicePayment({
@@ -414,6 +417,7 @@ export const confirmPayment = asyncHandler(async (req, res) => {
             paymentDate: new Date(),
             razorpayPaymentId,
         });
+        console.log('[BannerPay][Zoho] Payment recorded', payment);
 
         // 4. Try to download invoice PDF
         let invoicePdfBuffer = null;
@@ -438,6 +442,7 @@ export const confirmPayment = asyncHandler(async (req, res) => {
         const adminEmail = process.env.EMAIL_FROM;
 
         if (vendorEmail) {
+            console.log('[BannerPay][Email] Sending success email to vendor', vendorEmail);
             await sendPaymentSuccessEmail({
                 to: vendorEmail,
                 amount,
@@ -449,6 +454,7 @@ export const confirmPayment = asyncHandler(async (req, res) => {
             });
         }
         if (adminEmail) {
+            console.log('[BannerPay][Email] Sending success email to admin', adminEmail);
             await sendPaymentSuccessEmail({
                 to: adminEmail,
                 amount,
@@ -472,7 +478,7 @@ export const confirmPayment = asyncHandler(async (req, res) => {
         };
         await booking.save();
     } catch (accountingErr) {
-        console.error('Zoho/email integration failed for banner booking:', accountingErr.message);
+        console.error('Zoho/email integration failed for banner booking:', accountingErr);
         await BannerBooking.findByIdAndUpdate(booking._id, {
             $push: {
                 accountingErrors: {

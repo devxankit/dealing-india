@@ -75,10 +75,19 @@ export const getWhatsAppUserDetailsSuffix = (user) => {
   const name = (user.name || "").trim();
   const email = (user.email || "").trim();
   const phone = (user.phone || "").trim();
-  if (!name && !email && !phone) return "";
+  const city =
+    (user.businessInfo &&
+      user.businessInfo.address &&
+      user.businessInfo.address.city) ||
+    (user.address && user.address.city) ||
+    user.city ||
+    "";
+
+  if (!name && !email && !phone && !city) return "";
   let suffix = "\n\n---\n*My Details:*\n";
   if (name) suffix += `*Name:* ${name}\n`;
   if (email) suffix += `*Email:* ${email}\n`;
+  if (city) suffix += `*City:* ${city}\n`;
   if (phone) suffix += `*Phone:* ${phone}`;
   return suffix.trimEnd();
 };
