@@ -6,7 +6,7 @@ import YouTubePlaylistMap from '../models/YouTubePlaylistMap.model.js';
 import Vendor from '../models/Vendor.model.js';
 import User from '../models/User.model.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
-import { uploadToCloudinary } from '../utils/cloudinary.util.js';
+import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.util.js';
 import { publishReelToYouTube, fetchPlaylistItems, fetchVideoById } from '../services/youtubeReel.service.js';
 
 const REEL_ACTIVE_HOURS = 24; // kept for backwards compatibility only
@@ -51,6 +51,19 @@ export const uploadReel = asyncHandler(async (req, res) => {
     return res.status(500).json({ success: false, message: 'Video upload failed' });
   }
 
+  // Enforce max duration of 60 seconds (best-effort, based on Cloudinary metadata)
+  const maxSeconds = 60;
+  if (uploadResult.duration && uploadResult.duration > maxSeconds + 0.5) {
+    // Attempt to clean up uploaded asset, but don't block on failure
+    if (uploadResult.public_id) {
+      deleteFromCloudinary(uploadResult.public_id).catch(() => {});
+    }
+    return res.status(400).json({
+      success: false,
+      message: `Reel video must be ${maxSeconds} seconds or shorter`,
+    });
+  }
+
   const reel = await Reel.create({
     title: String(title).trim().slice(0, 100),
     description: description ? String(description).trim().slice(0, 500) : '',
@@ -63,6 +76,7 @@ export const uploadReel = asyncHandler(async (req, res) => {
     uploaderName,
     videoUrl: uploadResult.secure_url,
     videoPublicId: uploadResult.public_id || null,
+    durationSeconds: uploadResult.duration || null,
     status: 'pending',
   });
 

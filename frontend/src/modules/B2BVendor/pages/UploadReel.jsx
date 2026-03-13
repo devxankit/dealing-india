@@ -7,6 +7,7 @@ import api from '../../../shared/utils/api';
 import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
 
 const MAX_VIDEO_MB = 100;
+const MAX_DURATION_SECONDS = 60;
 const MAX_TITLE = 100;
 const MAX_DESC = 500;
 
@@ -71,6 +72,21 @@ export default function UploadReel() {
     setFilePreview(URL.createObjectURL(f));
   };
 
+  const handlePreviewLoadedMetadata = (event) => {
+    const video = event.currentTarget;
+    const duration = video.duration;
+    if (!Number.isFinite(duration)) return;
+    if (duration > MAX_DURATION_SECONDS + 0.25) {
+      toast.error(`Video must be ${MAX_DURATION_SECONDS} seconds or shorter`);
+      setFile(null);
+      setFilePreview(null);
+      // Stop playback
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title?.trim()) {
@@ -129,7 +145,7 @@ export default function UploadReel() {
         Upload Reel
       </h1>
       <p className="text-sm text-gray-500 mb-8">
-        Short promotional video (e.g. product showcase, property tour). Max {MAX_VIDEO_MB}MB. It will be reviewed before going live.
+        Short promotional video (e.g. product showcase, property tour). Max {MAX_DURATION_SECONDS} seconds and {MAX_VIDEO_MB}MB. It will be reviewed before going live.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -151,6 +167,7 @@ export default function UploadReel() {
                   controls
                   muted
                   playsInline
+                  onLoadedMetadata={handlePreviewLoadedMetadata}
                 />
               ) : (
                 <div className="py-8">

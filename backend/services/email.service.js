@@ -151,7 +151,7 @@ const getTransporter = async () => {
  * Base Sending Function
  * Wraps transporter.sendMail with error handling and logging
  */
-const sendEmail = async (to, subject, html, text) => {
+const sendEmail = async (to, subject, html, text, attachments) => {
   const mailTransporter = await getTransporter();
 
   // Development/Fallback Mode
@@ -167,6 +167,7 @@ const sendEmail = async (to, subject, html, text) => {
     subject,
     html,
     text,
+    attachments,
   };
 
   try {
@@ -277,6 +278,133 @@ export const sendVerificationEmail = async (email, otp) => {
       otp: otp, // Return OTP in response if allowed (or relying on logs)
     };
   }
+};
+
+export const sendPaymentSuccessEmail = async ({
+  to,
+  amount,
+  currency = 'INR',
+  planName,
+  paymentDate,
+  transactionId,
+  invoicePdfBuffer,
+  invoiceFileName = 'invoice.pdf',
+}) => {
+  if (!to) throw new Error('Recipient email is required for payment success email');
+
+  const dateStr = paymentDate
+    ? new Date(paymentDate).toLocaleString()
+    : new Date().toLocaleString();
+
+  const subject = `Payment Successful - ${planName || 'Subscription'} (${amount} ${currency})`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Payment Successful</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; margin:0; padding:0; background:#f3f4f6;">
+      <div style="max-width:600px;margin:0 auto;padding:24px;">
+        <div style="background:#111827;border-radius:16px 16px 0 0;padding:24px;text-align:center;">
+          <img src="https://dealingindia.com/assets/logo.png" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:8px;" />
+          <h1 style="color:#f9fafb;margin:0;font-size:20px;">Payment Successful</h1>
+        </div>
+        <div style="background:#ffffff;border-radius:0 0 16px 16px;padding:24px;border:1px solid #e5e7eb;border-top:none;">
+          <p>Thank you for your payment. Your subscription has been activated.</p>
+          <div style="margin:16px 0;padding:16px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;">
+            <h2 style="margin-top:0;font-size:16px;color:#111827;">Payment Summary</h2>
+            <p style="margin:4px 0;"><strong>Plan:</strong> ${planName || 'Subscription'}</p>
+            <p style="margin:4px 0;"><strong>Amount:</strong> ${amount} ${currency}</p>
+            <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
+            ${
+              transactionId
+                ? `<p style="margin:4px 0;"><strong>Transaction ID:</strong> ${transactionId}</p>`
+                : ''
+            }
+          </div>
+          <p style="margin-top:16px;">Your detailed invoice is attached to this email.</p>
+          <p style="margin-top:24px;font-size:12px;color:#6b7280;">
+            Dealing India · B2B Platform<br/>
+            support@dealingindia.com
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const attachments =
+    invoicePdfBuffer && invoicePdfBuffer.length
+      ? [
+          {
+            filename: invoiceFileName,
+            content: invoicePdfBuffer,
+            contentType: 'application/pdf',
+          },
+        ]
+      : undefined;
+
+  return sendEmail(to, subject, html, undefined, attachments);
+};
+
+export const sendPaymentCancelledEmail = async ({
+  to,
+  amount,
+  currency = 'INR',
+  planName,
+  paymentDate,
+  transactionId,
+}) => {
+  if (!to) throw new Error('Recipient email is required for payment cancelled email');
+
+  const dateStr = paymentDate
+    ? new Date(paymentDate).toLocaleString()
+    : new Date().toLocaleString();
+
+  const subject = `Payment Cancelled - ${planName || 'Subscription'} (${amount} ${currency})`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Payment Cancelled</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; margin:0; padding:0; background:#f3f4f6;">
+      <div style="max-width:600px;margin:0 auto;padding:24px;">
+        <div style="background:#111827;border-radius:16px 16px 0 0;padding:24px;text-align:center;">
+          <img src="https://dealingindia.com/assets/logo.png" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:8px;" />
+          <h1 style="color:#f9fafb;margin:0;font-size:20px;">Payment Not Completed</h1>
+        </div>
+        <div style="background:#ffffff;border-radius:0 0 16px 16px;padding:24px;border:1px solid #e5e7eb;border-top:none;">
+          <p>Your recent payment attempt was not completed.</p>
+          <div style="margin:16px 0;padding:16px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;">
+            <h2 style="margin-top:0;font-size:16px;color:#111827;">Attempted Payment</h2>
+            <p style="margin:4px 0;"><strong>Plan:</strong> ${planName || 'Subscription'}</p>
+            <p style="margin:4px 0;"><strong>Amount:</strong> ${amount} ${currency}</p>
+            <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
+            ${
+              transactionId
+                ? `<p style="margin:4px 0;"><strong>Reference:</strong> ${transactionId}</p>`
+                : ''
+            }
+          </div>
+          <p style="margin-top:16px;">No money has been charged. You can try the payment again from your dashboard.</p>
+          <p style="margin-top:24px;font-size:12px;color:#6b7280;">
+            Dealing India · B2B Platform<br/>
+            support@dealingindia.com
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(to, subject, html);
 };
 
 /**

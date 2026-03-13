@@ -4,6 +4,8 @@ import Vendor from '../models/Vendor.model.js';
 
 import razorpayService from './razorpay.service.js';
 import NotificationService from './notification.service.js';
+import zohoBooksService from './zohoBooks.service.js';
+import { sendPaymentSuccessEmail, sendPaymentCancelledEmail } from './email.service.js';
 import mongoose from 'mongoose';
 
 class SubscriptionService {
@@ -285,7 +287,8 @@ class SubscriptionService {
 
       // Check if payment is actually successful (captured, authorized, or created with valid signature)
       // Note: 'created' state with valid signature is acceptable for immediate fulfillment
-      if (paymentDetails.status !== 'captured' && paymentDetails.status !== 'authorized' && paymentDetails.status !== 'created') {
+      const paymentStatus = paymentDetails.status;
+      if (paymentStatus !== 'captured' && paymentStatus !== 'authorized' && paymentStatus !== 'created') {
         const startDate = new Date();
         const endDate = new Date();
         const billingCycle = 'yearly';
@@ -324,10 +327,60 @@ class SubscriptionService {
 
         failedSubscriptionData.planId = planId;
 
-        await VendorSubscription.create([failedSubscriptionData], { session });
+        const [failedSub] = await VendorSubscription.create([failedSubscriptionData], { session });
 
         await session.commitTransaction();
-        throw new Error('Payment not successful. Payment status: ' + paymentDetails.status);
+
+        // Fire-and-forget cancellation email (do not block or throw)
+        (async () => {
+          try {
+            const recipient = vendor.email;
+            if (recipient) {
+              await sendPaymentCancelledEmail({
+                to: recipient,
+                amount: planPrice,
+                planName,
+                paymentDate: new Date(),
+                transactionId: razorpayPaymentId,
+              });
+            }
+            // Admin copy
+            const adminEmail = process.env.EMAIL_FROM;
+            if (adminEmail) {
+              await sendPaymentCancelledEmail({
+                to: adminEmail,
+                amount: planPrice,
+                planName,
+                paymentDate: new Date(),
+                transactionId: razorpayPaymentId,
+              });
+            }
+
+            await VendorSubscription.findByIdAndUpdate(
+              failedSub._id,
+              {
+                emailNotification: {
+                  ...failedSub.emailNotification,
+                  cancelSent: true,
+                  lastSentAt: new Date(),
+                },
+              },
+              { new: true }
+            );
+          } catch (e) {
+            console.error('Failed to send payment cancelled email:', e.message);
+            await VendorSubscription.findByIdAndUpdate(failedSub._id, {
+              $push: {
+                accountingErrors: {
+                  at: 'payment_cancel_email',
+                  message: e.message,
+                },
+              },
+            });
+          }
+        })();
+
+        throw new Error('Payment not successful. Payment status: ' + paymentStatus);
       }
 
       // Payment successful - create subscription with 'active' status
@@ -413,12 +466,121 @@ class SubscriptionService {
 
       await session.commitTransaction();
 
-      const populatedSubscription = await VendorSubscription.findById(subscription[0]._id)
+      let populatedSubscription = await VendorSubscription.findById(subscription[0]._id)
         .populate('planId')
         .populate({
           path: 'vendorId',
           select: 'businessName storeName email phone'
         });
+
+      // Zoho Books + emails: do not affect payment result if they fail
+      try {
+        const vendorDoc = populatedSubscription.vendorId;
+        const planDoc = populatedSubscription.planId;
+        const amount = planDoc?.price || planPrice;
+
+        // 1. Ensure Zoho contact
+        const contactId = await zohoBooksService.ensureZohoContactForVendor(vendorDoc);
+
+        // Persist contact on Vendor and VendorSubscription
+        await Vendor.findByIdAndUpdate(vendorDoc._id, { zohoContactId: contactId });
+        populatedSubscription.zohoContactId = contactId;
+
+        // 2. Create invoice
+        const invoiceRef = `SUB-${subscription[0]._id.toString()}`;
+        const invoice = await zohoBooksService.createSubscriptionInvoice({
+          contactId,
+          planName: planDoc?.name || planName,
+          amount,
+          currency: 'INR',
+          referenceNumber: invoiceRef,
+        });
+
+        // 3. Record payment
+        const payment = await zohoBooksService.recordInvoicePayment({
+          contactId,
+          invoiceId: invoice.id,
+          amount,
+          paymentDate: new Date(),
+          razorpayPaymentId,
+        });
+
+        // 4. Fetch invoice PDF (optional best-effort)
+        let invoicePdfBuffer = null;
+        try {
+          if (invoice.pdfUrl) {
+            const token = await zohoBooksService.getAccessToken();
+            const pdfRes = await (await import('axios')).default.get(invoice.pdfUrl, {
+              headers: {
+                Authorization: `Zoho-oauthtoken ${token}`,
+              },
+              responseType: 'arraybuffer',
+              timeout: 15000,
+            });
+            invoicePdfBuffer = Buffer.from(pdfRes.data);
+          }
+        } catch (pdfErr) {
+          console.error('Failed to download Zoho invoice PDF:', pdfErr.message);
+        }
+
+        // 5. Send emails
+        const paymentDate = new Date();
+        const vendorEmail = vendorDoc.email;
+        const adminEmail = process.env.EMAIL_FROM;
+
+        if (vendorEmail) {
+          await sendPaymentSuccessEmail({
+            to: vendorEmail,
+            amount,
+            planName: planDoc?.name || planName,
+            paymentDate,
+            transactionId: razorpayPaymentId,
+            invoicePdfBuffer,
+          });
+        }
+        if (adminEmail) {
+          await sendPaymentSuccessEmail({
+            to: adminEmail,
+            amount,
+            planName: planDoc?.name || planName,
+            paymentDate,
+            transactionId: razorpayPaymentId,
+            invoicePdfBuffer,
+          });
+        }
+
+        populatedSubscription = await VendorSubscription.findByIdAndUpdate(
+          subscription[0]._id,
+          {
+            zohoContactId: contactId,
+            zohoInvoiceId: invoice.id,
+            zohoInvoiceStatus: invoice.status,
+            zohoInvoicePdfUrl: invoice.pdfUrl,
+            zohoPaymentId: payment.id || null,
+            emailNotification: {
+              ...(populatedSubscription.emailNotification || {}),
+              successSent: true,
+              lastSentAt: new Date(),
+            },
+          },
+          { new: true }
+        )
+          .populate('planId')
+          .populate({
+            path: 'vendorId',
+            select: 'businessName storeName email phone',
+          });
+      } catch (accountingErr) {
+        console.error('Zoho/email integration failed for subscription:', accountingErr.message);
+        await VendorSubscription.findByIdAndUpdate(subscription[0]._id, {
+          $push: {
+            accountingErrors: {
+              at: 'zoho_books_or_email',
+              message: accountingErr.message,
+            },
+          },
+        });
+      }
 
       return populatedSubscription;
     } catch (error) {

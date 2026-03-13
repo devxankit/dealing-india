@@ -49,7 +49,9 @@ export const uploadToCloudinary = async (buffer, folderName, options = {}) => {
             public_id: result.public_id,
             format: result.format,
             width: result.width,
-            height: result.height
+            height: result.height,
+            // duration is available for video uploads; undefined for images
+            duration: result.duration,
           });
         }
       );

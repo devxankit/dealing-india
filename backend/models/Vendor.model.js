@@ -163,6 +163,11 @@ const vendorSchema = new mongoose.Schema(
       ref: 'VendorSubscription',
       default: null,
     },
+    zohoContactId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     // Location field for geospatial queries
     location: {
       type: { type: String, enum: ['Point'], default: 'Point' },

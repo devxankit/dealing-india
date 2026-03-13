@@ -64,6 +64,34 @@ const vendorSubscriptionSchema = new mongoose.Schema(
     razorpaySignature: {
       type: String,
     },
+    // Zoho Books integration fields
+    zohoContactId: {
+      type: String,
+    },
+    zohoInvoiceId: {
+      type: String,
+    },
+    zohoInvoiceStatus: {
+      type: String,
+    },
+    zohoInvoicePdfUrl: {
+      type: String,
+    },
+    zohoPaymentId: {
+      type: String,
+    },
+    emailNotification: {
+      successSent: { type: Boolean, default: false },
+      cancelSent: { type: Boolean, default: false },
+      lastSentAt: { type: Date },
+    },
+    accountingErrors: [
+      {
+        at: { type: String },
+        message: { type: String },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
     lastPaymentDate: {
       type: Date,
     },
