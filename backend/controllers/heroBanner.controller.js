@@ -232,11 +232,6 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
             email: vendorDoc.email,
             phone: vendorDoc.phone,
         };
-            const vendorInfo = {
-                name: vendorDoc.businessName || vendorDoc.storeName || vendorDoc.name || 'Vendor',
-                email: vendorDoc.email,
-                phone: vendorDoc.phone,
-            };
 
             // 1. Ensure Zoho contact
             const contactId = await zohoBooksService.ensureZohoContactForVendor(vendorDoc);
