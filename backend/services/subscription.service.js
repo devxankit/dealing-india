@@ -335,13 +335,23 @@ class SubscriptionService {
         (async () => {
           try {
             const recipient = vendor.email;
+            const vendorInfo = {
+              name: vendor.businessName || vendor.storeName || 'Vendor',
+              email: vendor.email,
+              phone: vendor.phone,
+            };
             if (recipient) {
               await sendPaymentCancelledEmail({
                 to: recipient,
                 amount: planPrice,
                 planName,
+                title: planName,
+                paymentFor: 'subscription',
                 paymentDate: new Date(),
                 transactionId: razorpayPaymentId,
+                referenceId: `SUB-${planId}-${razorpayOrderId}`,
+                paymentMethod: 'razorpay',
+                vendor: vendorInfo,
               });
             }
             // Admin copy
@@ -351,8 +361,13 @@ class SubscriptionService {
                 to: adminEmail,
                 amount: planPrice,
                 planName,
+                title: planName,
+                paymentFor: 'subscription',
                 paymentDate: new Date(),
                 transactionId: razorpayPaymentId,
+                referenceId: `SUB-${planId}-${razorpayOrderId}`,
+                paymentMethod: 'razorpay',
+                vendor: vendorInfo,
               });
             }
 
@@ -485,6 +500,11 @@ class SubscriptionService {
         const vendorDoc = populatedSubscription.vendorId;
         const planDoc = populatedSubscription.planId;
         const amount = planDoc?.price || planPrice;
+        const vendorInfo = {
+          name: vendorDoc?.businessName || vendorDoc?.storeName || vendorDoc?.name || 'Vendor',
+          email: vendorDoc?.email,
+          phone: vendorDoc?.phone,
+        };
 
         // 1. Ensure Zoho contact
         const contactId = await zohoBooksService.ensureZohoContactForVendor(vendorDoc);
@@ -496,12 +516,23 @@ class SubscriptionService {
 
         // 2. Create invoice
         const invoiceRef = `SUB-${subscription[0]._id.toString()}`;
+        const invoiceNotes = [
+          'Payment For: Subscription',
+          `Title/Plan: ${planDoc?.name || planName}`,
+          `Amount: ${amount} INR`,
+          `Transaction ID: ${razorpayPaymentId || 'N/A'}`,
+          `Reference ID: ${invoiceRef}`,
+          `Vendor: ${vendorInfo.name}`,
+          `Email: ${vendorInfo.email || 'N/A'}`,
+          `Phone: ${vendorInfo.phone || 'N/A'}`,
+        ].join('\n');
         const invoice = await zohoBooksService.createSubscriptionInvoice({
           contactId,
           planName: planDoc?.name || planName,
           amount,
           currency: 'INR',
           referenceNumber: invoiceRef,
+          notes: invoiceNotes,
         });
         console.log('[SubPay][Zoho] Invoice created', invoice);
 
@@ -527,7 +558,14 @@ class SubscriptionService {
               responseType: 'arraybuffer',
               timeout: 15000,
             });
-            invoicePdfBuffer = Buffer.from(pdfRes.data);
+            const contentType = (pdfRes.headers?.['content-type'] || '').toLowerCase();
+            const rawBuffer = Buffer.from(pdfRes.data);
+            const isPdf = contentType.includes('pdf') || rawBuffer.slice(0, 4).toString() === '%PDF';
+            if (isPdf) {
+              invoicePdfBuffer = rawBuffer;
+            } else {
+              console.error('Zoho invoice download did not return PDF. Content-Type:', contentType || 'unknown');
+            }
           }
         } catch (pdfErr) {
           console.error('Failed to download Zoho invoice PDF:', pdfErr.message);
@@ -544,8 +582,13 @@ class SubscriptionService {
             to: vendorEmail,
             amount,
             planName: planDoc?.name || planName,
+            title: planDoc?.name || planName,
+            paymentFor: 'subscription',
             paymentDate,
             transactionId: razorpayPaymentId,
+            referenceId: invoiceRef,
+            paymentMethod: 'razorpay',
+            vendor: vendorInfo,
             invoicePdfBuffer,
           });
         }
@@ -555,8 +598,13 @@ class SubscriptionService {
             to: adminEmail,
             amount,
             planName: planDoc?.name || planName,
+            title: planDoc?.name || planName,
+            paymentFor: 'subscription',
             paymentDate,
             transactionId: razorpayPaymentId,
+            referenceId: invoiceRef,
+            paymentMethod: 'razorpay',
+            vendor: vendorInfo,
             invoicePdfBuffer,
           });
         }

@@ -2,6 +2,8 @@ import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import dns from 'dns';
 import util from 'util';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -13,6 +15,12 @@ const EMAIL_PORT = parseInt(process.env.EMAIL_PORT) || 587; // Default to 587 if
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 const EMAIL_FROM = process.env.EMAIL_FROM || EMAIL_USER || 'noreply@dealingindia.com';
+const EMAIL_LOGO_URL = process.env.EMAIL_LOGO_URL || 'https://dealingindia.com/assets/logo.png';
+const EMAIL_LOGO_PATH = process.env.EMAIL_LOGO_PATH || '';
+const EMAIL_LOGO_CID = 'dealing-india-logo';
+const EMAIL_BRAND_PRIMARY = process.env.EMAIL_BRAND_PRIMARY || '#7C3AED';
+const EMAIL_BRAND_ACCENT = process.env.EMAIL_BRAND_ACCENT || '#F97316';
+const EMAIL_BRAND_TEXT = process.env.EMAIL_BRAND_TEXT || '#111827';
 
 // Detect production environment
 const isProduction = process.env.NODE_ENV === 'production' ||
@@ -282,13 +290,52 @@ export const sendVerificationEmail = async (email, otp) => {
   }
 };
 
+const getInlineLogoAttachment = () => {
+  if (!EMAIL_LOGO_PATH) return null;
+  try {
+    const resolved = path.isAbsolute(EMAIL_LOGO_PATH)
+      ? EMAIL_LOGO_PATH
+      : path.resolve(process.cwd(), EMAIL_LOGO_PATH);
+    if (!fs.existsSync(resolved)) return null;
+    const content = fs.readFileSync(resolved);
+    return {
+      filename: path.basename(resolved),
+      content,
+      cid: EMAIL_LOGO_CID,
+    };
+  } catch (error) {
+    console.warn('⚠️ Failed to load EMAIL_LOGO_PATH:', error.message);
+    return null;
+  }
+};
+
+const formatVendorBlock = (vendor) => {
+  if (!vendor || (!vendor.name && !vendor.email && !vendor.phone)) return '';
+  const name = vendor.name || 'N/A';
+  const email = vendor.email || 'N/A';
+  const phone = vendor.phone || 'N/A';
+  return `
+    <div style="margin:16px 0;padding:16px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;">
+      <h2 style="margin-top:0;font-size:16px;color:#111827;">Vendor Details</h2>
+      <p style="margin:4px 0;"><strong>Name:</strong> ${name}</p>
+      <p style="margin:4px 0;"><strong>Email:</strong> ${email}</p>
+      <p style="margin:4px 0;"><strong>Phone:</strong> ${phone}</p>
+    </div>
+  `;
+};
+
 export const sendPaymentSuccessEmail = async ({
   to,
   amount,
   currency = 'INR',
   planName,
+  title,
+  paymentFor = 'subscription',
   paymentDate,
   transactionId,
+  referenceId,
+  paymentMethod,
+  vendor,
   invoicePdfBuffer,
   invoiceFileName = 'invoice.pdf',
 }) => {
@@ -298,7 +345,9 @@ export const sendPaymentSuccessEmail = async ({
     ? new Date(paymentDate).toLocaleString()
     : new Date().toLocaleString();
 
-  const subject = `Payment Successful - ${planName || 'Subscription'} (${amount} ${currency})`;
+  const displayTitle = title || planName || (paymentFor === 'banner_booking' ? 'Banner Booking' : 'Subscription');
+  const paymentLabel = paymentFor === 'banner_booking' ? 'Banner Booking' : 'Subscription';
+  const subject = `Payment Successful - ${displayTitle} (${amount} ${currency})`;
 
   console.log('[Email][Success] Preparing payment success email', {
     to,
@@ -307,6 +356,10 @@ export const sendPaymentSuccessEmail = async ({
     planName,
     transactionId,
   });
+
+  const logoAttachment = getInlineLogoAttachment();
+  const logoSrc = logoAttachment ? `cid:${EMAIL_LOGO_CID}` : EMAIL_LOGO_URL;
+  const vendorBlock = formatVendorBlock(vendor);
 
   const html = `
     <!DOCTYPE html>
@@ -318,26 +371,39 @@ export const sendPaymentSuccessEmail = async ({
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; margin:0; padding:0; background:#f3f4f6;">
       <div style="max-width:600px;margin:0 auto;padding:24px;">
-        <div style="background:#111827;border-radius:16px 16px 0 0;padding:24px;text-align:center;">
-          <img src="https://dealingindia.com/assets/logo.png" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:8px;" />
+        <div style="background:${EMAIL_BRAND_PRIMARY};border-radius:16px 16px 0 0;padding:24px;text-align:center;">
+          <img src="${logoSrc}" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;" />
           <h1 style="color:#f9fafb;margin:0;font-size:20px;">Payment Successful</h1>
         </div>
         <div style="background:#ffffff;border-radius:0 0 16px 16px;padding:24px;border:1px solid #e5e7eb;border-top:none;">
-          <p>Thank you for your payment. Your subscription has been activated.</p>
+          <p>Thank you for your payment. Your ${paymentLabel.toLowerCase()} has been recorded successfully.</p>
           <div style="margin:16px 0;padding:16px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;">
-            <h2 style="margin-top:0;font-size:16px;color:#111827;">Payment Summary</h2>
-            <p style="margin:4px 0;"><strong>Plan:</strong> ${planName || 'Subscription'}</p>
+            <h2 style="margin-top:0;font-size:16px;color:${EMAIL_BRAND_TEXT};">Payment Summary</h2>
+            <p style="margin:4px 0;"><strong>Payment For:</strong> ${paymentLabel}</p>
+            <p style="margin:4px 0;"><strong>Title/Plan:</strong> ${displayTitle}</p>
             <p style="margin:4px 0;"><strong>Amount:</strong> ${amount} ${currency}</p>
             <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
             ${transactionId
       ? `<p style="margin:4px 0;"><strong>Transaction ID:</strong> ${transactionId}</p>`
       : ''
     }
+            ${referenceId
+      ? `<p style="margin:4px 0;"><strong>Reference ID:</strong> ${referenceId}</p>`
+      : ''
+    }
+            ${paymentMethod
+      ? `<p style="margin:4px 0;"><strong>Payment Method:</strong> ${paymentMethod}</p>`
+      : ''
+    }
           </div>
+          ${vendorBlock}
           <p style="margin-top:16px;">Your detailed invoice is attached to this email.</p>
-          <p style="margin-top:24px;font-size:12px;color:#6b7280;">
+          <p style="margin-top:16px;font-size:12px;color:#6b7280;text-align:center;">
             Dealing India · B2B Platform<br/>
             support@dealingindia.com
+          </p>
+          <p style="margin-top:8px;font-size:12px;color:#6b7280;text-align:center;">
+            © ${new Date().getFullYear()} Dealing India. All rights reserved.
           </p>
         </div>
       </div>
@@ -345,18 +411,17 @@ export const sendPaymentSuccessEmail = async ({
     </html>
   `;
 
-  const attachments =
-    invoicePdfBuffer && invoicePdfBuffer.length
-      ? [
-        {
-          filename: invoiceFileName,
-          content: invoicePdfBuffer,
-          contentType: 'application/pdf',
-        },
-      ]
-      : undefined;
+  const attachments = [];
+  if (logoAttachment) attachments.push(logoAttachment);
+  if (invoicePdfBuffer && invoicePdfBuffer.length) {
+    attachments.push({
+      filename: invoiceFileName,
+      content: invoicePdfBuffer,
+      contentType: 'application/pdf',
+    });
+  }
 
-  return sendEmail(to, subject, html, undefined, attachments);
+  return sendEmail(to, subject, html, undefined, attachments.length ? attachments : undefined);
 };
 
 export const sendPaymentCancelledEmail = async ({
@@ -364,8 +429,13 @@ export const sendPaymentCancelledEmail = async ({
   amount,
   currency = 'INR',
   planName,
+  title,
+  paymentFor = 'subscription',
   paymentDate,
   transactionId,
+  referenceId,
+  paymentMethod,
+  vendor,
 }) => {
   if (!to) throw new Error('Recipient email is required for payment cancelled email');
 
@@ -373,7 +443,9 @@ export const sendPaymentCancelledEmail = async ({
     ? new Date(paymentDate).toLocaleString()
     : new Date().toLocaleString();
 
-  const subject = `Payment Cancelled - ${planName || 'Subscription'} (${amount} ${currency})`;
+  const displayTitle = title || planName || (paymentFor === 'banner_booking' ? 'Banner Booking' : 'Subscription');
+  const paymentLabel = paymentFor === 'banner_booking' ? 'Banner Booking' : 'Subscription';
+  const subject = `Payment Cancelled - ${displayTitle} (${amount} ${currency})`;
 
   console.log('[Email][Cancel] Preparing payment cancelled email', {
     to,
@@ -382,6 +454,10 @@ export const sendPaymentCancelledEmail = async ({
     planName,
     transactionId,
   });
+
+  const logoAttachment = getInlineLogoAttachment();
+  const logoSrc = logoAttachment ? `cid:${EMAIL_LOGO_CID}` : EMAIL_LOGO_URL;
+  const vendorBlock = formatVendorBlock(vendor);
 
   const html = `
     <!DOCTYPE html>
@@ -393,26 +469,39 @@ export const sendPaymentCancelledEmail = async ({
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; margin:0; padding:0; background:#f3f4f6;">
       <div style="max-width:600px;margin:0 auto;padding:24px;">
-        <div style="background:#111827;border-radius:16px 16px 0 0;padding:24px;text-align:center;">
-          <img src="https://dealingindia.com/assets/logo.png" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:8px;" />
+        <div style="background:${EMAIL_BRAND_PRIMARY};border-radius:16px 16px 0 0;padding:24px;text-align:center;">
+          <img src="${logoSrc}" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;" />
           <h1 style="color:#f9fafb;margin:0;font-size:20px;">Payment Not Completed</h1>
         </div>
         <div style="background:#ffffff;border-radius:0 0 16px 16px;padding:24px;border:1px solid #e5e7eb;border-top:none;">
           <p>Your recent payment attempt was not completed.</p>
           <div style="margin:16px 0;padding:16px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;">
-            <h2 style="margin-top:0;font-size:16px;color:#111827;">Attempted Payment</h2>
-            <p style="margin:4px 0;"><strong>Plan:</strong> ${planName || 'Subscription'}</p>
+            <h2 style="margin-top:0;font-size:16px;color:${EMAIL_BRAND_TEXT};">Attempted Payment</h2>
+            <p style="margin:4px 0;"><strong>Payment For:</strong> ${paymentLabel}</p>
+            <p style="margin:4px 0;"><strong>Title/Plan:</strong> ${displayTitle}</p>
             <p style="margin:4px 0;"><strong>Amount:</strong> ${amount} ${currency}</p>
             <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
             ${transactionId
       ? `<p style="margin:4px 0;"><strong>Reference:</strong> ${transactionId}</p>`
       : ''
     }
+            ${referenceId
+      ? `<p style="margin:4px 0;"><strong>Reference ID:</strong> ${referenceId}</p>`
+      : ''
+    }
+            ${paymentMethod
+      ? `<p style="margin:4px 0;"><strong>Payment Method:</strong> ${paymentMethod}</p>`
+      : ''
+    }
           </div>
+          ${vendorBlock}
           <p style="margin-top:16px;">No money has been charged. You can try the payment again from your dashboard.</p>
-          <p style="margin-top:24px;font-size:12px;color:#6b7280;">
+          <p style="margin-top:16px;font-size:12px;color:#6b7280;text-align:center;">
             Dealing India · B2B Platform<br/>
             support@dealingindia.com
+          </p>
+          <p style="margin-top:8px;font-size:12px;color:#6b7280;text-align:center;">
+            © ${new Date().getFullYear()} Dealing India. All rights reserved.
           </p>
         </div>
       </div>
@@ -420,7 +509,8 @@ export const sendPaymentCancelledEmail = async ({
     </html>
   `;
 
-  return sendEmail(to, subject, html);
+  const attachments = logoAttachment ? [logoAttachment] : undefined;
+  return sendEmail(to, subject, html, undefined, attachments);
 };
 
 /**

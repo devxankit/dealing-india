@@ -176,6 +176,7 @@ export async function createSubscriptionInvoice({
   amount,
   currency = 'INR',
   referenceNumber,
+  notes,
 }) {
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10);
@@ -193,6 +194,7 @@ export async function createSubscriptionInvoice({
       },
     ],
     currency_code: currency,
+    ...(notes ? { notes } : {}),
   };
 
   const data = await zohoRequest('POST', '/invoices', { data: invoice });

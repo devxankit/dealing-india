@@ -13,6 +13,7 @@ import {
   FiBriefcase,
   FiCheck,
   FiMapPin,
+  FiVideo,
 } from "react-icons/fi";
 import B2BHeader from "../components/Layout/B2BHeader";
 import B2BBottomNav from "../components/Layout/B2BBottomNav";
@@ -31,6 +32,9 @@ const ProductCatalog = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuthStore();
   const [products, setProducts] = useState([]);
+  const [reels, setReels] = useState([]);
+  const [reelsLoading, setReelsLoading] = useState(false);
+  const [catalogTab, setCatalogTab] = useState("products");
   // categories come from store now
 
   // Initialize state from URL params to prevent double-mount effects
@@ -60,6 +64,11 @@ const ProductCatalog = () => {
   const BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier'];
 
   // Derived states moved after selectedItemType declaration below
+  const reelCategoryForFilter = useMemo(() => {
+    if (selectedSubcategory) return selectedSubcategory;
+    if (selectedCategory && selectedCategory !== "All") return selectedCategory;
+    return null;
+  }, [selectedCategory, selectedSubcategory]);
 
   const [loading, setLoading] = useState(true);
   const [b2bVendors, setB2bVendors] = useState([]);
@@ -169,6 +178,37 @@ const ProductCatalog = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, businessTypes.length]);
+
+  useEffect(() => {
+    if (!reelCategoryForFilter) {
+      setReels([]);
+      setCatalogTab("products");
+      return;
+    }
+    let isMounted = true;
+    setReelsLoading(true);
+    api
+      .get(`/reels/feed?category=${encodeURIComponent(reelCategoryForFilter)}&limit=12`)
+      .then((res) => {
+        if (!isMounted) return;
+        if (res.success && res.data?.reels) {
+          const list = res.data.reels || [];
+          setReels(list);
+          if (list.length > 0) setCatalogTab("reels");
+        } else {
+          setReels([]);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setReels([]);
+      })
+      .finally(() => {
+        if (isMounted) setReelsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [reelCategoryForFilter]);
   const [openFilters, setOpenFilters] = useState({
     businessCategory: false,
     price: false,
@@ -2531,15 +2571,7 @@ const ProductCatalog = () => {
             )}
           </div>
 
-          {/* Category playlist (YouTube) when a category is selected */}
-          {selectedCategory && selectedCategory !== "All" && (
-            <div className="mb-6">
-              <CategoryPlaylistEmbed
-                categoryName={selectedCategory}
-                title={`Videos: ${selectedCategory}`}
-              />
-            </div>
-          )}
+          {/* Category playlist removed: reels are shown as cards below */}
 
           {/* Full Width Subcategory Explorer Card */}
           <AnimatePresence mode="wait">
@@ -2780,83 +2812,167 @@ const ProductCatalog = () => {
                 ) : (
                   /* Normal Display (No Search or Empty Search) */
                   <div className="space-y-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <span className="h-[2px] w-12 bg-primary-600"></span>
-                        <h3 className="text-xl font-black text-gray-800 tracking-tighter uppercase">
-                          Marketplace
-                        </h3>
-                        <span className="px-3 py-1 bg-primary-50 text-primary-600 rounded-full text-[10px] font-black uppercase">
-                          {filteredProducts.length} ITEM
-                          {filteredProducts.length > 1 ? "S" : ""}
-                        </span>
-                      </div>
-
-                      {/* Price Sort Dropdown */}
-                      <div className="relative" ref={sortDropdownRef}>
+                    {(reelsLoading || reels.length > 0) && (
+                      <div className="flex flex-wrap items-center gap-3">
                         <button
-                          onClick={() =>
-                            setIsSortDropdownOpen(!isSortDropdownOpen)
-                          }
-                          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-600 shadow-sm hover:border-primary-200 transition-all">
-                          <FiTrendingUp className="text-primary-600" />
-                          <span>Sort: {getSortLabel()}</span>
-                          <FiChevronDown
-                            className={`transition-transform duration-200 ${isSortDropdownOpen ? "rotate-180" : ""}`}
-                          />
-                        </button>
-
-                        <AnimatePresence>
-                          {isSortDropdownOpen && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                              className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden">
-                              <div className="p-1">
-                                <button
-                                  onClick={() =>
-                                    handleSortChange("createdAt", "desc")
-                                  }
-                                  className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === "createdAt" ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
-                                  Newest First
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleSortChange("price", "asc")
-                                  }
-                                  className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === "price" && sortOrder === "asc" ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
-                                  Price: Low to High
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleSortChange("price", "desc")
-                                  }
-                                  className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === "price" && sortOrder === "desc" ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
-                                  Price: High to Low
-                                </button>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </div>
-                    {filteredProducts.length > 0 && (
-                      <div className="space-y-4">
-                        <h4 className="text-sm font-black uppercase tracking-wider text-primary-700">
+                          type="button"
+                          onClick={() => setCatalogTab("products")}
+                          className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border transition-all ${catalogTab === "products"
+                            ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-200"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-primary-200"
+                            }`}
+                        >
+                          <FiGrid className="inline-block mr-2 -mt-[2px]" />
                           Products
-                        </h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                          {filteredProducts.map((product) => (
-                            <B2BProductCard
-                              key={product._id}
-                              product={product}
-                              trackContactClick={trackContactClick}
-                              itemType={selectedItemType}
-                            />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCatalogTab("reels")}
+                          className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border transition-all ${catalogTab === "reels"
+                            ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-200"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-primary-200"
+                            }`}
+                        >
+                          <FiVideo className="inline-block mr-2 -mt-[2px]" />
+                          Reels
+                        </button>
+                        {reels.length > 0 && (
+                          <span className="px-3 py-1 bg-primary-50 text-primary-600 rounded-full text-[10px] font-black uppercase">
+                            {reels.length} REEL{reels.length > 1 ? "S" : ""}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {catalogTab === "reels" ? (
+                      reelsLoading ? (
+                        <div className="flex flex-col items-center justify-center py-20">
+                          <div className="w-12 h-12 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>
+                          <p className="text-gray-400 font-bold mt-4 text-xs uppercase tracking-widest">
+                            Loading Reels...
+                          </p>
+                        </div>
+                      ) : reels.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                          {reels.map((reel) => (
+                            <button
+                              key={reel._id}
+                              type="button"
+                              onClick={() => navigate(`/b2b/reels/${reel._id}`)}
+                              className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col text-left transition-transform hover:scale-105"
+                            >
+                              <div className="relative pb-[140%] bg-gray-900">
+                                {(reel.thumbnailUrl || reel.youtubeVideoId) && (
+                                  <img
+                                    src={
+                                      reel.thumbnailUrl ||
+                                      `https://img.youtube.com/vi/${reel.youtubeVideoId}/hqdefault.jpg`
+                                    }
+                                    alt={reel.title}
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                  />
+                                )}
+                                {!reel.thumbnailUrl && !reel.youtubeVideoId && (
+                                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs">
+                                    Reel
+                                  </div>
+                                )}
+                              </div>
+                              <div className="p-2">
+                                <p className="text-xs font-semibold text-gray-900 truncate">
+                                  {reel.title}
+                                </p>
+                              </div>
+                            </button>
                           ))}
                         </div>
-                      </div>
+                      ) : (
+                        <div className="text-center py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-100 shadow-inner">
+                          <FiVideo className="text-4xl text-gray-200 mx-auto mb-4" />
+                          <h3 className="text-lg font-bold text-gray-800">No reels for this filter</h3>
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <span className="h-[2px] w-12 bg-primary-600"></span>
+                            <h3 className="text-xl font-black text-gray-800 tracking-tighter uppercase">
+                              Marketplace
+                            </h3>
+                            <span className="px-3 py-1 bg-primary-50 text-primary-600 rounded-full text-[10px] font-black uppercase">
+                              {filteredProducts.length} ITEM
+                              {filteredProducts.length > 1 ? "S" : ""}
+                            </span>
+                          </div>
+
+                          {/* Price Sort Dropdown */}
+                          <div className="relative" ref={sortDropdownRef}>
+                            <button
+                              onClick={() =>
+                                setIsSortDropdownOpen(!isSortDropdownOpen)
+                              }
+                              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-600 shadow-sm hover:border-primary-200 transition-all">
+                              <FiTrendingUp className="text-primary-600" />
+                              <span>Sort: {getSortLabel()}</span>
+                              <FiChevronDown
+                                className={`transition-transform duration-200 ${isSortDropdownOpen ? "rotate-180" : ""}`}
+                              />
+                            </button>
+
+                            <AnimatePresence>
+                              {isSortDropdownOpen && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                  className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden">
+                                  <div className="p-1">
+                                    <button
+                                      onClick={() =>
+                                        handleSortChange("createdAt", "desc")
+                                      }
+                                      className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === "createdAt" ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
+                                      Newest First
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        handleSortChange("price", "asc")
+                                      }
+                                      className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === "price" && sortOrder === "asc" ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
+                                      Price: Low to High
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        handleSortChange("price", "desc")
+                                      }
+                                      className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === "price" && sortOrder === "desc" ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
+                                      Price: High to Low
+                                    </button>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        </div>
+                        {filteredProducts.length > 0 && (
+                          <div className="space-y-4">
+                            <h4 className="text-sm font-black uppercase tracking-wider text-primary-700">
+                              Products
+                            </h4>
+                            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                              {filteredProducts.map((product) => (
+                                <B2BProductCard
+                                  key={product._id}
+                                  product={product}
+                                  trackContactClick={trackContactClick}
+                                  itemType={selectedItemType}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

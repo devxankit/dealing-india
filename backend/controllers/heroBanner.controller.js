@@ -225,8 +225,18 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
         // Zoho Books + email integration (best-effort, non-blocking)
         try {
             console.log('[BannerPay][Zoho] Starting Zoho + email flow for wallet booking', booking._id.toString());
-            const vendorDoc = await Vendor.findById(vendorId);
-            const amount = booking.amount;
+        const vendorDoc = await Vendor.findById(vendorId);
+        const amount = booking.amount;
+        const vendorInfo = {
+            name: vendorDoc.businessName || vendorDoc.storeName || vendorDoc.name || 'Vendor',
+            email: vendorDoc.email,
+            phone: vendorDoc.phone,
+        };
+            const vendorInfo = {
+                name: vendorDoc.businessName || vendorDoc.storeName || vendorDoc.name || 'Vendor',
+                email: vendorDoc.email,
+                phone: vendorDoc.phone,
+            };
 
             // 1. Ensure Zoho contact
             const contactId = await zohoBooksService.ensureZohoContactForVendor(vendorDoc);
@@ -238,12 +248,23 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
 
             // 2. Create invoice
             const invoiceRef = booking.referenceId || `BANNER-${booking._id.toString()}`;
+            const invoiceNotes = [
+                'Payment For: Banner Booking',
+                `Title/Plan: ${booking.title || 'Banner Booking'}`,
+                `Amount: ${amount} INR`,
+                `Transaction ID: ${walletDebitRef || 'N/A'}`,
+                `Reference ID: ${booking.referenceId || booking._id.toString()}`,
+                `Vendor: ${vendorInfo.name}`,
+                `Email: ${vendorInfo.email || 'N/A'}`,
+                `Phone: ${vendorInfo.phone || 'N/A'}`,
+            ].join('\n');
             const invoice = await zohoBooksService.createSubscriptionInvoice({
                 contactId,
                 planName: booking.title || 'Banner Booking',
                 amount,
                 currency: 'INR',
                 referenceNumber: invoiceRef,
+                notes: invoiceNotes,
             });
             console.log('[BannerPay][Zoho] Invoice created', invoice);
 
@@ -269,7 +290,14 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
                         responseType: 'arraybuffer',
                         timeout: 15000,
                     });
-                    invoicePdfBuffer = Buffer.from(pdfRes.data);
+                    const contentType = (pdfRes.headers?.['content-type'] || '').toLowerCase();
+                    const rawBuffer = Buffer.from(pdfRes.data);
+                    const isPdf = contentType.includes('pdf') || rawBuffer.slice(0, 4).toString() === '%PDF';
+                    if (isPdf) {
+                        invoicePdfBuffer = rawBuffer;
+                    } else {
+                        console.error('Zoho invoice download did not return PDF. Content-Type:', contentType || 'unknown');
+                    }
                 }
             } catch (pdfErr) {
                 console.error('Failed to download Zoho banner invoice PDF:', pdfErr.message);
@@ -285,8 +313,13 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
                     to: vendorEmail,
                     amount,
                     planName: booking.title || 'Banner Booking',
+                    title: booking.title || 'Banner Booking',
+                    paymentFor: 'banner_booking',
                     paymentDate,
                     transactionId: walletDebitRef,
+                    referenceId: booking.referenceId || booking._id.toString(),
+                    paymentMethod: 'wallet',
+                    vendor: vendorInfo,
                     invoicePdfBuffer,
                     invoiceFileName: `banner-${invoice.id || booking.referenceId}.pdf`,
                 });
@@ -296,8 +329,13 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
                     to: adminEmail,
                     amount,
                     planName: booking.title || 'Banner Booking',
+                    title: booking.title || 'Banner Booking',
+                    paymentFor: 'banner_booking',
                     paymentDate,
                     transactionId: walletDebitRef,
+                    referenceId: booking.referenceId || booking._id.toString(),
+                    paymentMethod: 'wallet',
+                    vendor: vendorInfo,
                     invoicePdfBuffer,
                     invoiceFileName: `banner-${invoice.id || booking.referenceId}.pdf`,
                 });
@@ -504,12 +542,23 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 
         // 2. Create invoice
         const invoiceRef = booking.referenceId || `BANNER-${booking._id.toString()}`;
+        const invoiceNotes = [
+            'Payment For: Banner Booking',
+            `Title/Plan: ${booking.title || 'Banner Booking'}`,
+            `Amount: ${amount} INR`,
+            `Transaction ID: ${razorpayPaymentId || 'N/A'}`,
+            `Reference ID: ${booking.referenceId || booking._id.toString()}`,
+            `Vendor: ${vendorInfo.name}`,
+            `Email: ${vendorInfo.email || 'N/A'}`,
+            `Phone: ${vendorInfo.phone || 'N/A'}`,
+        ].join('\n');
         const invoice = await zohoBooksService.createSubscriptionInvoice({
             contactId,
             planName: booking.title || 'Banner Booking',
             amount,
             currency: 'INR',
             referenceNumber: invoiceRef,
+            notes: invoiceNotes,
         });
         console.log('[BannerPay][Zoho] Invoice created', invoice);
 
@@ -535,7 +584,14 @@ export const confirmPayment = asyncHandler(async (req, res) => {
                     responseType: 'arraybuffer',
                     timeout: 15000,
                 });
-                invoicePdfBuffer = Buffer.from(pdfRes.data);
+                const contentType = (pdfRes.headers?.['content-type'] || '').toLowerCase();
+                const rawBuffer = Buffer.from(pdfRes.data);
+                const isPdf = contentType.includes('pdf') || rawBuffer.slice(0, 4).toString() === '%PDF';
+                if (isPdf) {
+                    invoicePdfBuffer = rawBuffer;
+                } else {
+                    console.error('Zoho invoice download did not return PDF. Content-Type:', contentType || 'unknown');
+                }
             }
         } catch (pdfErr) {
             console.error('Failed to download Zoho banner invoice PDF:', pdfErr.message);
@@ -552,8 +608,13 @@ export const confirmPayment = asyncHandler(async (req, res) => {
                 to: vendorEmail,
                 amount,
                 planName: booking.title || 'Banner Booking',
+                title: booking.title || 'Banner Booking',
+                paymentFor: 'banner_booking',
                 paymentDate,
                 transactionId: razorpayPaymentId,
+                referenceId: booking.referenceId || booking._id.toString(),
+                paymentMethod: booking.paymentMethod || 'razorpay',
+                vendor: vendorInfo,
                 invoicePdfBuffer,
                 invoiceFileName: `banner-${invoice.id || booking.referenceId}.pdf`,
             });
@@ -564,8 +625,13 @@ export const confirmPayment = asyncHandler(async (req, res) => {
                 to: adminEmail,
                 amount,
                 planName: booking.title || 'Banner Booking',
+                title: booking.title || 'Banner Booking',
+                paymentFor: 'banner_booking',
                 paymentDate,
                 transactionId: razorpayPaymentId,
+                referenceId: booking.referenceId || booking._id.toString(),
+                paymentMethod: booking.paymentMethod || 'razorpay',
+                vendor: vendorInfo,
                 invoicePdfBuffer,
                 invoiceFileName: `banner-${invoice.id || booking.referenceId}.pdf`,
             });
@@ -700,8 +766,15 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     // Send payment cancelled email (if there was a Razorpay payment)
     if (booking.razorpayPaymentId && booking.amount > 0) {
         try {
-            const vendor = await Vendor.findById(vendorId).select('email');
+            const vendor = await Vendor.findById(vendorId).select('email storeName businessName phone name');
             const vendorEmail = vendor?.email;
+            const vendorInfo = vendor
+                ? {
+                    name: vendor.businessName || vendor.storeName || vendor.name || 'Vendor',
+                    email: vendor.email,
+                    phone: vendor.phone,
+                }
+                : null;
             const adminEmail = process.env.EMAIL_FROM;
             const paymentDate = new Date();
 
@@ -710,8 +783,13 @@ export const cancelBooking = asyncHandler(async (req, res) => {
                     to: vendorEmail,
                     amount: booking.amount,
                     planName: booking.title || 'Banner Booking',
+                    title: booking.title || 'Banner Booking',
+                    paymentFor: 'banner_booking',
                     paymentDate,
                     transactionId: booking.razorpayPaymentId,
+                    referenceId: booking.referenceId || booking._id.toString(),
+                    paymentMethod: booking.paymentMethod || 'razorpay',
+                    vendor: vendorInfo,
                 });
             }
             if (adminEmail) {
@@ -719,8 +797,13 @@ export const cancelBooking = asyncHandler(async (req, res) => {
                     to: adminEmail,
                     amount: booking.amount,
                     planName: booking.title || 'Banner Booking',
+                    title: booking.title || 'Banner Booking',
+                    paymentFor: 'banner_booking',
                     paymentDate,
                     transactionId: booking.razorpayPaymentId,
+                    referenceId: booking.referenceId || booking._id.toString(),
+                    paymentMethod: booking.paymentMethod || 'razorpay',
+                    vendor: vendorInfo,
                 });
             }
 

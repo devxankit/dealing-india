@@ -347,7 +347,7 @@
 //   );
 // }
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiHeart, FiVideo, FiShare2, FiEye, FiCopy, FiX } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
@@ -361,6 +361,7 @@ import { getWhatsAppUserDetailsSuffix } from "../../../shared/utils/helpers";
 export default function ReelFeed() {
   const navigate = useNavigate();
   const { reelId: reelIdFromUrl } = useParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
 
   const [reels, setReels] = useState([]);
@@ -377,12 +378,15 @@ export default function ReelFeed() {
   const loadingMoreRef = useRef(false);
   const hasAppliedInitialReelRef = useRef(false);
 
+  const categoryFilter = searchParams.get("category") || "";
+
   const fetchFeed = useCallback(async (pageNum = 1, append = false, pageToken = null) => {
     try {
       if (!append) setLoading(true);
       if (append) loadingMoreRef.current = true;
 
       const params = new URLSearchParams({ limit: "10" });
+      if (categoryFilter) params.set("category", categoryFilter);
       if (pageToken) params.set("pageToken", pageToken);
       else params.set("page", String(pageNum));
 
@@ -427,7 +431,7 @@ export default function ReelFeed() {
       setLoading(false);
       loadingMoreRef.current = false;
     }
-  }, []);
+  }, [categoryFilter]);
 
   useEffect(() => {
     hasAppliedInitialReelRef.current = false;
