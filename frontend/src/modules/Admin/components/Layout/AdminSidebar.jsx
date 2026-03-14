@@ -25,6 +25,7 @@ import {
   FiUser,
   FiGift,
   FiVideo,
+  FiMusic,
 } from "react-icons/fi";
 import { useAdminAuthStore } from "../../store/adminStore";
 import adminMenu from "../../config/adminMenu.json";
@@ -51,6 +52,7 @@ const iconMap = {
   "Support Settings": FiMessageCircle,
   Settings: FiSettings,
   "Reel Moderation": FiVideo,
+  "Music Library": FiMusic,
   Firebase: FiDatabase,
 };
 
@@ -240,10 +242,9 @@ const AdminSidebar = ({ isOpen, onClose }) => {
         <div
           className={`
             flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer
-            ${
-              active
-                ? "bg-primary-600 text-white shadow-sm"
-                : "text-gray-300 hover:bg-slate-700"
+            ${active
+              ? "bg-primary-600 text-white shadow-sm"
+              : "text-gray-300 hover:bg-slate-700"
             }
           `}
           onClick={() => {
@@ -257,9 +258,8 @@ const AdminSidebar = ({ isOpen, onClose }) => {
           }}
         >
           <Icon
-            className={`text-xl flex-shrink-0 ${
-              active ? "text-white" : "text-gray-400"
-            }`}
+            className={`text-xl flex-shrink-0 ${active ? "text-white" : "text-gray-400"
+              }`}
           />
           <span className="font-medium flex-1 text-sm flex items-center gap-2">
             {item.title}

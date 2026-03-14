@@ -151,11 +151,12 @@ export const uploadBase64ToCloudinary = async (base64String, folderName, options
 };
 
 /**
- * Delete image from Cloudinary by public_id
+ * Delete resource from Cloudinary by public_id
  * @param {String} publicId - Cloudinary public_id
+ * @param {String} resourceType - Cloudinary resource type ('image', 'video', 'raw')
  * @returns {Promise<Boolean>} Success status
  */
-export const deleteFromCloudinary = async (publicId) => {
+export const deleteFromCloudinary = async (publicId, resourceType = 'image') => {
   try {
     if (!publicId) {
       return false; // No public_id to delete
@@ -165,7 +166,7 @@ export const deleteFromCloudinary = async (publicId) => {
     const extractedPublicId = extractPublicIdFromUrl(publicId) || publicId;
 
     const result = await cloudinary.uploader.destroy(extractedPublicId, {
-      resource_type: 'image',
+      resource_type: resourceType,
     });
 
     return result.result === 'ok';
@@ -177,11 +178,12 @@ export const deleteFromCloudinary = async (publicId) => {
 };
 
 /**
- * Delete multiple images from Cloudinary
+ * Delete multiple resources from Cloudinary
  * @param {Array<String>} publicIds - Array of Cloudinary public_ids
+ * @param {String} resourceType - Cloudinary resource type
  * @returns {Promise<Object>} { deleted: number, failed: number }
  */
-export const deleteMultipleFromCloudinary = async (publicIds) => {
+export const deleteMultipleFromCloudinary = async (publicIds, resourceType = 'image') => {
   try {
     if (!publicIds || !Array.isArray(publicIds) || publicIds.length === 0) {
       return { deleted: 0, failed: 0 };
@@ -192,7 +194,7 @@ export const deleteMultipleFromCloudinary = async (publicIds) => {
       .map(publicId => {
         const extractedPublicId = extractPublicIdFromUrl(publicId) || publicId;
         return cloudinary.uploader.destroy(extractedPublicId, {
-          resource_type: 'image',
+          resource_type: resourceType,
         }).catch(error => {
           console.error(`Failed to delete ${extractedPublicId}:`, error.message);
           return { result: 'not found' };

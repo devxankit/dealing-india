@@ -17,7 +17,7 @@ const imageFileFilter = (req, file, cb) => {
   if (mimetype && extname) {
     return cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only image files are allowed (jpeg, jpg, png, webp)'));
+    cb(new Error('Invalid file type. ONLY IMAGE FILES are allowed (jpeg, jpg, png, webp) - DEBUG: IMAGE_FILTER_HIT'));
   }
 };
 
@@ -54,6 +54,21 @@ const mediaFileFilter = (req, file, cb) => {
   }
 };
 
+// File filter for audio files
+const audioFileFilter = (req, file, cb) => {
+  const allowedExtensions = /mp3|wav|mpeg|ogg|aac/;
+  const extname = allowedExtensions.test(
+    path.extname(file.originalname).toLowerCase()
+  );
+  const mimetype = file.mimetype.startsWith('audio/') || allowedExtensions.test(file.mimetype);
+
+  if (mimetype || extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. ONLY AUDIO FILES are allowed (mp3, wav, ogg, aac) - DEBUG: AUDIO_FILTER_HIT'));
+  }
+};
+
 // Multer configuration for images only
 export const upload = multer({
   storage,
@@ -61,6 +76,15 @@ export const upload = multer({
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
   fileFilter: imageFileFilter,
+});
+
+// Multer configuration for audio
+export const uploadMusic = multer({
+  storage,
+  limits: {
+    fileSize: 20 * 1024 * 1024, // 20MB limit for audio
+  },
+  fileFilter: audioFileFilter,
 });
 
 // Multer configuration for videos (larger file size)

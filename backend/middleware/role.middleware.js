@@ -12,7 +12,8 @@ export const authorize = (...roles) => {
       });
     }
 
-    if (!roles.includes(req.user.role)) {
+    const allowedRoles = roles.includes('admin') ? [...roles, 'superadmin'] : roles;
+    if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. Insufficient permissions.',

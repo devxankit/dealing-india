@@ -13,12 +13,13 @@ import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 const router = express.Router();
 
 router.use(authenticate);
-router.use(authorize('admin'));
+router.use(authorize('admin', 'superadmin'));
 
 router.get('/', asyncHandler(adminListReels));
 router.get('/:id', asyncHandler(adminGetReel));
 router.post('/:id/approve', asyncHandler(adminApproveReel));
 router.post('/:id/reject', asyncHandler(adminRejectReel));
+
 router.delete('/:id', asyncHandler(adminDeleteReel));
 
 export default router;

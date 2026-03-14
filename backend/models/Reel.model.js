@@ -28,6 +28,13 @@ const reelSchema = new mongoose.Schema(
     youtubeUploadFailed: { type: Boolean, default: false },
     youtubeUploadError: { type: String, default: null },
     viewCount: { type: Number, default: 0 },
+    isCopyrighted: { type: Boolean, default: false },
+    audioStatus: {
+      type: String,
+      enum: ['original', 'replaced'],
+      default: 'original',
+    },
+    musicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Music', default: null },
   },
   { timestamps: true }
 );

@@ -83,5 +83,10 @@
     "title": "Reel Moderation",
     "route": "/admin/reels",
     "children": []
+  },
+  {
+    "title": "Music Library",
+    "route": "/admin/music-library",
+    "children": []
   }
 ]

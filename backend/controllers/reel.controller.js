@@ -5,9 +5,10 @@ import ReelView from '../models/ReelView.model.js';
 import YouTubePlaylistMap from '../models/YouTubePlaylistMap.model.js';
 import Vendor from '../models/Vendor.model.js';
 import User from '../models/User.model.js';
+import Music from '../models/Music.model.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.util.js';
-import { publishReelToYouTube, fetchPlaylistItems, fetchVideoById } from '../services/youtubeReel.service.js';
+import { publishReelToYouTube, fetchPlaylistItems, fetchVideoById, deleteVideoFromYouTube } from '../services/youtubeReel.service.js';
 
 const REEL_ACTIVE_HOURS = 24; // kept for backwards compatibility only
 
@@ -56,7 +57,7 @@ export const uploadReel = asyncHandler(async (req, res) => {
   if (uploadResult.duration && uploadResult.duration > maxSeconds + 0.5) {
     // Attempt to clean up uploaded asset, but don't block on failure
     if (uploadResult.public_id) {
-      deleteFromCloudinary(uploadResult.public_id).catch(() => {});
+      deleteFromCloudinary(uploadResult.public_id).catch(() => { });
     }
     return res.status(400).json({
       success: false,
@@ -228,11 +229,138 @@ export const adminDeleteReel = asyncHandler(async (req, res) => {
   if (!reel) {
     return res.status(404).json({ success: false, message: 'Reel not found' });
   }
+
+  // 1. Delete from YouTube if approved
+  if (reel.youtubeVideoId) {
+    await deleteVideoFromYouTube(reel.youtubeVideoId).catch(err => {
+      console.error('[adminDeleteReel] YouTube delete failed:', err.message);
+    });
+  }
+
+  // 2. Delete from Cloudinary
+  if (reel.videoPublicId) {
+    await deleteFromCloudinary(reel.videoPublicId, 'video').catch(() => { });
+  }
+  if (reel.thumbnailUrl && reel.thumbnailUrl.includes('cloudinary.com')) {
+    await deleteFromCloudinary(reel.thumbnailUrl, 'image').catch(() => { });
+  }
+
+  // 3. Delete from DB (Likes, Comments, Reel)
   await ReelLike.deleteMany({ reelId: reel._id });
   await ReelComment.deleteMany({ reelId: reel._id });
+  await ReelView.deleteMany({ reelId: reel._id });
   await Reel.findByIdAndDelete(reel._id);
-  res.status(200).json({ success: true, message: 'Reel deleted' });
+
+  res.status(200).json({ success: true, message: 'Reel deleted successfully' });
 });
+
+/**
+ * Delete my reel (vendor or user)
+ * DELETE /api/reels/:id
+ */
+export const deleteMyReel = asyncHandler(async (req, res) => {
+  const uploaderId = req.user.vendorId || req.user.id;
+  const reel = await Reel.findById(req.params.id);
+
+  if (!reel) {
+    return res.status(404).json({ success: false, message: 'Reel not found' });
+  }
+
+  // Ensure ownership
+  if (reel.uploaderId.toString() !== uploaderId.toString()) {
+    return res.status(403).json({ success: false, message: 'Not authorized to delete this reel' });
+  }
+
+  // 1. Delete from YouTube if approved
+  if (reel.youtubeVideoId) {
+    await deleteVideoFromYouTube(reel.youtubeVideoId).catch(err => {
+      console.error('[deleteMyReel] YouTube delete failed:', err.message);
+    });
+  }
+
+  // 2. Delete from Cloudinary
+  if (reel.videoPublicId) {
+    await deleteFromCloudinary(reel.videoPublicId, 'video').catch(() => { });
+  }
+  if (reel.thumbnailUrl && reel.thumbnailUrl.includes('cloudinary.com')) {
+    await deleteFromCloudinary(reel.thumbnailUrl, 'image').catch(() => { });
+  }
+
+  // 3. Delete from DB (Likes, Comments, Reel)
+  await ReelLike.deleteMany({ reelId: reel._id });
+  await ReelComment.deleteMany({ reelId: reel._id });
+  await ReelView.deleteMany({ reelId: reel._id });
+  await Reel.findByIdAndDelete(reel._id);
+
+  res.status(200).json({ success: true, message: 'Reel deleted successfully' });
+});
+
+
+/**
+ * Vendor: Replace song in copyrighted reel
+ * POST /api/reels/:id/replace-song
+ * Body: { musicId: string }
+ */
+export const replaceSong = asyncHandler(async (req, res) => {
+  const { musicId } = req.body;
+  if (!musicId) return res.status(400).json({ success: false, message: 'Music selection is required' });
+
+  const reel = await Reel.findById(req.params.id);
+  if (!reel) return res.status(404).json({ success: false, message: 'Reel not found' });
+
+  // Admin can replace song OR the owner (vendor/user)
+  const isOwner = (req.user.vendorId || req.user.id) === reel.uploaderId.toString();
+  const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({ success: false, message: 'Not authorized' });
+  }
+
+  const music = await Music.findById(musicId);
+  if (!music || !music.isActive) {
+    return res.status(404).json({ success: false, message: 'Approved music not found' });
+  }
+
+  // Cloudinary Audio Overlay Transformation
+  if (!reel.videoUrl || !reel.videoUrl.includes('cloudinary.com')) {
+    return res.status(400).json({ success: false, message: 'Only reels hosted on Cloudinary can be processed at this time.' });
+  }
+
+  const musicPublicId = music.publicId.replace(/\//g, ':');
+
+  const parts = reel.videoUrl.split('/upload/');
+  if (parts.length < 2) {
+    return res.status(400).json({ success: false, message: 'Unsupported Cloudinary URL format' });
+  }
+
+  const transformedUrl = `${parts[0]}/upload/e_mute/l_audio:${musicPublicId}/fl_layer_apply/${parts[1]}`;
+
+  // Update reel state
+  reel.videoUrl = transformedUrl;
+  reel.audioStatus = 'replaced';
+  reel.musicId = musicId;
+  reel.status = 'pending';
+  reel.isCopyrighted = false;
+
+  if (reel.youtubeVideoId) {
+    await deleteVideoFromYouTube(reel.youtubeVideoId).catch(err => {
+      console.error('[replaceSong] YouTube delete failed:', err.message);
+    });
+    reel.youtubeVideoId = null;
+    reel.youtubePlaylistId = null;
+    reel.youtubeUploadFailed = false;
+    reel.youtubeUploadError = null;
+  }
+
+  await reel.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Song replaced. Reel submitted for re-approval.',
+    data: { reel }
+  });
+});
+
 
 /** True if id looks like a MongoDB ObjectId (24 hex chars); else treat as YouTube video id */
 function isMongoId(id) {

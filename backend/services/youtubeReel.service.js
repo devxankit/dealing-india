@@ -271,7 +271,27 @@ export async function publishReelToYouTube(reel) {
     if (tmpPath && fs.existsSync(tmpPath)) {
       try {
         fs.unlinkSync(tmpPath);
-      } catch (_) {}
+      } catch (_) { }
     }
+  }
+}
+
+/**
+ * Delete video from YouTube by ID
+ * @param {string} videoId
+ */
+export async function deleteVideoFromYouTube(videoId) {
+  if (!videoId) return;
+  ensureYouTubeConfigured();
+  const accessToken = await fetchAccessToken();
+  try {
+    await axios.delete('https://www.googleapis.com/youtube/v3/videos', {
+      params: { id: videoId },
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: 10000,
+    });
+  } catch (err) {
+    console.error('[YouTube service] Video delete failed:', err.response?.data || err.message);
+    // We don't throw here so that the DB deletion can still proceed
   }
 }

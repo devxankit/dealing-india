@@ -31,7 +31,7 @@ export const optionalAuthenticate = async (req, res, next) => {
         if (vendor && vendor.isActive) {
           req.userDoc = vendor;
         }
-      } else if (decoded.role === 'admin' && decoded.adminId) {
+      } else if ((decoded.role === 'admin' || decoded.role === 'superadmin') && decoded.adminId) {
         const admin = await Admin.findById(decoded.adminId);
         if (admin && admin.isActive) {
           req.userDoc = admin;
@@ -121,7 +121,7 @@ export const authenticate = async (req, res, next) => {
         }
 
         req.userDoc = vendor;
-      } else if (decoded.role === 'admin' && (decoded.adminId || decoded.id)) {
+      } else if ((decoded.role === 'admin' || decoded.role === 'superadmin') && (decoded.adminId || decoded.id)) {
         const adminId = decoded.adminId || decoded.id;
         const admin = await Admin.findById(adminId);
 
@@ -176,7 +176,8 @@ export const protectAdmin = authenticate;
  */
 export const authorize = (...roles) => {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    const allowedRoles = roles.includes('admin') ? [...roles, 'superadmin'] : roles;
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You do not have permission to perform this action.',

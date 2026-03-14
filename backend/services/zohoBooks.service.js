@@ -1,22 +1,22 @@
 import axios from 'axios';
 
-const {
-  ZOHO_CLIENT_ID,
-  ZOHO_CLIENT_SECRET,
-  ZOHO_REFRESH_TOKEN,
-  ZOHO_ORG_ID,
-  ZOHO_BOOKS_BASE_URL,
-} = process.env;
+import dotenv from 'dotenv';
+dotenv.config();
 
-const ZOHO_ACCOUNTS_BASE =
-  process.env.ZOHO_ACCOUNTS_BASE_URL || 'https://accounts.zoho.in';
-const ZOHO_BOOKS_BASE =
-  ZOHO_BOOKS_BASE_URL || 'https://www.zohoapis.in/books/v3';
+const getZohoConfig = () => ({
+  ZOHO_CLIENT_ID: process.env.ZOHO_CLIENT_ID,
+  ZOHO_CLIENT_SECRET: process.env.ZOHO_CLIENT_SECRET,
+  ZOHO_REFRESH_TOKEN: process.env.ZOHO_REFRESH_TOKEN,
+  ZOHO_ORG_ID: process.env.ZOHO_ORG_ID,
+  ZOHO_BOOKS_BASE: process.env.ZOHO_BOOKS_BASE_URL || 'https://www.zohoapis.in/books/v3',
+  ZOHO_ACCOUNTS_BASE: process.env.ZOHO_ACCOUNTS_BASE_URL || 'https://accounts.zoho.in',
+});
 
 let cachedAccessToken = null;
 let cachedAccessTokenExpiresAt = 0;
 
 async function getAccessToken() {
+  const { ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN, ZOHO_ACCOUNTS_BASE } = getZohoConfig();
   const now = Date.now();
   if (cachedAccessToken && now < cachedAccessTokenExpiresAt - 60_000) {
     console.log('[Zoho] Using cached access token');
@@ -62,6 +62,7 @@ async function getAccessToken() {
 }
 
 async function zohoRequest(method, path, { params = {}, data = {} } = {}) {
+  const { ZOHO_ORG_ID, ZOHO_BOOKS_BASE } = getZohoConfig();
   if (!ZOHO_ORG_ID) {
     console.error('[Zoho] ZOHO_ORG_ID not configured');
     throw new Error('ZOHO_ORG_ID is not configured');
@@ -70,28 +71,37 @@ async function zohoRequest(method, path, { params = {}, data = {} } = {}) {
   const token = await getAccessToken();
   const url = `${ZOHO_BOOKS_BASE}${path}`;
 
-  console.log('[Zoho] Request', { method, url, params });
-  const res = await axios.request({
-    method,
-    url,
-    params,
-    data,
-    headers: {
-      Authorization: `Zoho-oauthtoken ${token}`,
-      'Content-Type': 'application/json',
-      'X-com-zoho-books-organizationid': ZOHO_ORG_ID,
-    },
-    timeout: 15000,
-  });
+  try {
+    const res = await axios.request({
+      method,
+      url,
+      params,
+      data,
+      headers: {
+        Authorization: `Zoho-oauthtoken ${token}`,
+        'Content-Type': 'application/json',
+        'X-com-zoho-books-organizationid': ZOHO_ORG_ID,
+      },
+      timeout: 15000,
+    });
 
-  if (res.data?.code && res.data.code !== 0) {
-    console.error('[Zoho] API error payload', res.data);
-    throw new Error(
-      `Zoho API error (${res.data.code}): ${res.data.message || 'Unknown error'}`
-    );
+    if (res.data?.code && res.data.code !== 0) {
+      console.error('[Zoho] API error payload', res.data);
+      throw new Error(
+        `Zoho API error (${res.data.code}): ${res.data.message || 'Unknown error'}`
+      );
+    }
+
+    return res.data;
+  } catch (err) {
+    if (err.response?.data) {
+      console.error('[Zoho] Axios error response:', JSON.stringify(err.response.data, null, 2));
+      throw new Error(
+        `Zoho integration error: ${err.response.data.message || JSON.stringify(err.response.data)}`
+      );
+    }
+    throw err;
   }
-
-  return res.data;
 }
 
 async function findContactByEmail(email) {
@@ -123,7 +133,8 @@ async function createContact({ name, companyName, email, phone }) {
     });
   }
 
-  const data = await zohoRequest('POST', '/contacts', { data: { contact } });
+  console.log('[Zoho] Creating contact with payload:', JSON.stringify(contact, null, 2));
+  const data = await zohoRequest('POST', '/contacts', { data: contact });
   return data?.contact || null;
 }
 
@@ -184,7 +195,7 @@ export async function createSubscriptionInvoice({
     currency_code: currency,
   };
 
-  const data = await zohoRequest('POST', '/invoices', { data: { invoice } });
+  const data = await zohoRequest('POST', '/invoices', { data: invoice });
   const inv = data?.invoice;
   if (!inv) throw new Error('Zoho did not return invoice');
 
@@ -202,6 +213,7 @@ export async function recordInvoicePayment({
   amount,
   paymentDate,
   razorpayPaymentId,
+  paymentMode = 'razorpay',
 }) {
   const date = paymentDate
     ? new Date(paymentDate).toISOString().slice(0, 10)
@@ -209,7 +221,7 @@ export async function recordInvoicePayment({
 
   const payment = {
     customer_id: contactId,
-    payment_mode: 'razorpay',
+    payment_mode: paymentMode,
     amount,
     date,
     reference_number: razorpayPaymentId,
@@ -222,7 +234,7 @@ export async function recordInvoicePayment({
   };
 
   const data = await zohoRequest('POST', '/customerpayments', {
-    data: { payment },
+    data: payment,
   });
 
   const p = data?.payment;

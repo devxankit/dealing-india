@@ -86,6 +86,7 @@ import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 import { syncVendorViewsCron } from "./Cron/VendorViewSync.cron.js";
 import bannerBookingCron from "./Cron/BannerBooking.cron.js";
 import { startReelExpiryCron } from "./Cron/ReelExpiry.cron.js";
+import musicRoutes from "./routes/music.routes.js";
 
 B2BSubscriptionExpiryCron.start();
 syncVendorViewsCron.start();
@@ -336,6 +337,8 @@ app.use("/api/referrals", referralRoutes);
 app.use("/api/admin/referral-settings", adminReferralSettingsRoutes);
 app.use("/api/reels", reelRoutes);
 app.use("/api/admin/reels", adminReelRoutes);
+
+app.use("/api/music", musicRoutes);
 
 // New Feature Routes
 app.use("/api/business-types", businessTypeRoutes);

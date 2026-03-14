@@ -485,7 +485,7 @@ export default function ReelFeed() {
 
     viewedRef.current.add(currentReel._id);
 
-    api.post(`/reels/${currentReel._id}/view`).catch(() => {});
+    api.post(`/reels/${currentReel._id}/view`).catch(() => { });
   }, [currentReel]);
 
   /* ---------------- SCROLL HANDLER ---------------- */
@@ -582,6 +582,22 @@ export default function ReelFeed() {
     return `${origin}/b2b/reels/${currentReel._id}`;
   }, [currentReel]);
 
+  const getResourceTypeText = () => {
+    if (!currentReel || !currentReel.categoryName) return "reel";
+    const cat = currentReel.categoryName.toLowerCase();
+    const propertyKeywords = ["flat", "row house", "villa", "commercial", "shop", "office", "showroom", "godown", "factory", "plot", "building", "real estate", "property"];
+    if (propertyKeywords.some(keyword => cat.includes(keyword))) {
+      return "property";
+    }
+    // Default to product for B2B reels unless it matches property keywords
+    return "product";
+  }
+
+  const getDisplayType = () => {
+    const type = getResourceTypeText();
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  }
+
   const openShareModal = () => {
     if (!currentReel) return;
     setShowShareModal(true);
@@ -604,8 +620,9 @@ export default function ReelFeed() {
   const shareOnWhatsApp = () => {
     const url = getShareUrl();
     if (!url) return;
+    const typeText = getDisplayType();
     const text = encodeURIComponent(
-      `Check out this reel: ${currentReel?.title || "Reel"}\n\n${url}`
+      `Check out this ${typeText.toLowerCase()}: ${currentReel?.title || typeText}\n\n${url}`
     );
     window.open(`https://wa.me/?text=${text}`, "_blank");
     closeShareModal();
@@ -614,10 +631,11 @@ export default function ReelFeed() {
   const nativeShare = async () => {
     const url = getShareUrl();
     if (!url || !navigator.share) return;
+    const typeText = getDisplayType();
     try {
       await navigator.share({
-        title: currentReel?.title || "Reel",
-        text: currentReel?.description || "Check out this reel",
+        title: currentReel?.title || typeText,
+        text: currentReel?.description || `Check out this ${typeText.toLowerCase()}`,
         url,
       });
       closeShareModal();
@@ -636,10 +654,11 @@ export default function ReelFeed() {
     const formatted = phone.startsWith("91") ? phone : `91${phone}`;
 
     const siteUrl = getShareUrl();
+    const typeText = getResourceTypeText(); // use lowercase version
 
     const lines = [
-      "🎥 I'm interested in your reel",
-      currentReel?.title ? `Reel: ${currentReel.title}` : null,
+      `🎥 I'm interested in your ${typeText}`,
+      currentReel?.title ? `${typeText.charAt(0).toUpperCase() + typeText.slice(1)}: ${currentReel.title}` : null,
       "",
       siteUrl ? `Dealing India link: ${siteUrl}` : null,
     ].filter(Boolean);
@@ -691,9 +710,10 @@ export default function ReelFeed() {
                   <div className="w-full h-full pointer-events-none">
                     <iframe
                       title={currentReel.title}
-                      src={`https://www.youtube.com/embed/${currentReel.youtubeVideoId}?autoplay=1&rel=0&modestbranding=1`}
+                      // Added mute=1 for autoplay to work more reliably on modern browsers, updated autoplay logic
+                      src={`https://www.youtube.com/embed/${currentReel.youtubeVideoId}?autoplay=1&mute=1&loop=1&playlist=${currentReel.youtubeVideoId}&rel=0&modestbranding=1&controls=0`}
                       className="w-full h-full"
-                      allow="autoplay; encrypted-media"
+                      allow="autoplay; encrypted-media; picture-in-picture"
                       allowFullScreen
                     />
                   </div>
@@ -702,7 +722,10 @@ export default function ReelFeed() {
                     src={currentReel.videoUrl}
                     className="w-full h-full object-contain"
                     autoPlay
+                    loop
                     controls
+                    playsInline
+                    muted // Browsers require muted for autoplay to work without user interaction
                   />
                 )}
 
@@ -739,9 +762,8 @@ export default function ReelFeed() {
                   className="flex flex-col items-center text-white"
                 >
                   <FiHeart
-                    className={`text-3xl ${
-                      currentReel.userLiked ? "text-red-500 fill-red-500" : ""
-                    }`}
+                    className={`text-3xl ${currentReel.userLiked ? "text-red-500 fill-red-500" : ""
+                      }`}
                   />
                   <span className="text-xs">{currentReel.likeCount ?? 0}</span>
                 </button>

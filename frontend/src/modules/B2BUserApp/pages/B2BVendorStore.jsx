@@ -21,6 +21,7 @@ import api from "../../../shared/utils/api";
 import { getGoogleMapsUrl, maskPhone, getWhatsAppUserDetailsSuffix } from "../../../shared/utils/helpers";
 import { useAuthStore } from "../../../shared/store/authStore";
 import RealEstateCard from "../components/RealEstateCard";
+import { useB2BCategoryStore } from "../../../shared/store/b2bCategoryStore";
 
 const B2BVendorStore = () => {
     const { id } = useParams();
@@ -38,6 +39,12 @@ const B2BVendorStore = () => {
     const [searchQuery, setSearchQuery] = useState("");
     // Tabs: "main" (products or properties) and "reels"
     const [activeTab, setActiveTab] = useState("main");
+    const [reelCategoryFilter, setReelCategoryFilter] = useState("");
+    const { categories: allCategories, initialize: fetchB2BCategories } = useB2BCategoryStore();
+
+    useEffect(() => {
+        fetchB2BCategories();
+    }, [fetchB2BCategories]);
 
     // Fetch vendor details and products
     useEffect(() => {
@@ -169,6 +176,35 @@ const B2BVendorStore = () => {
         }
         return filtered;
     }, [properties, searchQuery]);
+
+    const playlistCategories = useMemo(() => {
+        const subs = allCategories.flatMap((cat) => cat.subcategories || []);
+        const names = subs
+            .map((s) => (typeof s === 'string' ? s : s?.name))
+            .filter(Boolean);
+
+        const extra = ['Flat', 'Villa/Row House', 'Commercial Property'];
+        const merged = [...names, ...extra];
+
+        const unique = Array.from(
+            new Map(
+                merged
+                    .map((name) => (name || '').trim())
+                    .filter(Boolean)
+                    .map((name) => [name.toLowerCase(), name])
+            ).values()
+        );
+
+        return unique.sort((a, b) => a.localeCompare(b));
+    }, [allCategories]);
+
+    const filteredReels = useMemo(() => {
+        let list = [...reels];
+        if (reelCategoryFilter) {
+            list = list.filter(r => r.categoryName === reelCategoryFilter);
+        }
+        return list;
+    }, [reels, reelCategoryFilter]);
 
     // Track vendor contact clicks
     const trackContactClick = async (vendorId, clickType) => {
@@ -377,10 +413,10 @@ const B2BVendorStore = () => {
                             {vendor.phone && (
                                 <button
                                     onClick={() => {
-                                    const mapsUrl = getGoogleMapsUrl(shopListing?.mapUrl ? { mapUrl: shopListing.mapUrl } : (vendor.shopUnit || vendor));
-                                    if (mapsUrl) window.open(mapsUrl, '_blank');
-                                    else toast.error('Location details not provided');
-                                }}
+                                        const mapsUrl = getGoogleMapsUrl(shopListing?.mapUrl ? { mapUrl: shopListing.mapUrl } : (vendor.shopUnit || vendor));
+                                        if (mapsUrl) window.open(mapsUrl, '_blank');
+                                        else toast.error('Location details not provided');
+                                    }}
                                     className="w-full px-8 py-5 md:py-6 bg-orange-600 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-orange-700 transition-all shadow-xl shadow-orange-100/50 flex items-center justify-center gap-3 active:scale-95"
                                 >
                                     <FiMapPin size={20} />
@@ -460,11 +496,10 @@ const B2BVendorStore = () => {
                         <button
                             type="button"
                             onClick={() => setActiveTab("main")}
-                            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-[0.2em] border ${
-                                activeTab === "main"
+                            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-[0.2em] border ${activeTab === "main"
                                     ? "bg-primary-600 text-white border-primary-600"
                                     : "bg-white text-gray-600 border-gray-200"
-                            }`}
+                                }`}
                         >
                             {mainTabLabel}
                         </button>
@@ -473,16 +508,47 @@ const B2BVendorStore = () => {
                         <button
                             type="button"
                             onClick={() => setActiveTab("reels")}
-                            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-[0.2em] border ${
-                                activeTab === "reels"
+                            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-[0.2em] border ${activeTab === "reels"
                                     ? "bg-primary-600 text-white border-primary-600"
                                     : "bg-white text-gray-600 border-gray-200"
-                            }`}
+                                }`}
                         >
                             Reels
                         </button>
                     )}
                 </div>
+
+                {/* Reels Tab Category Filter */}
+                {activeTab === "reels" && hasReels && (
+                    <div className="mb-6 flex items-center gap-3">
+                        <div className="relative group min-w-[200px]">
+                            <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-600 transition-colors" />
+                            <select
+                                value={reelCategoryFilter}
+                                onChange={(e) => setReelCategoryFilter(e.target.value)}
+                                className="w-full pl-10 pr-6 py-3 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-800 outline-none focus:border-primary-200 transition-all appearance-none"
+                            >
+                                <option value="">All Categories</option>
+                                {playlistCategories.map((name) => (
+                                    <option key={name} value={name}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <FiChevronDown />
+                            </div>
+                        </div>
+                        {reelCategoryFilter && (
+                            <button
+                                onClick={() => setReelCategoryFilter("")}
+                                className="text-xs font-bold text-primary-600 hover:text-primary-700 uppercase tracking-widest"
+                            >
+                                Clear
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {/* Filter & View Controls + Main tab content only when main tab is active */}
                 {activeTab === "main" && (
@@ -602,24 +668,24 @@ const B2BVendorStore = () => {
                 {activeTab === "reels" && (
                     hasReels ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                            {reels.map((reel) => (
+                            {filteredReels.map((reel) => (
                                 <button
                                     key={reel._id}
                                     type="button"
                                     onClick={() => navigate(`/b2b/reels/${reel._id}`)}
-                                    className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col text-left"
+                                    className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col text-left transition-transform hover:scale-105"
                                 >
                                     <div className="relative pb-[140%] bg-gray-900">
                                         {(
                                             reel.thumbnailUrl ||
                                             (reel.youtubeVideoId && `https://img.youtube.com/vi/${reel.youtubeVideoId}/hqdefault.jpg`)
                                         ) && (
-                                            <img
-                                                src={reel.thumbnailUrl || `https://img.youtube.com/vi/${reel.youtubeVideoId}/hqdefault.jpg`}
-                                                alt={reel.title}
-                                                className="absolute inset-0 w-full h-full object-cover"
-                                            />
-                                        )}
+                                                <img
+                                                    src={reel.thumbnailUrl || `https://img.youtube.com/vi/${reel.youtubeVideoId}/hqdefault.jpg`}
+                                                    alt={reel.title}
+                                                    className="absolute inset-0 w-full h-full object-cover"
+                                                />
+                                            )}
                                         {!reel.thumbnailUrl && (
                                             <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-xs">
                                                 Reel

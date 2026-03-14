@@ -109,6 +109,9 @@ const SupportSettings = lazyWithRetry(
 const AdminReelModeration = lazyWithRetry(
   () => import("./modules/Admin/pages/ReelModeration"),
 );
+const AdminMusicLibrary = lazyWithRetry(
+  () => import("./modules/Admin/pages/MusicLibrary"),
+);
 const RouteWrapper = lazyWithRetry(
   () => import("./shared/components/RouteWrapper"),
 );
@@ -395,6 +398,7 @@ const AppRoutes = () => {
 
           <Route path="notifications" element={<Notifications />} />
           <Route path="reels" element={<AdminReelModeration />} />
+          <Route path="music-library" element={<AdminMusicLibrary />} />
           <Route path="support-settings" element={<SupportSettings />} />
         </Route>
 

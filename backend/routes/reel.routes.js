@@ -13,6 +13,8 @@ import {
   addComment,
   getPlaylistByCategory,
   trackView,
+  deleteMyReel,
+  replaceSong
 } from '../controllers/reel.controller.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
@@ -36,5 +38,9 @@ router.delete('/:id/like', authenticate, authorize('user', 'vendor'), asyncHandl
 router.get('/:id/comments', asyncHandler(getComments));
 router.post('/:id/comments', authenticate, authorize('user', 'vendor'), asyncHandler(addComment));
 router.post('/:id/view', optionalAuthenticate, asyncHandler(trackView));
+router.delete('/:id', authenticate, authorize('vendor', 'user'), asyncHandler(deleteMyReel));
+
+
+router.post('/:id/replace-song', authenticate, authorize('vendor', 'admin', 'superadmin'), asyncHandler(replaceSong));
 
 export default router;
