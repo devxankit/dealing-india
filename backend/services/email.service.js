@@ -55,6 +55,7 @@ const createRobustTransporter = async () => {
     auth: { user: EMAIL_USER, pass: cleanEmailPass },
     family: 4, // Force IPv4
     timeout: 10000, // 10s connection timeout
+    tls: { rejectUnauthorized: false }
   };
 
   // Strategy 2: Legacy TLS (Port 587)
@@ -68,7 +69,8 @@ const createRobustTransporter = async () => {
     family: 4,
     timeout: 10000,
     tls: {
-      ciphers: 'SSLv3'
+      ciphers: 'SSLv3',
+      rejectUnauthorized: false
     }
   };
 
@@ -327,11 +329,10 @@ export const sendPaymentSuccessEmail = async ({
             <p style="margin:4px 0;"><strong>Plan:</strong> ${planName || 'Subscription'}</p>
             <p style="margin:4px 0;"><strong>Amount:</strong> ${amount} ${currency}</p>
             <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
-            ${
-              transactionId
-                ? `<p style="margin:4px 0;"><strong>Transaction ID:</strong> ${transactionId}</p>`
-                : ''
-            }
+            ${transactionId
+      ? `<p style="margin:4px 0;"><strong>Transaction ID:</strong> ${transactionId}</p>`
+      : ''
+    }
           </div>
           <p style="margin-top:16px;">Your detailed invoice is attached to this email.</p>
           <p style="margin-top:24px;font-size:12px;color:#6b7280;">
@@ -347,12 +348,12 @@ export const sendPaymentSuccessEmail = async ({
   const attachments =
     invoicePdfBuffer && invoicePdfBuffer.length
       ? [
-          {
-            filename: invoiceFileName,
-            content: invoicePdfBuffer,
-            contentType: 'application/pdf',
-          },
-        ]
+        {
+          filename: invoiceFileName,
+          content: invoicePdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ]
       : undefined;
 
   return sendEmail(to, subject, html, undefined, attachments);
@@ -403,11 +404,10 @@ export const sendPaymentCancelledEmail = async ({
             <p style="margin:4px 0;"><strong>Plan:</strong> ${planName || 'Subscription'}</p>
             <p style="margin:4px 0;"><strong>Amount:</strong> ${amount} ${currency}</p>
             <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
-            ${
-              transactionId
-                ? `<p style="margin:4px 0;"><strong>Reference:</strong> ${transactionId}</p>`
-                : ''
-            }
+            ${transactionId
+      ? `<p style="margin:4px 0;"><strong>Reference:</strong> ${transactionId}</p>`
+      : ''
+    }
           </div>
           <p style="margin-top:16px;">No money has been charged. You can try the payment again from your dashboard.</p>
           <p style="margin-top:24px;font-size:12px;color:#6b7280;">

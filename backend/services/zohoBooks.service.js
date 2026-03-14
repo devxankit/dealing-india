@@ -11,7 +11,7 @@ const {
 const ZOHO_ACCOUNTS_BASE =
   process.env.ZOHO_ACCOUNTS_BASE_URL || 'https://accounts.zoho.in';
 const ZOHO_BOOKS_BASE =
-  ZOHO_BOOKS_BASE_URL || 'https://books.zoho.in/api/v3';
+  ZOHO_BOOKS_BASE_URL || 'https://www.zohoapis.in/books/v3';
 
 let cachedAccessToken = null;
 let cachedAccessTokenExpiresAt = 0;
