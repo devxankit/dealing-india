@@ -864,15 +864,15 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const reel = await Reel.findById(id).lean();
 
-    const frontendUrl = process.env.FRONTEND_URL || 'https://dealingindia.com';
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
-    const redirectUrl = `${frontendUrl}/b2b/reels/${id}`;
+    const fUrl = (process.env.FRONTEND_URL || 'https://dealingindia.com').replace(/\/+$/, '');
+    const bUrl = (process.env.BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '');
+    const redirectUrl = `${fUrl}/b2b/reels/${id}`;
+    const appIcon = `${fUrl}/logo-icon.png`;
 
     // Default values
     let title = "Check out this Reel on Dealing India";
     let description = "Watch high-quality product reels and bulk deals on India's premiere B2B marketplace.";
-    const appIcon = `${frontendUrl}/logo-icon.png`;
-    let image = `${backendUrl}/api/reels/share/fallback-image`; // Branded fallback
+    let image = `${fUrl}/referral-preview.png`; // Use frontend static asset as default
 
     if (reel) {
         const type = reel.propertyId ? "Property" : (reel.productId ? "Product" : "Reel");
@@ -885,16 +885,28 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
             image = `https://img.youtube.com/vi/${reel.youtubeVideoId}/maxresdefault.jpg`;
         }
     } else if (id && !isMongoId(id)) {
-        // ... (YT fetch logic remains)
+        // Handle non-Mongo IDs (potentially direct YouTube IDs)
+        try {
+            const ytVideo = await fetchVideoById(id);
+            if (ytVideo) {
+                title = ytVideo.title;
+                description = ytVideo.description || description;
+                image = ytVideo.thumbnailUrl || image;
+            }
+        } catch (e) {
+            console.error("[Share Page] YouTube fetch failed:", e.message);
+        }
     }
 
-    // Generate HTML with correct tags for WhatsApp
+    // Generate SEO/Social HTML
+    // We avoid inline scripts here as some WAFs flag them in API responses
     const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="1; url=${redirectUrl}">
     
     <title>${title}</title>
     <meta name="description" content="${description}">
@@ -914,22 +926,23 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
     <meta name="twitter:title" content="${title}">
     <meta name="twitter:description" content="${description}">
     <meta name="twitter:image" content="${image}">
-
-    <!-- Logic to redirect AFTER crawler has time to read tags -->
-    <script type="text/javascript">
-        // Small delay if not a bot (optional, but pure JS redirect is best)
-        window.location.href = "${redirectUrl}";
-    </script>
-    <meta http-equiv="refresh" content="0; url=${redirectUrl}">
 </head>
-<body style="background: #000; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
-    <div style="text-align: center;">
-        <img src="${appIcon}" alt="Dealing India" style="width: 80px; margin-bottom: 20px;" onerror="this.style.display='none'">
-        <div style="width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #7C3AED; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px;"></div>
-        <p style="font-weight: 500;">Opening Reel...</p>
+<body style="background: #0b0b0f; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 20px; box-sizing: border-box;">
+    <div style="text-align: center; max-width: 400px; width: 100%;">
+        <div style="margin-bottom: 30px;">
+            <div style="width: 40px; height: 40px; border: 3px solid rgba(124, 58, 237, 0.2); border-top-color: #7C3AED; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto;"></div>
+        </div>
+        
+        <h1 style="font-size: 20px; font-weight: 600; margin: 0 0 10px 0;">${title}</h1>
+        <p style="font-size: 14px; color: rgba(255, 255, 255, 0.6); margin: 0 0 30px 0;">Redirecting you to the app...</p>
+        
+        <a href="${redirectUrl}" style="display: inline-block; background: #7C3AED; color: white; text-decoration: none; padding: 12px 24px; border-radius: 12px; font-weight: 600; font-size: 15px; transition: transform 0.2s;">
+            Open in Dealing India
+        </a>
     </div>
     <style>
         @keyframes spin { to { transform: rotate(360deg); } }
+        a:active { transform: scale(0.95); }
     </style>
 </body>
 </html>

@@ -175,9 +175,11 @@ export const getReferralSummaryForAuthUser = async (authUser) => {
         .limit(100)
         .populate('referredUserId', 'name email');
 
+    const backendUrl = (process.env.BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '');
+    const shareLink = `${backendUrl}/api/referrals/share/${referral.referralCode}`;
     const referralLink = `${FRONTEND_BASE_URL}/register?ref=${referral.referralCode}`;
     const message = encodeURIComponent(
-        `Join India's premiere B2B marketplace! Sign up using my link to unlock exclusive bulk deals and start earning reward points: ${referralLink}`
+        `Join India's premiere B2B marketplace! Sign up using my link to unlock exclusive bulk deals and start earning reward points: ${shareLink}`
     );
 
     let walletData = { pointsBalance: 0 };

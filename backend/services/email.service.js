@@ -7,16 +7,14 @@ import path from 'path';
 
 dotenv.config();
 
-const resolve4 = util.promisify(dns.resolve4);
-
 // Email configuration from environment variables
 const EMAIL_HOST = process.env.EMAIL_HOST || 'smtp.gmail.com';
-const EMAIL_PORT = parseInt(process.env.EMAIL_PORT) || 587; // Default to 587 if not set
+const EMAIL_PORT = parseInt(process.env.EMAIL_PORT) || 587;
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 const EMAIL_FROM = process.env.EMAIL_FROM || EMAIL_USER || 'noreply@dealingindia.com';
 const EMAIL_LOGO_URL = process.env.EMAIL_LOGO_URL || 'https://dealingindia.com/assets/logo.png';
-const EMAIL_LOGO_PATH = process.env.EMAIL_LOGO_PATH || '';
+const EMAIL_LOGO_PATH = process.env.EMAIL_LOGO_PATH || 'upload/dealing-india-logo.png';
 const EMAIL_LOGO_CID = 'dealing-india-logo';
 const EMAIL_BRAND_PRIMARY = process.env.EMAIL_BRAND_PRIMARY || '#7C3AED';
 const EMAIL_BRAND_ACCENT = process.env.EMAIL_BRAND_ACCENT || '#F97316';
@@ -34,40 +32,26 @@ let isTransporterVerified = false;
 
 /**
  * Robust Transporter Creation with Fallback Strategy
- * Tries Port 465 (SSL) first, then falls back to Port 587 (TLS)
  */
 const createRobustTransporter = async () => {
-  // Remove all whitespace from password (App Passwords may have spaces)
   const cleanEmailPass = EMAIL_PASS ? EMAIL_PASS.replace(/\s+/g, '') : '';
 
-  // Validate credentials
   if (!EMAIL_USER || !cleanEmailPass) {
     throw new Error('EMAIL_USER and EMAIL_PASS are required');
   }
 
-  // Debug: Log password length (but not the actual password for security)
-  console.log(`🔐 Email config check: User=${EMAIL_USER}, Password length=${cleanEmailPass.length} chars`);
-  if (cleanEmailPass.length !== 16) {
-    console.warn(`⚠️  WARNING: Gmail App Password should be 16 characters. Current length: ${cleanEmailPass.length}`);
-    console.warn(`   If your App Password has spaces, they will be removed automatically.`);
-  }
-
   const isGmail = EMAIL_HOST.toLowerCase().includes('gmail.com');
 
-  // Strategy 1: Preferred Secure SSL (Port 465)
-  // This is usually the most reliable on Cloud Functions/Render
   const configSecure = {
     host: 'smtp.gmail.com',
     port: 465,
     secure: true,
     auth: { user: EMAIL_USER, pass: cleanEmailPass },
-    family: 4, // Force IPv4
-    timeout: 10000, // 10s connection timeout
+    family: 4,
+    timeout: 10000,
     tls: { rejectUnauthorized: false }
   };
 
-  // Strategy 2: Legacy TLS (Port 587)
-  // Fallback if 465 is blocked
   const configTLS = {
     host: 'smtp.gmail.com',
     port: 587,
@@ -82,10 +66,8 @@ const createRobustTransporter = async () => {
     }
   };
 
-  // Helper to test a config
   const tryConfig = async (config, name) => {
     console.log(`📧 Attempting SMTP Connection (${name})...`);
-    console.log(`   Using email: ${EMAIL_USER}`);
     const t = nodemailer.createTransport(config);
     try {
       await t.verify();
@@ -93,31 +75,17 @@ const createRobustTransporter = async () => {
       return t;
     } catch (error) {
       console.warn(`⚠️ SMTP Connection Failed (${name}):`, error.message);
-
-      // Provide helpful error messages
-      if (error.message.includes('Invalid login') || error.message.includes('BadCredentials')) {
-        console.error('💡 TIP: Make sure you are using Gmail App Password, not regular password.');
-        console.error('   Generate App Password: https://myaccount.google.com/apppasswords');
-        console.error('   Ensure 2-Step Verification is enabled on your Google account.');
-      }
-
       return null;
     }
   };
 
   if (isGmail) {
-    // Try 465 first
     let t = await tryConfig(configSecure, 'Gmail SSL/465');
     if (t) return t;
-
-    // Try 587 second
-    console.log('� Falling back to TLS/587...');
     t = await tryConfig(configTLS, 'Gmail TLS/587');
     if (t) return t;
-
     throw new Error('All SMTP connection strategies failed.');
   } else {
-    // Generic Non-Gmail Logic
     return nodemailer.createTransport({
       host: EMAIL_HOST,
       port: EMAIL_PORT,
@@ -129,28 +97,17 @@ const createRobustTransporter = async () => {
 };
 
 /**
- * Get or create the nodemailer transporter (Async)
+ * Get or create the nodemailer transporter
  */
 const getTransporter = async () => {
   if (transporter && isTransporterVerified) return transporter;
-
-  if (!EMAIL_USER || !EMAIL_PASS) {
-    console.warn('⚠️ SMTP not configured. EMAIL_USER and EMAIL_PASS are required.');
-    console.warn(`   EMAIL_USER: ${EMAIL_USER ? 'Set' : 'Missing'}`);
-    console.warn(`   EMAIL_PASS: ${EMAIL_PASS ? 'Set (' + EMAIL_PASS.replace(/\s+/g, '').length + ' chars)' : 'Missing'}`);
-    return null;
-  }
 
   try {
     transporter = await createRobustTransporter();
     isTransporterVerified = true;
     return transporter;
   } catch (error) {
-    console.error('❌ FATAL: Could not initialize email transporter:', error.message);
-    console.error('   Please verify:');
-    console.error('   1. Gmail App Password is correct (16 characters, no spaces in .env)');
-    console.error('   2. 2-Step Verification is enabled on Google account');
-    console.error('   3. App Password was generated from: https://myaccount.google.com/apppasswords');
+    console.error('❌ Could not initialize email transporter:', error.message);
     transporter = null;
     isTransporterVerified = false;
     return null;
@@ -159,15 +116,12 @@ const getTransporter = async () => {
 
 /**
  * Base Sending Function
- * Wraps transporter.sendMail with error handling and logging
  */
 const sendEmail = async (to, subject, html, text, attachments) => {
   const mailTransporter = await getTransporter();
 
-  // Development/Fallback Mode
   if (!mailTransporter) {
     console.log('⚠️ [DEV MODE/FAILURE] Email would have been sent to:', to);
-    console.log('Subject:', subject);
     return { success: false, error: 'Transporter not configured or failed' };
   }
 
@@ -186,110 +140,15 @@ const sendEmail = async (to, subject, html, text, attachments) => {
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('❌ Error sending email:', error.message);
-
-    // Invalidate transporter on error to force reconnection next time
     transporter = null;
     isTransporterVerified = false;
-
     throw error;
   }
 };
 
 /**
- * Send email verification OTP
- * @param {String} email - Recipient email address
- * @param {String} otp - 6-digit OTP code
+ * Helper to lead inline logo
  */
-export const sendVerificationEmail = async (email, otp) => {
-  if (!email || !otp) {
-    throw new Error('Email and OTP are required');
-  }
-
-  const subject = 'Verify Your Email - Dealing India';
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Email Verification</title>
-    </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background-color: #f8f9fa; padding: 30px; border-radius: 10px;">
-        <h2 style="color: #2c3e50; margin-top: 0;">Email Verification</h2>
-        <p>Hello,</p>
-        <p>Thank you for registering with Dealing India. Please use the following code to verify your email address:</p>
-        <div style="background-color: #ffffff; border: 2px dashed #3498db; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px;">
-          <h1 style="color: #3498db; font-size: 32px; letter-spacing: 5px; margin: 0;">${otp}</h1>
-        </div>
-        <p>This code will expire in 10 minutes.</p>
-        <p>If you didn't request this verification, please ignore this email.</p>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="color: #7f8c8d; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Dealing India. All rights reserved.</p>
-      </div>
-    </body>
-    </html>
-  `;
-
-  const text = `
-    Email Verification - Dealing India
-    
-    Hello,
-    
-    Thank you for registering with Dealing India. Please use the following code to verify your email address:
-    
-    ${otp}
-    
-    This code will expire in 10 minutes.
-    
-    If you didn't request this verification, please ignore this email.
-    
-    © ${new Date().getFullYear()} Dealing India. All rights reserved.
-  `;
-
-  try {
-    const result = await sendEmail(email, subject, html, text);
-
-    // Check if email actually succeeded
-    if (!result || !result.success) {
-      // Email failed but didn't throw - log OTP for manual verification
-      console.error(`🚨 EMAIL FAILED: Verification OTP for ${email}: ${otp}`);
-      console.error('⚠️  User can verify using OTP from server logs.');
-      console.error(`   Error: ${result?.error || 'Unknown error'}`);
-
-      return {
-        success: false,
-        message: result?.error || 'Failed to send verification email',
-        error: result?.error || 'Email service not configured or failed',
-        otp: otp, // Return OTP in response for manual verification
-      };
-    }
-
-    // Log OTP in production for backup verification (Critical for user experience)
-    if (isProduction) {
-      console.log(`📧 [BACKUP LOG] OTP for ${email}: ${otp}`);
-    }
-
-    return {
-      success: true,
-      message: 'Verification email sent successfully',
-      ...result
-    };
-  } catch (error) {
-    // Critical Fallback: Always log OTP if email fails so user is not blocked
-    console.error(`🚨 EMAIL FAILED: Verification OTP for ${email}: ${otp}`);
-    console.error('⚠️  User can verify using OTP from server logs.');
-    console.error(`   Error: ${error.message}`);
-
-    return {
-      success: false,
-      message: 'Email service timeout. Please check server logs for OTP.',
-      error: error.message,
-      otp: otp, // Return OTP in response if allowed (or relying on logs)
-    };
-  }
-};
-
 const getInlineLogoAttachment = () => {
   if (!EMAIL_LOGO_PATH) return null;
   try {
@@ -309,6 +168,9 @@ const getInlineLogoAttachment = () => {
   }
 };
 
+/**
+ * Format vendor block for emails
+ */
 const formatVendorBlock = (vendor) => {
   if (!vendor || (!vendor.name && !vendor.email && !vendor.phone)) return '';
   const name = vendor.name || 'N/A';
@@ -324,38 +186,49 @@ const formatVendorBlock = (vendor) => {
   `;
 };
 
+/**
+ * Send email verification OTP
+ */
+export const sendVerificationEmail = async (email, otp) => {
+  const subject = 'Verify Your Email - Dealing India';
+  const logoAttachment = getInlineLogoAttachment();
+  const logoSrc = logoAttachment ? `cid:${EMAIL_LOGO_CID}` : EMAIL_LOGO_URL;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background:#f3f4f6;">
+      <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; border: 1px solid #e5e7eb; text-align: center;">
+        <img src="${logoSrc}" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:24px;display:block;margin-left:auto;margin-right:auto;" />
+        <h2 style="color: ${EMAIL_BRAND_PRIMARY}; margin-top: 0; font-size: 22px;">Email Verification</h2>
+        <p style="text-align: left;">Hello,</p>
+        <p style="text-align: left;">Thank you for registering with Dealing India. Please use the following code to verify your email address:</p>
+        <div style="background-color: #f9fafb; border: 2px dashed ${EMAIL_BRAND_PRIMARY}; padding: 25px; text-align: center; margin: 25px 0; border-radius: 12px;">
+          <h1 style="color: ${EMAIL_BRAND_PRIMARY}; font-size: 36px; letter-spacing: 8px; margin: 0; font-family: monospace;">${otp}</h1>
+        </div>
+        <p style="text-align: left; font-size: 14px; color: #6b7280;">This code will expire in 10 minutes.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Dealing India. All rights reserved.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(email, subject, html, `Your OTP is: ${otp}`, logoAttachment ? [logoAttachment] : undefined);
+};
+
+/**
+ * Send payment success email
+ */
 export const sendPaymentSuccessEmail = async ({
-  to,
-  amount,
-  currency = 'INR',
-  planName,
-  title,
-  paymentFor = 'subscription',
-  paymentDate,
-  transactionId,
-  referenceId,
-  paymentMethod,
-  vendor,
-  invoicePdfBuffer,
+  to, amount, currency = 'INR', planName, title, paymentFor = 'subscription',
+  paymentDate, transactionId, referenceId, paymentMethod, vendor, invoicePdfBuffer,
   invoiceFileName = 'invoice.pdf',
 }) => {
-  if (!to) throw new Error('Recipient email is required for payment success email');
-
-  const dateStr = paymentDate
-    ? new Date(paymentDate).toLocaleString()
-    : new Date().toLocaleString();
-
+  const dateStr = paymentDate ? new Date(paymentDate).toLocaleString() : new Date().toLocaleString();
   const displayTitle = title || planName || (paymentFor === 'banner_booking' ? 'Banner Booking' : 'Subscription');
   const paymentLabel = paymentFor === 'banner_booking' ? 'Banner Booking' : 'Subscription';
   const subject = `Payment Successful - ${displayTitle} (${amount} ${currency})`;
-
-  console.log('[Email][Success] Preparing payment success email', {
-    to,
-    amount,
-    currency,
-    planName,
-    transactionId,
-  });
 
   const logoAttachment = getInlineLogoAttachment();
   const logoSrc = logoAttachment ? `cid:${EMAIL_LOGO_CID}` : EMAIL_LOGO_URL;
@@ -364,16 +237,11 @@ export const sendPaymentSuccessEmail = async ({
   const html = `
     <!DOCTYPE html>
     <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Payment Successful</title>
-    </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; margin:0; padding:0; background:#f3f4f6;">
       <div style="max-width:600px;margin:0 auto;padding:24px;">
-        <div style="background:${EMAIL_BRAND_PRIMARY};border-radius:16px 16px 0 0;padding:24px;text-align:center;">
-          <img src="${logoSrc}" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;" />
-          <h1 style="color:#f9fafb;margin:0;font-size:20px;">Payment Successful</h1>
+        <div style="background:#ffffff;border-radius:16px 16px 0 0;padding:32px 24px;text-align:center;border:1px solid #e5e7eb;border-bottom:none;">
+          <img src="${logoSrc}" alt="Dealing India" style="max-width:180px;height:auto;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto;" />
+          <h1 style="color:${EMAIL_BRAND_PRIMARY};margin:0;font-size:24px;font-weight:bold;">Payment Successful</h1>
         </div>
         <div style="background:#ffffff;border-radius:0 0 16px 16px;padding:24px;border:1px solid #e5e7eb;border-top:none;">
           <p>Thank you for your payment. Your ${paymentLabel.toLowerCase()} has been recorded successfully.</p>
@@ -383,26 +251,12 @@ export const sendPaymentSuccessEmail = async ({
             <p style="margin:4px 0;"><strong>Title/Plan:</strong> ${displayTitle}</p>
             <p style="margin:4px 0;"><strong>Amount:</strong> ${amount} ${currency}</p>
             <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
-            ${transactionId
-      ? `<p style="margin:4px 0;"><strong>Transaction ID:</strong> ${transactionId}</p>`
-      : ''
-    }
-            ${referenceId
-      ? `<p style="margin:4px 0;"><strong>Reference ID:</strong> ${referenceId}</p>`
-      : ''
-    }
-            ${paymentMethod
-      ? `<p style="margin:4px 0;"><strong>Payment Method:</strong> ${paymentMethod}</p>`
-      : ''
-    }
+            ${transactionId ? `<p style="margin:4px 0;"><strong>Transaction ID:</strong> ${transactionId}</p>` : ''}
+            ${referenceId ? `<p style="margin:4px 0;"><strong>Reference ID:</strong> ${referenceId}</p>` : ''}
           </div>
           ${vendorBlock}
           <p style="margin-top:16px;">Your detailed invoice is attached to this email.</p>
-          <p style="margin-top:16px;font-size:12px;color:#6b7280;text-align:center;">
-            Dealing India · B2B Platform<br/>
-            support@dealingindia.com
-          </p>
-          <p style="margin-top:8px;font-size:12px;color:#6b7280;text-align:center;">
+          <p style="margin-top:24px;font-size:12px;color:#6b7280;text-align:center;">
             © ${new Date().getFullYear()} Dealing India. All rights reserved.
           </p>
         </div>
@@ -414,46 +268,21 @@ export const sendPaymentSuccessEmail = async ({
   const attachments = [];
   if (logoAttachment) attachments.push(logoAttachment);
   if (invoicePdfBuffer && invoicePdfBuffer.length) {
-    attachments.push({
-      filename: invoiceFileName,
-      content: invoicePdfBuffer,
-      contentType: 'application/pdf',
-    });
+    attachments.push({ filename: invoiceFileName, content: invoicePdfBuffer, contentType: 'application/pdf' });
   }
 
   return sendEmail(to, subject, html, undefined, attachments.length ? attachments : undefined);
 };
 
+/**
+ * Send payment cancelled email
+ */
 export const sendPaymentCancelledEmail = async ({
-  to,
-  amount,
-  currency = 'INR',
-  planName,
-  title,
-  paymentFor = 'subscription',
-  paymentDate,
-  transactionId,
-  referenceId,
-  paymentMethod,
-  vendor,
+  to, amount, currency = 'INR', planName, title, paymentFor = 'subscription',
+  paymentDate, transactionId, referenceId, paymentMethod, vendor
 }) => {
-  if (!to) throw new Error('Recipient email is required for payment cancelled email');
-
-  const dateStr = paymentDate
-    ? new Date(paymentDate).toLocaleString()
-    : new Date().toLocaleString();
-
   const displayTitle = title || planName || (paymentFor === 'banner_booking' ? 'Banner Booking' : 'Subscription');
-  const paymentLabel = paymentFor === 'banner_booking' ? 'Banner Booking' : 'Subscription';
-  const subject = `Payment Cancelled - ${displayTitle} (${amount} ${currency})`;
-
-  console.log('[Email][Cancel] Preparing payment cancelled email', {
-    to,
-    amount,
-    currency,
-    planName,
-    transactionId,
-  });
+  const subject = `Payment Not Completed - ${displayTitle}`;
 
   const logoAttachment = getInlineLogoAttachment();
   const logoSrc = logoAttachment ? `cid:${EMAIL_LOGO_CID}` : EMAIL_LOGO_URL;
@@ -462,45 +291,17 @@ export const sendPaymentCancelledEmail = async ({
   const html = `
     <!DOCTYPE html>
     <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Payment Cancelled</title>
-    </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; margin:0; padding:0; background:#f3f4f6;">
       <div style="max-width:600px;margin:0 auto;padding:24px;">
-        <div style="background:${EMAIL_BRAND_PRIMARY};border-radius:16px 16px 0 0;padding:24px;text-align:center;">
-          <img src="${logoSrc}" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;" />
-          <h1 style="color:#f9fafb;margin:0;font-size:20px;">Payment Not Completed</h1>
+        <div style="background:#ffffff;border-radius:16px 16px 0 0;padding:32px 24px;text-align:center;border:1px solid #e5e7eb;border-bottom:none;">
+          <img src="${logoSrc}" alt="Dealing India" style="max-width:180px;height:auto;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto;" />
+          <h1 style="color:${EMAIL_BRAND_PRIMARY};margin:0;font-size:24px;font-weight:bold;">Payment Not Completed</h1>
         </div>
         <div style="background:#ffffff;border-radius:0 0 16px 16px;padding:24px;border:1px solid #e5e7eb;border-top:none;">
-          <p>Your recent payment attempt was not completed.</p>
-          <div style="margin:16px 0;padding:16px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;">
-            <h2 style="margin-top:0;font-size:16px;color:${EMAIL_BRAND_TEXT};">Attempted Payment</h2>
-            <p style="margin:4px 0;"><strong>Payment For:</strong> ${paymentLabel}</p>
-            <p style="margin:4px 0;"><strong>Title/Plan:</strong> ${displayTitle}</p>
-            <p style="margin:4px 0;"><strong>Amount:</strong> ${amount} ${currency}</p>
-            <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
-            ${transactionId
-      ? `<p style="margin:4px 0;"><strong>Reference:</strong> ${transactionId}</p>`
-      : ''
-    }
-            ${referenceId
-      ? `<p style="margin:4px 0;"><strong>Reference ID:</strong> ${referenceId}</p>`
-      : ''
-    }
-            ${paymentMethod
-      ? `<p style="margin:4px 0;"><strong>Payment Method:</strong> ${paymentMethod}</p>`
-      : ''
-    }
-          </div>
+          <p>Your recent payment attempt for ${displayTitle} was not completed.</p>
           ${vendorBlock}
           <p style="margin-top:16px;">No money has been charged. You can try the payment again from your dashboard.</p>
-          <p style="margin-top:16px;font-size:12px;color:#6b7280;text-align:center;">
-            Dealing India · B2B Platform<br/>
-            support@dealingindia.com
-          </p>
-          <p style="margin-top:8px;font-size:12px;color:#6b7280;text-align:center;">
+          <p style="margin-top:24px;font-size:12px;color:#6b7280;text-align:center;">
             © ${new Date().getFullYear()} Dealing India. All rights reserved.
           </p>
         </div>
@@ -509,48 +310,38 @@ export const sendPaymentCancelledEmail = async ({
     </html>
   `;
 
-  const attachments = logoAttachment ? [logoAttachment] : undefined;
-  return sendEmail(to, subject, html, undefined, attachments);
+  return sendEmail(to, subject, html, undefined, logoAttachment ? [logoAttachment] : undefined);
 };
 
 /**
- * Send password reset OTP
- * @param {String} email - Recipient email address
- * @param {String} otp - 6-digit OTP code
+ * Send password reset email
  */
 export const sendPasswordResetEmail = async (email, otp) => {
-  if (!email || !otp) {
-    throw new Error('Email and OTP are required');
-  }
-
   const subject = 'Password Reset Request - Dealing India';
+  const logoAttachment = getInlineLogoAttachment();
+  const logoSrc = logoAttachment ? `cid:${EMAIL_LOGO_CID}` : EMAIL_LOGO_URL;
+
   const html = `
     <!DOCTYPE html>
     <html>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background-color: #f8f9fa; padding: 30px; border-radius: 10px;">
-        <h2 style="color: #c0392b; margin-top: 0;">Password Reset</h2>
-        <p>Hello,</p>
-        <p>We received a request to reset your password. Use the code below to proceed:</p>
-        <div style="background-color: #ffffff; border: 2px dashed #c0392b; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px;">
-          <h1 style="color: #c0392b; font-size: 32px; letter-spacing: 5px; margin: 0;">${otp}</h1>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background:#f3f4f6;">
+      <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; border: 1px solid #e5e7eb; text-align: center;">
+        <img src="${logoSrc}" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:24px;display:block;margin-left:auto;margin-right:auto;" />
+        <h2 style="color: #c0392b; margin-top: 0; font-size: 22px;">Password Reset</h2>
+        <p style="text-align: left;">Hello,</p>
+        <p style="text-align: left;">We received a request to reset your password. Use the code below to proceed:</p>
+        <div style="background-color: #f9fafb; border: 2px dashed #c0392b; padding: 25px; text-align: center; margin: 25px 0; border-radius: 12px;">
+          <h1 style="color: #c0392b; font-size: 36px; letter-spacing: 8px; margin: 0; font-family: monospace;">${otp}</h1>
         </div>
-        <p>This code expires in 10 minutes.</p>
-        <p>If you didn't ask for this, you can safely ignore this email.</p>
+        <p style="text-align: left; font-size: 14px; color: #6b7280;">This code expires in 10 minutes.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Dealing India. All rights reserved.</p>
       </div>
     </body>
     </html>
   `;
 
-  const text = `Your password reset code is: ${otp}`;
-
-  try {
-    await sendEmail(email, subject, html, text);
-    return { success: true, message: 'Password reset email sent' };
-  } catch (error) {
-    console.error(`� EMAIL FAILED: Reset OTP for ${email}: ${otp}`);
-    return { success: false, message: 'Failed to send email', error: error.message };
-  }
+  return sendEmail(email, subject, html, `Your reset code is: ${otp}`, logoAttachment ? [logoAttachment] : undefined);
 };
 
 /**
@@ -558,12 +349,24 @@ export const sendPasswordResetEmail = async (email, otp) => {
  */
 export const sendWelcomeEmail = async (email, name) => {
   const subject = 'Welcome to Dealing India!';
-  const html = `
-    <h1>Welcome ${name}!</h1>
-    <p>Thank you for joining Dealing India. Your account is now verified.</p>
-    <p>You can now browse and shop in our B2B marketplace.</p>
-  `;
-  const text = `Welcome ${name}! Thank you for joining Dealing India. Your account is now verified.`;
+  const logoAttachment = getInlineLogoAttachment();
+  const logoSrc = logoAttachment ? `cid:${EMAIL_LOGO_CID}` : EMAIL_LOGO_URL;
 
-  return sendEmail(email, subject, html, text);
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background:#f3f4f6;">
+      <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; border: 1px solid #e5e7eb; text-align: center;">
+        <img src="${logoSrc}" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:24px;display:block;margin-left:auto;margin-right:auto;" />
+        <h1 style="color:${EMAIL_BRAND_PRIMARY};">Welcome ${name}!</h1>
+        <p>Thank you for joining Dealing India. Your account is now verified.</p>
+        <p>You can now browse and shop in our B2B marketplace.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Dealing India. All rights reserved.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(email, subject, html, `Welcome to Dealing India, ${name}!`, logoAttachment ? [logoAttachment] : undefined);
 };
