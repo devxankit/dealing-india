@@ -92,6 +92,22 @@ export default function ReelModeration() {
     }
   };
 
+  const handleRetryYouTube = async (reel) => {
+    setActionLoading(`retry-${reel._id}`);
+    try {
+      const res = await api.post(`/admin/reels/${reel._id}/retry-youtube`);
+      if (res.success) {
+        toast.success(res.data?.youtubeUploadFailed ? 'YouTube retry failed' : 'YouTube upload retried successfully');
+        setPreviewReel(null);
+        fetchReels();
+      }
+    } catch (err) {
+      toast.error(err.message || 'YouTube retry failed');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleReject = async () => {
     if (!showRejectModal) return;
     setActionLoading(showRejectModal._id);
@@ -329,11 +345,33 @@ export default function ReelModeration() {
                           <FiExternalLink className="flex-shrink-0" /> View on YouTube
                         </a>
                       ) : (
-                        <p className="text-xs text-amber-600 flex items-center gap-1" title={reel.youtubeUploadError || ''}>
-                          <FiAlertCircle className="flex-shrink-0" /> YouTube upload failed
-                        </p>
+                        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-2">
+                          <p className="flex items-center gap-1 font-semibold">
+                            <FiAlertCircle className="flex-shrink-0" /> YouTube upload failed
+                          </p>
+                          {reel.youtubeUploadError && (
+                            <p className="mt-1 text-amber-700 break-words">
+                              {reel.youtubeUploadError}
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
+                  )}
+                  {normalizeStatus(reel.status) === 'approved' && reel.youtubeUploadFailed && (
+                    <button
+                      type="button"
+                      onClick={() => handleRetryYouTube(reel)}
+                      disabled={actionLoading === `retry-${reel._id}`}
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:text-amber-800 disabled:opacity-50"
+                    >
+                      {actionLoading === `retry-${reel._id}` ? (
+                        <FiRefreshCw className="animate-spin" />
+                      ) : (
+                        <FiRefreshCw />
+                      )}
+                      Retry YouTube Upload
+                    </button>
                   )}
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
@@ -494,12 +532,27 @@ export default function ReelModeration() {
                       ) : (
                         <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 flex gap-3">
                           <FiAlertCircle className="text-amber-500 mt-0.5 flex-shrink-0" />
-                          <p className="text-xs text-amber-700">
-                            YouTube upload failed. Video is currently playing from the platform.
-                          </p>
+                          <div className="text-xs text-amber-700">
+                            <p className="font-semibold">YouTube upload failed.</p>
+                            <p className="mt-1">Video is currently playing from the platform.</p>
+                            {previewReel.youtubeUploadError && (
+                              <p className="mt-1 break-words">{previewReel.youtubeUploadError}</p>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
+                  )}
+                  {normalizeStatus(previewReel.status) === 'approved' && previewReel.youtubeUploadFailed && (
+                    <button
+                      type="button"
+                      onClick={() => handleRetryYouTube(previewReel)}
+                      disabled={actionLoading === `retry-${previewReel._id}`}
+                      className="mt-4 w-full py-3 rounded-2xl bg-amber-600 text-white font-bold text-sm hover:bg-amber-700 disabled:opacity-50 shadow-lg shadow-amber-100 flex items-center justify-center gap-2"
+                    >
+                      {actionLoading === `retry-${previewReel._id}` ? <FiRefreshCw className="animate-spin" /> : <FiRefreshCw />}
+                      Retry YouTube Upload
+                    </button>
                   )}
                 </div>
 

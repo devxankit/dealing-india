@@ -14,7 +14,8 @@ import {
   getPlaylistByCategory,
   trackView,
   deleteMyReel,
-  replaceSong
+  replaceSong,
+  getReelSharePage
 } from '../controllers/reel.controller.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
@@ -30,6 +31,7 @@ router.post(
 router.get('/my', authenticate, authorize('vendor', 'user'), asyncHandler(getMyReels));
 
 router.get('/feed', optionalAuthenticate, asyncHandler(getFeed));
+router.get('/share/:id', asyncHandler(getReelSharePage));
 router.get('/playlist/:categoryName', asyncHandler(getPlaylistByCategory));
 router.get('/:id', optionalAuthenticate, asyncHandler(getReelById));
 

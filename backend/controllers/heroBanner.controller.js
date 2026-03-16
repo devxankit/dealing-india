@@ -537,6 +537,11 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 
         // 2. Create invoice
         const invoiceRef = booking.referenceId || `BANNER-${booking._id.toString()}`;
+        const vendorInfo = {
+            name: vendorDoc.businessName || vendorDoc.storeName || vendorDoc.name || 'Vendor',
+            email: vendorDoc.email,
+            phone: vendorDoc.phone,
+        };
         const invoiceNotes = [
             'Payment For: Banner Booking',
             `Title/Plan: ${booking.title || 'Banner Booking'}`,

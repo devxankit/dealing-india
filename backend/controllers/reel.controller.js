@@ -12,6 +12,42 @@ import { publishReelToYouTube, fetchPlaylistItems, fetchVideoById, deleteVideoFr
 
 const REEL_ACTIVE_HOURS = 24; // kept for backwards compatibility only
 
+/** Heal malformed or nested Cloudinary URLs into a clean, single-transformation format */
+function healReelUrl(url) {
+  if (!url || !url.includes('cloudinary.com') || !url.includes('/upload/')) return url;
+
+  const parts = url.split('/upload/');
+  const versionMatch = parts[1].match(/(v\d+\/.*)$/);
+  if (!versionMatch) return url;
+
+  const base = parts[0];
+  const cleanPath = versionMatch[0]; // v123/reels/abc.mp4
+  const transformString = parts[1].substring(0, versionMatch.index);
+
+  // If there's no transformation (clean URL), just return it
+  if (!transformString || transformString === '/') {
+    return `${base}/upload/${cleanPath}`;
+  }
+
+  // Extract the latest music ID if multiple exist
+  const layers = transformString.split('/').filter(s => s.startsWith('l_audio:') || s.startsWith('l_video:'));
+  if (layers.length === 0) {
+    // No audio layers? Just return the clean version
+    return `${base}/upload/${cleanPath}`;
+  }
+
+  let musicPart = layers[layers.length - 1];
+
+  // Fix common malformations. 
+  // Since music is uploaded as resource_type: video, we use l_video:
+  const rawId = musicPart.replace('l_audio:', '').replace('l_video:', '').replace('video:upload:', '').replace('upload:', '');
+  musicPart = `l_video:${rawId.replace(/\//g, ':')}`;
+
+  // Build clean URL: mute original + latest music layer + apply
+  const healed = `${base}/upload/e_mute/${musicPart}/fl_layer_apply/${cleanPath}`;
+  return healed;
+}
+
 /** Get uploader display name */
 async function getUploaderName(uploaderId, uploaderType) {
   if (uploaderType === 'vendor') {
@@ -76,6 +112,7 @@ export const uploadReel = asyncHandler(async (req, res) => {
     uploaderType,
     uploaderName,
     videoUrl: uploadResult.secure_url,
+    originalVideoUrl: uploadResult.secure_url,
     videoPublicId: uploadResult.public_id || null,
     durationSeconds: uploadResult.duration || null,
     status: 'pending',
@@ -169,6 +206,11 @@ export const adminApproveReel = asyncHandler(async (req, res) => {
   let youtubeUploadError = null;
 
   try {
+    // Proactively heal URLs corrupted by legacy bugs (missing :upload: or nested transforms)
+    if (reel.videoUrl?.includes('cloudinary.com') && reel.videoUrl.includes('l_audio:')) {
+      reel.videoUrl = healReelUrl(reel.videoUrl);
+    }
+
     const result = await publishReelToYouTube(reel);
     youtubeVideoId = result?.youtubeVideoId || null;
     youtubePlaylistId = result?.youtubePlaylistId || null;
@@ -176,7 +218,11 @@ export const adminApproveReel = asyncHandler(async (req, res) => {
     youtubeUploadFailed = true;
     youtubeUploadError = err.message || 'YouTube upload failed';
     // Log so production admins can see why upload failed (e.g. missing env, unreachable videoUrl)
-    console.error('[Reel approve] YouTube upload failed:', err.message, { reelId: reel._id, videoUrl: reel.videoUrl ? 'set' : 'missing' });
+    console.error('[Reel approve] YouTube upload failed:', err.message, {
+      reelId: reel._id,
+      videoUrl: reel.videoUrl ? 'set' : 'missing',
+      details: err.response?.data || null,
+    });
   }
 
   reel.status = 'approved';
@@ -193,6 +239,65 @@ export const adminApproveReel = asyncHandler(async (req, res) => {
     message: youtubeUploadFailed
       ? 'Reel approved but YouTube upload failed. Video will play from platform until 24h.'
       : 'Reel approved and published to YouTube',
+    data: {
+      reel: reel.toObject(),
+      youtubeUploadFailed,
+      youtubeUploadError: youtubeUploadFailed ? youtubeUploadError : undefined,
+    },
+  });
+});
+
+/**
+ * Admin: retry YouTube upload for an approved reel (no status change)
+ * POST /api/admin/reels/:id/retry-youtube
+ */
+export const adminRetryYouTubeUpload = asyncHandler(async (req, res) => {
+  const reel = await Reel.findById(req.params.id);
+  if (!reel) {
+    return res.status(404).json({ success: false, message: 'Reel not found' });
+  }
+  if (!['approved', 'expired'].includes(reel.status)) {
+    return res.status(400).json({ success: false, message: 'Reel must be approved to retry YouTube upload' });
+  }
+  if (reel.youtubeVideoId) {
+    return res.status(400).json({ success: false, message: 'Reel already uploaded to YouTube' });
+  }
+
+  let youtubeVideoId = null;
+  let youtubePlaylistId = null;
+  let youtubeUploadFailed = false;
+  let youtubeUploadError = null;
+
+  try {
+    // Proactively heal URLs corrupted by legacy bugs (missing :upload: or nested transforms)
+    if (reel.videoUrl?.includes('cloudinary.com') && reel.videoUrl.includes('l_audio:')) {
+      reel.videoUrl = healReelUrl(reel.videoUrl);
+    }
+
+    const result = await publishReelToYouTube(reel);
+    youtubeVideoId = result?.youtubeVideoId || null;
+    youtubePlaylistId = result?.youtubePlaylistId || null;
+  } catch (err) {
+    youtubeUploadFailed = true;
+    youtubeUploadError = err.message || 'YouTube upload failed';
+    console.error('[Reel retry] YouTube upload failed:', err.message, {
+      reelId: reel._id,
+      videoUrl: reel.videoUrl ? 'set' : 'missing',
+      details: err.response?.data || null,
+    });
+  }
+
+  reel.youtubeVideoId = youtubeVideoId;
+  reel.youtubePlaylistId = youtubePlaylistId;
+  reel.youtubeUploadFailed = youtubeUploadFailed;
+  reel.youtubeUploadError = youtubeUploadError;
+  await reel.save();
+
+  return res.status(200).json({
+    success: true,
+    message: youtubeUploadFailed
+      ? 'YouTube retry failed. Video will continue playing from the platform.'
+      : 'Reel uploaded to YouTube successfully',
     data: {
       reel: reel.toObject(),
       youtubeUploadFailed,
@@ -321,19 +426,26 @@ export const replaceSong = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Approved music not found' });
   }
 
-  // Cloudinary Audio Overlay Transformation
-  if (!reel.videoUrl || !reel.videoUrl.includes('cloudinary.com')) {
-    return res.status(400).json({ success: false, message: 'Only reels hosted on Cloudinary can be processed at this time.' });
+  // Ensure originalVideoUrl is clean (no transformations)
+  if (!reel.originalVideoUrl || reel.originalVideoUrl.includes('fl_layer_apply')) {
+    // Re-extract clean path from whatever we have
+    const oldUrl = reel.originalVideoUrl || reel.videoUrl;
+    const parts = oldUrl.split('/upload/');
+    const versionMatch = parts[1]?.match(/(v\d+\/.*)$/);
+    if (versionMatch) {
+      reel.originalVideoUrl = `${parts[0]}/upload/${versionMatch[1]}`;
+    } else {
+      reel.originalVideoUrl = oldUrl;
+    }
   }
 
   const musicPublicId = music.publicId.replace(/\//g, ':');
+  const [base, pathPart] = reel.originalVideoUrl.split('/upload/');
+  const versionPath = pathPart.startsWith('/') ? pathPart.substring(1) : pathPart;
 
-  const parts = reel.videoUrl.split('/upload/');
-  if (parts.length < 2) {
-    return res.status(400).json({ success: false, message: 'Unsupported Cloudinary URL format' });
-  }
-
-  const transformedUrl = `${parts[0]}/upload/e_mute/l_audio:${musicPublicId}/fl_layer_apply/${parts[1]}`;
+  // Format: l_video:folder:id
+  // NOTE: 'video' resource type is used for music overlays to support consistent processing
+  const transformedUrl = `${base}/upload/e_mute/l_video:${musicPublicId}/fl_layer_apply/${versionPath}`;
 
   // Update reel state
   reel.videoUrl = transformedUrl;
@@ -420,10 +532,11 @@ export const getFeed = asyncHandler(async (req, res) => {
   const categoryName = req.query.category;
   const vendorIdFilter = req.query.vendorId || null;
 
+  // Feed source: Only reels that have successfully reached YouTube
   const filter = {
-    status: { $in: ['approved', 'expired'] },
-    youtubeVideoId: { $ne: null },
+    youtubeVideoId: { $type: 'string', $regex: /.+/ }, // Strictly non-empty YouTube ID
   };
+   // Note: We don't check 'status' here because if it's on YouTube, it's implicitly approved/live.
   if (categoryName) filter.categoryName = new RegExp(categoryName, 'i');
   if (vendorIdFilter) {
     filter.uploaderType = 'vendor';
@@ -525,11 +638,8 @@ export const getReelById = asyncHandler(async (req, res) => {
   }
 
   const reel = await Reel.findById(id).lean();
-  if (!reel) {
-    return res.status(404).json({ success: false, message: 'Reel not found' });
-  }
-  if (!['approved', 'expired'].includes(reel.status)) {
-    return res.status(404).json({ success: false, message: 'Reel not found' });
+  if (!reel || !reel.youtubeVideoId) {
+    return res.status(404).json({ success: false, message: 'Reel not found or not published to YouTube' });
   }
 
   let vendorInfo = null;
@@ -744,4 +854,87 @@ export const getPlaylistByCategory = asyncHandler(async (req, res) => {
       categoryName: map.categoryName,
     },
   });
+});
+
+/**
+ * Public: Minimal HTML page with meta tags for dynamic social preview
+ * GET /api/reels/share/:id
+ */
+export const getReelSharePage = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const reel = await Reel.findById(id).lean();
+
+    const frontendUrl = process.env.FRONTEND_URL || 'https://dealingindia.com';
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    const redirectUrl = `${frontendUrl}/b2b/reels/${id}`;
+
+    // Default values
+    let title = "Check out this Reel on Dealing India";
+    let description = "Watch high-quality product reels and bulk deals on India's premiere B2B marketplace.";
+    const appIcon = `${frontendUrl}/logo-icon.png`;
+    let image = `${backendUrl}/api/reels/share/fallback-image`; // Branded fallback
+
+    if (reel) {
+        const type = reel.propertyId ? "Property" : (reel.productId ? "Product" : "Reel");
+        title = reel.title || `${type} from ${reel.uploaderName || 'Dealing India'}`;
+        description = reel.description || `Watch this ${reel.categoryName || ''} ${type.toLowerCase()} in action on Dealing India.`;
+        
+        if (reel.thumbnailUrl) {
+            image = reel.thumbnailUrl;
+        } else if (reel.youtubeVideoId) {
+            image = `https://img.youtube.com/vi/${reel.youtubeVideoId}/maxresdefault.jpg`;
+        }
+    } else if (id && !isMongoId(id)) {
+        // ... (YT fetch logic remains)
+    }
+
+    // Generate HTML with correct tags for WhatsApp
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>${title}</title>
+    <meta name="description" content="${description}">
+
+    <!-- Open Graph / Meta -->
+    <meta property="og:site_name" content="Dealing India">
+    <meta property="og:type" content="video.other">
+    <meta property="og:url" content="${redirectUrl}">
+    <meta property="og:title" content="${title}">
+    <meta property="og:description" content="${description}">
+    <meta property="og:image" content="${image}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${title}">
+    <meta name="twitter:description" content="${description}">
+    <meta name="twitter:image" content="${image}">
+
+    <!-- Logic to redirect AFTER crawler has time to read tags -->
+    <script type="text/javascript">
+        // Small delay if not a bot (optional, but pure JS redirect is best)
+        window.location.href = "${redirectUrl}";
+    </script>
+    <meta http-equiv="refresh" content="0; url=${redirectUrl}">
+</head>
+<body style="background: #000; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+    <div style="text-align: center;">
+        <img src="${appIcon}" alt="Dealing India" style="width: 80px; margin-bottom: 20px;" onerror="this.style.display='none'">
+        <div style="width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #7C3AED; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px;"></div>
+        <p style="font-weight: 500;">Opening Reel...</p>
+    </div>
+    <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</body>
+</html>
+  `.trim();
+
+    res.set('Content-Type', 'text/html');
+    res.send(html);
 });

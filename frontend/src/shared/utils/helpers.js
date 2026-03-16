@@ -74,11 +74,12 @@ export const getWhatsAppUserDetailsSuffix = (user) => {
   if (!user) return "";
   const name = (user.name || "").trim();
   const email = (user.email || "").trim();
-  const phone = (user.phone || "").trim();
+  const phone = (user.phone || user.mobile || user.phoneNumber || "").toString().trim();
   const city =
     (user.businessInfo &&
       user.businessInfo.address &&
       user.businessInfo.address.city) ||
+    (user.businessInfo && user.businessInfo.city) ||
     (user.address && user.address.city) ||
     user.city ||
     "";

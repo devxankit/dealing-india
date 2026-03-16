@@ -29,6 +29,19 @@ function ensureYouTubeConfigured() {
   }
 }
 
+function formatAxiosError(err) {
+  if (!err) return 'Unknown error';
+  const status = err.response?.status;
+  const statusText = err.response?.statusText;
+  const data = err.response?.data;
+  const dataStr = typeof data === 'string' ? data : data ? JSON.stringify(data) : '';
+  const base = err.message || 'Request failed';
+  const suffix = [status ? `status=${status}` : null, statusText || null, dataStr || null]
+    .filter(Boolean)
+    .join(' | ');
+  return suffix ? `${base} (${suffix})` : base;
+}
+
 /**
  * Get OAuth2 access token using refresh token (caller should cache this)
  */
@@ -242,6 +255,7 @@ export async function publishReelToYouTube(reel) {
   const accessToken = await fetchAccessToken();
   let tmpPath;
   try {
+    console.log(`[YouTube upload] Downloading video from: ${reel.videoUrl}`);
     tmpPath = await downloadToTemp(reel.videoUrl);
     const youtubeVideoId = await uploadVideoToYouTube(
       accessToken,
@@ -267,6 +281,9 @@ export async function publishReelToYouTube(reel) {
     await addVideoToPlaylist(accessToken, playlistId, youtubeVideoId);
 
     return { youtubeVideoId, youtubePlaylistId: playlistId };
+  } catch (err) {
+    // Include full YouTube/HTTP error for admin visibility
+    throw new Error(formatAxiosError(err));
   } finally {
     if (tmpPath && fs.existsSync(tmpPath)) {
       try {

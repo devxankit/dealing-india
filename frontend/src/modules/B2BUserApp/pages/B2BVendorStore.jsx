@@ -453,7 +453,18 @@ const B2BVendorStore = () => {
                                             <div className="flex items-center gap-3">
                                                 <p className="text-[11px] font-bold text-gray-500">+91 {maskPhone(contact.mobile, 2)}</p>
                                                 <a
-                                                    href={`https://wa.me/91${String(contact.mobile).replace(/\D/g, '')}`}
+                                                    href={(() => {
+                                                        const cleanedPhone = String(contact.mobile || '').replace(/\D/g, '');
+                                                        const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : `91${cleanedPhone}`;
+                                                        const baseMsg = `👋 *I'm interested in your business services!*\n\n` +
+                                                            `🏢 *Business:* ${shopListing?.name || vendor?.storeName || 'Verified Vendor'}\n` +
+                                                            `🙍 *Contact:* ${contact.name || contact.post || 'Staff'}\n` +
+                                                            `📍 *City:* ${vendor?.address?.city || 'N/A'}\n\n` +
+                                                            `🔗 *View Store:* ${window.location.href}` +
+                                                            getWhatsAppUserDetailsSuffix(user);
+                                                        const message = encodeURIComponent(baseMsg);
+                                                        return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`;
+                                                    })()}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="p-2 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all active:scale-90"

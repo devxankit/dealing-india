@@ -5,6 +5,7 @@ import {
   adminListReels,
   adminGetReel,
   adminApproveReel,
+  adminRetryYouTubeUpload,
   adminRejectReel,
   adminDeleteReel,
 } from '../controllers/reel.controller.js';
@@ -18,6 +19,7 @@ router.use(authorize('admin', 'superadmin'));
 router.get('/', asyncHandler(adminListReels));
 router.get('/:id', asyncHandler(adminGetReel));
 router.post('/:id/approve', asyncHandler(adminApproveReel));
+router.post('/:id/retry-youtube', asyncHandler(adminRetryYouTubeUpload));
 router.post('/:id/reject', asyncHandler(adminRejectReel));
 
 router.delete('/:id', asyncHandler(adminDeleteReel));

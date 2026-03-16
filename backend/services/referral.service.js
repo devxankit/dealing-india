@@ -177,7 +177,7 @@ export const getReferralSummaryForAuthUser = async (authUser) => {
 
     const referralLink = `${FRONTEND_BASE_URL}/register?ref=${referral.referralCode}`;
     const message = encodeURIComponent(
-        `Join Dealing India using my referral link and earn reward points: ${referralLink}`
+        `Join India's premiere B2B marketplace! Sign up using my link to unlock exclusive bulk deals and start earning reward points: ${referralLink}`
     );
 
     let walletData = { pointsBalance: 0 };
