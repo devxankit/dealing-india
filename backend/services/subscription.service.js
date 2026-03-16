@@ -827,17 +827,8 @@ class SubscriptionService {
             contactId, invoiceId: invoice.id, amount, paymentDate: new Date(), razorpayPaymentId
           });
 
-          if (invoice.pdfUrl) {
-            try {
-              const token = await zohoBooksService.getAccessToken();
-              const res = await (await import('axios')).default.get(invoice.pdfUrl, {
-                headers: { Authorization: `Zoho-oauthtoken ${token}` },
-                responseType: 'arraybuffer', timeout: 15000
-              });
-              if (res.headers['content-type']?.includes('pdf') || Buffer.from(res.data).slice(0, 4).toString() === '%PDF') {
-                invoicePdfBuffer = Buffer.from(res.data);
-              }
-            } catch (pdfErr) { console.error('PDF download failed:', pdfErr.message); }
+          if (invoice.id) {
+            invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(invoice.id);
           }
         } catch (e) { console.error('Zoho Invoice failed:', e.message); }
       }

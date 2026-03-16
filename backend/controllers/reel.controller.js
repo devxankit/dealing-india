@@ -865,7 +865,8 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
     const reel = await Reel.findById(id).lean();
 
     const fUrl = (process.env.FRONTEND_URL || 'https://dealingindia.com').replace(/\/+$/, '');
-    const bUrl = (process.env.BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '');
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const bUrl = `${protocol}://${req.get('host')}`;
     const redirectUrl = `${fUrl}/b2b/reels/${id}`;
     const appIcon = `${fUrl}/logo-icon.png`;
 

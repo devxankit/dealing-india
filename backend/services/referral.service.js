@@ -162,9 +162,9 @@ export const processSuccessfulUserReferral = async ({ referredUserId, referralCo
     };
 };
 
-export const getReferralSummaryForAuthUser = async (authUser) => {
+export const getReferralSummaryForAuthUser = async (user, providedBaseUrl = null) => {
     const settings = await getReferralSettings();
-    const owner = getOwnerMetaFromAuth(authUser);
+    const owner = getOwnerMetaFromAuth(user);
     const referral = await ensureReferralCodeForOwner(owner);
 
     const history = await ReferralHistory.find({
@@ -175,7 +175,7 @@ export const getReferralSummaryForAuthUser = async (authUser) => {
         .limit(100)
         .populate('referredUserId', 'name email');
 
-    const backendUrl = (process.env.BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '');
+    const backendUrl = (providedBaseUrl || process.env.BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '');
     const shareLink = `${backendUrl}/api/referrals/share/${referral.referralCode}`;
     const referralLink = `${FRONTEND_BASE_URL}/register?ref=${referral.referralCode}`;
     const message = encodeURIComponent(

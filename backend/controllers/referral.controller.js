@@ -6,7 +6,9 @@ import {
 } from '../services/referral.service.js';
 
 export const getMyReferralSummary = asyncHandler(async (req, res) => {
-    const data = await getReferralSummaryForAuthUser(req.user);
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const baseUrl = `${protocol}://${req.get('host')}`;
+    const data = await getReferralSummaryForAuthUser(req.user, baseUrl);
     res.status(200).json({
         success: true,
         data,
@@ -67,7 +69,8 @@ export const getReferralSharePage = asyncHandler(async (req, res) => {
     // SEO / OG Content
     const title = "Join Dealing India - B2B Marketplace";
     const description = "Sign up using my referral link to unlock exclusive bulk deals and start earning reward points on India's premiere B2B platform.";
-    const bUrl = (process.env.BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '');
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const bUrl = `${protocol}://${req.get('host')}`;
     const image = `${bUrl}/upload/dealing-india-logo.png`;
 
     const html = `

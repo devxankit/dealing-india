@@ -144,9 +144,28 @@ export default function UploadReel() {
         <FiVideo className="text-primary-600" />
         Upload Reel
       </h1>
-      <p className="text-sm text-gray-500 mb-8">
+      <p className="text-sm text-gray-500 mb-6">
         Short promotional video (e.g. product showcase, property tour). Max {MAX_DURATION_SECONDS} seconds and {MAX_VIDEO_MB}MB. It will be reviewed before going live.
       </p>
+
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-8">
+        <p className="text-blue-900 font-bold mb-2">Hello vendor !</p>
+        <p className="text-blue-800 text-sm mb-4">When uploading a reel of your products on dealingindia, note:</p>
+        <ul className="space-y-3 text-sm text-blue-800">
+          <li className="flex items-center gap-2">
+            <span className="text-lg">✅</span>
+            <span>Use only the original video and your voice.</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="text-lg">❌</span>
+            <span>Videos with any kind of film songs or celebrity voices will not be accepted.</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="text-lg">⚠️</span>
+            <span>Due to copyright rules, such videos will be deleted immediately by the admin.</span>
+          </li>
+        </ul>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>

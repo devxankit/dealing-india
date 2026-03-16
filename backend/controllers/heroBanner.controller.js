@@ -277,22 +277,8 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
             // 4. Try to download invoice PDF
             let invoicePdfBuffer = null;
             try {
-                if (invoice.pdfUrl) {
-                    const token = await zohoBooksService.getAccessToken();
-                    const axios = (await import('axios')).default;
-                    const pdfRes = await axios.get(invoice.pdfUrl, {
-                        headers: { Authorization: `Zoho-oauthtoken ${token}` },
-                        responseType: 'arraybuffer',
-                        timeout: 15000,
-                    });
-                    const contentType = (pdfRes.headers?.['content-type'] || '').toLowerCase();
-                    const rawBuffer = Buffer.from(pdfRes.data);
-                    const isPdf = contentType.includes('pdf') || rawBuffer.slice(0, 4).toString() === '%PDF';
-                    if (isPdf) {
-                        invoicePdfBuffer = rawBuffer;
-                    } else {
-                        console.error('Zoho invoice download did not return PDF. Content-Type:', contentType || 'unknown');
-                    }
+                if (invoice.id) {
+                    invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(invoice.id);
                 }
             } catch (pdfErr) {
                 console.error('Failed to download Zoho banner invoice PDF:', pdfErr.message);
@@ -575,26 +561,8 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 
         // 4. Try to download invoice PDF
         let invoicePdfBuffer = null;
-        try {
-            if (invoice.pdfUrl) {
-                const token = await zohoBooksService.getAccessToken();
-                const axios = (await import('axios')).default;
-                const pdfRes = await axios.get(invoice.pdfUrl, {
-                    headers: { Authorization: `Zoho-oauthtoken ${token}` },
-                    responseType: 'arraybuffer',
-                    timeout: 15000,
-                });
-                const contentType = (pdfRes.headers?.['content-type'] || '').toLowerCase();
-                const rawBuffer = Buffer.from(pdfRes.data);
-                const isPdf = contentType.includes('pdf') || rawBuffer.slice(0, 4).toString() === '%PDF';
-                if (isPdf) {
-                    invoicePdfBuffer = rawBuffer;
-                } else {
-                    console.error('Zoho invoice download did not return PDF. Content-Type:', contentType || 'unknown');
-                }
-            }
-        } catch (pdfErr) {
-            console.error('Failed to download Zoho banner invoice PDF:', pdfErr.message);
+        if (invoice.id) {
+            invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(invoice.id);
         }
 
         // 5. Send payment success emails (vendor + admin)
@@ -659,7 +627,6 @@ export const confirmPayment = asyncHandler(async (req, res) => {
             },
         });
     }
-
     // Notify admins about banner booking
     try {
         const vendor = await Vendor.findById(vendorId).select('businessName storeName');

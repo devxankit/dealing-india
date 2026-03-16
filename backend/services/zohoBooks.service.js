@@ -1,6 +1,6 @@
 import axios from 'axios';
-
 import dotenv from 'dotenv';
+
 dotenv.config();
 
 const getZohoConfig = () => ({
@@ -19,16 +19,11 @@ async function getAccessToken() {
   const { ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN, ZOHO_ACCOUNTS_BASE } = getZohoConfig();
   const now = Date.now();
   if (cachedAccessToken && now < cachedAccessTokenExpiresAt - 60_000) {
-    console.log('[Zoho] Using cached access token');
     return cachedAccessToken;
   }
 
   if (!ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET || !ZOHO_REFRESH_TOKEN) {
-    console.error('[Zoho] Missing OAuth env vars', {
-      hasClientId: !!ZOHO_CLIENT_ID,
-      hasClientSecret: !!ZOHO_CLIENT_SECRET,
-      hasRefreshToken: !!ZOHO_REFRESH_TOKEN,
-    });
+    console.error('[Zoho] Missing OAuth env vars');
     throw new Error('Zoho OAuth env vars are not fully configured');
   }
 
@@ -40,33 +35,24 @@ async function getAccessToken() {
   });
 
   const url = `${ZOHO_ACCOUNTS_BASE}/oauth/v2/token`;
-
-  console.log('[Zoho] Requesting new access token from', url);
   const res = await axios.post(url, params.toString(), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     timeout: 10000,
   });
 
   if (!res.data?.access_token) {
-    console.error('[Zoho] Token response without access_token', res.data);
-    throw new Error(
-      `Failed to obtain Zoho access token: ${res.data?.error || 'unknown error'}`
-    );
+    throw new Error(`Failed to obtain Zoho access token: ${res.data?.error || 'unknown error'}`);
   }
 
   cachedAccessToken = res.data.access_token;
   const expiresInSec = Number(res.data.expires_in || 3600);
   cachedAccessTokenExpiresAt = Date.now() + expiresInSec * 1000;
-  console.log('[Zoho] Access token obtained, expires in', expiresInSec, 'seconds');
   return cachedAccessToken;
 }
 
 async function zohoRequest(method, path, { params = {}, data = {} } = {}) {
   const { ZOHO_ORG_ID, ZOHO_BOOKS_BASE } = getZohoConfig();
-  if (!ZOHO_ORG_ID) {
-    console.error('[Zoho] ZOHO_ORG_ID not configured');
-    throw new Error('ZOHO_ORG_ID is not configured');
-  }
+  if (!ZOHO_ORG_ID) throw new Error('ZOHO_ORG_ID is not configured');
 
   const token = await getAccessToken();
   const url = `${ZOHO_BOOKS_BASE}${path}`;
@@ -86,19 +72,13 @@ async function zohoRequest(method, path, { params = {}, data = {} } = {}) {
     });
 
     if (res.data?.code && res.data.code !== 0) {
-      console.error('[Zoho] API error payload', res.data);
-      throw new Error(
-        `Zoho API error (${res.data.code}): ${res.data.message || 'Unknown error'}`
-      );
+      throw new Error(`Zoho API error (${res.data.code}): ${res.data.message || 'Unknown error'}`);
     }
 
     return res.data;
   } catch (err) {
     if (err.response?.data) {
-      console.error('[Zoho] Axios error response:', JSON.stringify(err.response.data, null, 2));
-      throw new Error(
-        `Zoho integration error: ${err.response.data.message || JSON.stringify(err.response.data)}`
-      );
+      throw new Error(`Zoho integration error: ${err.response.data.message || JSON.stringify(err.response.data)}`);
     }
     throw err;
   }
@@ -106,11 +86,8 @@ async function zohoRequest(method, path, { params = {}, data = {} } = {}) {
 
 async function findContactByEmail(email) {
   if (!email) return null;
-  const data = await zohoRequest('GET', '/contacts', {
-    params: { email },
-  });
-  const contacts = data?.contacts || [];
-  return contacts[0] || null;
+  const data = await zohoRequest('GET', '/contacts', { params: { email } });
+  return data?.contacts?.[0] || null;
 }
 
 async function createContact({ name, companyName, email, phone }) {
@@ -118,81 +95,43 @@ async function createContact({ name, companyName, email, phone }) {
     contact_name: companyName || name || email || 'Customer',
     company_name: companyName || undefined,
     email: email || undefined,
-    contact_persons: [],
-  };
-
-  if (phone) {
-    contact.phone = phone;
-  }
-  if (name || email) {
-    contact.contact_persons.push({
-      first_name: name || email,
+    contact_persons: [{
+      first_name: name || email || 'Customer',
       email: email || undefined,
       phone: phone || undefined,
       is_primary_contact: true,
-    });
-  }
+    }],
+  };
+  if (phone) contact.phone = phone;
 
-  console.log('[Zoho] Creating contact with payload:', JSON.stringify(contact, null, 2));
   const data = await zohoRequest('POST', '/contacts', { data: contact });
   return data?.contact || null;
 }
 
 export async function ensureZohoContactForVendor(vendor) {
   if (!vendor) throw new Error('Vendor is required');
+  if (vendor.zohoContactId) return vendor.zohoContactId;
 
-  if (vendor.zohoContactId) {
-    return vendor.zohoContactId;
-  }
-
-  const email = vendor.email;
-  let contact = null;
-
-  try {
-    contact = await findContactByEmail(email);
-  } catch (e) {
-    console.error('Zoho findContactByEmail failed:', e.message);
-  }
-
+  let contact = await findContactByEmail(vendor.email);
   if (!contact) {
     contact = await createContact({
       name: vendor.name || vendor.storeName,
       companyName: vendor.storeName || vendor.businessName,
-      email,
+      email: vendor.email,
       phone: vendor.phone,
     });
   }
-
-  if (!contact?.contact_id) {
-    throw new Error('Failed to create or fetch Zoho contact');
-  }
-
   return contact.contact_id;
 }
 
-export async function createSubscriptionInvoice({
-  contactId,
-  planName,
-  amount,
-  currency = 'INR',
-  referenceNumber,
-  notes,
-}) {
-  const today = new Date();
-  const dateStr = today.toISOString().slice(0, 10);
-
+export async function createSubscriptionInvoice({ contactId, planName, amount, currency = 'INR', referenceNumber, notes }) {
+  const dateStr = new Date().toISOString().slice(0, 10);
   const invoice = {
     customer_id: contactId,
     date: dateStr,
     payment_terms: 0,
     reference_number: referenceNumber,
-    line_items: [
-      {
-        description: planName || 'Subscription',
-        rate: amount,
-        quantity: 1,
-      },
-    ],
+    line_items: [{ description: planName || 'Subscription', rate: amount, quantity: 1 }],
     currency_code: currency,
     ...(notes ? { notes } : {}),
   };
@@ -209,41 +148,45 @@ export async function createSubscriptionInvoice({
   };
 }
 
-export async function recordInvoicePayment({
-  contactId,
-  invoiceId,
-  amount,
-  paymentDate,
-  razorpayPaymentId,
-  paymentMode = 'razorpay',
-}) {
-  const date = paymentDate
-    ? new Date(paymentDate).toISOString().slice(0, 10)
-    : new Date().toISOString().slice(0, 10);
+export async function downloadInvoicePdf(invoiceId) {
+  if (!invoiceId) return null;
+  const { ZOHO_ORG_ID, ZOHO_BOOKS_BASE } = getZohoConfig();
+  const token = await getAccessToken();
+  const url = `${ZOHO_BOOKS_BASE}/invoices/${invoiceId}`;
 
+  try {
+    console.log(`[Zoho] Attempting to download PDF for invoice: ${invoiceId}`);
+    const res = await axios.get(url, {
+      params: { accept: 'pdf', organization_id: ZOHO_ORG_ID },
+      headers: { Authorization: `Zoho-oauthtoken ${token}` },
+      responseType: 'arraybuffer',
+      timeout: 20000,
+    });
+    const buffer = Buffer.from(res.data);
+    if (buffer.slice(0, 4).toString() === '%PDF') {
+      console.log(`[Zoho] PDF downloaded: ${buffer.length} bytes`);
+      return buffer;
+    }
+    console.error('[Zoho] Content is not a PDF');
+    return null;
+  } catch (err) {
+    console.error('[Zoho] PDF download failed:', err.message);
+    return null;
+  }
+}
+
+export async function recordInvoicePayment({ contactId, invoiceId, amount, paymentDate, razorpayPaymentId, paymentMode = 'razorpay' }) {
+  const date = (paymentDate ? new Date(paymentDate) : new Date()).toISOString().slice(0, 10);
   const payment = {
     customer_id: contactId,
     payment_mode: paymentMode,
     amount,
     date,
     reference_number: razorpayPaymentId,
-    invoices: [
-      {
-        invoice_id: invoiceId,
-        amount_applied: amount,
-      },
-    ],
+    invoices: [{ invoice_id: invoiceId, amount_applied: amount }],
   };
-
-  const data = await zohoRequest('POST', '/customerpayments', {
-    data: payment,
-  });
-
-  const p = data?.payment;
-  return {
-    id: p?.payment_id || null,
-    status: p?.status || null,
-  };
+  const data = await zohoRequest('POST', '/customerpayments', { data: payment });
+  return { id: data?.payment?.payment_id || null, status: data?.payment?.status || null };
 }
 
 export default {
@@ -251,5 +194,5 @@ export default {
   ensureZohoContactForVendor,
   createSubscriptionInvoice,
   recordInvoicePayment,
+  downloadInvoicePdf,
 };
-
