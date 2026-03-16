@@ -69,7 +69,7 @@ export const getReferralSharePage = asyncHandler(async (req, res) => {
     // SEO / OG Content
     const title = "Join Dealing India - B2B Marketplace";
     const description = "Sign up using my referral link to unlock exclusive bulk deals and start earning reward points on India's premiere B2B platform.";
-    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' || req.get('host').includes('dealingindia.com') ? 'https' : 'http';
     const bUrl = `${protocol}://${req.get('host')}`;
     const image = `${bUrl}/upload/dealing-india-logo.png`;
 
@@ -79,7 +79,7 @@ export const getReferralSharePage = asyncHandler(async (req, res) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="1; url=${redirectUrl}">
+    <meta http-equiv="refresh" content="2; url=${redirectUrl}">
     
     <title>${title}</title>
     <meta name="description" content="${description}">
@@ -91,14 +91,19 @@ export const getReferralSharePage = asyncHandler(async (req, res) => {
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${description}">
     <meta property="og:image" content="${image}">
+    <meta property="og:image:secure_url" content="${image}">
+    <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Dealing India Logo">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@dealingindia">
     <meta name="twitter:title" content="${title}">
     <meta name="twitter:description" content="${description}">
     <meta name="twitter:image" content="${image}">
+    <meta name="twitter:image:alt" content="Dealing India Logo">
 </head>
 <body style="background: #0b0b0f; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 20px; box-sizing: border-box;">
     <div style="text-align: center; max-width: 400px; width: 100%;">

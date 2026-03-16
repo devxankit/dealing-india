@@ -865,10 +865,9 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
     const reel = await Reel.findById(id).lean();
 
     const fUrl = (process.env.FRONTEND_URL || 'https://dealingindia.com').replace(/\/+$/, '');
-    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' || req.get('host').includes('dealingindia.com') ? 'https' : 'http';
     const bUrl = `${protocol}://${req.get('host')}`;
     const redirectUrl = `${fUrl}/b2b/reels/${id}`;
-    const appIcon = `${fUrl}/logo-icon.png`;
 
     // Default values
     let title = "Check out this Reel on Dealing India";
@@ -907,7 +906,7 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="1; url=${redirectUrl}">
+    <meta http-equiv="refresh" content="2; url=${redirectUrl}">
     
     <title>${title}</title>
     <meta name="description" content="${description}">
@@ -919,6 +918,7 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${description}">
     <meta property="og:image" content="${image}">
+    <meta property="og:image:secure_url" content="${image}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
 
