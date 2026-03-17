@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiHeart, FiVideo, FiShare2, FiEye, FiCopy, FiX, FiFilter, FiChevronDown } from "react-icons/fi";
+import { FiHeart, FiVideo, FiShare2, FiEye, FiCopy, FiX, FiFilter, FiChevronDown, FiVolume2, FiVolumeX } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
@@ -34,6 +34,7 @@ export default function ReelFeed() {
   const touchStartYRef = useRef(null);
   const loadingMoreRef = useRef(false);
   const hasAppliedInitialReelRef = useRef(false);
+  const [isMuted, setIsMuted] = useState(true);
 
   const fetchFeed = useCallback(async (pageNum = 1, append = false, pageToken = null, forceCategory = null) => {
     try {
@@ -439,7 +440,7 @@ export default function ReelFeed() {
                   <div className="w-full h-full pointer-events-none">
                     <iframe
                       title={currentReel.title}
-                      src={`https://www.youtube.com/embed/${currentReel.youtubeVideoId}?autoplay=1&mute=1&loop=1&playlist=${currentReel.youtubeVideoId}&rel=0&modestbranding=1&controls=0&disablekb=1&enablejsapi=1`}
+                      src={`https://www.youtube.com/embed/${currentReel.youtubeVideoId}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${currentReel.youtubeVideoId}&rel=0&modestbranding=1&controls=0&disablekb=1&enablejsapi=1`}
                       className="w-full h-full"
                       allow="autoplay; encrypted-media; picture-in-picture"
                       allowFullScreen
@@ -453,7 +454,7 @@ export default function ReelFeed() {
                     loop
                     controls
                     playsInline
-                    muted
+                    muted={isMuted}
                   />
                 )}
                 
@@ -499,6 +500,17 @@ export default function ReelFeed() {
                 >
                   <FiShare2 className="text-3xl" />
                   <span className="text-xs">Share</span>
+                </button>
+                <button
+                  onClick={() => setIsMuted(!isMuted)}
+                  className="flex flex-col items-center text-white"
+                >
+                  {isMuted ? (
+                    <FiVolumeX className="text-3xl" />
+                  ) : (
+                    <FiVolume2 className="text-3xl text-primary-500" />
+                  )}
+                  <span className="text-xs">{isMuted ? "Mute" : "Sound"}</span>
                 </button>
                 {currentReel.vendorPhone && (
                   <button onClick={handleWhatsApp} className="flex flex-col items-center text-[#25D366]">

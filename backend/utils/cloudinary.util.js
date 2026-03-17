@@ -151,6 +151,46 @@ export const uploadBase64ToCloudinary = async (base64String, folderName, options
 };
 
 /**
+ * Upload a URL (e.g. a transformed Cloudinary video URL) to a new Cloudinary resource.
+ * This effectively "freezes" transformations into a new, stable file.
+ * @param {String} url - The URL to upload
+ * @param {String} folderName - Folder name in Cloudinary
+ * @param {Object} options - Additional Cloudinary options
+ * @returns {Promise<Object>} { secure_url, public_id }
+ */
+export const uploadUrlToCloudinary = async (url, folderName, options = {}) => {
+  try {
+    if (!url) {
+      throw new Error('No URL provided for upload');
+    }
+
+    const uploadOptions = {
+      folder: folderName || 'general',
+      resource_type: 'video', // Specifically for reels
+      ...options,
+    };
+
+    const result = await cloudinary.uploader.upload(url, uploadOptions);
+
+    if (!result || !result.secure_url) {
+      throw new Error('Cloudinary URL upload failed: No secure_url returned');
+    }
+
+    return {
+      secure_url: result.secure_url,
+      public_id: result.public_id,
+      duration: result.duration,
+    };
+  } catch (error) {
+    console.error('[Cloudinary URL Upload Error]:', error);
+    if (error.http_code) {
+      throw new Error(`Cloudinary Error (${error.http_code}): ${error.message}`);
+    }
+    throw error;
+  }
+};
+
+/**
  * Delete resource from Cloudinary by public_id
  * @param {String} publicId - Cloudinary public_id
  * @param {String} resourceType - Cloudinary resource type ('image', 'video', 'raw')

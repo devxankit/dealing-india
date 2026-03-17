@@ -344,7 +344,7 @@ const B2BVendorStore = () => {
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-8 pt-4">
+                            <div className="flex flex-wrap md:flex-nowrap items-center justify-center md:justify-start gap-y-6 gap-x-6 md:gap-x-10 pt-6 border-t border-gray-50/50 mt-6 w-full">
                                 <div className="flex flex-col">
                                     <span className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Active Catalog</span>
                                     <div className="flex items-center gap-2">
@@ -356,7 +356,7 @@ const B2BVendorStore = () => {
                                 </div>
 
                                 {shopListing?.minPrice && shopListing?.maxPrice && (
-                                    <div className="flex flex-col border-l border-gray-100 pl-4 md:pl-8">
+                                    <div className="flex flex-col md:border-l border-gray-100 md:pl-8 lg:pl-10">
                                         <span className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Price Range</span>
                                         <div className="flex items-center gap-2">
                                             <div className="w-8 h-8 md:w-10 md:h-10 bg-primary-600/10 rounded-xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm">
@@ -368,7 +368,7 @@ const B2BVendorStore = () => {
                                 )}
 
                                 {vendor.address?.city && (
-                                    <div className="flex flex-col border-l border-gray-100 pl-4 md:pl-8">
+                                    <div className="flex flex-col md:border-l border-gray-100 md:pl-8 lg:pl-10">
                                         <span className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Operating Zone</span>
                                         <div className="flex items-center gap-2">
                                             <div className="w-8 h-8 md:w-10 md:h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
@@ -565,53 +565,55 @@ const B2BVendorStore = () => {
                 {activeTab === "main" && (
                     <>
                         {/* Filter & View Controls */}
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-10">
-                            <div className="flex items-center gap-4 w-full">
-                                <h2 className="text-xl font-black text-gray-800 tracking-tight uppercase">
-                                    Current <span className="text-primary-600">Inventory</span>
-                                </h2>
-                                <div className="relative flex-1 max-w-md sm:max-w-xs ml-auto">
+                        <div className="flex flex-col lg:flex-row items-center justify-between gap-6 mb-10">
+                            <h2 className="text-lg md:text-xl font-black text-gray-800 tracking-tight uppercase whitespace-nowrap">
+                                Current <span className="text-primary-600">Inventory</span>
+                            </h2>
+
+                            <div className="flex flex-col md:flex-row items-center gap-4 w-full lg:w-auto">
+                                <div className="relative w-full md:w-64">
                                     <input
                                         type="text"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Search this shop inventory..."
-                                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-500 outline-none focus:border-primary-200 transition-all"
+                                        placeholder="Search shop inventory..."
+                                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-500 outline-none focus:border-primary-200 transition-all shadow-sm"
                                     />
                                     <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                         <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85Zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
                                     </svg>
                                 </div>
-                            </div>
 
-                            <div className="flex items-center gap-4 w-full sm:w-auto flex-wrap">
-                                <div className="relative group">
-                                    <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-600 transition-colors" />
-                                    <select
-                                        value={sortBy}
-                                        onChange={(e) => setSortBy(e.target.value)}
-                                        className="pl-10 pr-6 py-3 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-500 outline-none focus:border-primary-200 transition-all appearance-none"
-                                    >
-                                        <option value="popular">Most Relevant</option>
-                                        <option value="newest">Newest Stock</option>
-                                        <option value="price-low">Price: Low to High</option>
-                                        <option value="price-high">Price: High to Low</option>
-                                    </select>
-                                </div>
+                                <div className="flex items-center gap-3 w-full md:w-auto">
+                                    <div className="relative group flex-1 md:flex-initial min-w-[150px]">
+                                        <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-600 transition-colors" />
+                                        <select
+                                            value={sortBy}
+                                            onChange={(e) => setSortBy(e.target.value)}
+                                            className="w-full pl-10 pr-6 py-3 bg-white border border-gray-100 rounded-xl font-bold text-[10px] md:text-xs uppercase tracking-widest text-gray-500 outline-none focus:border-primary-200 transition-all appearance-none shadow-sm"
+                                        >
+                                            <option value="popular">MOST RELEVANT</option>
+                                            <option value="newest">NEWEST STOCK</option>
+                                            <option value="price-low">PRICE: LOW-HIGH</option>
+                                            <option value="price-high">PRICE: HIGH-LOW</option>
+                                        </select>
+                                        <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                    </div>
 
-                                <div className="flex items-center p-1 bg-white border border-gray-100 rounded-xl shadow-sm">
-                                    <button
-                                        onClick={() => setViewMode("grid")}
-                                        className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-primary-600 text-white shadow-lg shadow-primary-100" : "text-gray-400 hover:text-gray-600"}`}
-                                    >
-                                        <FiGrid size={18} />
-                                    </button>
-                                    <button
-                                        onClick={() => setViewMode("list")}
-                                        className={`p-2 rounded-lg transition-all ${viewMode === "list" ? "bg-primary-600 text-white shadow-lg shadow-primary-100" : "text-gray-400 hover:text-gray-600"}`}
-                                    >
-                                        <FiList size={18} />
-                                    </button>
+                                    <div className="flex items-center p-1 bg-white border border-gray-100 rounded-xl shadow-sm">
+                                        <button
+                                            onClick={() => setViewMode("grid")}
+                                            className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-primary-600 text-white shadow-lg shadow-primary-100" : "text-gray-400 hover:text-gray-600"}`}
+                                        >
+                                            <FiGrid size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode("list")}
+                                            className={`p-2 rounded-lg transition-all ${viewMode === "list" ? "bg-primary-600 text-white shadow-lg shadow-primary-100" : "text-gray-400 hover:text-gray-600"}`}
+                                        >
+                                            <FiList size={18} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

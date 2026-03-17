@@ -7,46 +7,48 @@ import Vendor from '../models/Vendor.model.js';
 import User from '../models/User.model.js';
 import Music from '../models/Music.model.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
-import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.util.js';
+import { uploadToCloudinary, deleteFromCloudinary, uploadUrlToCloudinary } from '../utils/cloudinary.util.js';
 import { publishReelToYouTube, fetchPlaylistItems, fetchVideoById, deleteVideoFromYouTube } from '../services/youtubeReel.service.js';
 
 const REEL_ACTIVE_HOURS = 24; // kept for backwards compatibility only
 
-/** Heal malformed or nested Cloudinary URLs into a clean, single-transformation format */
-function healReelUrl(url) {
-  if (!url || !url.includes('cloudinary.com') || !url.includes('/upload/')) return url;
-
-  const parts = url.split('/upload/');
-  const versionMatch = parts[1].match(/(v\d+\/.*)$/);
-  if (!versionMatch) return url;
-
-  const base = parts[0];
-  const cleanPath = versionMatch[0]; // v123/reels/abc.mp4
-  const transformString = parts[1].substring(0, versionMatch.index);
-
-  // If there's no transformation (clean URL), just return it
-  if (!transformString || transformString === '/') {
-    return `${base}/upload/${cleanPath}`;
+/** 
+ * Live-heal legacy dynamic URLs for Admin Preview.
+ * Fixes: e_mute -> ac_none, l_audio -> l_video, nested layers, missing flags etc.
+ */
+function fixLegacyDynamicUrl(reel) {
+  if (!reel.videoUrl || !reel.videoUrl.includes('cloudinary.com')) return reel.videoUrl;
+  
+  // If it's already a frozen file, no need to touch it
+  if (!reel.videoUrl.includes('/e_mute/') && !reel.videoUrl.includes('/ac_none/') && !reel.videoUrl.includes('l_video:') && !reel.videoUrl.includes('l_audio:')) {
+    return reel.videoUrl;
   }
 
-  // Extract the latest music ID if multiple exist
-  const layers = transformString.split('/').filter(s => s.startsWith('l_audio:') || s.startsWith('l_video:'));
-  if (layers.length === 0) {
-    // No audio layers? Just return the clean version
-    return `${base}/upload/${cleanPath}`;
+  // If we have originalVideoUrl, it's safer to reconstruct if possible
+  if (reel.originalVideoUrl && reel.videoUrl.includes('fl_layer_apply')) {
+    const parts = reel.originalVideoUrl.split('/upload/');
+    if (parts.length === 2) {
+      const base = parts[0];
+      const pathPart = parts[1].startsWith('/') ? parts[1].substring(1) : parts[1];
+      
+      // Extract the music ID from the current broken URL if possible
+      const musicMatch = reel.videoUrl.match(/l_(?:video|audio):([^/,]+)/);
+      if (musicMatch) {
+         const musicIdPart = musicMatch[1];
+         // Reconstruct with ac_none
+         return `${base}/upload/ac_none/l_video:${musicIdPart}/fl_layer_apply/${pathPart}`;
+      }
+    }
   }
 
-  let musicPart = layers[layers.length - 1];
-
-  // Fix common malformations. 
-  // Since music is uploaded as resource_type: video, we use l_video:
-  const rawId = musicPart.replace('l_audio:', '').replace('l_video:', '').replace('video:upload:', '').replace('upload:', '');
-  musicPart = `l_video:${rawId.replace(/\//g, ':')}`;
-
-  // Build clean URL: mute original + latest music layer + apply
-  const healed = `${base}/upload/e_mute/${musicPart}/fl_layer_apply/${cleanPath}`;
-  return healed;
+  // Backup: manual string replacements if reconstruction fails
+  return reel.videoUrl
+    .replace(/\/e_mute\//g, '/ac_none/')
+    .replace(/l_audio:/g, 'l_video:')
+    .replace(/:upload:video:/g, ':') // Fix nested upload:video: prefix
+    .replace(/:upload:/g, ':');
 }
+
 
 /** Get uploader display name */
 async function getUploaderName(uploaderId, uploaderType) {
@@ -170,7 +172,9 @@ export const adminListReels = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: { reels },
+    data: { 
+      reels: reels.map(r => ({ ...r, videoUrl: fixLegacyDynamicUrl(r) })) 
+    },
     pagination: { page: parseInt(page), limit: limitNum, total, pages: Math.ceil(total / limitNum) },
   });
 });
@@ -184,7 +188,8 @@ export const adminGetReel = asyncHandler(async (req, res) => {
   if (!reel) {
     return res.status(404).json({ success: false, message: 'Reel not found' });
   }
-  res.status(200).json({ success: true, data: { reel } });
+  const updatedReel = { ...reel, videoUrl: fixLegacyDynamicUrl(reel) };
+  res.status(200).json({ success: true, data: { reel: updatedReel } });
 });
 
 /**
@@ -206,9 +211,17 @@ export const adminApproveReel = asyncHandler(async (req, res) => {
   let youtubeUploadError = null;
 
   try {
-    // Proactively heal URLs corrupted by legacy bugs (missing :upload: or nested transforms)
-    if (reel.videoUrl?.includes('cloudinary.com') && reel.videoUrl.includes('l_audio:')) {
-      reel.videoUrl = healReelUrl(reel.videoUrl);
+    // Proactively freeze URLs that are still dynamic (legacy or missed processing)
+    if (reel.videoUrl?.includes('cloudinary.com') && (reel.videoUrl.includes('/e_mute/') || reel.videoUrl.includes('/ac_none/') || reel.videoUrl.includes('l_video:') || reel.videoUrl.includes('l_audio:'))) {
+      try {
+        const processedResult = await uploadUrlToCloudinary(reel.videoUrl, 'reels/processed', {
+          resource_type: 'video',
+        });
+        reel.videoUrl = processedResult.secure_url;
+        reel.videoPublicId = processedResult.public_id;
+      } catch (err) {
+        console.error('[Admin Approve] Failed to freeze dynamic URL:', err.message);
+      }
     }
 
     const result = await publishReelToYouTube(reel);
@@ -269,9 +282,17 @@ export const adminRetryYouTubeUpload = asyncHandler(async (req, res) => {
   let youtubeUploadError = null;
 
   try {
-    // Proactively heal URLs corrupted by legacy bugs (missing :upload: or nested transforms)
-    if (reel.videoUrl?.includes('cloudinary.com') && reel.videoUrl.includes('l_audio:')) {
-      reel.videoUrl = healReelUrl(reel.videoUrl);
+    // Proactively freeze URLs that are still dynamic
+    if (reel.videoUrl?.includes('cloudinary.com') && (reel.videoUrl.includes('/e_mute/') || reel.videoUrl.includes('/ac_none/') || reel.videoUrl.includes('l_video:') || reel.videoUrl.includes('l_audio:'))) {
+      try {
+        const processedResult = await uploadUrlToCloudinary(reel.videoUrl, 'reels/processed', {
+          resource_type: 'video',
+        });
+        reel.videoUrl = processedResult.secure_url;
+        reel.videoPublicId = processedResult.public_id;
+      } catch (err) {
+        console.error('[Reel retry] Failed to freeze dynamic URL:', err.message);
+      }
     }
 
     const result = await publishReelToYouTube(reel);
@@ -427,15 +448,19 @@ export const replaceSong = asyncHandler(async (req, res) => {
   }
 
   // Ensure originalVideoUrl is clean (no transformations)
-  if (!reel.originalVideoUrl || reel.originalVideoUrl.includes('fl_layer_apply')) {
-    // Re-extract clean path from whatever we have
-    const oldUrl = reel.originalVideoUrl || reel.videoUrl;
-    const parts = oldUrl.split('/upload/');
-    const versionMatch = parts[1]?.match(/(v\d+\/.*)$/);
-    if (versionMatch) {
-      reel.originalVideoUrl = `${parts[0]}/upload/${versionMatch[1]}`;
-    } else {
-      reel.originalVideoUrl = oldUrl;
+  // We MUST use the original video as the base every time
+  if (!reel.originalVideoUrl || reel.originalVideoUrl.includes('/e_mute/') || reel.originalVideoUrl.includes('l_video:')) {
+    // If originalVideoUrl is somehow missing or corrupted, try to heal it or fallback to videoUrl (carefully)
+    const baseSource = reel.originalVideoUrl || reel.videoUrl;
+    const parts = baseSource.split('/upload/');
+    if (parts.length === 2) {
+      const versionMatch = parts[1].match(/(v\d+\/.*)$/);
+      if (versionMatch) {
+        reel.originalVideoUrl = `${parts[0]}/upload/${versionMatch[1]}`;
+      }
+    }
+    if (!reel.originalVideoUrl) {
+        return res.status(400).json({ success: false, message: 'Original video source not found for processing' });
     }
   }
 
@@ -443,12 +468,37 @@ export const replaceSong = asyncHandler(async (req, res) => {
   const [base, pathPart] = reel.originalVideoUrl.split('/upload/');
   const versionPath = pathPart.startsWith('/') ? pathPart.substring(1) : pathPart;
 
+  // Step 1: Generate the dynamic transformation URL (internal use only)
   // Format: l_video:folder:id
-  // NOTE: 'video' resource type is used for music overlays to support consistent processing
-  const transformedUrl = `${base}/upload/e_mute/l_video:${musicPublicId}/fl_layer_apply/${versionPath}`;
+  // We use ac_none instead of e_mute as it's more robust for audio replacement on this account
+  const transformedUrl = `${base}/upload/ac_none/l_video:${musicPublicId}/fl_layer_apply/${versionPath}`;
+
+  // Step 2: Upload this transformed URL to create a new, stable video file
+  // This "freezes" the transformation into a real file that YouTube and players can fetch reliably.
+  let processedResult;
+  try {
+    processedResult = await uploadUrlToCloudinary(transformedUrl, 'reels/processed', {
+        resource_type: 'video',
+        // Optional: you can specify a public_id based on reel ID to avoid file clutter if replaced multiple times,
+        // but here we let Cloudinary generate one to ensure we don't have cache issues.
+    });
+  } catch (err) {
+    console.error('[replaceSong] Cloudinary processing failed:', err.message);
+    return res.status(500).json({ success: false, message: 'Failed to process video with new audio' });
+  }
+
+  // Step 3: Cleanup old processed file if it exists
+  // We only delete if audioStatus was already 'replaced', meaning videoPublicId points to a processed file
+  // We NEVER delete if it's the original file (audioStatus === 'original')
+  if (reel.audioStatus === 'replaced' && reel.videoPublicId) {
+      deleteFromCloudinary(reel.videoPublicId, 'video').catch((e) => {
+          console.error('[replaceSong] Failed to delete old processed video:', e.message);
+      });
+  }
 
   // Update reel state
-  reel.videoUrl = transformedUrl;
+  reel.videoUrl = processedResult.secure_url;
+  reel.videoPublicId = processedResult.public_id;
   reel.audioStatus = 'replaced';
   reel.musicId = musicId;
   reel.status = 'pending';
@@ -468,7 +518,7 @@ export const replaceSong = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: 'Song replaced. Reel submitted for re-approval.',
+    message: 'Song replaced and video processed. Reel submitted for re-approval.',
     data: { reel }
   });
 });
@@ -602,7 +652,9 @@ export const getFeed = asyncHandler(async (req, res) => {
   const total = await Reel.countDocuments(filter);
   res.status(200).json({
     success: true,
-    data: { reels: feed },
+    data: { 
+      reels: feed.map(r => ({ ...r, videoUrl: fixLegacyDynamicUrl(r) })) 
+    },
     pagination: { page, limit, total, pages: Math.ceil(total / limit) },
   });
 });
@@ -669,7 +721,9 @@ export const getReelById = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: { reel: feedItem },
+    data: { 
+      reel: { ...feedItem, videoUrl: fixLegacyDynamicUrl(feedItem) } 
+    },
   });
 });
 

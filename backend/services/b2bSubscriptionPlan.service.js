@@ -108,13 +108,36 @@ class B2BSubscriptionPlanService {
         throw new Error('Duration must be 12 months (Yearly)');
       }
 
+      const planPrice = parseFloat(price) || 0;
+      const planName = name.trim();
+      let razorpayPlanId = null;
+
+      // 🔹 Create in Razorpay if it's a paid plan
+      if (planPrice > 0) {
+        try {
+          const razorpayPlan = await razorpayService.createPlan({
+            name: planName,
+            amount: planPrice,
+            currency: 'INR',
+            period: 'yearly',
+            interval: 1,
+            description: description?.trim() || `Yearly subscription for ${planName}`,
+          });
+          razorpayPlanId = razorpayPlan.id;
+        } catch (err) {
+          console.error('Initial Razorpay plan creation failed:', err);
+          // We continue because DB creation is the primary source of truth
+        }
+      }
+
       const planToCreate = {
-        name: name.trim(),
+        name: planName,
         duration,
-        price: parseFloat(price) || 0,
-        features: features.filter(f => f && f.trim()), // Remove empty features
+        price: planPrice,
+        features: features.filter(f => f && f.trim()),
         description: description?.trim(),
         isActive: true,
+        razorpayPlanId
       };
 
       if (createdBy) {
