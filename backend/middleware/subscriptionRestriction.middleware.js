@@ -234,3 +234,35 @@ export const requireActiveSubscription = async (req, res, next) => {
         next(error);
     }
 };
+
+/**
+ * Middleware to check if vendor can use shop slideshow
+ * Must be used after authentication middleware
+ */
+export const checkShopSlideshow = async (req, res, next) => {
+    try {
+        const vendorId = req.user?.vendorId || req.userDoc?._id;
+
+        if (!vendorId) {
+            return res.status(401).json({
+                success: false,
+                message: 'Vendor authentication required'
+            });
+        }
+
+        const result = await subscriptionRulesService.canUseShopSlideshow(vendorId);
+
+        if (!result.allowed) {
+            return res.status(403).json({
+                success: false,
+                message: result.message,
+                subscriptionRequired: result.subscriptionRequired
+            });
+        }
+
+        next();
+    } catch (error) {
+        console.error('Error in checkShopSlideshow middleware:', error);
+        next(error);
+    }
+};

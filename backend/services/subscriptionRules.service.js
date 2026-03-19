@@ -196,10 +196,9 @@ class SubscriptionRulesService {
         const subData = await this.getActiveSubscription(vendorId);
 
         if (!subData) {
-            // Allow access even without subscription (testing/pre-subscription phase)
             return {
-                hasSubscription: true,
-                message: 'Access granted (no subscription required).',
+                hasSubscription: false,
+                message: 'Active subscription required to access this feature.',
                 subscription: null
             };
         }
@@ -236,10 +235,16 @@ class SubscriptionRulesService {
                 }
             }
 
-            // If no subscription, check for addons only (assuming testing phase fallback)
+            // 1. MUST HAVE SUBSCRIPTION
             if (!subData) {
+                // If no subscription, check for addons only
                 if (addonCount > 0) return { allowed: true, useAddon: true, currentCount, limit: 0, addonCount };
-                return { allowed: true, message: 'Free access.', currentCount, limit: -1 };
+                
+                return { 
+                    allowed: false, 
+                    message: 'An active subscription plan is required to add products.',
+                    subscriptionRequired: true
+                };
             }
 
             const plan = subData.plan;
@@ -352,9 +357,13 @@ class SubscriptionRulesService {
                 }
             }
 
-            // Note: Currently property vendors don't have per-unit addons, but we check plan type
+            // 1. MUST HAVE SUBSCRIPTION
             if (!subData) {
-                return { allowed: true, message: 'Free listing.', maxImages: 10 };
+                return { 
+                    allowed: false, 
+                    message: 'An active subscription plan is required to add properties.',
+                    subscriptionRequired: true
+                };
             }
 
             const plan = subData.plan;
@@ -417,7 +426,15 @@ class SubscriptionRulesService {
                     else subLimit = 5;
                 }
             } else {
-                subLimit = 3; // Free default
+                // Return false if no subscription and no addon
+                if (addonCount === 0) {
+                    return { 
+                        allowed: false, 
+                        message: 'An active subscription plan is required to upload reels.',
+                        subscriptionRequired: true
+                    };
+                }
+                subLimit = 0;
             }
 
             if (subLimit === -1 || currentCount < subLimit) {
@@ -514,22 +531,22 @@ class SubscriptionRulesService {
         };
 
         if (!subData) {
-            // No subscription: Allow everything by default (testing/pre-subscription phase)
+            // No subscription: Strict restriction
             return {
-                hasSubscription: true,
+                hasSubscription: false,
                 hasShop,
                 plan: {
                     id: null,
-                    name: 'Free Access',
-                    type: 'free',
+                    name: 'No Active Plan',
+                    type: 'none',
                     expiresAt: null
                 },
                 businessType: null,
                 limits: {
-                    products: { allowed: true, limit: -1, current: await this.getProductCount(vendorId), remaining: -1 },
-                    lotSlot: { allowed: true, current: await this.getLotSlotCount(vendorId) },
-                    properties: { allowed: true, maxImages: 10 },
-                    reels: { allowed: true, limit: -1, current: await this.getReelCount(vendorId) }
+                    products: { allowed: false, limit: 0, current: await this.getProductCount(vendorId), remaining: 0 },
+                    lotSlot: { allowed: false, current: await this.getLotSlotCount(vendorId) },
+                    properties: { allowed: false, maxImages: 0 },
+                    reels: { allowed: addonStats.reels > 0, limit: 0, current: await this.getReelCount(vendorId) }
                 },
                 addons: addonStats
             };
@@ -604,6 +621,33 @@ class SubscriptionRulesService {
             },
             addons: addonStats
         };
+    }
+
+    async canUseShopSlideshow(vendorId) {
+        try {
+            const subData = await this.getActiveSubscription(vendorId);
+
+            if (!subData) {
+                return { 
+                    allowed: false, 
+                    message: 'An active subscription plan is required for shop slideshow.',
+                    subscriptionRequired: true
+                };
+            }
+
+            const plan = subData.plan;
+            if (plan && plan.shopSlideshow) {
+                return { allowed: true };
+            }
+
+            return { 
+                allowed: false, 
+                message: 'Shop slideshow is not included in your current plan. Please upgrade to use this feature.' 
+            };
+        } catch (error) {
+            console.error('Error in canUseShopSlideshow:', error);
+            return { allowed: false, message: 'Access check failed.' };
+        }
     }
 }
 

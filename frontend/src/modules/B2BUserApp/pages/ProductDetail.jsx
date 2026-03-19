@@ -218,10 +218,14 @@ const B2BProductDetail = () => {
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="relative aspect-[4/3] rounded-3xl md:rounded-[3rem] overflow-hidden bg-white shadow-2xl border border-gray-100 group"
+                            className="relative aspect-square md:aspect-[3/4] rounded-3xl md:rounded-[3rem] overflow-hidden bg-slate-50 shadow-2xl border border-gray-100 group flex items-center justify-center"
                         >
-                            <img src={productImages[safeSelectedImage]} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
+                            <img 
+                                src={productImages[safeSelectedImage]} 
+                                alt={product.name} 
+                                className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105" 
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent pointer-events-none" />
                         </motion.div>
 
                         {productImages.length > 1 && (
@@ -230,9 +234,9 @@ const B2BProductDetail = () => {
                                     <button
                                         key={idx}
                                         onClick={() => setSelectedImage(idx)}
-                                        className={`flex-shrink-0 w-20 h-20 md:w-28 md:h-28 rounded-2xl md:rounded-[1.5rem] overflow-hidden border-2 md:border-4 transition-all duration-300 ${safeSelectedImage === idx ? 'border-primary-500 shadow-xl scale-105' : 'border-white hover:border-primary-100 shadow-sm'}`}
+                                        className={`flex-shrink-0 w-20 h-20 md:w-28 md:h-28 rounded-2xl md:rounded-[1.5rem] overflow-hidden border-2 md:border-4 transition-all duration-300 bg-slate-50 flex items-center justify-center ${safeSelectedImage === idx ? 'border-primary-500 shadow-xl scale-105' : 'border-white hover:border-primary-100 shadow-sm'}`}
                                     >
-                                        <img src={img} alt="" className="w-full h-full object-cover" />
+                                        <img src={img} alt="" className="w-full h-full object-contain" />
                                     </button>
                                 ))}
                             </div>

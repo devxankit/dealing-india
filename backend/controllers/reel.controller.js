@@ -926,7 +926,7 @@ export const getPlaylistByCategory = asyncHandler(async (req, res) => {
  */
 export const getReelSharePage = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const reel = await Reel.findById(id).lean();
+    const reel = await Reel.findById(id).populate('productId propertyId').lean();
 
     const fUrl = (process.env.FRONTEND_URL || 'https://dealingindia.com').replace(/\/+$/, '');
     const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' || req.get('host').includes('dealingindia.com') ? 'https' : 'http';
@@ -940,13 +940,28 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
 
     if (reel) {
         const type = reel.propertyId ? "Property" : (reel.productId ? "Product" : "Reel");
-        title = reel.title || `${type} from ${reel.uploaderName || 'Dealing India'}`;
-        description = reel.description || `Watch this ${reel.categoryName || ''} ${type.toLowerCase()} in action on Dealing India.`;
         
+        // Handle custom title based on product/property if available
+        if (reel.productId && reel.productId.name) {
+            title = `Check out this product: ${reel.productId.name}`;
+            description = reel.description || `Watch this ${reel.categoryName || ''} product in action on Dealing India.`;
+        } else if (reel.propertyId && reel.propertyId.title) {
+            title = `Check out this property: ${reel.propertyId.title}`;
+            description = reel.description || `Explore this property listing on Dealing India.`;
+        } else {
+            title = reel.title || `${type} from ${reel.uploaderName || 'Dealing India'}`;
+            description = reel.description || `Watch this ${reel.categoryName || ''} ${type.toLowerCase()} in action on Dealing India.`;
+        }
+        
+        // Handle images with fallback hierarchy
         if (reel.thumbnailUrl) {
             image = reel.thumbnailUrl;
         } else if (reel.youtubeVideoId) {
             image = `https://img.youtube.com/vi/${reel.youtubeVideoId}/maxresdefault.jpg`;
+        } else if (reel.productId && (reel.productId.image || reel.productId.images?.[0])) {
+            image = reel.productId.image || reel.productId.images[0];
+        } else if (reel.propertyId && reel.propertyId.images?.[0]) {
+            image = reel.propertyId.images[0];
         }
     } else if (id && !isMongoId(id)) {
         // Handle non-Mongo IDs (potentially direct YouTube IDs)

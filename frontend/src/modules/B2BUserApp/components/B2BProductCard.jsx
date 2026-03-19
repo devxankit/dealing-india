@@ -87,20 +87,25 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                 {/* Images */}
                 {allImages.length > 0 ? (
                     allImages.map((img, idx) => (
-                        <img
+                        <div 
                             key={idx}
-                            src={img}
-                            alt={`${product.name} - ${idx + 1}`}
-                            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${activeImageIndex === idx ? 'opacity-100 scale-105' : 'opacity-0'
-                                }`}
-                        />
+                            className={`absolute inset-0 w-full h-full bg-slate-50 flex items-center justify-center p-1 transition-opacity duration-300 ${activeImageIndex === idx ? 'opacity-100' : 'opacity-0'}`}
+                        >
+                            <img
+                                src={img}
+                                alt={`${product.name} - ${idx + 1}`}
+                                className="w-full h-full object-contain transition-transform duration-700 hover:scale-105"
+                            />
+                        </div>
                     ))
                 ) : (
-                    <img
-                        src="https://via.placeholder.com/400x300?text=No+Image"
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                    />
+                    <div className="w-full h-full bg-slate-50 flex items-center justify-center p-4">
+                        <img
+                            src="https://via.placeholder.com/400x300?text=No+Image"
+                            alt={product.name}
+                            className="w-full h-full object-contain opacity-50"
+                        />
+                    </div>
                 )}
 
                 {/* Navigation Buttons (Only if multiple images) */}
