@@ -50,6 +50,11 @@
     "children": []
   },
   {
+    "title": "Add-on Plans",
+    "route": "/admin/b2b-vendors/addon-plans",
+    "children": []
+  },
+  {
     "title": "Categories",
     "route": "/admin/b2b-vendors/categories",
     "children": []

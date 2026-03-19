@@ -103,9 +103,9 @@ class B2BSubscriptionPlanService {
     try {
       const { name, duration, price, features = [], description } = planData;
 
-      // Validate duration - strictly Yearly (12 months)
-      if (duration !== 12) {
-        throw new Error('Duration must be 12 months (Yearly)');
+      // Validate duration - must be 3, 6, or 12 months
+      if (![3, 6, 12].includes(Number(duration))) {
+        throw new Error('Duration must be 3, 6, or 12 months');
       }
 
       const planPrice = parseFloat(price) || 0;
@@ -115,13 +115,22 @@ class B2BSubscriptionPlanService {
       // 🔹 Create in Razorpay if it's a paid plan
       if (planPrice > 0) {
         try {
+          // Determine period and interval for Razorpay
+          let razorPeriod = 'monthly';
+          let razorInterval = duration;
+          
+          if (duration === 12) {
+            razorPeriod = 'yearly';
+            razorInterval = 1;
+          }
+
           const razorpayPlan = await razorpayService.createPlan({
             name: planName,
             amount: planPrice,
             currency: 'INR',
-            period: 'yearly',
-            interval: 1,
-            description: description?.trim() || `Yearly subscription for ${planName}`,
+            period: razorPeriod,
+            interval: razorInterval,
+            description: description?.trim() || `${duration} months subscription for ${planName}`,
           });
           razorpayPlanId = razorpayPlan.id;
         } catch (err) {
@@ -136,6 +145,11 @@ class B2BSubscriptionPlanService {
         price: planPrice,
         features: features.filter(f => f && f.trim()),
         description: description?.trim(),
+        reelsLimit: planData.reelsLimit || 0,
+        productLimit: planData.productLimit || 0,
+        lotSlotLimit: planData.lotSlotLimit || 0,
+        imagesPerListing: planData.imagesPerListing || 5,
+        shopSlideshow: !!planData.shopSlideshow,
         isActive: true,
         razorpayPlanId
       };
@@ -171,10 +185,22 @@ class B2BSubscriptionPlanService {
       if (!plan) {
         throw new Error('B2B subscription plan not found');
       }
+ 
+      // 🔹 Validate structured numeric features if provided
+      const structuredNumericFields = ['reelsLimit', 'productLimit', 'lotSlotLimit', 'imagesPerListing'];
+      for (const field of structuredNumericFields) {
+        if (updateData[field] !== undefined && updateData[field] !== 'unlimited') {
+          const val = Number(updateData[field]);
+          if (isNaN(val) || val < 0) {
+            throw new Error(`Invalid value for ${field}: must be a non-negative number or 'unlimited'`);
+          }
+          updateData[field] = val; // Normalize to number if numeric
+        }
+      }
 
-      // Validate duration - strictly Yearly (12 months)
-      if (duration !== 12) {
-        throw new Error('Duration must be 12 months (Yearly)');
+      // Validate duration if provided - must be 3, 6, or 12 months
+      if (duration !== undefined && ![3, 6, 12].includes(Number(duration))) {
+        throw new Error('Duration must be 3, 6, or 12 months');
       }
 
       // 🔹 Detect critical changes
@@ -194,18 +220,28 @@ class B2BSubscriptionPlanService {
        */
       if ((isPriceChanged || isNameChanged) && newPrice > 0) {
         const planName = name?.trim() || plan.name;
+        const planDuration = duration !== undefined ? Number(duration) : plan.duration;
         const planDescription =
           description?.trim() ||
           plan.description ||
-          `Yearly subscription for ${planName}`;
+          `${planDuration} months subscription for ${planName}`;
 
         try {
+          // Determine period and interval for Razorpay
+          let razorPeriod = 'monthly';
+          let razorInterval = planDuration;
+          
+          if (planDuration === 12) {
+            razorPeriod = 'yearly';
+            razorInterval = 1;
+          }
+
           const razorpayPlan = await razorpayService.createPlan({
             name: planName,
             amount: newPrice,
             currency: 'INR',
-            period: 'yearly',
-            interval: 1,
+            period: razorPeriod,
+            interval: razorInterval,
             description: planDescription,
           });
 
@@ -240,6 +276,13 @@ class B2BSubscriptionPlanService {
       if (updateData.razorpayPlanId !== undefined) {
         plan.razorpayPlanId = updateData.razorpayPlanId;
       }
+ 
+      // 🔹 Update Structured Features
+      if (updateData.reelsLimit !== undefined) plan.reelsLimit = updateData.reelsLimit;
+      if (updateData.productLimit !== undefined) plan.productLimit = updateData.productLimit;
+      if (updateData.lotSlotLimit !== undefined) plan.lotSlotLimit = updateData.lotSlotLimit;
+      if (updateData.imagesPerListing !== undefined) plan.imagesPerListing = updateData.imagesPerListing;
+      if (updateData.shopSlideshow !== undefined) plan.shopSlideshow = !!updateData.shopSlideshow;
 
       await plan.save();
       return plan.toObject();
@@ -300,11 +343,13 @@ class B2BSubscriptionPlanService {
         }
       }
 
-      // Deactivate any existing plans that are not 12 months
+      // No longer auto-deactivating non-12-month plans as they are now officially supported
+/*
       await B2BSubscriptionPlan.updateMany(
         { duration: { $ne: 12 } },
         { isActive: false }
       );
+*/
 
       return this.getAllPlans({ includeInactive: false });
     } catch (error) {

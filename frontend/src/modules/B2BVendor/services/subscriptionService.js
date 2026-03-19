@@ -172,6 +172,87 @@ export const verifyUpgradePayment = async (verifyData) => {
     }
 };
 
+/**
+ * Get available addon plans for vendor
+ */
+export const getAddonPlans = async (featureType) => {
+    try {
+        const params = featureType ? { featureType } : {};
+        const response = await api.get('/vendor/addons/available', { params });
+        if (response.success) {
+            return response.data;
+        }
+        return [];
+    } catch (error) {
+        console.error('Error fetching addon plans:', error);
+        return [];
+    }
+};
+
+/**
+ * Initialize addon purchase
+ */
+export const initializeAddonPurchase = async (planId) => {
+    try {
+        const response = await api.post('/vendor/addons/initialize', { addonPlanId: planId });
+        if (response.success) {
+            return response.data;
+        }
+        throw new Error(response.message || 'Failed to initialize addon purchase');
+    } catch (error) {
+        console.error('Error initializing addon purchase:', error);
+        throw error;
+    }
+};
+
+/**
+ * Verify addon payment
+ */
+export const verifyAddonPayment = async (paymentData) => {
+    try {
+        const response = await api.post('/vendor/addons/verify', paymentData);
+        if (response.success) {
+            return response.data;
+        }
+        throw new Error(response.message || 'Addon payment verification failed');
+    } catch (error) {
+        console.error('Error verifying addon payment:', error);
+        throw error;
+    }
+};
+
+/**
+ * Get current addon usage/status
+ */
+export const getAddonStatus = async () => {
+    try {
+        const response = await api.get('/vendor/addons/status');
+        if (response.success) {
+            return response.data;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching addon status:', error);
+        return null;
+    }
+};
+
+/**
+ * Get recent addon purchase history
+ */
+export const getAddonHistory = async () => {
+    try {
+        const response = await api.get('/vendor/addons/history');
+        if (response.success) {
+            return response.data;
+        }
+        return [];
+    } catch (error) {
+        console.error('Error fetching addon history:', error);
+        return [];
+    }
+};
+ 
 export default {
     getPlans,
     getCurrentSubscription,
@@ -182,4 +263,9 @@ export default {
     verifyPayment,
     initializeUpgrade,
     verifyUpgradePayment,
+    getAddonPlans,
+    initializeAddonPurchase,
+    verifyAddonPayment,
+    getAddonStatus,
+    getAddonHistory
 };

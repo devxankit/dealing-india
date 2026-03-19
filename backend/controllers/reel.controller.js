@@ -120,6 +120,16 @@ export const uploadReel = asyncHandler(async (req, res) => {
     status: 'pending',
   });
 
+  // 🔹 Consume addon if necessary (Middleware flagged this)
+  if (uploaderType === 'vendor' && req.subscriptionLimits?.reels?.useAddon) {
+    try {
+      const vendorAddonService = (await import('../services/vendorAddon.service.js')).default;
+      await vendorAddonService.consumeAddonUnit(uploaderId, 'reels');
+    } catch (addonError) {
+      console.error('Error consuming reel addon:', addonError);
+    }
+  }
+
   res.status(201).json({
     success: true,
     message: 'Reel submitted for moderation',

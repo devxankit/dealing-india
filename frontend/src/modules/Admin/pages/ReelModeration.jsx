@@ -44,7 +44,7 @@ export default function ReelModeration() {
   const [replacingReel, setReplacingReel] = useState(null);
   const [approvedMusic, setApprovedMusic] = useState([]);
   const [musicLoading, setMusicLoading] = useState(false);
-  const [replacing, setReplacing] = useState(false);
+  const [replacingId, setReplacingId] = useState(null);
 
   const fetchReels = async () => {
     setLoading(true);
@@ -153,7 +153,7 @@ export default function ReelModeration() {
 
   const handleReplaceSong = async (musicId) => {
     if (!replacingReel || !musicId) return;
-    setReplacing(true);
+    setReplacingId(musicId);
     try {
       const res = await api.post(`/reels/${replacingReel._id}/replace-song`, { musicId });
       if (res.success) {
@@ -165,7 +165,7 @@ export default function ReelModeration() {
     } catch (err) {
       toast.error(err.message || 'Replacement failed');
     } finally {
-      setReplacing(false);
+      setReplacingId(null);
     }
   };
 
@@ -657,7 +657,7 @@ export default function ReelModeration() {
               animate={{ opacity: 0.5 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black"
-              onClick={() => !replacing && setReplacingReel(null)}
+              onClick={() => !replacingId && setReplacingReel(null)}
             />
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -670,7 +670,7 @@ export default function ReelModeration() {
                   <h2 className="text-lg font-bold text-gray-900">Choose Approved Music</h2>
                   <p className="text-xs text-gray-500">Pick a non-copyrighted song for "{replacingReel.title}"</p>
                 </div>
-                <button onClick={() => setReplacingReel(null)} disabled={replacing}>
+                <button onClick={() => setReplacingReel(null)} disabled={replacingId !== null}>
                   <FiX className="text-xl text-gray-400 hover:text-gray-600" />
                 </button>
               </div>
@@ -700,10 +700,10 @@ export default function ReelModeration() {
                       </div>
                       <button
                         onClick={() => handleReplaceSong(song._id)}
-                        disabled={replacing}
+                        disabled={replacingId !== null}
                         className="px-4 py-2 bg-primary-600 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 disabled:opacity-50 transition-opacity"
                       >
-                        {replacing ? 'Applying...' : 'Select'}
+                        {replacingId === song._id ? 'Applying...' : 'Select'}
                       </button>
                     </div>
                   ))

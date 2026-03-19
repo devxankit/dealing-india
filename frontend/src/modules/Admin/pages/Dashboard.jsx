@@ -43,7 +43,8 @@ const Dashboard = () => {
     FiHome: <FiHome />,
     FiZap: <FiZap />,
     FiImage: <FiImage />,
-    FiUserPlus: <FiUserPlus />
+    FiUserPlus: <FiUserPlus />,
+    FiTrendingUp: <FiTrendingUp />,
   };
 
   useEffect(() => {
@@ -56,19 +57,18 @@ const Dashboard = () => {
 
           setDashboardData({
             summary: [
+              { label: 'Total Revenue', value: apiData.totalRevenue || 0, trend: '+24%', trendType: 'up', icon: 'FiTrendingUp', color: 'emerald', prefix: '₹' },
               { label: 'Total Users', value: apiData.totalCustomers || 0, trend: '+15%', trendType: 'up', icon: 'FiUserPlus', color: 'indigo', link: '/admin/users' },
               { label: 'Total Vendors', value: apiData.totalVendors, trend: '+12%', trendType: 'up', icon: 'FiUsers', color: 'blue', link: '/admin/b2b-vendors/manage' },
               { label: 'Active Vendors', value: apiData.activeVendors, trend: '+5%', trendType: 'up', icon: 'FiUserCheck', color: 'green', link: '/admin/b2b-vendors/manage' },
               { label: 'Total Products', value: apiData.totalProducts, trend: '+18%', trendType: 'up', icon: 'FiPackage', color: 'purple', link: '/admin/b2b-vendors/products' },
               { label: 'Total Properties', value: apiData.totalProperties, trend: '+8%', trendType: 'up', icon: 'FiHome', color: 'orange', link: '/admin/b2b-vendors/properties' },
-              // Removed Lot Slots here to fit the "Users" card into a 6-card grid nicely or keep it 7? 
-              // User said "ek aur card show kro user ka". The screenshot has 6 cards. 
-              // I'll make it 7 cards if needed, or replace one. 
-              // Let's keep all 7 cards.
               { label: 'Lot Slots', value: apiData.totalLotSlots || 0, trend: '+15%', trendType: 'up', icon: 'FiZap', color: 'indigo', link: '/admin/b2b-vendors/lot-slots' },
               { label: 'Live Banners', value: apiData.activeBanners, trend: '-3%', trendType: 'down', icon: 'FiImage', color: 'pink', link: '/admin/b2b-vendors/banner-bookings' }
             ],
             vendorDistribution: vendorDist || [],
+            paymentHistory: response.data.paymentHistory || [],
+            revenueData: response.data.revenueData || [],
             subscriptions: {
               product: { active: apiData.activeProducts || 0 },
               property: { active: apiData.activeProperties || 0 },
@@ -121,7 +121,9 @@ const Dashboard = () => {
   const {
     summary, vendorDistribution, subscriptions,
     listingHealth,
-    performance
+    performance,
+    paymentHistory,
+    revenueData
   } = dashboardData;
 
   return (
@@ -146,7 +148,7 @@ const Dashboard = () => {
       </div>
 
       {/* Section 1: Top Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {summary.map((item, idx) => (
           <motion.div
             key={idx}
@@ -160,7 +162,7 @@ const Dashboard = () => {
             </div>
             <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{item.label}</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-2xl font-black text-gray-900">{item.value.toLocaleString()}</h3>
+              <h3 className="text-2xl font-black text-gray-900">{item.prefix || ''}{item.value.toLocaleString()}</h3>
               <div className={`flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full ${item.trendType === 'up' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
                 {item.trendType === 'up' ? <FiTrendingUp /> : <FiTrendingDown />}
                 {item.trend}
@@ -317,6 +319,107 @@ const Dashboard = () => {
                 <Bar dataKey="views" fill="#8B5CF6" radius={[0, 10, 10, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Revenue Performance Chart */}
+        <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-gray-100 col-span-full">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-black text-gray-900">Revenue Performance</h3>
+            <div className="px-4 py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-xs font-black uppercase tracking-wider">
+              Last 6 Months
+            </div>
+          </div>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={revenueData || []}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }}
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }}
+                  tickFormatter={(value) => `₹${value.toLocaleString()}`}
+                />
+                <Tooltip 
+                  cursor={{ fill: '#F9FAFB' }}
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']}
+                />
+                <Bar 
+                  dataKey="revenue" 
+                  fill="#10B981" 
+                  radius={[8, 8, 0, 0]} 
+                  barSize={40}
+                  animationBegin={200}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Payment History Table */}
+        <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-gray-100 col-span-full">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-black text-gray-900">Recent Payment History</h3>
+            <button 
+              onClick={() => navigate('/admin/settings/transactions')}
+              className="text-primary-600 hover:text-primary-700 font-bold text-sm transition-colors"
+            >
+              View All Transactions
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-gray-50">
+                  <th className="pb-4 text-xs font-black text-gray-400 uppercase tracking-widest px-4">User/Vendor</th>
+                  <th className="pb-4 text-xs font-black text-gray-400 uppercase tracking-widest px-4">Amount</th>
+                  <th className="pb-4 text-xs font-black text-gray-400 uppercase tracking-widest px-4">Method</th>
+                  <th className="pb-4 text-xs font-black text-gray-400 uppercase tracking-widest px-4">Date</th>
+                  <th className="pb-4 text-xs font-black text-gray-400 uppercase tracking-widest px-4 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentHistory && paymentHistory.length > 0 ? (
+                  paymentHistory.map((payment, idx) => (
+                    <tr key={idx} className="group hover:bg-gray-50/50 transition-colors">
+                      <td className="py-5 px-4">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-gray-900">{payment.user}</span>
+                          <span className="text-[10px] text-gray-400 font-medium">{payment.userEmail}</span>
+                        </div>
+                      </td>
+                      <td className="py-5 px-4">
+                        <span className="font-black text-gray-900">₹{payment.amount?.toLocaleString()}</span>
+                      </td>
+                      <td className="py-5 px-4 text-sm text-gray-500 font-medium capitalize">{payment.method}</td>
+                      <td className="py-5 px-4 text-sm text-gray-500 font-medium">
+                        {new Date(payment.date).toLocaleDateString()}
+                      </td>
+                      <td className="py-5 px-4 text-right">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          payment.status === 'completed' ? 'bg-green-50 text-green-600' : 
+                          payment.status === 'pending' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
+                        }`}>
+                          {payment.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="py-10 text-center text-gray-400 font-bold">No payment history found</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

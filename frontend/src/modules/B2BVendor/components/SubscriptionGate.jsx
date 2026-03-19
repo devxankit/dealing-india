@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiLock, FiAlertCircle, FiArrowRight, FiRefreshCw, FiPlus, FiCheckCircle } from 'react-icons/fi';
+import { FiLock, FiAlertCircle, FiArrowRight, FiRefreshCw, FiPlus, FiCheckCircle, FiPackage, FiCreditCard, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useVendorSettings } from '../hooks/useVendorSettings';
 import { useSubscriptionStore } from '../store/subscriptionStore';
+import subscriptionService from '../services/subscriptionService';
+import { initializeRazorpayCheckout, handlePaymentSuccess } from '../../../shared/services/paymentService';
+import toast from 'react-hot-toast';
 
 /**
  * SubscriptionGate Component
- * Wraps listing action buttons and shows appropriate state based on shop setup
- * 
- * Props:
- * - action: 'product' | 'lotslot' | 'property'
- * - children: The button/content to show when allowed
- * - showLimitInfo: Whether to show current usage/limits
+ * Wraps listing action buttons and shows appropriate state based on subscription status/addons
  */
 const SubscriptionGate = ({ action, children, showLimitInfo = true }) => {
     const navigate = useNavigate();
@@ -25,47 +23,102 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true }) => {
         canCreateProduct,
         canCreateLotSlot,
         canCreateProperty,
+        canUploadReel,
         hasShop
     } = useSubscriptionStore();
 
     const [showShopModal, setShowShopModal] = useState(false);
+    const [showAddonModal, setShowAddonModal] = useState(false);
+    const [addonPlans, setAddonPlans] = useState([]);
+    const [loadingAddons, setLoadingAddons] = useState(false);
+    const [processingAddonId, setProcessingAddonId] = useState(null);
 
     const loading = settingsLoading || subscriptionLoading;
 
-    // Fetch subscription status on mount if not already loaded
     useEffect(() => {
         if (!status && !subscriptionLoading) {
             fetchStatus();
         }
     }, [status, subscriptionLoading, fetchStatus]);
 
-    // Check if module is enabled for this business type
     const isModuleEnabled = () => {
         if (!settings || !settings.enabledModules) return true;
-
         switch (action) {
             case 'product': return settings.enabledModules.includes('product');
             case 'property': return settings.enabledModules.includes('property');
             case 'lotslot': return settings.enabledModules.includes('lotslot');
+            case 'reels': return true; // Reels are usually enabled if B2B is enabled
             default: return true;
         }
     };
 
-    if (!isModuleEnabled()) {
-        return null;
-    }
-
-    // Determine permission based on action type
     const getPermission = () => {
         switch (action) {
             case 'product': return canCreateProduct();
             case 'lotslot': return canCreateLotSlot();
             case 'property': return canCreateProperty();
+            case 'reels': return canUploadReel();
             default: return { allowed: true };
         }
     };
 
-    // If still loading, show skeleton
+    const handleFetchAddons = async () => {
+        try {
+            setLoadingAddons(true);
+            const plans = await subscriptionService.getAddonPlans();
+            const featureTypeMap = {
+                product: 'products',
+                lotslot: 'lot_slot',
+                reels: 'reels'
+            };
+            const filtered = plans.filter(p => p.featureType === featureTypeMap[action]);
+            setAddonPlans(filtered);
+            setShowAddonModal(true);
+        } catch (err) {
+            toast.error('Failed to load addon plans');
+        } finally {
+            setLoadingAddons(false);
+        }
+    };
+
+    const handleBuyAddon = async (planId) => {
+        if (processingAddonId) return;
+
+        try {
+            setProcessingAddonId(planId);
+            const response = await subscriptionService.initializeAddonPurchase(planId);
+            const { order, key } = response;
+
+            if (order && key) {
+                const paymentResponse = await initializeRazorpayCheckout({
+                    key: key,
+                    amount: order.amount / 100,
+                    orderId: order.id,
+                    name: 'Dealing India Add-on',
+                    description: `Purchase Extra Feature Units`,
+                });
+
+                toast.loading('Verifying purchase...', { id: 'verify-addon-gate' });
+
+                const verifyData = {
+                    planId: planId,
+                    ...handlePaymentSuccess(paymentResponse)
+                };
+
+                await subscriptionService.verifyAddonPayment(verifyData);
+                toast.success('Add-on purchased successfully!', { id: 'verify-addon-gate' });
+                setShowAddonModal(false);
+                fetchStatus(true); // Refresh store
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to purchase add-on');
+        } finally {
+            setProcessingAddonId(null);
+        }
+    };
+
+    if (!isModuleEnabled()) return null;
+
     if (loading && !status) {
         return (
             <div className="animate-pulse">
@@ -76,108 +129,132 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true }) => {
 
     const permission = getPermission();
 
-    // 1. Check if Shop Listing is completed (Mandatory first step)
     if (!hasShop()) {
         return (
-            <>
+            <div className="relative group">
                 <button
                     onClick={() => setShowShopModal(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-bold hover:shadow-lg transition-all"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-400 rounded-xl font-bold cursor-not-allowed border border-gray-200"
                 >
                     <FiLock className="text-lg" />
                     Complete Shop Listing
                 </button>
-
                 <AnimatePresence>
                     {showShopModal && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                            onClick={() => setShowShopModal(false)}
-                        >
-                            <motion.div
-                                initial={{ scale: 0.9, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                exit={{ scale: 0.9, opacity: 0 }}
-                                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl"
-                                onClick={e => e.stopPropagation()}
-                            >
-                                <div className="text-center">
-                                    <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <FiPlus className="text-3xl text-indigo-600" />
-                                    </div>
-                                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                                        Shop Listing Required
-                                    </h3>
-                                    <p className="text-gray-500 mb-6 font-medium">
-                                        Abhi aapne apni shop list nahi ki hai. Pehle Shop Listing poori karein, uske baad hi aap {action === 'product' ? 'products' : action === 'property' ? 'properties' : 'lot/slots'} add kar payenge.
-                                    </p>
-                                    <div className="flex gap-3">
-                                        <button
-                                            onClick={() => setShowShopModal(false)}
-                                            className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all"
-                                        >
-                                            Abhi Nahi
-                                        </button>
-                                        <button
-                                            onClick={() => { setShowShopModal(false); navigate('/b2b-vendor/shop-listing'); }}
-                                            className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-md shadow-indigo-100"
-                                        >
-                                            Go to Shop Listing <FiArrowRight />
-                                        </button>
-                                    </div>
+                        <Modal onClose={() => setShowShopModal(false)}>
+                            <div className="text-center">
+                                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <FiPlus className="text-3xl text-indigo-600" />
                                 </div>
-                            </motion.div>
-                        </motion.div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">Shop Listing Required</h3>
+                                <p className="text-gray-500 mb-6 font-medium">
+                                    Please complete your shop listing first to unlock {action} listings.
+                                </p>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setShowShopModal(false)} className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50">Later</button>
+                                    <button onClick={() => { setShowShopModal(false); navigate('/b2b-vendor/shop-listing'); }} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-md shadow-indigo-100 flex items-center justify-center gap-2">Go to Shop Listing <FiArrowRight /></button>
+                                </div>
+                            </div>
+                        </Modal>
                     )}
                 </AnimatePresence>
-            </>
+            </div>
         );
     }
 
-    // 2. TEMPORARY: Subscription and Limit checks disabled
+    if (!permission.allowed) {
+        return (
+            <div className="relative group">
+                <button
+                    onClick={permission.requiresAddon ? handleFetchAddons : () => navigate('/b2b-vendor/subscription')}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-amber-50 text-amber-600 rounded-xl font-bold border border-amber-200 hover:bg-amber-100 transition-all"
+                >
+                    <FiAlertCircle className="text-lg" />
+                    {permission.requiresAddon ? 'Buy Extra Units' : 'Upgrade Plan'}
+                </button>
+                
+                <AnimatePresence>
+                    {showAddonModal && (
+                        <Modal onClose={() => setShowAddonModal(false)}>
+                            <div className="text-center">
+                                <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 mx-auto mb-4">
+                                    <FiPackage className="text-2xl" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-1">Limit Reached</h3>
+                                <p className="text-gray-500 mb-6 font-medium text-sm">{permission.message}</p>
+                                
+                                <div className="grid grid-cols-1 gap-3 mb-6">
+                                    {addonPlans.map(plan => (
+                                        <button
+                                            key={plan._id}
+                                            onClick={() => handleBuyAddon(plan._id)}
+                                            disabled={!!processingAddonId}
+                                            className="flex items-center justify-between p-4 border-2 border-gray-100 rounded-2xl hover:border-primary-500 hover:bg-primary-50 transition-all group/item"
+                                        >
+                                            <div className="text-left">
+                                                <p className="font-bold text-gray-800">{plan.name}</p>
+                                                <p className="text-xs text-gray-500">{plan.quantity} Units</p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="font-bold text-primary-600">₹{plan.price}</span>
+                                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center group-hover/item:bg-primary-600 group-hover/item:text-white transition-colors">
+                                                    {processingAddonId === plan._id ? <FiRefreshCw className="animate-spin" /> : <FiPlus />}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                    {addonPlans.length === 0 && !loadingAddons && (
+                                        <p className="text-gray-400 text-sm italic">No add-on packs available for your role.</p>
+                                    )}
+                                    {loadingAddons && <div className="animate-spin h-8 w-8 border-2 border-primary-600 border-t-transparent rounded-full mx-auto"></div>}
+                                </div>
+
+                                <button onClick={() => navigate('/b2b-vendor/subscription')} className="text-sm font-bold text-indigo-600 hover:underline">Or upgrade your full subscription plan</button>
+                            </div>
+                        </Modal>
+                    )}
+                </AnimatePresence>
+            </div>
+        );
+    }
+
     return (
         <div className="flex items-center gap-4">
             {children}
-
-            {showLimitInfo && action === 'product' && permission.limit !== -1 && (
-                <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg">
-                    <span className="font-medium">
-                        {permission.current}/{permission.limit === -1 ? '∞' : permission.limit}
+            {showLimitInfo && permission.limit !== undefined && permission.limit !== -1 && (
+                <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                    <span className={`font-bold ${permission.isAddon ? 'text-primary-600' : ''}`}>
+                        {permission.current}/{permission.limit}
                     </span>
-                    <span>listings used</span>
-                </div>
-            )}
-
-            {showLimitInfo && action === 'property' && permission.maxImages && (
-                <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg">
-                    <span className="font-medium">Max {permission.maxImages}</span>
-                    <span>images/property</span>
+                    <span>{permission.isAddon ? 'addons used' : 'used'}</span>
                 </div>
             )}
         </div>
     );
 };
 
-/**
- * SubscriptionStatusBadge Component
- */
+const Modal = ({ children, onClose }) => (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+        <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative"
+            onClick={e => e.stopPropagation()}
+        >
+            <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"><FiX /></button>
+            {children}
+        </motion.div>
+    </div>
+);
+
 export const SubscriptionStatusBadge = () => {
     const { status, loading, fetchStatus, refreshStatus } = useSubscriptionStore();
-
     useEffect(() => {
-        if (!status && !loading) {
-            fetchStatus();
-        }
+        if (!status && !loading) fetchStatus();
     }, [status, loading, fetchStatus]);
 
-    if (loading && !status) {
-        return (
-            <div className="animate-pulse h-6 w-20 bg-gray-200 rounded-lg"></div>
-        );
-    }
+    if (loading && !status) return <div className="animate-pulse h-6 w-20 bg-gray-200 rounded-lg"></div>;
 
     if (!status?.hasSubscription) {
         return (
@@ -189,11 +266,7 @@ export const SubscriptionStatusBadge = () => {
     }
 
     return (
-        <span
-            className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg cursor-pointer hover:bg-indigo-100 transition-colors"
-            onClick={() => refreshStatus()}
-            title="Click to refresh"
-        >
+        <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg cursor-pointer hover:bg-indigo-100 transition-colors" onClick={() => refreshStatus()} title="Click to refresh">
             <FiRefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             {status.plan?.name || 'Active'}
         </span>

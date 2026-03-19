@@ -49,16 +49,28 @@ export const checkProductCreation = async (req, res, next) => {
             });
         }
 
-        // TEMPORARY: Subscription check bypassed - allow all vendors to add products without subscription
         const result = await subscriptionRulesService.canCreateProduct(vendorId);
+        
+        if (!result.allowed) {
+            return res.status(403).json({
+                success: false,
+                message: result.message,
+                requiresAddon: result.requiresAddon,
+                featureType: result.featureType,
+                currentCount: result.currentCount,
+                limit: result.limit
+            });
+        }
+
         req.subscriptionLimits = {
             products: {
-                current: result.currentCount ?? 0,
-                max: result.limit ?? -1,
-                remaining: result.limit === -1 ? -1 : Math.max(0, (result.limit ?? 0) - (result.currentCount ?? 0))
+                current: result.currentCount,
+                max: result.limit,
+                useAddon: result.useAddon,
+                addonCount: result.addonCount
             }
         };
-        return next();
+        next();
     } catch (error) {
         console.error('Error in checkProductCreation middleware:', error);
         next(error);
@@ -86,10 +98,17 @@ export const checkLotSlotCreation = async (req, res, next) => {
             return res.status(403).json({
                 success: false,
                 message: result.message,
-                subscriptionRequired: true,
-                requiresDiamondPlan: true
+                requiresAddon: result.requiresAddon,
+                featureType: result.featureType
             });
         }
+
+        req.subscriptionLimits = {
+            lotSlot: {
+                useAddon: result.useAddon,
+                addonCount: result.addonCount
+            }
+        };
 
         next();
     } catch (error) {
@@ -120,7 +139,7 @@ export const checkPropertyCreation = async (req, res, next) => {
             return res.status(403).json({
                 success: false,
                 message: result.message,
-                subscriptionRequired: true
+                requiresUpgrade: result.requiresUpgrade
             });
         }
 
@@ -134,6 +153,50 @@ export const checkPropertyCreation = async (req, res, next) => {
         next();
     } catch (error) {
         console.error('Error in checkPropertyCreation middleware:', error);
+        next(error);
+    }
+};
+
+/**
+ * Middleware to check if vendor can upload reels
+ * Must be used after authentication middleware
+ */
+export const checkReelUpload = async (req, res, next) => {
+    try {
+        const vendorId = req.user?.vendorId || req.userDoc?._id;
+
+        if (!vendorId) {
+            return res.status(401).json({
+                success: false,
+                message: 'Vendor authentication required'
+            });
+        }
+
+        const result = await subscriptionRulesService.canUploadReel(vendorId);
+
+        if (!result.allowed) {
+            return res.status(403).json({
+                success: false,
+                message: result.message,
+                requiresAddon: result.requiresAddon,
+                featureType: result.featureType,
+                currentCount: result.currentCount,
+                limit: result.limit
+            });
+        }
+
+        req.subscriptionLimits = {
+            reels: {
+                current: result.currentCount,
+                max: result.limit,
+                useAddon: result.useAddon,
+                addonCount: result.addonCount
+            }
+        };
+
+        next();
+    } catch (error) {
+        console.error('Error in checkReelUpload middleware:', error);
         next(error);
     }
 };

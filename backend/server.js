@@ -45,6 +45,8 @@ import publicB2BLocationRoutes from "./routes/publicB2BLocation.routes.js";
 import publicB2BSubscriptionRoutes from "./routes/publicB2BSubscription.routes.js";
 import SubscriptionRoutes from "./routes/SubscriptionRoute.js";
 import upgradeRoutes from "./routes/upgrade.routes.js";
+import adminB2BAddonPlanRoutes from "./routes/adminB2BAddonPlan.routes.js";
+import vendorAddonRoutes from "./routes/vendorAddon.routes.js";
 
 import b2bVendorProductsRoutes from "./routes/b2bVendorProducts.routes.js";
 import b2bVendorShopUnitRoutes from "./routes/b2bVendorShopUnit.routes.js";
@@ -323,6 +325,8 @@ app.use("/api/admin/properties", adminPropertyRoutes);
 app.use("/api/vendor/dashboard", vendorDashboardRoutes);
 app.use("/api/vendor/subscriptions", vendorSubscriptionRoutes);
 app.use("/api/vendor/subscription", vendorSubscriptionRoutes); // Alias for consistency
+app.use("/api/vendor/addons", vendorAddonRoutes);
+app.use("/api/admin/b2b-addon-plans", adminB2BAddonPlanRoutes);
 app.use("/api/vendor/analytics", vendorAnalyticsRoutes);
 app.use("/api/vendor/notifications", vendorNotificationRoutes);
 app.use("/api/user/notifications", userNotificationRoutes);

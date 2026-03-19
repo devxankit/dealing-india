@@ -117,6 +117,12 @@ export const createLotSlot = asyncHandler(async (req, res) => {
         shopUnitId: shopUnit ? shopUnit._id : (req.body.shopUnitId || null)
     });
 
+    // 🔹 Consume addon if necessary (Middleware flagged this)
+    if (req.subscriptionLimits?.lotSlot?.useAddon) {
+        const vendorAddonService = (await import('../services/vendorAddon.service.js')).default;
+        await vendorAddonService.consumeAddonUnit(vendorId, 'lot_slot');
+    }
+
     res.status(201).json({
         success: true,
         message: 'Lot/Slot listing published successfully',
@@ -259,7 +265,7 @@ export const getLotSlotById = asyncHandler(async (req, res) => {
 });
 
 /**
- * Delete Lot/Slot
+ * Delete Lot/Slot (Soft Delete to enforce lifetime limits)
  */
 export const deleteLotSlot = asyncHandler(async (req, res) => {
     const lotSlot = await LotSlot.findOne({ _id: req.params.id, vendorId: req.user.vendorId });
@@ -267,19 +273,12 @@ export const deleteLotSlot = asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, message: 'Listing not found' });
     }
 
-    // Cleanup images from cloudinary
-    const pids = [];
-    if (lotSlot.imagePublicId) pids.push(lotSlot.imagePublicId);
-    if (lotSlot.imagePublicIds) pids.push(...lotSlot.imagePublicIds);
-
-    if (pids.length > 0) {
-        await deleteMultipleFromCloudinary(pids);
-    }
-
-    await LotSlot.findByIdAndDelete(req.params.id);
+    // Mark as inactive instead of deleting (per user requirement for lifetime limits)
+    lotSlot.isActive = false;
+    await lotSlot.save();
 
     res.status(200).json({
         success: true,
-        message: 'Listing deleted successfully'
+        message: 'Listing deactivated successfully'
     });
 });

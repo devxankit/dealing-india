@@ -42,17 +42,21 @@ export const useSubscriptionStore = create((set, get) => ({
         set({ loading: true, error: null });
 
         try {
-            const response = await api.get('/vendor/subscriptions/status');
+            const [subResponse, addonResponse] = await Promise.all([
+                api.get('/vendor/subscriptions/status'),
+                api.get('/vendor/addons/status')
+            ]);
 
-            if (response.success && response.data) {
+            if (subResponse.success && subResponse.data) {
                 set({
-                    status: response.data,
+                    status: subResponse.data,
+                    addons: addonResponse?.success ? addonResponse.data : [],
                     loading: false,
                     lastFetched: Date.now()
                 });
-                return response.data;
+                return subResponse.data;
             } else {
-                throw new Error(response.message || 'Failed to fetch subscription status');
+                throw new Error(subResponse.message || 'Failed to fetch subscription status');
             }
         } catch (error) {
             console.error('Error fetching subscription status:', error);
@@ -96,10 +100,23 @@ export const useSubscriptionStore = create((set, get) => ({
         if (!limits?.allowed) return { allowed: false, message: 'Your subscription does not allow product listings.' };
 
         // Check remaining limit
-        if (limits.limit !== -1 && limits.remaining !== undefined && limits.remaining <= 0) {
+        const remaining = limits.remaining;
+        
+        if (limits.limit !== -1 && remaining !== undefined && remaining <= 0) {
+            // Check if user has purchased addons
+            if (limits.hasAddon) {
+                return {
+                    allowed: true,
+                    isAddon: true,
+                    message: 'Using purchased add-on units.'
+                };
+            }
+
             return {
                 allowed: false,
-                message: `Product limit reached (${limits.current}/${limits.limit}). Please upgrade your plan.`
+                requiresAddon: true,
+                featureType: 'products',
+                message: `Product limit reached (${limits.current}/${limits.limit}). Please buy an add-on pack or upgrade your plan.`
             };
         }
 
@@ -116,10 +133,22 @@ export const useSubscriptionStore = create((set, get) => ({
         if (!state.status?.hasSubscription) return { allowed: false, message: 'Please purchase a subscription plan to start listing.' };
 
         const limits = state.status?.limits?.lotSlot;
+        
         if (!limits?.allowed) {
+            // Check if user has purchased addons even if plan doesn't allow it
+            if (limits.hasAddon) {
+                return {
+                    allowed: true,
+                    isAddon: true,
+                    message: 'Using purchased add-on units.'
+                };
+            }
+
             return {
                 allowed: false,
-                message: 'Lot/Slot listings require Diamond plan. Please upgrade your subscription.'
+                requiresAddon: true,
+                featureType: 'lot_slot',
+                message: 'Lot/Slot listings require Diamond plan or an Add-on pack.'
             };
         }
 
@@ -141,6 +170,41 @@ export const useSubscriptionStore = create((set, get) => ({
         return {
             allowed: true,
             maxImages: limits.maxImages
+        };
+    },
+
+    canUploadReel: () => {
+        const state = get();
+        if (!state.status?.hasSubscription) return { allowed: false, message: 'Please purchase a subscription plan to upload reels.' };
+
+        const limits = state.status?.limits?.reels;
+        if (!limits?.allowed) return { allowed: false, message: 'Reel uploads not allowed.' };
+
+        // Check limits
+        const remaining = limits.remaining;
+        
+        if (limits.limit !== -1 && remaining !== undefined && remaining <= 0) {
+            if (limits.hasAddon) {
+                return {
+                    allowed: true,
+                    isAddon: true,
+                    message: 'Using purchased add-on units.'
+                };
+            }
+
+            return {
+                allowed: false,
+                requiresAddon: true,
+                featureType: 'reels',
+                message: `Reel limit reached (${limits.current}/${limits.limit}). Please buy an add-on pack.`
+            };
+        }
+
+        return {
+            allowed: true,
+            remaining: limits.remaining,
+            current: limits.current,
+            limit: limits.limit
         };
     },
 

@@ -42,6 +42,13 @@ const B2BVendors = () => {
             description: "Manage B2B product categories and subcategories",
             color: "purple",
         },
+        {
+            path: "/admin/b2b-vendors/addon-plans",
+            label: "Add-on Plans",
+            icon: FiPackage,
+            description: "Create and manage extra feature unit packs",
+            color: "rose",
+        },
     ];
 
     return (

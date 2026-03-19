@@ -42,6 +42,7 @@ const iconMap = {
   Wallet: FiShoppingBag,
   Analytics: FiBarChart2,
   Subscriptions: FiTag,
+  "Add-on Plans": FiPackage,
   Categories: FiLayers,
   "Banner Bookings": FiImage,
   "Business Config": FiSettings,

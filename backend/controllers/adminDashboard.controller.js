@@ -123,13 +123,28 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         views: l.count
     }));
 
-    // Real revenue calculation
-    const totalRevenue = revenueResult[0]?.total || 0;
+    // Real revenue calculation (from Transactions + Subscriptions)
+    const transactionRevenue = revenueResult[0]?.total || 0;
+    
+    // Calculate Subscription Revenue from Audit Logs
+    const subscriptionRevenueResult = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+            $match: {
+                'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+                'auditLogs.details.status': 'completed'
+            }
+        },
+        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' } } }
+    ]);
+    const totalSubscriptionRevenue = subscriptionRevenueResult[0]?.total || 0;
+
+    const totalRevenue = transactionRevenue + totalSubscriptionRevenue;
 
     // Dynamic Revenue Data (Last 6 Months) from VendorSubscription Audit Logs
     const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5); // Go back 5 months + current month = 6 months
-    sixMonthsAgo.setDate(1); // Start from the 1st of that month
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5); 
+    sixMonthsAgo.setDate(1); 
 
     const revenueAggregation = await VendorSubscription.aggregate([
         { $unwind: '$auditLogs' },
@@ -167,9 +182,47 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         revenueData.push({
             name: monthNames[monthIndex],
             revenue: foundData ? foundData.totalRevenue : 0,
-            fullDate: `${monthNames[monthIndex]} ${year}` // Optional for tooltip
+            fullDate: `${monthNames[monthIndex]} ${year}`
         });
     }
+
+    // Combined Payment History (Transactions + Subscriptions)
+    const [recentTransactions, recentSubs] = await Promise.all([
+        Transaction.find({ status: 'completed' })
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .populate('customerId', 'name email phone')
+            .lean(),
+        VendorSubscription.find({ 'auditLogs.action': 'subscription_payment' })
+            .sort({ updatedAt: -1 })
+            .limit(10)
+            .populate('vendorId', 'name email phone')
+            .populate('planId', 'name')
+            .lean()
+    ]);
+
+    const combinedHistory = [
+        ...recentTransactions.map(t => ({
+            id: t._id,
+            amount: t.amount,
+            type: 'Order/Banner',
+            method: t.method,
+            date: t.transactionDate || t.createdAt,
+            status: t.status,
+            user: t.customerId?.name || 'N/A',
+            userEmail: t.customerId?.email
+        })),
+        ...recentSubs.map(s => ({
+            id: s._id,
+            amount: s.auditLogs.find(l => l.action === 'subscription_payment')?.details?.amount || 0,
+            type: `Subscription (${s.planId?.name || 'Plan'})`,
+            method: s.paymentMethod,
+            date: s.updatedAt,
+            status: s.status,
+            user: s.vendorId?.name || 'Vendor',
+            userEmail: s.vendorId?.email
+        }))
+    ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 15);
 
     res.status(200).json({
         success: true,
@@ -190,6 +243,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
             },
             vendorDistribution: formattedVendorDistribution,
             recentVendors,
+            paymentHistory: combinedHistory,
             performance: {
                 topCategories: topCategories.length ? topCategories : [{ name: 'No Product Added Yet', views: 0 }],
                 topLocations: topLocations.length ? topLocations : [{ name: 'No Data', views: 0 }]

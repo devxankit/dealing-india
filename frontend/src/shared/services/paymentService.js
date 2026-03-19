@@ -81,6 +81,7 @@ export const initializeRazorpayCheckout = (options) => {
       });
       razorpay.open();
     } catch (error) {
+      console.error('Razorpay initialization failed:', error);
       reject(error);
     }
   });

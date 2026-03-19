@@ -92,6 +92,12 @@ export const create = async (req, res, next) => {
     // Service layer handles vendor type verification and subscription checks
     const product = await createB2BVendorProduct(productData, vendorId);
 
+    // 🔹 Consume addon if necessary (Middleware flagged this)
+    if (req.subscriptionLimits?.products?.useAddon) {
+      const vendorAddonService = (await import('../services/vendorAddon.service.js')).default;
+      await vendorAddonService.consumeAddonUnit(vendorId, 'products');
+    }
+
     res.status(201).json({
       success: true,
       message: 'Product created successfully',

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiCheck, FiStar, FiInfo, FiCreditCard, FiCheckCircle,
     FiRefreshCw, FiX, FiCalendar, FiAlertTriangle, FiClock,
-    FiDollarSign, FiPackage, FiShield, FiExternalLink
+    FiDollarSign, FiPackage, FiShield, FiExternalLink, FiPlusCircle, FiGrid
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { getActiveB2BPlans, getB2BPlanByIdSync } from '../../../shared/utils/b2bPlanManager';
@@ -13,30 +13,31 @@ import { useRef } from 'react';
 import { initializeRazorpayCheckout, handlePaymentSuccess } from '../../../shared/services/paymentService'; // Added import
 import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
 import { getBusinessTypes } from '../../../shared/utils/businessTypeCache';
+import { getB2BPlanById } from '../../../shared/utils/b2bPlanManager';
+import { useSubscriptionStore } from '../store/subscriptionStore';
 
 const B2BVendorSubscription = () => {
     const { vendor } = useB2BVendorAuthStore();
+    const { refreshStatus } = useSubscriptionStore();
     const [availablePlans, setAvailablePlans] = useState([]);
     const [currentSubscription, setCurrentSubscription] = useState(null);
     const [subscriptionHistory, setSubscriptionHistory] = useState([]);
+    const [addonHistory, setAddonHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [processingPlanId, setProcessingPlanId] = useState(null);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [cancellingSubscription, setCancellingSubscription] = useState(false);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
 
+    // Addon State
+    const [availableAddons, setAvailableAddons] = useState([]);
+    const [addonBalance, setAddonBalance] = useState([]);
+    const [loadingAddons, setLoadingAddons] = useState(false);
+    const [processingAddonId, setProcessingAddonId] = useState(null);
+
     useEffect(() => {
         loadSubscriptionData();
-
-        // Refresh on visibility change
-        const handleVisibilityChange = () => {
-            if (!document.hidden) {
-                loadSubscriptionData();
-            }
-        };
-
-        // document.addEventListener('visibilitychange', handleVisibilityChange);
-        // return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+        loadAddonData();
     }, []);
 
 
@@ -45,7 +46,6 @@ const B2BVendorSubscription = () => {
     const loadSubscriptionData = async () => {
         if (isFetchingRef.current) return;
         isFetchingRef.current = true;
-        console.log("loadSubscriptionData");
         try {
             setLoading(true);
 
@@ -63,20 +63,32 @@ const B2BVendorSubscription = () => {
             );
 
             // Now fetch the plans for this business type
-            const plans = await getActiveB2BPlans({ businessType: vendorBusinessType?.slug });
-            console.log("subscriptionssubscriptions", subscriptions);
-            const filteredPlans = plans
+            const marketPlans = await getActiveB2BPlans({ businessType: vendorBusinessType?.slug });
+            const filteredPlans = marketPlans
                 .filter(p => [3, 6, 12].includes(p.duration))
                 .sort((a, b) => a.duration - b.duration);
 
             setAvailablePlans(filteredPlans);
-            console.log("subscriptions", subscriptions);
+
             const activeSub = subscriptions.find(s => s.status === 'active') ||
+                subscriptions.find(s => s.status === 'pending') ||
                 subscriptions.find(s => s.status === 'cancelled');
+
             if (activeSub) {
-                const planDetails =
-                    getB2BPlanByIdSync(activeSub.planId) ||
-                    plans.find(p => p._id === activeSub.planId);
+                // Handle populated vs unpopulated planId
+                const pid = activeSub.planId?._id || activeSub.planId;
+                
+                // Try to find in current market plans first
+                let planDetails = marketPlans.find(p => (p._id || p.id) === pid);
+                
+                // If not found (legacy or different type), fetch directly by ID
+                if (!planDetails) {
+                    try {
+                        planDetails = await getB2BPlanById(pid);
+                    } catch (e) {
+                        console.warn('Could not fetch specific plan details', e);
+                    }
+                }
 
                 setCurrentSubscription({ ...activeSub, planDetails });
             } else {
@@ -91,6 +103,24 @@ const B2BVendorSubscription = () => {
         } finally {
             setLoading(false);
             isFetchingRef.current = false;
+        }
+    };
+
+    const loadAddonData = async () => {
+        try {
+            setLoadingAddons(true);
+            const [plans, status, history] = await Promise.all([
+                subscriptionService.getAddonPlans(),
+                subscriptionService.getAddonStatus(),
+                subscriptionService.getAddonHistory()
+            ]);
+            setAvailableAddons(plans);
+            setAddonBalance(status || []);
+            setAddonHistory(history || []);
+        } catch (err) {
+            console.error('Error loading addons:', err);
+        } finally {
+            setLoadingAddons(false);
         }
     };
     const getPlanRank = (name) => {
@@ -224,6 +254,48 @@ const B2BVendorSubscription = () => {
             toast.error(error.response?.data?.message || error.message || 'Failed to create subscription');
         } finally {
             setProcessingPlanId(null);
+        }
+    };
+
+    const handleBuyAddon = async (planId) => {
+        if (processingAddonId) return;
+
+        try {
+            setProcessingAddonId(planId);
+            toast.loading('Initializing purchase...', { id: 'addon-init' });
+
+            const response = await subscriptionService.initializeAddonPurchase(planId);
+            const { order, key } = response;
+
+            toast.dismiss('addon-init');
+
+            if (order && key) {
+                const paymentResponse = await initializeRazorpayCheckout({
+                    key: key,
+                    amount: order.amount / 100,
+                    orderId: order.id,
+                    name: 'Dealing India Add-on',
+                    description: `Purchase Extra Feature Units`,
+                });
+
+                toast.loading('Verifying purchase...', { id: 'verify-addon' });
+
+                const verifyData = {
+                    planId: planId,
+                    ...handlePaymentSuccess(paymentResponse)
+                };
+
+                await subscriptionService.verifyAddonPayment(verifyData);
+
+                toast.success('Add-on purchased successfully!', { id: 'verify-addon' });
+                loadAddonData();
+                refreshStatus(); // Also refresh global subscription status
+            }
+        } catch (error) {
+            console.error('Addon purchase error:', error);
+            toast.error(error.message || 'Failed to purchase add-on');
+        } finally {
+            setProcessingAddonId(null);
         }
     };
 
@@ -591,6 +663,183 @@ const B2BVendorSubscription = () => {
                 })}
             </div>
 
+            {/* Add-on Packs Section */}
+            <div className="mb-12">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+                    <div>
+                        <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Extra Feature Power-Ups</h2>
+                        <p className="text-gray-600 text-lg">Running low on units? Purchase one-time add-on packs to keep your marketplace activity growing.</p>
+                    </div>
+                    {addonBalance && addonBalance.length > 0 && (
+                        <div className="bg-white border-2 border-primary-50 rounded-[2rem] p-6 shadow-xl shadow-primary-50/50 flex flex-col sm:flex-row items-center gap-6">
+                            <div className="flex -space-x-4">
+                                {addonBalance.map((b, i) => (
+                                    <div key={b._id} className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg border-2 border-white relative z-[${10-i}] ${
+                                        b._id === 'reels' ? 'bg-rose-500 text-white' : 
+                                        b._id === 'products' ? 'bg-blue-500 text-white' : 
+                                        'bg-amber-500 text-white'
+                                    }`}>
+                                        {b._id === 'reels' ? <FiPackage /> : b._id === 'products' ? <FiPlusCircle /> : <FiGrid />}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="text-center sm:text-left">
+                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mb-1">Current Add-on Inventory</p>
+                                <div className="flex flex-wrap justify-center sm:justify-start gap-3">
+                                    {addonBalance.map(b => (
+                                        <div key={b._id} className="flex flex-col">
+                                            <span className="text-lg font-black text-gray-900 leading-none">
+                                                {b.totalAvailable} <span className="text-xs font-bold text-gray-400 capitalize">{b._id}</span>
+                                            </span>
+                                            <span className="text-[9px] text-primary-600 font-bold uppercase mt-1">Available for use</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {loadingAddons ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="bg-gray-100 h-64 rounded-3xl"></div>
+                        ))}
+                    </div>
+                ) : availableAddons.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {availableAddons.map((addon) => (
+                            <motion.div
+                                key={addon._id}
+                                whileHover={{ y: -8, scale: 1.02 }}
+                                className="bg-white rounded-[2.5rem] p-8 shadow-xl border-2 border-gray-50 flex flex-col items-center text-center relative overflow-hidden group"
+                            >
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-primary-50/50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-125"></div>
+                                
+                                <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center mb-6 relative z-10 font-bold ${
+                                    addon.featureType === 'reels' ? 'bg-rose-50 text-rose-600' : 
+                                    addon.featureType === 'products' ? 'bg-blue-50 text-blue-600' : 
+                                    'bg-amber-50 text-amber-600'
+                                }`}>
+                                    {addon.featureType === 'reels' ? <FiPackage className="text-3xl" /> : 
+                                     addon.featureType === 'products' ? <FiPlusCircle className="text-3xl" /> : 
+                                     <FiGrid className="text-3xl" />}
+                                </div>
+
+                                <h4 className="text-xl font-black text-gray-900 mb-1">{addon.name}</h4>
+                                <p className="text-xs text-gray-400 mb-6 font-black uppercase tracking-[0.2em]">{addon.featureType}</p>
+                                
+                                <div className="mb-8 w-full p-4 bg-gray-50 rounded-2xl">
+                                    <span className="text-3xl font-black text-gray-900">₹{addon.price}</span>
+                                    <p className="text-[10px] text-primary-600 font-black mt-2 bg-primary-100/50 py-1.5 px-4 rounded-full uppercase">
+                                        {addon.quantity} {addon.featureType} Units
+                                    </p>
+                                </div>
+
+                                <button
+                                    onClick={() => handleBuyAddon(addon._id)}
+                                    disabled={processingAddonId === addon._id}
+                                    className={`w-full py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-2 ${
+                                        processingAddonId === addon._id 
+                                        ? 'bg-gray-100 text-gray-400 cursor-wait'
+                                        : 'bg-gray-900 text-white hover:bg-black hover:shadow-2xl shadow-gray-200'
+                                    }`}
+                                >
+                                    {processingAddonId === addon._id ? (
+                                        <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <>
+                                            <FiCreditCard className="text-xl" />
+                                            Get Pack
+                                        </>
+                                    )}
+                                </button>
+                            </motion.div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-[2.5rem] p-12 text-center max-w-2xl mx-auto">
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-gray-100 text-gray-400">
+                            <FiPackage className="text-3xl" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">No Add-ons Available Right Now</h3>
+                        <p className="text-gray-500 mb-6">We couldn't find any feature packs matching your business type: <span className="font-bold text-primary-600 uppercase">{vendor?.businessType || 'N/A'}</span></p>
+                        <div className="flex flex-col items-center gap-3">
+                            <div className="inline-flex items-center gap-2 px-6 py-2 bg-white rounded-xl text-xs font-bold text-gray-400 border border-gray-200 shadow-sm">
+                                <FiInfo className="text-primary-500" /> Administrative configuration required for this role.
+                            </div>
+                            <p className="text-[10px] text-gray-300 font-mono">
+                                System Role Slug: { (vendor?.businessType || 'textile').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') }
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Addon Purchase History */}
+            {addonHistory && addonHistory.length > 0 && (
+                <div className="mb-20">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500 shadow-inner">
+                            <FiClock />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-navy-900 uppercase tracking-tight">Recent Add-on Activity</h3>
+                            <p className="text-gray-400 text-xs font-medium">Tracking your successful marketplace boosts</p>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-white border-2 border-gray-50 rounded-[2.5rem] overflow-hidden shadow-sm">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/50">
+                                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Date</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {addonHistory.map((item) => (
+                                    <tr key={item._id} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${
+                                                    item.featureType === 'reels' ? 'bg-rose-100 text-rose-600' :
+                                                    item.featureType === 'products' ? 'bg-blue-100 text-blue-600' :
+                                                    'bg-amber-100 text-amber-600'
+                                                }`}>
+                                                    {item.featureType === 'reels' ? <FiPackage /> : item.featureType === 'products' ? <FiPlusCircle /> : <FiGrid />}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-gray-800 text-sm leading-tight">{item.addonPlanId?.name || 'Custom Pack'}</p>
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 tracking-tighter">Feature: {item.featureType?.replace('_', ' ')}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="text-sm font-bold text-gray-500 tabular-nums">{formatDate(item.createdAt)}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                                item.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 
+                                                item.status === 'consumed' ? 'bg-slate-100 text-slate-400' : 
+                                                'bg-rose-100 text-rose-600 shadow-sm'
+                                            }`}>
+                                                {item.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <span className="font-black text-gray-900 text-sm tabular-nums">₹{item.addonPlanId?.price || '0'}</span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+ 
             {/* Info Notice */}
             <div className="bg-blue-50 border border-blue-100 rounded-3xl p-8 flex flex-col md:flex-row items-center gap-6">
                 <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-3xl flex-shrink-0 shadow-lg shadow-blue-200">

@@ -119,6 +119,11 @@ const Subscriptions = () => {
                     features: editingPlan.features,
                     isActive: editingPlan.isActive,
                     description: editingPlan.description,
+                    productLimit: editingPlan.productLimit,
+                    reelsLimit: editingPlan.reelsLimit,
+                    lotSlotLimit: editingPlan.lotSlotLimit,
+                    imagesPerListing: editingPlan.imagesPerListing,
+                    shopSlideshow: editingPlan.shopSlideshow,
                 });
                 toast.success('Plan updated successfully');
             } else {
@@ -129,6 +134,11 @@ const Subscriptions = () => {
                     price: editingPlan.price,
                     features: editingPlan.features,
                     description: editingPlan.description,
+                    productLimit: editingPlan.productLimit,
+                    reelsLimit: editingPlan.reelsLimit,
+                    lotSlotLimit: editingPlan.lotSlotLimit,
+                    imagesPerListing: editingPlan.imagesPerListing,
+                    shopSlideshow: editingPlan.shopSlideshow,
                 });
                 toast.success('Plan created successfully');
             }
@@ -555,29 +565,126 @@ const Subscriptions = () => {
                                 />
                             </div>
 
+                            {/* Structured Feature Configuration */}
+                            <div className="bg-slate-50 rounded-3xl p-6 space-y-6 border border-slate-100">
+                                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                                    <FiSettings className="text-primary-600" /> Feature Power Configuration
+                                </h3>
+                                
+                                <div className="space-y-4">
+                                    {[
+                                        { id: 'productLimit', label: 'Product Listings', icon: FiShoppingBag },
+                                        { id: 'reelsLimit', label: 'Video Reels', icon: FiActivity },
+                                        { id: 'lotSlotLimit', label: 'Lot/Slot Pack', icon: FiPlus },
+                                        { id: 'imagesPerListing', label: 'Images per Listing', icon: FiSettings }
+                                    ].map(feat => {
+                                        const val = editingPlan[feat.id];
+                                        const isEnabled = val !== 0 && val !== false;
+                                        const isUnlimited = val === 'unlimited';
+                                        
+                                        return (
+                                            <div key={feat.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                <div className="flex items-center gap-3 min-w-[180px]">
+                                                    <input 
+                                                        type="checkbox"
+                                                        checked={isEnabled}
+                                                        onChange={(e) => {
+                                                            const checked = e.target.checked;
+                                                            setEditingPlan({ ...editingPlan, [feat.id]: checked ? (feat.id === 'imagesPerListing' ? 5 : 10) : 0 });
+                                                        }}
+                                                        className="w-5 h-5 rounded-lg text-primary-600 focus:ring-primary-500 border-slate-300"
+                                                    />
+                                                    <div className="flex items-center gap-2">
+                                                        <feat.icon className={`text-lg ${isEnabled ? 'text-primary-600' : 'text-slate-400'}`} />
+                                                        <span className={`font-bold text-sm ${isEnabled ? 'text-slate-800' : 'text-slate-400'}`}>{feat.label}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-4 flex-1 justify-end">
+                                                    <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                                                        <label className="text-[10px] font-black text-slate-500 uppercase px-2">Unlimited</label>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (!isEnabled) return;
+                                                                setEditingPlan({ ...editingPlan, [feat.id]: isUnlimited ? 10 : 'unlimited' });
+                                                            }}
+                                                            disabled={!isEnabled}
+                                                            className={`w-12 h-6 rounded-full relative transition-all duration-300 ${!isEnabled ? 'bg-slate-200 cursor-not-allowed' : isUnlimited ? 'bg-primary-600' : 'bg-slate-300'}`}
+                                                        >
+                                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${isUnlimited ? 'left-7' : 'left-1'}`} />
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2">
+                                                        <input 
+                                                            type="text"
+                                                            value={isUnlimited ? "Unlimited" : (val === 0 ? "" : val)}
+                                                            disabled={!isEnabled || isUnlimited}
+                                                            onChange={(e) => {
+                                                                const text = e.target.value;
+                                                                if (text === "") {
+                                                                    setEditingPlan({ ...editingPlan, [feat.id]: 0 });
+                                                                    return;
+                                                                }
+                                                                const n = parseInt(text);
+                                                                if (!isNaN(n)) {
+                                                                    setEditingPlan({ ...editingPlan, [feat.id]: Math.max(0, n) });
+                                                                }
+                                                            }}
+                                                            placeholder={isUnlimited ? "∞" : "Enter count..."}
+                                                            className="w-32 px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-black text-left focus:border-primary-500 disabled:opacity-50 disabled:bg-slate-100 text-slate-800"
+                                                        />
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Per Cycle</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* Boolean Feature: Shop Slideshow */}
+                                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <input 
+                                                type="checkbox"
+                                                checked={!!editingPlan.shopSlideshow}
+                                                onChange={(e) => setEditingPlan({ ...editingPlan, shopSlideshow: e.target.checked })}
+                                                className="w-5 h-5 rounded-lg text-primary-600 focus:ring-primary-500 border-slate-300"
+                                            />
+                                            <div className="flex items-center gap-2">
+                                                <FiEye className={`text-lg ${editingPlan.shopSlideshow ? 'text-primary-600' : 'text-slate-400'}`} />
+                                                <span className={`font-bold text-sm ${editingPlan.shopSlideshow ? 'text-slate-800' : 'text-slate-400'}`}>Shop Slideshow / Header Video</span>
+                                            </div>
+                                        </div>
+                                        <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${editingPlan.shopSlideshow ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-400'}`}>
+                                            {editingPlan.shopSlideshow ? 'Enabled' : 'Disabled'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div>
                                 <div className="flex items-center justify-between mb-2">
-                                    <label className="block text-sm font-semibold text-gray-700">Features</label>
+                                    <label className="block text-sm font-semibold text-gray-700 uppercase tracking-wider">Public Feature Badge List (Display Only)</label>
                                     <button
                                         onClick={handleAddFeature}
-                                        className="text-primary-600 hover:text-primary-700 text-sm font-semibold flex items-center gap-1"
+                                        className="text-primary-600 hover:text-primary-700 text-xs font-bold flex items-center gap-1 bg-primary-50 px-3 py-1.5 rounded-full"
                                     >
-                                        <FiPlus /> Add Feature
+                                        <FiPlus /> Add Display Perk
                                     </button>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     {editingPlan.features.map((feature, index) => (
-                                        <div key={index} className="flex items-center gap-2">
+                                        <div key={index} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
                                             <input
                                                 type="text"
                                                 value={feature}
                                                 onChange={(e) => handleFeatureChange(index, e.target.value)}
-                                                className="flex-1 px-4 py-2 bg-white border-2 border-gray-200 rounded-xl focus:border-primary-500"
-                                                placeholder="Feature description"
+                                                className="flex-1 px-3 py-1.5 bg-white border-2 border-gray-100 rounded-lg focus:border-primary-500 text-sm"
+                                                placeholder="e.g., 24/7 Support"
                                             />
                                             <button
                                                 onClick={() => handleRemoveFeature(index)}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                             >
                                                 <FiX />
                                             </button>

@@ -2,10 +2,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
     FiPackage,
-    FiTrendingUp,
-    FiArrowRight,
     FiPlus,
-    FiCreditCard,
     FiImage,
     FiCheckCircle,
     FiAlertCircle,
@@ -14,47 +11,21 @@ import {
     FiHash,
     FiHome,
     FiCalendar,
-    FiArrowUpRight,
-    FiMapPin
+    FiMapPin,
+    FiArrowUpRight
 } from "react-icons/fi";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../hooks/useVendorSettings";
 import { useDashboardStore } from "../store/dashboardStore";
-import { useEffect } from "react";
-
-// ==========================================
-// MOCK DATA & CONFIG (FRONTEND ONLY)
-// ==========================================
-const MOCK_VENDOR_DATA = {
-    overview: {
-        bannerClicks: 1240,
-        callClicks: 450,
-        whatsappClicks: 890
-    },
-    counts: {
-        products: { total: 15, approved: 12, pending: 3 },
-        lotSlot: { total: 8, approved: 8, pending: 0 },
-        properties: { total: 5, approved: 4, pending: 1 }
-    },
-    subscriptions: [
-        { type: 'product', name: 'Premium Retailer', status: 'Active', expiry: '2026-06-15', daysLeft: 125 },
-        { type: 'property', name: 'Elite Agent', status: 'Active', expiry: '2026-08-20', daysLeft: 195 },
-        { type: 'banner', name: 'Homepage Slider', status: 'Expiring Soon', expiry: '2026-02-15', daysLeft: 7 }
-    ],
-    banners: [
-        { title: 'Winter Sale Boost', type: 'Leaderboard', expiry: '2026-03-01' }
-    ],
-    alerts: [
-        { id: 1, type: 'warning', message: 'Your "Homepage Slider" banner is expiring in 7 days.' },
-        { id: 2, type: 'info', message: '3 new listings are pending admin approval.' }
-    ]
-};
+import { useEffect, useState } from "react";
 
 const B2BVendorDashboard = () => {
     const navigate = useNavigate();
     const { vendor } = useB2BVendorAuthStore();
     const { settings, loading: settingsLoading } = useVendorSettings();
     const { data: dashboardData, loading: dashboardLoading, fetchDashboardData } = useDashboardStore();
+    // const [selectedTransaction, setSelectedTransaction] = useState(null); // No longer needed
+
 
     useEffect(() => {
         fetchDashboardData();
@@ -63,16 +34,17 @@ const B2BVendorDashboard = () => {
     const loading = settingsLoading || dashboardLoading;
 
     // Use fetched data or fallback to zeros if data haven't arrived yet
-    const dashboard = dashboardData || {
-        overview: { bannerClicks: 0, callClicks: 0, whatsappClicks: 0, mapClicks: 0 },
+    const dashboard = {
+        overview: dashboardData?.overview || { bannerClicks: 0, callClicks: 0, whatsappClicks: 0, mapClicks: 0 },
         counts: {
-            products: { total: 0, approved: 0, pending: 0 },
-            lotSlot: { total: 0, approved: 0, pending: 0 },
-            properties: { total: 0, approved: 0, pending: 0 }
+            products: dashboardData?.counts?.products || { total: 0, approved: 0, pending: 0 },
+            lotSlot: dashboardData?.counts?.lotSlot || { total: 0, approved: 0, pending: 0 },
+            properties: dashboardData?.counts?.properties || { total: 0, approved: 0, pending: 0 }
         },
-        subscriptions: [],
-        banners: [],
-        alerts: []
+        subscriptions: dashboardData?.subscriptions || [],
+        banners: dashboardData?.banners || [],
+        alerts: dashboardData?.alerts || [],
+        hasShop: dashboardData?.hasShop ?? true
     };
 
     // Add Shop Listing Required alert if missing
@@ -185,12 +157,10 @@ const B2BVendorDashboard = () => {
                 SECTION 2: COMMON OVERVIEW CARDS (STATS)
             ------------------------------------------ */}
             {config.widgets.includes('stats') && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {[
-                        { label: 'Active Promotion Banners', value: dashboard.banners.length, icon: FiImage, color: 'text-blue-600', bg: 'bg-blue-50' },
                         { label: 'Total Call Inquiries', value: dashboard.overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50', analyticsType: 'call' },
                         { label: 'Total WhatsApp Clicks', value: dashboard.overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50', analyticsType: 'whatsapp' },
-                        { label: 'Total Map Opens', value: dashboard.overview.mapClicks, icon: FiMapPin, color: 'text-orange-600', bg: 'bg-orange-50', analyticsType: 'map' }
                     ].map((stat, i) => (
                         <button
                             key={i}
@@ -295,7 +265,7 @@ const B2BVendorDashboard = () => {
                                         <div key={i} className="bg-slate-900 rounded-[2rem] p-8 text-white group overflow-hidden relative">
                                             <div className="flex items-center justify-between mb-8">
                                                 <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-primary-400">
-                                                    <FiCreditCard size={20} />
+                                                    <FiPackage size={20} />
                                                 </div>
                                                 <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${sub.status === 'Active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
                                                     {sub.status}
@@ -414,7 +384,6 @@ const B2BVendorDashboard = () => {
                             </div>
                         )
                     )}
-
                 </div>
             </div>
         </motion.div>

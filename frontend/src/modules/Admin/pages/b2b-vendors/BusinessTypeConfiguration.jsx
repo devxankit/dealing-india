@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { FiEdit2, FiSave, FiCheckCircle, FiXCircle, FiSettings, FiActivity, FiPlus, FiTrash2 } from "react-icons/fi";
 import { motion } from "framer-motion";
+import { getAddonPlans } from "../../../../shared/utils/b2bAddonManager";
 import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api";
 
 const BusinessTypeConfiguration = () => {
     const [businessSettings, setBusinessSettings] = useState([]);
     const [allPlans, setAllPlans] = useState([]);
+    const [allAddons, setAllAddons] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingSettings, setEditingSettings] = useState(null);
     const [isAddingNew, setIsAddingNew] = useState(false);
@@ -26,6 +28,7 @@ const BusinessTypeConfiguration = () => {
         if (!fetchedRef.current) {
             fetchSettings();
             fetchPlans();
+            fetchAddons();
             fetchReferralSettings();
             fetchedRef.current = true;
         }
@@ -39,6 +42,15 @@ const BusinessTypeConfiguration = () => {
             }
         } catch (error) {
             console.error('Error fetching plans:', error);
+        }
+    };
+
+    const fetchAddons = async () => {
+        try {
+            const data = await getAddonPlans();
+            setAllAddons(data || []);
+        } catch (error) {
+            console.error('Error fetching addons:', error);
         }
     };
 
@@ -77,6 +89,7 @@ const BusinessTypeConfiguration = () => {
             ...settings,
             dashboardWidgets: Array.isArray(settings.dashboardWidgets) ? settings.dashboardWidgets : [],
             allowedPlans: Array.isArray(settings.allowedPlans) ? settings.allowedPlans : [],
+            allowedAddonPlans: Array.isArray(settings.allowedAddonPlans) ? settings.allowedAddonPlans.map(a => String(a._id || a)) : [],
             propertyForms: Array.isArray(settings.propertyForms) ? settings.propertyForms : []
         });
     };
@@ -128,6 +141,7 @@ const BusinessTypeConfiguration = () => {
                 isActive: editingSettings.isActive,
                 dashboardWidgets: Array.isArray(editingSettings.dashboardWidgets) ? editingSettings.dashboardWidgets : [],
                 allowedPlans: Array.isArray(editingSettings.allowedPlans) ? editingSettings.allowedPlans : [],
+                allowedAddonPlans: Array.isArray(editingSettings.allowedAddonPlans) ? editingSettings.allowedAddonPlans : [],
                 productFormType: editingSettings.productFormType,
                 enableShopListing: editingSettings.enableShopListing,
                 propertyForms: Array.isArray(editingSettings.propertyForms) ? editingSettings.propertyForms : [],
@@ -171,6 +185,14 @@ const BusinessTypeConfiguration = () => {
             : [...currentPlans, planId];
 
         setEditingSettings({ ...editingSettings, allowedPlans: newPlans });
+    };
+
+    const toggleAddonStep = (addonId) => {
+        const currentAddons = editingSettings.allowedAddonPlans || [];
+        const nextAddons = currentAddons.includes(addonId)
+            ? currentAddons.filter(a => a !== addonId)
+            : [...currentAddons, addonId];
+        setEditingSettings({ ...editingSettings, allowedAddonPlans: nextAddons });
     };
 
     const togglePropertyForm = (formType) => {
@@ -255,7 +277,7 @@ const BusinessTypeConfiguration = () => {
                         />
                     </div>
                     <div>
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Milestone Minimum</label>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Milestone Minimum</label>
                         <input
                             type="number"
                             min="0"
@@ -390,8 +412,6 @@ const BusinessTypeConfiguration = () => {
                                     )}
                                 </div>
                             </div>
-
-                            
 
                             <div className="flex items-center justify-between py-2 border-t border-gray-50">
                                 <span className="text-xs font-semibold text-gray-600">Status</span>
@@ -624,7 +644,21 @@ const BusinessTypeConfiguration = () => {
 
                             {/* Allowed Subscriptions */}
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Allowed Subscription Plans</label>
+                                <div className="flex items-center justify-between mb-4">
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Allowed Subscription Plans</label>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            const allIds = allPlans.map(p => p._id);
+                                            const current = editingSettings.allowedPlans || [];
+                                            const next = current.length === allIds.length ? [] : allIds;
+                                            setEditingSettings({ ...editingSettings, allowedPlans: next });
+                                        }}
+                                        className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline"
+                                    >
+                                        {(editingSettings.allowedPlans?.length === allPlans.length && allPlans.length > 0) ? 'Deselect All' : 'Select All'}
+                                    </button>
+                                </div>
                                 <div className="space-y-3">
                                     {allPlans.length > 0 ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -655,6 +689,56 @@ const BusinessTypeConfiguration = () => {
                                 </div>
                             </div>
 
+                            {/* Allowed Add-on Packs */}
+                            <div>
+                                <div className="flex items-center justify-between mb-4">
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">Allowed Add-on Power-Ups</label>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            const allIds = allAddons.map(p => p._id);
+                                            const current = editingSettings.allowedAddonPlans || [];
+                                            const next = current.length === allIds.length ? [] : allIds;
+                                            setEditingSettings({ ...editingSettings, allowedAddonPlans: next });
+                                        }}
+                                        className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline"
+                                    >
+                                        {(editingSettings.allowedAddonPlans?.length === allAddons.length && allAddons.length > 0) ? 'Deselect All' : 'Select All'}
+                                    </button>
+                                </div>
+                                <div className="space-y-3">
+                                    {allAddons.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {allAddons.map(addon => (
+                                                <button
+                                                    key={addon._id}
+                                                    onClick={() => toggleAddonStep(addon._id)}
+                                                    className={`px-5 py-4 rounded-2xl text-left transition-all border-2 ${editingSettings.allowedAddonPlans?.includes(addon._id)
+                                                        ? 'bg-blue-50 border-blue-500 text-blue-900'
+                                                        : 'bg-slate-50 border-slate-100 text-slate-500 opacity-60'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <p className="font-black text-xs uppercase tracking-tight">{addon.name}</p>
+                                                            <p className="text-[9px] font-bold opacity-70">
+                                                                {addon.quantity} {addon.featureType.toUpperCase()} • ₹{addon.price}
+                                                            </p>
+                                                        </div>
+                                                        {editingSettings.allowedAddonPlans?.includes(addon._id) && <FiCheckCircle className="text-blue-600" size={18} />}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="p-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
+                                            <p className="text-xs font-bold text-slate-400 uppercase">No active addon packs found</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="mt-2 text-[10px] text-slate-400 font-medium italic">Enable extra unit packs (Reels, Product Slots) that vendors in this category can purchase one-time.</p>
+                            </div>
+
                             {/* Features Toggle */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Advanced Features</label>
@@ -683,8 +767,6 @@ const BusinessTypeConfiguration = () => {
                                     ))}
                                 </div>
                             </div>
-
-
 
                             {/* Status Toggle */}
                             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -720,8 +802,6 @@ const BusinessTypeConfiguration = () => {
                                     </div>
                                 </div>
                             )}
-
-                            {/* Sub-Types removed */}
 
                         </div>
 

@@ -706,8 +706,23 @@ class SubscriptionService {
         subscription.endDate = new Date(new Date(subscription.endDate).getTime() + 30 * 86400000);
         subscription.status = 'active';
       } else if (action === 'cancel_subscription') {
-        subscription.status = 'cancelled';
+        // Stop auto-payment and upcoming renewals
         subscription.autoRenew = false;
+        subscription.cancellationDate = new Date();
+        
+        // 🔹 Close auto-pay in Razorpay if subscription ID exists
+        if (subscription.razorpaySubscriptionId) {
+          try {
+            await razorpayService.cancelSubscription(subscription.razorpaySubscriptionId);
+          } catch (err) {
+            console.error('[ManualCancel] Razorpay cancellation failed:', err.message);
+            // We proceed as internal cancellation is primary
+          }
+        }
+        
+        // Note: We DO NOT set status = 'cancelled' here because
+        // user should have access until the period ENDS.
+        // A cron or expiry check will set it to 'expired' later.
       }
 
       subscription.auditLogs.push(auditLog);
@@ -722,9 +737,50 @@ class SubscriptionService {
     }
   }
 
+  /**
+   * Vendor-side cancellation
+   * Stops auto-renewal/RAZORPAY but keeps plan active until endDate
+   */
+  async cancelVendorSubscription(vendorId) {
+    const sub = await VendorSubscription.findOne({ vendorId, status: 'active' });
+    if (!sub) throw new Error('No active subscription found to cancel.');
+
+    try {
+      sub.autoRenew = false;
+      sub.cancellationDate = new Date();
+      
+      // Stop Razorpay auto-pay
+      if (sub.razorpaySubscriptionId) {
+        await razorpayService.cancelSubscription(sub.razorpaySubscriptionId);
+      }
+
+      sub.auditLogs.push({
+        action: 'vendor_cancelled_autopay',
+        timestamp: new Date(),
+        details: { message: 'Vendor stopped auto-renewal from panel' }
+      });
+
+      await sub.save();
+      return sub;
+    } catch (error) {
+      console.error('Vendor cancel error:', error);
+      throw error;
+    }
+  }
+
   async updateAutoRenewal(vendorId, autoRenew) {
     const sub = await VendorSubscription.findOne({ vendorId, status: 'active' });
     if (!sub) throw new Error('No active subscription');
+    
+    // If disabling auto-renew, stop it in Razorpay as well
+    if (autoRenew === false && sub.razorpaySubscriptionId) {
+      try {
+        await razorpayService.cancelSubscription(sub.razorpaySubscriptionId);
+      } catch (err) {
+        console.error('[UpdateRenew] Razorpay sync failed:', err.message);
+      }
+    }
+
     sub.autoRenew = autoRenew;
     return await sub.save();
   }

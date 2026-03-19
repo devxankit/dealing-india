@@ -5,6 +5,7 @@ import { FiVideo, FiArrowLeft, FiUpload } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
+import SubscriptionGate from '../components/SubscriptionGate';
 
 const MAX_VIDEO_MB = 100;
 const MAX_DURATION_SECONDS = 60;
@@ -167,7 +168,8 @@ export default function UploadReel() {
         </ul>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <SubscriptionGate action="reels">
+        <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Video *</label>
           <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-primary-300 transition-colors">
@@ -289,6 +291,7 @@ export default function UploadReel() {
           </button>
         </div>
       </form>
+      </SubscriptionGate>
     </motion.div>
   );
 }

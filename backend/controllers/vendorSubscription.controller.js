@@ -214,6 +214,24 @@ class VendorSubscriptionController {
     }
   }
 
+  async cancelSubscription(req, res) {
+    try {
+      const vendorId = req.user?.vendorId || req.userDoc?._id;
+      if (!vendorId) {
+        return res.status(400).json({ success: false, message: 'Vendor ID not found' });
+      }
+
+      const subscription = await SubscriptionService.cancelVendorSubscription(vendorId);
+      res.status(200).json({
+        success: true,
+        message: 'Auto-renewal stopped. Your plan remains active until the end of the current period.',
+        data: subscription
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
   async updateRenewal(req, res) {
     try {
       const { autoRenew } = req.body;

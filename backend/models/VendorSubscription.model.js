@@ -64,6 +64,9 @@ const vendorSubscriptionSchema = new mongoose.Schema(
     razorpaySignature: {
       type: String,
     },
+    razorpaySubscriptionId: {
+      type: String,
+    },
     // Zoho Books integration fields
     zohoContactId: {
       type: String,

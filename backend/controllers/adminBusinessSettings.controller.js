@@ -7,7 +7,9 @@ import redisService from '../services/redis.service.js';
 // @route   GET /api/admin/business-settings
 // @access  Admin
 export const getAllBusinessSettings = asyncHandler(async (req, res) => {
-    const settings = await BusinessTypeSettings.find().populate('businessTypeId');
+    const settings = await BusinessTypeSettings.find()
+        .populate('businessTypeId')
+        .populate('allowedAddonPlans');
 
     // Strip legacy subTypes field from populated BusinessType before sending to client
     const sanitized = settings.map((doc) => {
@@ -34,6 +36,7 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
         isActive,
         dashboardWidgets,
         allowedPlans,
+        allowedAddonPlans,
         productFormType,
         enableShopListing,
         propertyForms
@@ -54,6 +57,7 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
     settings.features = features || settings.features;
     settings.dashboardWidgets = dashboardWidgets !== undefined ? dashboardWidgets : settings.dashboardWidgets;
     settings.allowedPlans = allowedPlans !== undefined ? allowedPlans : settings.allowedPlans;
+    settings.allowedAddonPlans = allowedAddonPlans !== undefined ? allowedAddonPlans : settings.allowedAddonPlans;
     settings.isActive = isActive !== undefined ? isActive : settings.isActive;
     settings.productFormType = productFormType !== undefined ? productFormType : settings.productFormType;
     settings.enableShopListing = enableShopListing !== undefined ? enableShopListing : settings.enableShopListing;
@@ -85,7 +89,9 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
         console.error('Error clearing cache in updateBusinessSettings:', cacheError);
     }
 
-    const updatedSettingsDoc = await BusinessTypeSettings.findById(settings._id).populate('businessTypeId');
+    const updatedSettingsDoc = await BusinessTypeSettings.findById(settings._id)
+        .populate('businessTypeId')
+        .populate('allowedAddonPlans');
     const updatedSettings = updatedSettingsDoc.toObject();
     if (updatedSettings.businessTypeId && updatedSettings.businessTypeId.subTypes !== undefined) {
         delete updatedSettings.businessTypeId.subTypes;
@@ -106,7 +112,7 @@ export const getSettingsBySlug = asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, message: 'Business type not found' });
     }
 
-    const settingsDoc = await BusinessTypeSettings.findOne({ businessTypeId: businessType._id });
+    const settingsDoc = await BusinessTypeSettings.findOne({ businessTypeId: businessType._id }).populate('allowedAddonPlans');
     const settings = settingsDoc ? settingsDoc.toObject() : null;
     const bt = businessType.toObject();
     if (bt.subTypes !== undefined) {

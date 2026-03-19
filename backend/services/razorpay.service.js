@@ -295,6 +295,31 @@ class RazorpayService {
       throw new Error(`Failed to create Razorpay plan: ${error.message}`);
     }
   }
+
+  /**
+   * Cancel a subscription in Razorpay
+   * @param {string} subscriptionId - Razorpay Subscription ID
+   * @returns {Promise<Object>} Cancelled subscription object
+   */
+  async cancelSubscription(subscriptionId) {
+    if (!this.razorpay) {
+      this.initializeRazorpay();
+      if (!this.razorpay) {
+        throw new Error('Razorpay not initialized');
+      }
+    }
+
+    try {
+      console.log('Cancelling Razorpay subscription:', subscriptionId);
+      // cancel(subscriptionId, cancelAtCycleEnd = false, details = {})
+      const sub = await this.razorpay.subscriptions.cancel(subscriptionId);
+      console.log('Razorpay subscription cancelled:', subscriptionId);
+      return sub;
+    } catch (error) {
+      console.error('Error cancelling Razorpay subscription:', error);
+      throw new Error(`Failed to cancel Razorpay subscription: ${error.message}`);
+    }
+  }
 }
 
 // Export singleton instance

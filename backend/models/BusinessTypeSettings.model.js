@@ -60,6 +60,12 @@ const businessTypeSettingsSchema = new mongoose.Schema(
                 type: String, // Storing plan slugs or IDs
             }
         ],
+        allowedAddonPlans: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'B2BAddonPlan',
+            }
+        ],
         isActive: {
             type: Boolean,
             default: true,

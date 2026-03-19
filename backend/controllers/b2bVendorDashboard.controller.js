@@ -16,7 +16,7 @@ export const getDashboardData = async (req, res, next) => {
     try {
         const vendorId = req.user.vendorId;
 
-        // 1. Get List Statistics (Counts)
+        // 1. Get List Statistics (Counts) & Financial Data
         const [
             totalProducts, approvedProducts,
             totalProperties, approvedProperties,
@@ -46,7 +46,7 @@ export const getDashboardData = async (req, res, next) => {
         const dashboardData = {
             hasShop: !!shop,
             overview: {
-                bannerClicks: 0, // Banner click tracking can be added later
+                bannerClicks: 0, 
                 callClicks: vendorAnalytics?.analytics?.callClicks || 0,
                 whatsappClicks: vendorAnalytics?.analytics?.whatsappClicks || 0,
                 mapClicks: vendorAnalytics?.analytics?.mapClicks || 0

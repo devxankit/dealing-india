@@ -47,6 +47,27 @@ const b2bSubscriptionPlanSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Structured Features
+    reelsLimit: {
+      type: mongoose.Schema.Types.Mixed, // Number or 'unlimited'
+      default: 0,
+    },
+    productLimit: {
+      type: mongoose.Schema.Types.Mixed, // Number or 'unlimited'
+      default: 0,
+    },
+    lotSlotLimit: {
+      type: mongoose.Schema.Types.Mixed, // Number or 'unlimited'
+      default: 0,
+    },
+    imagesPerListing: {
+      type: mongoose.Schema.Types.Mixed, // Number or 'unlimited'
+      default: 5,
+    },
+    shopSlideshow: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

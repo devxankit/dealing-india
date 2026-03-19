@@ -100,6 +100,9 @@ const AdminDefaultBannerManagement = lazyWithRetry(
 const AdminBusinessTypeConfiguration = lazyWithRetry(
   () => import("./modules/Admin/pages/b2b-vendors/BusinessTypeConfiguration"),
 );
+const AdminB2BAddonPlans = lazyWithRetry(
+  () => import("./modules/Admin/pages/b2b-vendors/AddonPlans"),
+);
 const AdminVendorDashboardView = lazyWithRetry(
   () => import("./modules/Admin/pages/b2b-vendors/AdminVendorDashboardView"),
 );
@@ -369,6 +372,7 @@ const AppRoutes = () => {
               element={<AdminB2BSubscriptionWallet />}
             />
             <Route path="subscriptions" element={<AdminB2BSubscriptions />} />
+            <Route path="addon-plans" element={<AdminB2BAddonPlans />} />
             <Route path="categories" element={<AdminB2BCategories />} />
             <Route
               path="banner-bookings"

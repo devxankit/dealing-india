@@ -17,6 +17,7 @@ import {
   replaceSong,
   getReelSharePage
 } from '../controllers/reel.controller.js';
+import { checkReelUpload } from '../middleware/subscriptionRestriction.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
 const router = express.Router();
@@ -25,6 +26,7 @@ router.post(
   '/',
   authenticate,
   authorize('vendor', 'user'),
+  checkReelUpload,
   uploadVideo.single('video'),
   asyncHandler(uploadReel)
 );
