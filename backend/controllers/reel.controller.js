@@ -931,6 +931,7 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
     const fUrl = (process.env.FRONTEND_URL || 'https://dealingindia.com').replace(/\/+$/, '');
     const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' || req.get('host').includes('dealingindia.com') ? 'https' : 'http';
     const bUrl = `${protocol}://${req.get('host')}`;
+    const shareUrl = `${bUrl}${req.originalUrl || req.url}`;
     const redirectUrl = `${fUrl}/b2b/reels/${id}`;
 
     // Default values
@@ -993,7 +994,7 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
     <!-- Open Graph / Meta -->
     <meta property="og:site_name" content="Dealing India">
     <meta property="og:type" content="video.other">
-    <meta property="og:url" content="${redirectUrl}">
+    <meta property="og:url" content="${shareUrl}">
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${description}">
     <meta property="og:image" content="${image}">

@@ -71,6 +71,7 @@ export const getReferralSharePage = asyncHandler(async (req, res) => {
     const description = "Sign up using my referral link to unlock exclusive bulk deals and start earning reward points on India's premiere B2B platform.";
     const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' || req.get('host').includes('dealingindia.com') ? 'https' : 'http';
     const bUrl = `${protocol}://${req.get('host')}`;
+    const shareUrl = `${bUrl}${req.originalUrl || req.url}`;
     const image = `${bUrl}/upload/dealing-india-logo.png`;
 
     const html = `
@@ -87,7 +88,7 @@ export const getReferralSharePage = asyncHandler(async (req, res) => {
     <!-- Open Graph / Meta -->
     <meta property="og:site_name" content="Dealing India">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="${redirectUrl}">
+    <meta property="og:url" content="${shareUrl}">
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${description}">
     <meta property="og:image" content="${image}">
