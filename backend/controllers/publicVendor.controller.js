@@ -58,17 +58,23 @@ export const getPublicVendors = async (req, res, next) => {
     const vendorIds = result.vendors.map(v => v._id);
     const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
 
-    const [productCounts, shopUnits] = await Promise.all([
+    const [productCounts, shopUnits, activeSubscriptions] = await Promise.all([
       Product.aggregate([
         { $match: { vendorId: { $in: vendorIds }, isActive: true } },
         { $group: { _id: '$vendorId', count: { $sum: 1 } } }
       ]),
-      ShopUnit.find({ vendorId: { $in: vendorIds } }).lean()
+      ShopUnit.find({ vendorId: { $in: vendorIds } }).lean(),
+      (await import('../models/VendorSubscription.model.js')).default.find({
+        vendorId: { $in: vendorIds },
+        status: 'active',
+        endDate: { $gt: new Date() }
+      }).populate('planId').lean()
     ]);
 
     // Create maps for O(1) lookup
     const productCountMap = new Map(productCounts.map(item => [item._id.toString(), item.count]));
     const shopUnitMap = new Map(shopUnits.map(unit => [unit.vendorId.toString(), unit]));
+    const subscriptionMap = new Map(activeSubscriptions.map(sub => [sub.vendorId.toString(), sub]));
 
     // Shop ratings (targetType 'shop', targetId = vendorId)
     const ratingMap = vendorIds.length > 0
@@ -101,7 +107,12 @@ export const getPublicVendors = async (req, res, next) => {
         totalProducts: productCount,
         minPrice: shopUnit?.minPrice,
         maxPrice: shopUnit?.maxPrice,
-        shopUnit: shopUnit,
+        shopUnit: shopUnit ? {
+            ...shopUnit,
+            images: (subscriptionMap.get(idStr)?.planId?.shopSlideshow) 
+                ? shopUnit.images 
+                : (shopUnit.images && shopUnit.images.length > 0 ? [shopUnit.images[0]] : [])
+        } : null,
         averageRating: ratingSummary?.averageRating ?? 0,
         ratingCount: ratingSummary?.ratingCount ?? 0,
         joinDate: vendor.createdAt,
@@ -184,7 +195,20 @@ export const getPublicVendor = async (req, res, next) => {
 
     // Get shop unit details for B2B vendors
     const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
-    const shopUnit = await ShopUnit.findOne({ vendorId: vendor._id });
+    const shopUnit = await ShopUnit.findOne({ vendorId: vendor._id }).lean();
+
+    // Check subscription for shop slideshow allowance
+    const VendorSubscription = (await import('../models/VendorSubscription.model.js')).default;
+    const activeSub = await VendorSubscription.findOne({
+      vendorId: vendor._id,
+      status: 'active',
+      endDate: { $gt: new Date() }
+    }).populate('planId').lean();
+
+    const canUseSlideshow = activeSub?.planId?.shopSlideshow || false;
+    if (shopUnit && !canUseSlideshow && shopUnit.images && shopUnit.images.length > 1) {
+      shopUnit.images = [shopUnit.images[0]];
+    }
 
     // Shop rating summary
     const ratingSummary = await getRatingSummary('shop', vendor._id.toString());

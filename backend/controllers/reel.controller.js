@@ -936,7 +936,7 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
     // Default values
     let title = "Check out this Reel on Dealing India";
     let description = "Watch high-quality product reels and bulk deals on India's premiere B2B marketplace.";
-    let image = `${fUrl}/referral-preview.png`; // Use frontend static asset as default
+    let image = `${bUrl}/upload/dealing-india-logo.png`; 
 
     if (reel) {
         const type = reel.propertyId ? "Property" : (reel.productId ? "Product" : "Reel");

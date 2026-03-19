@@ -304,23 +304,33 @@ class SubscriptionRulesService {
                 }
             }
 
-            // 2. Check Subscription allowance
-            if (subData) {
-                const plan = subData.plan;
-                const planType = this.determinePlanType(plan?.name);
-                const legacyLimits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
+            // 2. MUST HAVE SUBSCRIPTION
+            if (!subData) {
+                // If no subscription, check for addons only
+                if (addonCount > 0) return { allowed: true, useAddon: true, addonCount };
                 
-                let isAllowed = legacyLimits.allowLotSlot;
-                if (plan && plan.lotSlotLimit !== undefined) {
-                    isAllowed = plan.lotSlotLimit === 'unlimited' || Number(plan.lotSlotLimit) > 0;
-                }
-
-                if (isAllowed) {
-                    return { allowed: true, useAddon: false };
-                }
+                return { 
+                    allowed: false, 
+                    message: 'An active subscription plan is required to add Lot/Slot listings.',
+                    subscriptionRequired: true
+                };
             }
 
-            // 3. Check Addon pool
+            // 3. Check Subscription allowance
+            const plan = subData.plan;
+            const planType = this.determinePlanType(plan?.name);
+            const legacyLimits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
+            
+            let isAllowed = legacyLimits.allowLotSlot;
+            if (plan && plan.lotSlotLimit !== undefined) {
+                isAllowed = plan.lotSlotLimit === 'unlimited' || Number(plan.lotSlotLimit) > 0;
+            }
+
+            if (isAllowed) {
+                return { allowed: true, useAddon: false };
+            }
+
+            // 4. Check Addon pool
             if (addonCount > 0) {
                 return { allowed: true, useAddon: true, addonCount };
             }
