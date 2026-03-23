@@ -18,10 +18,22 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
     const vendorLabel = isRealEstate ? 'Office' : 'Store';
 
     // Gallery logic matching Product Card
-    const allImages = [
-        vendor.storeLogo,
-        ...(Array.isArray(vendor.shopUnit?.images) ? vendor.shopUnit.images.filter(img => img !== vendor.storeLogo) : [])
-    ].filter(Boolean);
+    // If user doesn't have slideshow permission, they only get a single static image (logo or first image)
+    const canShowSlideshow = vendor.hasSlideshow !== false; // Default to true if not explicitly false from backend
+
+    const allImages = React.useMemo(() => {
+        const logo = vendor.storeLogo;
+        const shopImages = Array.isArray(vendor.shopUnit?.images) ? vendor.shopUnit.images : [];
+        
+        // Combine logo and shop images, filtering out duplicates
+        const combined = [logo, ...shopImages.filter(img => img !== logo)].filter(Boolean);
+        
+        if (!canShowSlideshow) {
+            // Only show 1st available image if no slideshow permission
+            return combined.slice(0, 1);
+        }
+        return combined;
+    }, [vendor.storeLogo, vendor.shopUnit?.images, canShowSlideshow]);
 
     const handleNextImage = (e) => {
         e.stopPropagation();

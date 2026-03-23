@@ -45,6 +45,7 @@ export default function ReelModeration() {
   const [approvedMusic, setApprovedMusic] = useState([]);
   const [musicLoading, setMusicLoading] = useState(false);
   const [replacingId, setReplacingId] = useState(null);
+  const [playingSongId, setPlayingSongId] = useState(null);
 
   const fetchReels = async () => {
     setLoading(true);
@@ -171,7 +172,12 @@ export default function ReelModeration() {
 
   useEffect(() => {
     if (replacingReel) fetchMusic();
+    else setPlayingSongId(null);
   }, [replacingReel]);
+
+  useEffect(() => {
+    if (!previewReel && !replacingReel) setPlayingSongId(null);
+  }, [previewReel, replacingReel]);
 
   const pages = Math.ceil(total / 12) || 1;
 
@@ -325,7 +331,7 @@ export default function ReelModeration() {
                 <div className="p-4">
                   <h3 className="font-semibold text-gray-900 truncate">{reel.title}</h3>
 
-                  <p className="text-xs text-gray-500 mt-0.5">{reel.categoryName} · {reel.uploaderName}</p>
+                  <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">{reel.categoryName}{reel.price > 0 && ` · ₹${reel.price}`} · {reel.uploaderName}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{dayjs(reel.createdAt).format('MMM D, YYYY HH:mm')}</p>
                   {normalizeStatus(reel.status) === 'rejected' && reel.rejectReason && (
                     <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100 line-clamp-2" title={reel.rejectReason}>
@@ -465,6 +471,7 @@ export default function ReelModeration() {
                       controls
                       autoPlay
                       loop
+                      muted={!!playingSongId}
                       className="w-full h-full object-cover"
                     />
                   )}
@@ -505,10 +512,57 @@ export default function ReelModeration() {
                       </div>
                     </div>
 
-                    <div className="pt-4">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date</span>
-                      <p className="text-sm text-gray-500">{dayjs(previewReel.createdAt).format('MMMM D, YYYY')}</p>
+                    <div className="pt-4 grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Date</span>
+                        <p className="text-sm text-gray-500">{dayjs(previewReel.createdAt).format('MMMM D, YYYY')}</p>
+                      </div>
+                      {previewReel.price > 0 && (
+                        <div>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Price</span>
+                          <p className="text-sm font-bold text-primary-600">₹{previewReel.price}</p>
+                        </div>
+                      )}
                     </div>
+
+                    {previewReel.musicId && (
+                      <div className="pt-4 border-t border-gray-50">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Current Audio</span>
+                        <div className="mt-2 flex items-center gap-3 p-3 rounded-2xl bg-primary-50 border border-primary-100">
+                          <button
+                            type="button"
+                            onClick={() => setPlayingSongId(playingSongId === previewReel.musicId._id ? null : previewReel.musicId._id)}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-sm ${playingSongId === previewReel.musicId._id 
+                              ? 'bg-rose-500 text-white animate-pulse' 
+                              : 'bg-white text-primary-600 hover:bg-gray-50'}`}
+                          >
+                            {playingSongId === previewReel.musicId._id ? (
+                                <div className="flex items-center gap-0.5">
+                                  <div className="w-1 h-3 bg-white rounded-full animate-[bounce_0.6s_infinite]" style={{ animationDelay: '0s' }}></div>
+                                  <div className="w-1 h-4 bg-white rounded-full animate-[bounce_0.6s_infinite]" style={{ animationDelay: '0.2s' }}></div>
+                                  <div className="w-1 h-2 bg-white rounded-full animate-[bounce_0.6s_infinite]" style={{ animationDelay: '0.4s' }}></div>
+                                </div>
+                            ) : (
+                              <FiPlay className="ml-0.5" />
+                            )}
+                          </button>
+                          
+                          {playingSongId === previewReel.musicId._id && (
+                            <audio
+                              src={previewReel.musicId.fileUrl}
+                              autoPlay
+                              onEnded={() => setPlayingSongId(null)}
+                              onError={() => setPlayingSongId(null)}
+                            />
+                          )}
+
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-gray-900 truncate">{previewReel.musicId.title}</p>
+                            <p className="text-[10px] text-gray-500 truncate">{previewReel.musicId.artist}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {normalizeStatus(previewReel.status) === 'rejected' && previewReel.rejectReason && (
@@ -691,9 +745,33 @@ export default function ReelModeration() {
                       key={song._id}
                       className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:border-primary-200 hover:bg-primary-50 transition-all group"
                     >
-                      <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center text-primary-600">
-                        <FiMusic />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPlayingSongId(playingSongId === song._id ? null : song._id)}
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors shadow-sm ${playingSongId === song._id 
+                          ? 'bg-rose-500 text-white animate-pulse' 
+                          : 'bg-primary-100 text-primary-600 hover:bg-primary-200'}`}
+                      >
+                        {playingSongId === song._id ? (
+                          <div className="flex items-center gap-0.5">
+                            <div className="w-1 h-3 bg-white rounded-full animate-[bounce_0.6s_infinite]" style={{ animationDelay: '0s' }}></div>
+                            <div className="w-1 h-4 bg-white rounded-full animate-[bounce_0.6s_infinite]" style={{ animationDelay: '0.2s' }}></div>
+                            <div className="w-1 h-2 bg-white rounded-full animate-[bounce_0.6s_infinite]" style={{ animationDelay: '0.4s' }}></div>
+                          </div>
+                        ) : (
+                          <FiPlay className="ml-0.5" />
+                        )}
+                      </button>
+
+                      {playingSongId === song._id && (
+                        <audio
+                          src={song.fileUrl}
+                          autoPlay
+                          onEnded={() => setPlayingSongId(null)}
+                          onError={() => { toast.error('Failed to load audio'); setPlayingSongId(null); }}
+                        />
+                      )}
+
                       <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-gray-900 truncate">{song.title}</h4>
                         <p className="text-xs text-gray-500">{song.artist} • {song.genre}</p>

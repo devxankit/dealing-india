@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
 import SubscriptionGate from '../components/SubscriptionGate';
+import QuotaBanner from '../components/QuotaBanner';
 
 const MAX_VIDEO_MB = 100;
 const MAX_DURATION_SECONDS = 60;
@@ -22,6 +23,7 @@ export default function UploadReel() {
     categoryId: '',
     subCategoryId: '',
     categoryName: '',
+    price: '',
   });
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
@@ -94,8 +96,6 @@ export default function UploadReel() {
       toast.error('Title is required');
       return;
     }
-    // For playlist creation we rely on the chosen subcategory name directly
-    // (e.g. Saree, Flat, Villa/Row House, Commercial Property).
     const categoryName = (form.categoryName || '').trim();
     if (!categoryName) {
       toast.error('Please select a category');
@@ -113,6 +113,7 @@ export default function UploadReel() {
       fd.append('title', form.title.trim().slice(0, MAX_TITLE));
       fd.append('description', (form.description || '').trim().slice(0, MAX_DESC));
       fd.append('categoryName', categoryName);
+      fd.append('price', form.price ? Number(form.price) : 0); // Added 'price' to FormData
       if (form.categoryId) fd.append('categoryId', form.categoryId);
 
       const res = await api.post('/reels', fd);
@@ -141,13 +142,17 @@ export default function UploadReel() {
         <FiArrowLeft /> Back
       </button>
 
-      <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-        <FiVideo className="text-primary-600" />
-        Upload Reel
-      </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <FiVideo className="text-primary-600" />
+          Upload Reel
+        </h1>
+      </div>
       <p className="text-sm text-gray-500 mb-6">
         Short promotional video (e.g. product showcase, property tour). Max {MAX_DURATION_SECONDS} seconds and {MAX_VIDEO_MB}MB. It will be reviewed before going live.
       </p>
+
+      <QuotaBanner action="reels" />
 
       <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-8">
         <p className="text-blue-900 font-bold mb-2">Hello vendor !</p>
@@ -168,7 +173,7 @@ export default function UploadReel() {
         </ul>
       </div>
 
-      <SubscriptionGate action="reels">
+      <SubscriptionGate action="reels" showLimitInfo={false} fullPage={true}>
         <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Video *</label>
@@ -201,30 +206,53 @@ export default function UploadReel() {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
-          <input
-            type="text"
-            value={form.title}
-            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            placeholder="e.g. Saree collection preview"
-            maxLength={MAX_TITLE}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          />
-          <p className="text-xs text-gray-400 mt-1">{form.title.length}/{MAX_TITLE}</p>
-        </div>
+        <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Video Title *
+              </label>
+              <input
+                type="text"
+                placeholder="Product name or short catchy title"
+                className="w-full px-4 py-2 border border-gray-100 rounded-xl focus:ring-1 focus:ring-primary-500"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                maxLength={MAX_TITLE}
+              />
+              <p className="text-xs text-gray-400 mt-1">{form.title.length}/{MAX_TITLE}</p>
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
-          <textarea
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            placeholder="Brief description..."
-            maxLength={MAX_DESC}
-            rows={3}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          />
-          <p className="text-xs text-gray-400 mt-1">{form.description.length}/{MAX_DESC}</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Price (Optional)
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                <input
+                  type="number"
+                  placeholder="e.g. 599"
+                  className="w-full pl-8 pr-4 py-2 border border-gray-100 rounded-xl focus:ring-1 focus:ring-primary-500"
+                  value={form.price}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  min="0"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description (Optional)
+              </label>
+              <textarea
+                placeholder="Briefly describe what this video is about..."
+                className="w-full px-4 py-2 border border-gray-100 rounded-xl focus:ring-1 focus:ring-primary-500"
+                rows={3}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                maxLength={MAX_DESC}
+              />
+              <p className="text-xs text-gray-400 mt-1">{form.description.length}/{MAX_DESC}</p>
+            </div>
         </div>
 
         <div>

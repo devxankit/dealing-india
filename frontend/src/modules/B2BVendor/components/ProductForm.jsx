@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
+import { useSubscriptionStore } from "../store/subscriptionStore";
 import imageCompression from 'browser-image-compression';
 
 // Basic in-memory cache for B2B categories during the session
@@ -231,7 +232,9 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         setFormData(prev => ({ ...prev, bulkPricing: updated }));
     };
 
-    const MAX_PHOTOS = 5;
+    const { canCreateProduct } = useSubscriptionStore();
+    const productPermission = canCreateProduct();
+    const MAX_PHOTOS = productPermission.maxImages !== undefined ? productPermission.maxImages : 5;
 
     const handleMultipleImageUpload = async (e) => {
         const files = Array.from(e.target.files);
@@ -757,7 +760,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                             </label>
                         </div>
                         <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
-                            First image is cover. Max 300KB each.
+                            {MAX_PHOTOS === 0 ? "No photos allowed on this plan." : `First image is cover. Max ${MAX_PHOTOS} photos.`} Max 300KB each.
                         </p>
                     </div>
 

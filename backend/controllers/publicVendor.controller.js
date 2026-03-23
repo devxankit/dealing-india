@@ -115,6 +115,7 @@ export const getPublicVendors = async (req, res, next) => {
         } : null,
         averageRating: ratingSummary?.averageRating ?? 0,
         ratingCount: ratingSummary?.ratingCount ?? 0,
+        hasSlideshow: !!subscriptionMap.get(idStr)?.planId?.shopSlideshow,
         joinDate: vendor.createdAt,
         createdAt: vendor.createdAt,
         updatedAt: vendor.updatedAt,

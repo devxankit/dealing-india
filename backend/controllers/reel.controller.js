@@ -9,6 +9,7 @@ import Music from '../models/Music.model.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadToCloudinary, deleteFromCloudinary, uploadUrlToCloudinary } from '../utils/cloudinary.util.js';
 import { publishReelToYouTube, fetchPlaylistItems, fetchVideoById, deleteVideoFromYouTube } from '../services/youtubeReel.service.js';
+import notificationService from '../services/notification.service.js';
 
 const REEL_ACTIVE_HOURS = 24; // kept for backwards compatibility only
 
@@ -69,7 +70,7 @@ export const uploadReel = asyncHandler(async (req, res) => {
   if (!req.file || !req.file.buffer) {
     return res.status(400).json({ success: false, message: 'Video file is required' });
   }
-  const { title, description, categoryId, categoryName, productId, propertyId } = req.body;
+  const { title, description, categoryId, categoryName, productId, propertyId, price } = req.body;
   if (!title || !categoryName) {
     return res.status(400).json({ success: false, message: 'Title and category are required' });
   }
@@ -110,6 +111,7 @@ export const uploadReel = asyncHandler(async (req, res) => {
     categoryName: String(categoryName).trim(),
     productId: productId || null,
     propertyId: propertyId || null,
+    price: Number(price) || 0,
     uploaderId,
     uploaderType,
     uploaderName,
@@ -176,7 +178,7 @@ export const adminListReels = asyncHandler(async (req, res) => {
   const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
 
   const [reels, total] = await Promise.all([
-    Reel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
+    Reel.find(filter).populate('musicId').sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
     Reel.countDocuments(filter),
   ]);
 
@@ -194,7 +196,7 @@ export const adminListReels = asyncHandler(async (req, res) => {
  * GET /api/admin/reels/:id
  */
 export const adminGetReel = asyncHandler(async (req, res) => {
-  const reel = await Reel.findById(req.params.id).lean();
+  const reel = await Reel.findById(req.params.id).populate('musicId').lean();
   if (!reel) {
     return res.status(404).json({ success: false, message: 'Reel not found' });
   }
@@ -256,6 +258,22 @@ export const adminApproveReel = asyncHandler(async (req, res) => {
   reel.youtubeUploadFailed = youtubeUploadFailed;
   reel.youtubeUploadError = youtubeUploadError;
   await reel.save();
+ 
+  // Send notification to uploader
+  try {
+    const io = req.app.get('io');
+    await notificationService.createNotification({
+      recipientId: reel.uploaderId,
+      recipientType: reel.uploaderType,
+      type: 'reel_status',
+      title: 'Reel Approved',
+      message: `Your reel "${reel.title}" has been approved and is now live!`,
+      actionUrl: '/b2b-vendor/reels',
+      metadata: { reelId: reel._id }
+    }, io);
+  } catch (notifErr) {
+    console.error('[Reel Approve] Notification failed:', notifErr.message);
+  }
 
   res.status(200).json({
     success: true,
@@ -353,6 +371,23 @@ export const adminRejectReel = asyncHandler(async (req, res) => {
   reel.status = 'rejected';
   reel.rejectReason = req.body?.reason?.trim() || null;
   await reel.save();
+ 
+  // Send notification to uploader
+  try {
+    const io = req.app.get('io');
+    await notificationService.createNotification({
+      recipientId: reel.uploaderId,
+      recipientType: reel.uploaderType,
+      type: 'reel_status',
+      title: 'Reel Rejected',
+      message: `Your reel "${reel.title}" was rejected. Reason: ${reel.rejectReason || 'No reason provided.'}`,
+      actionUrl: '/b2b-vendor/reels',
+      metadata: { reelId: reel._id, reason: reel.rejectReason }
+    }, io);
+  } catch (notifErr) {
+    console.error('[Reel Reject] Notification failed:', notifErr.message);
+  }
+ 
   res.status(200).json({ success: true, message: 'Reel rejected', data: { reel: reel.toObject() } });
 });
 
@@ -574,6 +609,7 @@ export const getFeed = asyncHandler(async (req, res) => {
       vendorPhone: null,
       vendorStoreName: null,
       vendorId: null,
+      price: 0,
     }));
     return res.status(200).json({
       success: true,
@@ -614,7 +650,12 @@ export const getFeed = asyncHandler(async (req, res) => {
     .map((r) => r.uploaderId);
   let vendorMap = new Map();
   if (vendorIds.length) {
-    const vendors = await Vendor.find({ _id: { $in: vendorIds } })
+    const vendors = await Vendor.find({ 
+      _id: { $in: vendorIds },
+      status: 'approved',
+      isActive: true,
+      vendorType: 'b2b'
+    })
       .select('phone storeName')
       .lean();
     vendorMap = new Map(vendors.map((v) => [v._id.toString(), v]));
@@ -647,6 +688,9 @@ export const getFeed = asyncHandler(async (req, res) => {
         ? vendorMap.get(r.uploaderId?.toString() || '') || null
         : null;
 
+    // Filter out vendor reels where the vendor is no longer approved or active
+    if (r.uploaderType === 'vendor' && !vendorInfo) return null;
+
     return {
       ...r,
       likeCount: likeMap.get(r._id.toString()) || 0,
@@ -655,9 +699,10 @@ export const getFeed = asyncHandler(async (req, res) => {
       vendorPhone: vendorInfo?.phone || null,
       vendorStoreName: vendorInfo?.storeName || r.uploaderName || null,
       viewCount: typeof r.viewCount === 'number' ? r.viewCount : 0,
-      vendorId: r.uploaderType === 'vendor' ? (vendorInfo?._id || r.uploaderId) : null,
+      vendorId: r.uploaderType === 'vendor' ? (vendorInfo?._id || null) : null,
+      price: r.price || 0,
     };
-  });
+  }).filter(Boolean);
 
   const total = await Reel.countDocuments(filter);
   res.status(200).json({
@@ -706,7 +751,17 @@ export const getReelById = asyncHandler(async (req, res) => {
 
   let vendorInfo = null;
   if (reel.uploaderType === 'vendor' && reel.uploaderId) {
-    const v = await Vendor.findById(reel.uploaderId).select('phone storeName').lean();
+    const v = await Vendor.findOne({ 
+      _id: reel.uploaderId,
+      status: 'approved',
+      isActive: true,
+      vendorType: 'b2b'
+    }).select('phone storeName').lean();
+    
+    // If it's a vendor reel but vendor is no longer approved/active
+    if (!v) {
+      return res.status(404).json({ success: false, message: 'Vendor store is no longer active' });
+    }
     vendorInfo = v;
   }
 
@@ -726,7 +781,8 @@ export const getReelById = asyncHandler(async (req, res) => {
     vendorPhone: vendorInfo?.phone || null,
     vendorStoreName: vendorInfo?.storeName || reel.uploaderName || null,
     viewCount: typeof reel.viewCount === 'number' ? reel.viewCount : 0,
-    vendorId: reel.uploaderType === 'vendor' ? (reel.uploaderId || null) : null,
+    vendorId: reel.uploaderType === 'vendor' ? (vendorInfo?._id || null) : null,
+    price: reel.price || 0,
   };
 
   res.status(200).json({
@@ -951,6 +1007,7 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
             description = reel.description || `Explore this property listing on Dealing India.`;
         } else {
             title = reel.title || `${type} from ${reel.uploaderName || 'Dealing India'}`;
+            if (reel.price > 0) title = `₹${reel.price} - ${title}`;
             description = reel.description || `Watch this ${reel.categoryName || ''} ${type.toLowerCase()} in action on Dealing India.`;
         }
         

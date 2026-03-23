@@ -122,6 +122,7 @@ export const useSubscriptionStore = create((set, get) => ({
 
         return {
             allowed: true,
+            maxImages: state.status?.limits?.properties?.maxImages || 5,
             remaining: limits.remaining,
             current: limits.current,
             limit: limits.limit
@@ -169,7 +170,10 @@ export const useSubscriptionStore = create((set, get) => ({
 
         return {
             allowed: true,
-            maxImages: limits.maxImages
+            maxImages: limits.maxImages,
+            current: limits.current,
+            limit: limits.limit,
+            remaining: limits.remaining
         };
     },
 

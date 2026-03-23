@@ -15,7 +15,8 @@ import {
     FiLogOut,
     FiPlus,
     FiBell,
-    FiVideo
+    FiVideo,
+    FiUsers
 } from "react-icons/fi";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
@@ -42,6 +43,7 @@ const iconMap = {
     Profile: FiUser,
     Security: FiBriefcase,
     Reels: FiVideo,
+    Followers: FiUsers,
 };
 
 const getChildRoute = (parentRoute, childName) => {

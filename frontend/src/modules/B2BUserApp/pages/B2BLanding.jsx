@@ -129,7 +129,7 @@ const B2BLanding = () => {
 
     // Only show vendors that have a shop (shopUnit) in the strip; dedupe by id so same card never appears twice
     const vendorsWithShop = useMemo(() => {
-        const withShop = (allVendors || []).filter((v) => v.shopUnit != null && (typeof v.shopUnit === 'object' ? Object.keys(v.shopUnit).length > 0 : true));
+        const withShop = (allVendors || []).filter((v) => v.shopUnit != null && (typeof v.shopUnit === 'object' ? Object.keys(v.shopUnit).length > 0 : true) && v.hasSlideshow !== false);
         const seen = new Set();
         return withShop.filter((v) => {
             const id = (v._id || v.id || '').toString();
@@ -1441,23 +1441,11 @@ const B2BLanding = () => {
                     <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-8 md:py-10 text-center">
                         <p className="text-gray-500 text-sm md:text-base font-medium">No shops listed yet. Check back soon or explore categories above.</p>
                     </div>
-                ) : vendorsWithShop.length === 1 ? (
-                    <div className="flex gap-4 md:gap-6 py-3 px-4 md:px-8 max-w-[1920px] mx-auto justify-center">
-                        <div className="flex-shrink-0 w-[140px] md:w-[160px]">
-                            <B2BVendorCard
-                                vendor={vendorsWithShop[0]}
-                                viewMode="grid"
-                                trackContactClick={trackContactClick}
-                                compact={true}
-                                requireAuthForActions={true}
-                            />
-                        </div>
-                    </div>
                 ) : (
-                    <div className="relative group">
-                        <div className="flex gap-4 md:gap-6 animate-scroll hover:pause-scroll py-3">
-                            {/* Render twice for infinite loop effect when multiple shops */}
-                            {[...vendorsWithShop, ...vendorsWithShop].map((vendor, idx) => (
+                    <div className="relative group overflow-hidden">
+                        <div className="flex gap-4 md:gap-6 py-3 px-4 md:px-8 animate-scroll hover:pause-scroll">
+                            {/* Render enough times for infinite loop effect even with small counts */}
+                            {([...Array(Math.ceil(12 / (vendorsWithShop.length || 1)))].fill(vendorsWithShop).flat()).map((vendor, idx, arr) => (
                                 <div
                                     key={`${vendor._id}-${idx}`}
                                     className="flex-shrink-0 w-[140px] md:w-[160px]"

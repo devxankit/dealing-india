@@ -2879,9 +2879,16 @@ const ProductCatalog = () => {
                                 )}
                               </div>
                               <div className="p-2">
-                                <p className="text-xs font-semibold text-gray-900 truncate">
-                                  {reel.title}
-                                </p>
+                                <div className="flex items-center justify-between gap-1">
+                                  <p className="text-[10px] font-black text-gray-900 truncate uppercase tracking-tight">
+                                    {reel.title}
+                                  </p>
+                                  {reel.price > 0 && (
+                                    <span className="shrink-0 text-[10px] font-black text-primary-600">
+                                      ₹{reel.price}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </button>
                           ))}

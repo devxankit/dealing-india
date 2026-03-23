@@ -9,6 +9,7 @@ import vendorWalletService from '../services/vendorWallet.service.js';
 import platformLedgerService from '../services/platformLedger.service.js';
 import zohoBooksService from '../services/zohoBooks.service.js';
 import { sendPaymentSuccessEmail, sendPaymentCancelledEmail } from '../services/email.service.js';
+import { calculateGstAmount, getTotalWithGst } from '../utils/tax.util.js';
 
 
 // ==========================================
@@ -158,7 +159,9 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
         });
     }
 
-    const amount = slot.price * durationInDays;
+    const baseAmount = slot.price * durationInDays;
+    const gstAmount = calculateGstAmount(baseAmount);
+    const amount = baseAmount + gstAmount;
     const durationHours = durationInDays * 24;
 
     // Handle Wallet Payment
@@ -192,8 +195,11 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
         bannerImage: uploadResult.secure_url,
         title: title || '',
         link: link || '/',
+        
         startDate: start,
         endDate: end,
+        baseAmount,
+        gstAmount,
         amount,
         durationHours,
         durationDays: durationInDays,
@@ -359,7 +365,10 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
                     bookingId: booking._id.toString(),
                     vendorId: vendorId.toString(),
                     bannerType: 'b2b',
-                    type: 'banner_booking'
+                    type: 'banner_booking',
+                    baseAmount,
+                    gstAmount,
+                    totalAmount: amount
                 }
             );
 
@@ -378,6 +387,9 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
             const vendor = await Vendor.findById(vendorId).select('businessName storeName');
             await notificationService.sendBulkNotification({
                 type: 'banner_booking',
+                    baseAmount,
+                    gstAmount,
+                    totalAmount: amount,
                 title: 'Vendor Banner Booking (Wallet Paid)',
                 message: `Vendor has booked a banner using wallet funds.`,
                 actionUrl: `/admin/b2b-vendors/banner-bookings`,
@@ -632,6 +644,9 @@ export const confirmPayment = asyncHandler(async (req, res) => {
         const vendor = await Vendor.findById(vendorId).select('businessName storeName');
         await notificationService.sendBulkNotification({
             type: 'banner_booking',
+                    baseAmount,
+                    gstAmount,
+                    totalAmount: amount,
             title: 'Vendor Banner Booking',
             message: 'Vendor has booked a banner.',
             actionUrl: `/admin/b2b-vendors/banner-bookings`,
@@ -1045,6 +1060,9 @@ export const approveBannerBooking = asyncHandler(async (req, res) => {
             recipientId: booking.vendorId,
             recipientType: 'vendor',
             type: 'banner_booking',
+                    baseAmount,
+                    gstAmount,
+                    totalAmount: amount,
             title: 'Banner Booking Approved!',
             message: 'Your banner booking has been approved and is now active.',
             actionUrl: '/vendor/banners',
@@ -1121,6 +1139,9 @@ export const rejectBannerBooking = asyncHandler(async (req, res) => {
             recipientId: booking.vendorId,
             recipientType: 'vendor',
             type: 'banner_booking',
+                    baseAmount,
+                    gstAmount,
+                    totalAmount: amount,
             title: 'Banner Booking Rejected',
             message: `Your banner booking was rejected. ${reason ? `Reason: ${reason}` : ''} ${booking.paymentStatus === 'refunded' ? 'Your payment has been refunded to your wallet.' : ''}`,
             actionUrl: '/vendor/banners',

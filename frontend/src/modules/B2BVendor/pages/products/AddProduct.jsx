@@ -6,6 +6,7 @@ import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import SubscriptionGate from '../../components/SubscriptionGate';
+import QuotaBanner from '../../components/QuotaBanner';
 
 const AddProduct = () => {
     const { settings, loading } = useVendorSettings();
@@ -38,12 +39,15 @@ const AddProduct = () => {
                 <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">
                     {getTitle()}
                 </h1>
-                <p className="text-sm text-gray-500 font-medium">
+                <p className="text-sm text-gray-500 font-medium pb-6">
                     {getSubtitle()}
                 </p>
+                <div className="max-w-2xl mx-auto">
+                    <QuotaBanner action="product" />
+                </div>
             </div>
 
-            <SubscriptionGate action="product">
+            <SubscriptionGate action="product" showLimitInfo={false}>
                 <B2BVendorProductForm isEdit={false} />
             </SubscriptionGate>
         </motion.div>

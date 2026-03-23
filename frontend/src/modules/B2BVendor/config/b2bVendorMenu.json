@@ -51,7 +51,13 @@
         "children": []
     },
     {
+        "title": "Followers",
+        "route": "/b2b-vendor/followers",
+        "children": []
+    },
+    {
         "title": "Notifications",
+
         "route": "/b2b-vendor/notifications",
         "children": []
     },

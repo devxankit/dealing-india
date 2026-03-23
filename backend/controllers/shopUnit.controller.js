@@ -16,6 +16,16 @@ export const createOrUpdateUnit = async (req, res, next) => {
         const { name, description, images, minPrice, maxPrice, details, businessCategory, mapUrl } = req.body;
         const vendorId = req.user.vendorId;
 
+        // Ensure active subscription before listing shop
+        const subCheck = await subscriptionRulesService.checkHasActiveSubscription(vendorId);
+        if (!subCheck.hasSubscription) {
+            return res.status(403).json({
+                success: false,
+                message: "To list your shop, you need to purchase any subscription plan.",
+                subscriptionRequired: true
+            });
+        }
+
         // Check for slideshow permission if more than 1 image is provided
         if (images && images.length > 1) {
             const slideshowCheck = await subscriptionRulesService.canUseShopSlideshow(vendorId);

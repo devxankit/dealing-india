@@ -10,7 +10,10 @@ import {
     FiLoader,
     FiChevronDown,
     FiMapPin,
-    FiShield
+    FiShield,
+    FiUsers,
+    FiUserPlus,
+    FiUserCheck,
 } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import { motion } from "framer-motion";
@@ -22,17 +25,21 @@ import { getGoogleMapsUrl, maskPhone, getWhatsAppUserDetailsSuffix } from "../..
 import { useAuthStore } from "../../../shared/store/authStore";
 import RealEstateCard from "../components/RealEstateCard";
 import { useB2BCategoryStore } from "../../../shared/store/b2bCategoryStore";
+import toast from "react-hot-toast";
 
 const B2BVendorStore = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user } = useAuthStore();
+    const { user, isAuthenticated } = useAuthStore();
     const [searchParams] = useSearchParams();
     const itemType = searchParams.get('itemType') || 'product';
     const [vendor, setVendor] = useState(null);
     const [products, setProducts] = useState([]);
     const [properties, setProperties] = useState([]);
     const [reels, setReels] = useState([]);
+    const [followerCount, setFollowerCount] = useState(0);
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [followingLoading, setFollowingLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState("grid");
     const [sortBy, setSortBy] = useState("popular");
@@ -109,6 +116,47 @@ const B2BVendorStore = () => {
             fetchVendorData();
         }
     }, [id, itemType]);
+
+    // Fetch follow status
+    useEffect(() => {
+        const fetchFollowData = async () => {
+            if (!id) return;
+            try {
+                // Determine user orientation (user or vendor)
+                const res = await api.get(`/follow/vendor/${id}`);
+                if (res.success) {
+                    setFollowerCount(res.data.followerCount);
+                    setIsFollowing(res.data.isFollowing);
+                }
+            } catch (error) {
+                console.error("Error fetching follow status:", error);
+            }
+        };
+        fetchFollowData();
+    }, [id, isAuthenticated]);
+
+    const handleToggleFollow = async () => {
+        if (!isAuthenticated) {
+            toast.error("Please login to follow this vendor");
+            navigate("/login");
+            return;
+        }
+
+        setFollowingLoading(true);
+        try {
+            const res = await api.post("/follow/toggle", { vendorId: id });
+            if (res.success) {
+                setIsFollowing(res.data.isFollowing);
+                setFollowerCount(res.data.followerCount);
+                toast.success(res.message);
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || error.message || "Something went wrong");
+        } finally {
+            setFollowingLoading(false);
+        }
+    };
+
 
     // Find shop listing for specific UI details - merged with vendor.shopUnit if available
     const shopListing = useMemo(() => {
@@ -344,37 +392,64 @@ const B2BVendorStore = () => {
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap md:flex-nowrap items-center justify-center md:justify-start gap-y-6 gap-x-6 md:gap-x-10 pt-6 border-t border-gray-50/50 mt-6 w-full">
-                                <div className="flex flex-col">
-                                    <span className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Active Catalog</span>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 md:w-10 md:h-10 bg-primary-600/10 rounded-xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm">
+                            {/* Key Metrics Grid */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 pt-6 border-t border-gray-100/60 mt-6 w-full max-w-4xl">
+                                {/* Active Catalog */}
+                                <div className="flex flex-col p-3 md:p-4 bg-gray-50/40 rounded-3xl border border-gray-100/50 hover:bg-white hover:shadow-xl hover:border-primary-100/50 transition-all group">
+                                    <span className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2.5">Active Catalog</span>
+                                    <div className="flex items-center gap-2.5 md:gap-3">
+                                        <div className="w-8 h-8 md:w-11 md:h-11 bg-primary-600/10 rounded-2xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm group-hover:scale-110 transition-transform">
                                             {products.length + properties.length}
                                         </div>
-                                        <span className="text-[10px] md:text-xs font-black text-gray-800 uppercase tracking-wider">Units Listed</span>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none">Units</span>
+                                            <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Listed</span>
+                                        </div>
                                     </div>
                                 </div>
 
+                                {/* Community */}
+                                <div className="flex flex-col p-3 md:p-4 bg-gray-50/40 rounded-3xl border border-gray-100/50 hover:bg-white hover:shadow-xl hover:border-primary-100/50 transition-all group">
+                                    <span className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2.5">Community</span>
+                                    <div className="flex items-center gap-2.5 md:gap-3">
+                                        <div className="w-8 h-8 md:w-11 md:h-11 bg-primary-600/10 rounded-2xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm group-hover:scale-110 transition-transform">
+                                            {followerCount}
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none">Followers</span>
+                                            {isFollowing && <span className="text-[8px] md:text-[9px] font-black text-primary-600 uppercase tracking-widest mt-1 animate-pulse">You follow</span>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Price Range */}
                                 {shopListing?.minPrice && shopListing?.maxPrice && (
-                                    <div className="flex flex-col md:border-l border-gray-100 md:pl-8 lg:pl-10">
-                                        <span className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Price Range</span>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 md:w-10 md:h-10 bg-primary-600/10 rounded-xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm">
+                                    <div className="flex flex-col p-3 md:p-4 bg-gray-50/40 rounded-3xl border border-gray-100/50 hover:bg-white hover:shadow-xl hover:border-primary-100/50 transition-all group">
+                                        <span className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2.5">Price Range</span>
+                                        <div className="flex items-center gap-2.5 md:gap-3">
+                                            <div className="w-8 h-8 md:w-11 md:h-11 bg-primary-600/10 rounded-2xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm group-hover:scale-110 transition-transform">
                                                 ₹
                                             </div>
-                                            <span className="text-[10px] md:text-xs font-black text-gray-800 uppercase tracking-wider">₹{shopListing.minPrice} - ₹{shopListing.maxPrice}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none">₹{shopListing.minPrice} - ₹{shopListing.maxPrice}</span>
+                                                <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Starting from</span>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
 
+                                {/* Operating Zone */}
                                 {vendor.address?.city && (
-                                    <div className="flex flex-col md:border-l border-gray-100 md:pl-8 lg:pl-10">
-                                        <span className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Operating Zone</span>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 md:w-10 md:h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
-                                                <FiShield size={14} />
+                                    <div className="flex flex-col p-3 md:p-4 bg-gray-50/40 rounded-3xl border border-gray-100/50 hover:bg-white hover:shadow-xl hover:border-primary-100/50 transition-all group">
+                                        <span className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2.5">Operating Zone</span>
+                                        <div className="flex items-center gap-2.5 md:gap-3">
+                                            <div className="w-8 h-8 md:w-11 md:h-11 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400 group-hover:scale-110 transition-transform">
+                                                <FiShield size={16} />
                                             </div>
-                                            <span className="text-[10px] md:text-xs font-black text-gray-800 uppercase tracking-wider">{vendor.address.city}, {vendor.address.state}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none truncate max-w-[100px]">{vendor.address.city}</span>
+                                                <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 truncate max-w-[100px]">{vendor.address.state}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -423,13 +498,37 @@ const B2BVendorStore = () => {
                                     View Shop Location
                                 </button>
                             )}
+
+                            <button
+                                onClick={handleToggleFollow}
+                                disabled={followingLoading}
+                                className={`w-full px-8 py-4 md:py-5 rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95 border-2 ${
+                                    isFollowing 
+                                    ? "bg-primary-50/50 text-primary-600 border-primary-500/30 shadow-primary-50/50 hover:bg-primary-100/50" 
+                                    : "bg-primary-600 text-white border-primary-600 shadow-primary-100/50 hover:bg-primary-700 hover:border-primary-700"
+                                }`}
+                            >
+                                {followingLoading ? (
+                                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                ) : isFollowing ? (
+                                    <>
+                                        <FiUserCheck className="text-lg md:text-xl" />
+                                        <span>Following</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <FiUserPlus className="text-lg md:text-xl" />
+                                        <span>Follow Vendor</span>
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Team / Contact Persons Section - Moved Above Presentation */}
-                {shopListing?.details?.length > 0 && (
-                    <div className="mb-12 md:mb-20">
+            {/* Team / Contact Persons Section - Moved Above Presentation */}
+            {shopListing?.details?.length > 0 && (
+                <div className="mb-12 md:mb-20">
                         <div className="flex items-center gap-4 mb-8">
                             <span className="h-[2px] w-12 bg-primary-600"></span>
                             <h3 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Key Contacts / Staff</h3>
@@ -706,9 +805,16 @@ const B2BVendorStore = () => {
                                         )}
                                     </div>
                                     <div className="p-2">
-                                        <p className="text-xs font-semibold text-gray-900 truncate">
-                                            {reel.title}
-                                        </p>
+                                        <div className="flex items-center justify-between gap-1">
+                                            <p className="text-[10px] font-black text-gray-900 truncate uppercase tracking-tight">
+                                                {reel.title}
+                                            </p>
+                                            {reel.price > 0 && (
+                                                <span className="shrink-0 text-[10px] font-black text-primary-600">
+                                                    ₹{reel.price}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </button>
                             ))}

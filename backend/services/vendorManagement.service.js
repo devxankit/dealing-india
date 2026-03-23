@@ -6,6 +6,7 @@ import User from '../models/User.model.js';
 import redisService from './redis.service.js';
 import mongoose from 'mongoose';
 import ShopUnit from '../models/ShopUnit.model.js';
+import VendorFollow from '../models/VendorFollow.model.js';
 
 /**
  * Get all vendors with optional filters
@@ -124,6 +125,19 @@ export const getAllVendors = async (filters = {}) => {
       },
       performance: { totalOrders: 0, totalEarnings: 0 }
     }));
+    
+    // Add follower count
+    const vendorIds = vendors.map(v => v._id);
+    const followCounts = await VendorFollow.aggregate([
+      { $match: { vendorId: { $in: vendorIds } } },
+      { $group: { _id: '$vendorId', count: { $sum: 1 } } }
+    ]);
+    
+    const countMap = followCounts.reduce((acc, curr) => ({ ...acc, [curr._id.toString()]: curr.count }), {});
+    
+    vendors.forEach(v => {
+      v.followerCount = countMap[v._id.toString()] || 0;
+    });
 
     const totalPages = Math.ceil(total / parseInt(limit));
 
@@ -564,6 +578,18 @@ export const getB2BVendors = async (filters = {}) => {
       productCountMap.set(_id.toString(), count);
     });
 
+    // Use aggregation to count followers for ALL vendors in one query
+    const followerCountsAgg = await VendorFollow.aggregate([
+      { $match: { vendorId: { $in: vendorIds } } },
+      { $group: { _id: '$vendorId', count: { $sum: 1 } } }
+    ]);
+
+    // Create a map for quick lookup
+    const followerCountMap = new Map();
+    followerCountsAgg.forEach(({ _id, count }) => {
+      followerCountMap.set(_id.toString(), count);
+    });
+
     // Format vendors for admin panel - use verified B2B vendors only
     // FINAL CHECK: Verify vendorType one more time before formatting
     const formattedVendors = verifiedB2BVendors
@@ -599,6 +625,7 @@ export const getB2BVendors = async (filters = {}) => {
             status: vendor.status || 'pending',
             isActive: vendor.isActive !== undefined ? vendor.isActive : true,
             products: productCountMap.get(vendor._id.toString()) || 0,
+            followerCount: followerCountMap.get(vendor._id.toString()) || 0,
             joinDate: vendor.createdAt ? new Date(vendor.createdAt).toISOString().split('T')[0] : null,
             gstNumber: vendor.gstNumber || 'N/A',
             businessType: vendor.businessType || 'N/A',

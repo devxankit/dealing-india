@@ -8,6 +8,7 @@ import ConfirmModal from "../../../Admin/components/ConfirmModal";
 import toast from "../../../../shared/utils/toast";
 import api from "../../../../shared/utils/api";
 import SubscriptionGate from "../../components/SubscriptionGate";
+import QuotaBanner from "../../components/QuotaBanner";
 
 const ManageLotSlot = () => {
     const navigate = useNavigate();
@@ -189,6 +190,10 @@ const ManageLotSlot = () => {
                         <FiPlus size={20} /> Publish New Lot
                     </button>
                 </SubscriptionGate>
+            </div>
+
+            <div className="max-w-2xl">
+                <QuotaBanner action="lotslot" className="mb-0" />
             </div>
 
             <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">

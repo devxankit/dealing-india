@@ -42,48 +42,6 @@ export const BUSINESS_TYPES = {
     PROPERTY_BROKER: 'property-broker'
 };
 
-// Plan limits configuration
-const PLAN_LIMITS = {
-    [PLAN_TYPES.BASIC]: {
-        maxProducts: 50,
-        allowLotSlot: false,
-        maxProperties: 0,
-        maxImagesPerProperty: 0
-    },
-    [PLAN_TYPES.SILVER]: {
-        maxProducts: 100,
-        allowLotSlot: false,
-        maxProperties: 0,
-        maxImagesPerProperty: 0
-    },
-    [PLAN_TYPES.DIAMOND]: {
-        maxProducts: -1, // Unlimited
-        allowLotSlot: true,
-        maxProperties: 0,
-        maxImagesPerProperty: 0
-    },
-    [PLAN_TYPES.PREMIUM]: {
-        maxProducts: 0,
-        allowLotSlot: false,
-        maxProperties: -1, // Unlimited
-        maxImagesPerProperty: 50 // Default, adjusted by business type
-    }
-};
-
-// Image limits by business type for property vendors
-const PROPERTY_IMAGE_LIMITS = {
-    [BUSINESS_TYPES.DEVELOPER]: 50,
-    [BUSINESS_TYPES.BROKER]: 5,
-    [BUSINESS_TYPES.PROPERTY_BROKER]: 5
-};
- 
-// Reel limits configuration
-const REEL_LIMITS = {
-    [PLAN_TYPES.BASIC]: 0,
-    [PLAN_TYPES.SILVER]: 20,
-    [PLAN_TYPES.DIAMOND]: -1, // Unlimited
-    [PLAN_TYPES.PREMIUM]: -1  // Unlimited
-};
 
 class SubscriptionRulesService {
     /**
@@ -247,15 +205,10 @@ class SubscriptionRulesService {
                 };
             }
 
-            const plan = subData.plan;
-            const planType = this.determinePlanType(plan?.name);
-            const legacyLimits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
+            const plan = subData.plan || {};
             
-            // 🔹 Dynamic Limit Check
-            let subLimit = legacyLimits.maxProducts;
-            if (plan && plan.productLimit !== undefined) {
-                subLimit = plan.productLimit === 'unlimited' ? -1 : Number(plan.productLimit);
-            }
+            // 🔹 Dynamic Limit Check from DB
+            const subLimit = plan.productLimit === 'unlimited' ? -1 : (Number(plan.productLimit) || 0);
 
             // 2. Check Subscription limit
             if (subLimit === -1 || currentCount < subLimit) {
@@ -317,14 +270,8 @@ class SubscriptionRulesService {
             }
 
             // 3. Check Subscription allowance
-            const plan = subData.plan;
-            const planType = this.determinePlanType(plan?.name);
-            const legacyLimits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
-            
-            let isAllowed = legacyLimits.allowLotSlot;
-            if (plan && plan.lotSlotLimit !== undefined) {
-                isAllowed = plan.lotSlotLimit === 'unlimited' || Number(plan.lotSlotLimit) > 0;
-            }
+            const plan = subData.plan || {};
+            const isAllowed = plan.lotSlotLimit === 'unlimited' || Number(plan.lotSlotLimit) > 0;
 
             if (isAllowed) {
                 return { allowed: true, useAddon: false };
@@ -376,17 +323,21 @@ class SubscriptionRulesService {
                 };
             }
 
-            const plan = subData.plan;
-            const planType = this.determinePlanType(plan?.name);
+            const plan = subData.plan || {};
             const businessType = this.normalizeBusinessType(subData.vendor?.businessType);
-            const legacyLimits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
 
-            // 🔹 Dynamic Image Limit
-            let maxImages = PROPERTY_IMAGE_LIMITS[businessType] || 5;
-            if (plan && plan.imagesPerListing !== undefined) {
-                maxImages = plan.imagesPerListing === 'unlimited' ? -1 : Number(plan.imagesPerListing);
-            }
+            // 🔹 Determine Property Limit
+            const productLimit = plan.productLimit === 'unlimited' ? -1 : (Number(plan.productLimit) || 0);
+            
+            // Default: All property-eligible plans can list properties if productLimit > 0
+            // More strict: Property limits are unlimited for Premium plans, 0 for others
+            const planType = this.determinePlanType(plan.name);
+            let subLimit = (planType === PLAN_TYPES.PREMIUM || businessType === BUSINESS_TYPES.DEVELOPER || businessType === BUSINESS_TYPES.BROKER) 
+                ? productLimit 
+                : 0;
 
+            const maxImages = plan.imagesPerListing === 'unlimited' ? -1 : (Number(plan.imagesPerListing) || 0);
+            
             // Must have a Premium plan OR explicitly allowed images
             if (planType === PLAN_TYPES.PREMIUM || (plan && plan.imagesPerListing !== undefined)) {
                 return { 
@@ -423,18 +374,8 @@ class SubscriptionRulesService {
             // Reels are typically limited or infinite based on plan.
             let subLimit = 0;
             if (subData) {
-                const plan = subData.plan;
-                const planType = this.determinePlanType(plan?.name);
-                
-                // 🔹 Dynamic Limit check
-                if (plan && plan.reelsLimit !== undefined) {
-                    subLimit = plan.reelsLimit === 'unlimited' ? -1 : Number(plan.reelsLimit);
-                } else {
-                    // Legacy hardcoded limits
-                    if (planType === PLAN_TYPES.DIAMOND || planType === PLAN_TYPES.PREMIUM) subLimit = -1;
-                    else if (planType === PLAN_TYPES.SILVER) subLimit = 20;
-                    else subLimit = 5;
-                }
+                const plan = subData.plan || {};
+                subLimit = plan.reelsLimit === 'unlimited' ? -1 : (Number(plan.reelsLimit) || 0);
             } else {
                 // Return false if no subscription and no addon
                 if (addonCount === 0) {
@@ -542,64 +483,54 @@ class SubscriptionRulesService {
 
         if (!subData) {
             // No subscription: Strict restriction
+            const productCount = await this.getProductCount(vendorId);
+            const reelCount = await this.getReelCount(vendorId);
+            const lotSlotCount = await this.getLotSlotCount(vendorId);
+            const propertyCount = await Product.countDocuments({ vendorId, formType: 'property' });
+
             return {
                 hasSubscription: false,
                 hasShop,
-                plan: {
-                    id: null,
-                    name: 'No Active Plan',
-                    type: 'none',
-                    expiresAt: null
-                },
+                plan: { id: null, name: 'No Active Plan', type: 'none', expiresAt: null },
                 businessType: null,
                 limits: {
-                    products: { allowed: false, limit: 0, current: await this.getProductCount(vendorId), remaining: 0 },
-                    lotSlot: { allowed: false, current: await this.getLotSlotCount(vendorId) },
+                    products: { allowed: false, limit: 0, current: productCount, remaining: 0 },
+                    lotSlot: { allowed: false, current: lotSlotCount },
                     properties: { allowed: false, maxImages: 0 },
-                    reels: { allowed: addonStats.reels > 0, limit: 0, current: await this.getReelCount(vendorId) }
+                    reels: { allowed: addonStats.reels > 0, limit: 0, current: reelCount }
                 },
                 addons: addonStats
             };
         }
 
-        const planType = this.determinePlanType(subData.plan?.name);
-        const limits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
+        const plan = subData.plan || {};
         const businessType = this.normalizeBusinessType(subData.vendor?.businessType);
 
         const productCount = await this.getProductCount(vendorId);
         const lotSlotCount = await this.getLotSlotCount(vendorId);
         const reelCount = await this.getReelCount(vendorId);
+        const propertyCount = await Product.countDocuments({ vendorId, formType: 'property' });
 
-        const plan = subData.plan;
-        
-        // Dynamic limits with fallbacks
-        let productLimitValue = limits.maxProducts;
-        if (plan && plan.productLimit !== undefined) {
-            productLimitValue = plan.productLimit === 'unlimited' ? -1 : Number(plan.productLimit);
-        }
+        // 🔹 Rule: Follow DB Fields Strictly
+        const productLimitValue = plan.productLimit === 'unlimited' ? -1 : (Number(plan.productLimit) || 0);
+        const lotSlotLimitValue = plan.lotSlotLimit === 'unlimited' ? -1 : (Number(plan.lotSlotLimit) || 0);
+        const reelLimitValue = plan.reelsLimit === 'unlimited' ? -1 : (Number(plan.reelsLimit) || 0);
+        const imagesPerListing = plan.imagesPerListing === 'unlimited' ? -1 : (Number(plan.imagesPerListing) || 0);
+        const shopSlideshow = !!plan.shopSlideshow;
 
-        let lotSlotAllowed = limits.allowLotSlot;
-        if (plan && plan.lotSlotLimit !== undefined) {
-            lotSlotAllowed = plan.lotSlotLimit === 'unlimited' || Number(plan.lotSlotLimit) > 0;
-        }
-
-        let reelLimitValue = REEL_LIMITS[planType] || 0;
-        if (plan && plan.reelsLimit !== undefined) {
-            reelLimitValue = plan.reelsLimit === 'unlimited' ? -1 : Number(plan.reelsLimit);
-        }
-
-        let imagesPerProduct = PROPERTY_IMAGE_LIMITS[businessType] || 5;
-        if (plan && plan.imagesPerListing !== undefined) {
-            imagesPerProduct = plan.imagesPerListing === 'unlimited' ? -1 : Number(plan.imagesPerListing);
-        }
+        // Properties typically follow product limits unless it's a dedicated property plan
+        // But to be safe and logic-consistent, we allow them if productLimit > 0 or if bizType is developer/broker
+        const propertyLimitValue = (businessType === BUSINESS_TYPES.DEVELOPER || businessType === BUSINESS_TYPES.BROKER) 
+            ? productLimitValue 
+            : (productLimitValue > 0 ? productLimitValue : 0);
 
         return {
             hasSubscription: true,
             hasShop,
             plan: {
-                id: plan?._id,
-                name: plan?.name,
-                type: planType,
+                id: plan._id,
+                name: plan.name,
+                type: this.determinePlanType(plan.name),
                 expiresAt: subData.subscription?.endDate
             },
             businessType: subData.vendor?.businessType,
@@ -612,22 +543,27 @@ class SubscriptionRulesService {
                     hasAddon: addonStats.products > 0
                 },
                 lotSlot: {
-                    allowed: lotSlotAllowed,
+                    allowed: lotSlotLimitValue !== 0,
+                    limit: lotSlotLimitValue,
                     current: lotSlotCount,
+                    remaining: lotSlotLimitValue === -1 ? -1 : Math.max(0, lotSlotLimitValue - lotSlotCount),
                     hasAddon: addonStats.lot_slot > 0
                 },
                 properties: {
-                    allowed: planType === PLAN_TYPES.PREMIUM || planType === PLAN_TYPES.DIAMOND || (plan && plan.imagesPerListing !== undefined),
-                    maxImages: imagesPerProduct
+                    allowed: propertyLimitValue !== 0,
+                    limit: propertyLimitValue,
+                    current: propertyCount,
+                    remaining: propertyLimitValue === -1 ? -1 : Math.max(0, propertyLimitValue - propertyCount),
+                    maxImages: imagesPerListing
                 },
                 reels: {
-                    allowed: true, // Always allowed if has subscription
+                    allowed: true, // Always allowed to attempt if has sub, but checked against limit
                     limit: reelLimitValue,
                     current: reelCount,
                     remaining: reelLimitValue === -1 ? -1 : Math.max(0, reelLimitValue - reelCount),
                     hasAddon: addonStats.reels > 0
                 },
-                shopSlideshow: plan?.shopSlideshow || false
+                shopSlideshow: shopSlideshow
             },
             addons: addonStats
         };

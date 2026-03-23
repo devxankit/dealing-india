@@ -563,14 +563,23 @@ const B2BBannerBooking = () => {
             ),
         },
         {
-            header: "Start Date",
+            header: "Show Dates",
             accessor: "startDate",
-            render: (val) => <span className="text-sm font-medium text-gray-700">{formatISTDate(val)}</span>,
+            render: (val, row) => (
+                <div className="flex flex-col">
+                    <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
+                        {formatISTDate(val)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-medium">
+                        to {formatISTDate(row.endDate)}
+                    </span>
+                </div>
+            ),
         },
         {
-            header: "Created At",
+            header: "Booking Date",
             accessor: "createdAt",
-            render: (val) => new Date(val).toLocaleDateString(),
+            render: (val) => <span className="text-gray-500">{new Date(val).toLocaleDateString()}</span>,
         },
         {
             header: "Actions",

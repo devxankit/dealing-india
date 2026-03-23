@@ -464,8 +464,15 @@ export default function ReelFeed() {
 
               <div className="absolute bottom-0 left-0 right-0 p-4 pb-24 bg-gradient-to-t from-black/80 z-20">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-white font-semibold truncate">{currentReel.title}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-white font-semibold truncate max-w-[70%]">{currentReel.title}</p>
+                      {currentReel.price > 0 && (
+                        <span className="px-2 py-0.5 rounded-lg bg-primary-500 text-white text-[10px] font-bold whitespace-nowrap shadow-sm">
+                          ₹{currentReel.price}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-gray-300 text-sm truncate">
                       {currentReel.uploaderName} • {currentReel.viewCount ?? 0} views
                     </p>

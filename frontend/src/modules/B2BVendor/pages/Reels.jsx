@@ -160,7 +160,7 @@ export default function Reels() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900 truncate">{reel.title}</h3>
-                      <p className="text-xs text-gray-500 mt-0.5">{reel.categoryName} · {dayjs(reel.createdAt).format('MMM D, YYYY')}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{reel.categoryName} · {dayjs(reel.createdAt).format('MMM D, YYYY')}{reel.price > 0 && ` · ₹${reel.price}`}</p>
                     </div>
                     <button
                       type="button"

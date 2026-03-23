@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
+import { useSubscriptionStore } from "../store/subscriptionStore";
 
 const ALL_BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier', 'Developer', 'Property'];
 const DEVELOPER_BUSINESS_CATEGORIES = ['Developer', 'Property'];
@@ -36,6 +37,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
     const [isShopLocked, setIsShopLocked] = useState(false);
     const [isShopModified, setIsShopModified] = useState(false);
     const [originalShopData, setOriginalShopData] = useState(null);
+    const [loadingInitial, setLoadingInitial] = useState(true);
 
     useEffect(() => {
         const fetchUnit = async () => {
@@ -62,6 +64,8 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                 }
             } catch (err) {
                 console.error("Failed to fetch unit:", err);
+            } finally {
+                setLoadingInitial(false);
             }
         };
         fetchUnit();
@@ -74,7 +78,9 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         }
     }, [businessCategories]);
 
-    const MAX_PHOTOS = 5;
+    const { status } = useSubscriptionStore();
+    const canUseSlideshow = status?.limits?.shopSlideshow !== false;
+    const MAX_PHOTOS = canUseSlideshow ? 5 : 1;
 
     const handleImageUpload = async (e) => {
         const files = Array.from(e.target.files);
@@ -176,6 +182,15 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
     const inputStyle = "w-full px-4 py-3 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none font-medium text-gray-700 placeholder:text-gray-400 shadow-sm";
     const labelStyle = "block text-xs font-black text-gray-600 uppercase tracking-wider mb-2 ml-1";
     const sectionStyle = "bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6";
+
+    if (loadingInitial) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-gray-100 shadow-sm max-w-7xl mx-auto">
+                <div className="w-12 h-12 border-4 border-primary-50 border-t-primary-600 rounded-full animate-spin"></div>
+                <p className="text-gray-400 font-bold mt-4 text-[10px] uppercase tracking-widest">Verifying shop profile...</p>
+            </div>
+        );
+    }
 
     return (
         <form onSubmit={handleSubmit} className="max-w-7xl mx-auto space-y-6 pb-24 px-4 text-left">

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { FiBell, FiCheck, FiX, FiChevronRight, FiPackage, FiTruck, FiCheckCircle, FiXCircle, FiMessageCircle } from 'react-icons/fi';
+import { FiBell, FiCheck, FiX, FiChevronRight, FiPackage, FiTruck, FiCheckCircle, FiXCircle, FiMessageCircle, FiVideo } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDateTime } from '../../utils/adminHelpers';
 import { useNavigate } from 'react-router-dom';
@@ -93,6 +93,7 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
       promotion: FiBell,
       inquiry: FiMessageCircle,
       chat_message: FiMessageCircle,
+      reel_status: FiVideo,
     };
     return iconMap[type] || FiBell;
   };
@@ -115,6 +116,7 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
       promotion: 'bg-pink-100 text-pink-600',
       inquiry: 'bg-primary-100 text-primary-600',
       chat_message: 'bg-primary-100 text-primary-600',
+      reel_status: 'bg-pink-100 text-pink-600',
     };
     return colors[type] || 'bg-gray-100 text-gray-600';
   };

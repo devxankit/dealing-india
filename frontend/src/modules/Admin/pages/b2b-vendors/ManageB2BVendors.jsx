@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { FiSearch, FiTrash2, FiEye, FiUser, FiToggleLeft, FiToggleRight, FiArrowUpRight, FiChevronDown, FiMapPin, FiX } from "react-icons/fi";
+import { FiSearch, FiTrash2, FiEye, FiUser, FiToggleLeft, FiToggleRight, FiArrowUpRight, FiChevronDown, FiMapPin, FiX, FiUsers } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import B2BVendorDetailModal from "./components/B2BVendorDetailModal";
@@ -177,6 +177,16 @@ const ManageB2BVendors = () => {
                         }`}>
                         {row.isActive ? 'Active' : 'Inactive'}
                     </span>
+                </div>
+            )
+        },
+        {
+            key: "followerCount",
+            label: "Followers",
+            render: (val) => (
+                <div className="flex items-center gap-1.5 font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-lg w-fit">
+                    <FiUsers className="text-xs" />
+                    {val || 0}
                 </div>
             )
         },
