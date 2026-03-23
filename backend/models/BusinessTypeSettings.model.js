@@ -33,7 +33,7 @@ const businessTypeSettingsSchema = new mongoose.Schema(
         ],
         productFormType: {
             type: String,
-            enum: ['standard'],
+            enum: ['standard', 'shop-listing', 'property'],
             default: 'standard'
         },
         enableShopListing: {

@@ -19,6 +19,7 @@ const Subscriptions = () => {
     const [subscriptions, setSubscriptions] = useState([]);
     const [subscriptionsLoading, setSubscriptionsLoading] = useState(true);
     const [businessTypes, setBusinessTypes] = useState([]);
+    const [businessSettings, setBusinessSettings] = useState([]);
     const [selectedBusinessType, setSelectedBusinessType] = useState("All Business Types");
     const [selectedCity, setSelectedCity] = useState("All Cities");
     const [citySearchQuery, setCitySearchQuery] = useState("");
@@ -98,7 +99,16 @@ const Subscriptions = () => {
     };
 
     const handleEditPlan = (plan) => {
-        setEditingPlan({ ...plan });
+        // Find which business types allow this plan
+        const planId = plan._id || plan.id;
+        const currentAllowedTypes = businessSettings
+            .filter(setting => setting.allowedPlans?.includes(planId))
+            .map(setting => setting.businessTypeId?._id || setting.businessTypeId);
+
+        setEditingPlan({ 
+            ...plan, 
+            allowedBusinessTypes: currentAllowedTypes 
+        });
         setShowPlanForm(true);
     };
 
@@ -143,6 +153,29 @@ const Subscriptions = () => {
                 toast.success('Plan created successfully');
             }
 
+            // Update Business Type Accessibility
+            const finalPlanId = planId || (await getB2BPlans(true, { isAdmin: true })).find(p => p.name === editingPlan.name)?._id;
+            
+            if (finalPlanId && editingPlan.allowedBusinessTypes) {
+                const updatePromises = businessSettings.map(async (setting) => {
+                    const btId = setting.businessTypeId?._id || setting.businessTypeId;
+                    const isNowSelected = editingPlan.allowedBusinessTypes.includes(btId);
+                    const wasSelected = setting.allowedPlans?.includes(finalPlanId);
+
+                    if (isNowSelected !== wasSelected) {
+                        const newAllowedPlans = isNowSelected
+                            ? [...(setting.allowedPlans || []), finalPlanId]
+                            : (setting.allowedPlans || []).filter(id => id !== finalPlanId);
+                        
+                        await api.put(`/admin/business-settings/update/${setting._id}`, {
+                            allowedPlans: newAllowedPlans
+                        });
+                    }
+                });
+                await Promise.all(updatePromises);
+                await loadBusinessTypes(); // Refresh settings state
+            }
+
             // Reload plans after save
             await loadPlans();
             setShowPlanForm(false);
@@ -161,12 +194,19 @@ const Subscriptions = () => {
 
     const loadBusinessTypes = async () => {
         try {
-            const response = await api.get('/business-types');
-            if (response.success) {
-                setBusinessTypes(response.data || []);
+            const [typesRes, settingsRes] = await Promise.all([
+                api.get('/business-types'),
+                api.get('/admin/business-settings')
+            ]);
+            
+            if (typesRes.success) {
+                setBusinessTypes(typesRes.data || []);
+            }
+            if (settingsRes.success) {
+                setBusinessSettings(settingsRes.data || []);
             }
         } catch (error) {
-            console.error('Error loading business types:', error);
+            console.error('Error loading business data:', error);
         }
     };
 
@@ -693,7 +733,48 @@ const Subscriptions = () => {
                                 </div>
                             </div>
 
-                            {/* Visibility management removed from here - now managed via Business Config */}
+                            {/* Accessible Business Types */}
+                            <div className="bg-white p-6 rounded-[2rem] border border-primary-100 shadow-sm space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                                        Accessible Business Types
+                                    </h3>
+                                    <button
+                                        onClick={() => {
+                                            const allIds = businessTypes.map(b => b._id);
+                                            const current = editingPlan.allowedBusinessTypes || [];
+                                            const next = current.length === allIds.length ? [] : allIds;
+                                            setEditingPlan({ ...editingPlan, allowedBusinessTypes: next });
+                                        }}
+                                        className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline"
+                                    >
+                                        {editingPlan.allowedBusinessTypes?.length === businessTypes.length ? 'Deselect All' : 'Select All'}
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                    {businessTypes.map(type => (
+                                        <button
+                                            key={type._id}
+                                            onClick={() => {
+                                                const current = editingPlan.allowedBusinessTypes || [];
+                                                const next = current.includes(type._id)
+                                                    ? current.filter(id => id !== type._id)
+                                                    : [...current, type._id];
+                                                setEditingPlan({ ...editingPlan, allowedBusinessTypes: next });
+                                            }}
+                                            className={`px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center justify-between border-2 ${
+                                                editingPlan.allowedBusinessTypes?.includes(type._id)
+                                                ? 'bg-primary-50 border-primary-500 text-primary-700'
+                                                : 'bg-slate-50 border-slate-100 text-slate-400 opacity-60'
+                                            }`}
+                                        >
+                                            <span className="truncate">{type.name}</span>
+                                            {editingPlan.allowedBusinessTypes?.includes(type._id) && <FiCheckCircle />}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-[9px] text-slate-400 font-medium italic">Selecting a business type here makes this plan available for vendors in that category during registration/upgrade.</p>
+                            </div>
 
                             <div className="flex items-center gap-2">
                                 <input

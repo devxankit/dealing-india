@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiVideo, FiArrowLeft, FiUpload } from 'react-icons/fi';
+import { FiVideo, FiArrowLeft, FiUpload, FiSearch, FiChevronDown, FiCheck, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
@@ -27,6 +27,20 @@ export default function UploadReel() {
   });
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef(null);
+
+  // Handle click outside for category dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Load B2B categories (used to derive all subcategories for playlist selection)
   useEffect(() => {
@@ -55,6 +69,14 @@ export default function UploadReel() {
 
     return unique.sort((a, b) => a.localeCompare(b));
   }, [allCategories]);
+
+  const filteredPlaylistCategories = useMemo(() => {
+    if (!categorySearchQuery.trim()) return playlistCategories;
+    const query = categorySearchQuery.toLowerCase();
+    return playlistCategories.filter(name => 
+      (name || '').toLowerCase().includes(query)
+    );
+  }, [playlistCategories, categorySearchQuery]);
 
   const onFileChange = (e) => {
     const f = e.target.files?.[0];
@@ -255,49 +277,101 @@ export default function UploadReel() {
             </div>
         </div>
 
-        <div>
+        <div className="relative" ref={categoryDropdownRef}>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Category *
           </label>
-          <select
-            value={form.categoryName}
-            onChange={(e) => {
-              const selectedName = e.target.value;
+          
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+              className={`w-full px-4 py-3 border rounded-xl flex items-center justify-between transition-all bg-white hover:border-primary-400 ${
+                isCategoryDropdownOpen ? 'border-primary-500 ring-2 ring-primary-500/10' : 'border-gray-200'
+              }`}
+            >
+              <span className={form.categoryName ? 'text-gray-900 font-medium' : 'text-gray-400'}>
+                {form.categoryName || 'Search or select category'}
+              </span>
+              <FiChevronDown className={`transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
 
-              // Try to map subcategory name back to its parent category id, if any.
-              let parentCategoryId = '';
-              if (selectedName) {
-                for (const cat of allCategories) {
-                  const subs = cat.subcategories || [];
-                  if (
-                    subs.some(
-                      (s) =>
-                        (typeof s === 'string' ? s : s?.name) === selectedName
-                    )
-                  ) {
-                    parentCategoryId = (cat.id || cat._id || '').toString();
-                    break;
-                  }
-                }
-              }
+            {isCategoryDropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="absolute z-50 left-0 right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[400px]"
+              >
+                {/* Search Header */}
+                <div className="p-3 border-b border-gray-50 bg-gray-50/50 sticky top-0">
+                  <div className="relative">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      autoFocus
+                      type="text"
+                      className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                      placeholder="Type to search category..."
+                      value={categorySearchQuery}
+                      onChange={(e) => setCategorySearchQuery(e.target.value)}
+                    />
+                    {categorySearchQuery && (
+                      <button
+                        onClick={() => setCategorySearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <FiX size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
 
-              setForm((f) => ({
-                ...f,
-                categoryId: parentCategoryId,
-                categoryName: selectedName,
-              }));
-            }}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            required
-          >
-            <option value="">Select category</option>
-            {playlistCategories.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-gray-400">
+                {/* Categories List */}
+                <div className="overflow-y-auto custom-scrollbar p-1.5">
+                  {filteredPlaylistCategories.length > 0 ? (
+                    filteredPlaylistCategories.map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => {
+                          // Try to map subcategory name back to its parent category id, if any.
+                          let parentCategoryId = '';
+                          for (const cat of allCategories) {
+                            const subs = cat.subcategories || [];
+                            if (subs.some(s => (typeof s === 'string' ? s : s?.name) === name)) {
+                              parentCategoryId = (cat.id || cat._id || '').toString();
+                              break;
+                            }
+                          }
+
+                          setForm(f => ({
+                            ...f,
+                            categoryId: parentCategoryId,
+                            categoryName: name,
+                          }));
+                          setIsCategoryDropdownOpen(false);
+                          setCategorySearchQuery('');
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-xl flex items-center justify-between text-sm transition-colors ${
+                          form.categoryName === name 
+                          ? 'bg-primary-50 text-primary-700 font-bold' 
+                          : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span>{name}</span>
+                        {form.categoryName === name && <FiCheck className="text-primary-600" />}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center">
+                      <p className="text-gray-400 text-sm">No categories found matching "{categorySearchQuery}"</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </div>
+          
+          <p className="mt-2 text-xs text-gray-400">
             Choose the most specific option (sub-category) to categorize this reel playlist.
           </p>
         </div>
