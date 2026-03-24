@@ -8,6 +8,8 @@ import zohoBooksService from './zohoBooks.service.js';
 import { sendPaymentSuccessEmail, sendPaymentCancelledEmail } from './email.service.js';
 import mongoose from 'mongoose';
 
+const GST_RATE = 0.18;
+
 class SubscriptionService {
   async getAllPlans(includeInactive = false) {
     try {
@@ -160,6 +162,9 @@ class SubscriptionService {
 
       const subscriptionCode = `SUB-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+      const gstAmount = Math.round(planPrice * GST_RATE);
+      const totalAmount = planPrice + gstAmount;
+
       const pendingSubscriptionData = {
         vendorId,
         planId,
@@ -168,6 +173,9 @@ class SubscriptionService {
         endDate,
         paymentMethod: 'razorpay',
         status: 'pending',
+        basePrice: planPrice,
+        gstAmount: gstAmount,
+        totalAmount: totalAmount,
         usage: {
           lastResetDate: startDate
         }
@@ -176,7 +184,7 @@ class SubscriptionService {
       const subscription = await VendorSubscription.create(pendingSubscriptionData);
 
       let razorpayOrder = await razorpayService.createOrder(
-        planPrice,
+        totalAmount,
         'INR',
         subscriptionCode,
         {
@@ -184,6 +192,9 @@ class SubscriptionService {
           planId: planId.toString(),
           subscriptionId: subscription._id.toString(),
           planName: planName,
+          basePrice: planPrice.toString(),
+          gstAmount: gstAmount.toString(),
+          totalAmount: totalAmount.toString(),
           type: 'subscription',
           isB2B: 'true'
         }
@@ -217,6 +228,8 @@ class SubscriptionService {
 
       const planPrice = plan.price;
       const planName = plan.name;
+      const gstAmount = Math.round(planPrice * GST_RATE);
+      const totalAmount = planPrice + gstAmount;
 
       const isValid = razorpayService.verifyPayment(razorpayOrderId, razorpayPaymentId, razorpaySignature);
       if (!isValid) throw new Error('Payment verification failed');
@@ -287,6 +300,9 @@ class SubscriptionService {
         razorpaySignature,
         lastPaymentDate: new Date(),
         nextBillingDate: endDate,
+        basePrice: planPrice,
+        gstAmount: gstAmount,
+        totalAmount: totalAmount,
         usage: { lastResetDate: startDate }
       };
 
@@ -464,15 +480,27 @@ class SubscriptionService {
       const totalDays = Math.max(1, Math.ceil((currentEndDate - currentStartDate) / (1000 * 60 * 60 * 24)));
       const remainingDays = Math.max(0, Math.ceil((currentEndDate - today) / (1000 * 60 * 60 * 24)));
       const credit = ((currentSub.planId.price || 0) / totalDays) * remainingDays;
-      let finalAmount = newPlan.price - credit;
-      if (finalAmount < 0) finalAmount = 0;
+      let finalBaseAmount = newPlan.price - credit;
+      if (finalBaseAmount < 0) finalBaseAmount = 0;
+
+      const gstAmount = Math.round(finalBaseAmount * GST_RATE);
+      const finalTotalAmount = Math.round(finalBaseAmount + gstAmount);
 
       const upgradeCode = `UPG-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       const razorpayOrder = await razorpayService.createOrder(
-        Math.round(finalAmount),
+        finalTotalAmount,
         'INR',
         upgradeCode,
-        { vendorId: vendorId.toString(), newPlanId: newPlanId.toString(), currentSubId: currentSub._id.toString(), type: 'subscription_upgrade', isB2B: 'true' }
+        { 
+          vendorId: vendorId.toString(), 
+          newPlanId: newPlanId.toString(), 
+          currentSubId: currentSub._id.toString(), 
+          basePrice: Math.round(finalBaseAmount).toString(),
+          gstAmount: gstAmount.toString(),
+          totalAmount: finalTotalAmount.toString(),
+          type: 'subscription_upgrade', 
+          isB2B: 'true' 
+        }
       );
 
       return {
@@ -482,7 +510,9 @@ class SubscriptionService {
         remainingDays,
         credit: Math.round(credit),
         newPlanPrice: newPlan.price,
-        finalAmount: Math.round(finalAmount),
+        baseAmount: Math.round(finalBaseAmount),
+        gstAmount: gstAmount,
+        finalAmount: finalTotalAmount,
         razorpay: razorpayOrder,
         razorpayKeyId: process.env.RAZORPAY_KEY_ID
       };
@@ -520,6 +550,18 @@ class SubscriptionService {
       if (durationMonths === 3) billingCycle = 'quarterly';
       if (durationMonths === 1) billingCycle = 'monthly';
 
+      // Calculate GST breakdown for the upgrade
+      const today = new Date();
+      const currentEndDate = currentSub ? new Date(currentSub.endDate) : new Date();
+      const currentStartDate = currentSub ? new Date(currentSub.startDate) : new Date();
+      const totalDays = Math.max(1, Math.ceil((currentEndDate - currentStartDate) / (1000 * 60 * 60 * 24)));
+      const remainingDays = Math.max(0, Math.ceil((currentEndDate - today) / (1000 * 60 * 60 * 24)));
+      const credit = currentSub ? ((currentSub.planId.price || 0) / totalDays) * remainingDays : 0;
+      let finalBaseAmount = newPlan.price - credit;
+      if (finalBaseAmount < 0) finalBaseAmount = 0;
+      const gstAmount = Math.round(finalBaseAmount * GST_RATE);
+      const finalTotalAmount = Math.round(finalBaseAmount + gstAmount);
+
       const [newSub] = await VendorSubscription.create([{
         vendorId,
         planId: newPlanId,
@@ -533,11 +575,21 @@ class SubscriptionService {
         razorpaySignature,
         lastPaymentDate: startDate,
         nextBillingDate: endDate,
+        basePrice: Math.round(finalBaseAmount),
+        gstAmount: gstAmount,
+        totalAmount: finalTotalAmount,
         usage: { lastResetDate: startDate },
         auditLogs: [{
           action: 'subscription_upgrade',
           timestamp: new Date(),
-          details: { fromPlan: currentSub ? currentSub.planId : null, toPlan: newPlanId, razorpayPaymentId, amount: paymentData.amount || 0 }
+          details: { 
+            fromPlan: currentSub ? currentSub.planId : null, 
+            toPlan: newPlanId, 
+            razorpayPaymentId, 
+            basePrice: Math.round(finalBaseAmount),
+            gstAmount: gstAmount,
+            totalAmount: finalTotalAmount
+          }
         }]
       }], { session });
 
@@ -545,7 +597,7 @@ class SubscriptionService {
       await session.commitTransaction();
 
       // Background Zoho/Email Integration
-      this.processZohoAndEmailForSubscription(newSub._id, paymentData.amount || 0).catch(err => {
+      this.processZohoAndEmailForSubscription(newSub._id).catch(err => {
         console.error('[SubUpgrade][Zoho] background error:', err);
       });
 
@@ -806,6 +858,7 @@ class SubscriptionService {
 
   async processZohoAndEmailForSubscription(subscriptionId, customAmount = null) {
     try {
+      console.log(`[SubPay][Zoho] Starting integration helper for subscription: ${subscriptionId.toString()}`);
       const subscriptionDoc = await VendorSubscription.findById(subscriptionId)
         .populate('planId')
         .populate('vendorId');
@@ -819,7 +872,7 @@ class SubscriptionService {
       }
 
       const planDoc = subscriptionDoc.planId;
-      const amount = customAmount || planDoc?.price || 0;
+      const amount = customAmount || subscriptionDoc.totalAmount || planDoc?.price || 0;
       const planName = planDoc?.name || 'Subscription Plan';
       const razorpayPaymentId = subscriptionDoc.razorpayPaymentId;
 
@@ -833,6 +886,7 @@ class SubscriptionService {
           storeName: v.storeName || v.businessName,
           email: v.email,
           phone: v.phone,
+          gstNumber: v.gstNumber,
           zohoContactId: v.zohoContactId || subscriptionDoc.zohoContactId
         };
       } else {
@@ -852,6 +906,7 @@ class SubscriptionService {
 
       // 1. Zoho Contact
       let contactId = vendorInfo.zohoContactId;
+      console.log(`[SubPay][Zoho] Syncing contact for vendor: ${vendorInfo.email}, Existing ID: ${contactId || 'None'}`);
       if (!contactId) {
         try {
           // Pass a vendor-like object to ensureZohoContactForVendor
@@ -860,14 +915,16 @@ class SubscriptionService {
             phone: vendorInfo.phone,
             name: vendorInfo.name,
             storeName: vendorInfo.storeName || vendorInfo.name,
+            gstNumber: vendorInfo.gstNumber || null,
             zohoContactId: null
           });
 
+          console.log(`[SubPay][Zoho] Contact Sync Result: ${contactId}`);
           // Save back to vendor if exists
-          if (vendorInfo._id) {
+          if (vendorInfo._id && contactId) {
             await Vendor.findByIdAndUpdate(vendorInfo._id, { zohoContactId: contactId });
           }
-        } catch (e) { console.error('Zoho contact failed:', e.message); }
+        } catch (e) { console.error('[SubPay][Zoho] Sync contact failed:', e.message); }
       }
 
       // 2. Zoho Invoice & Payment
@@ -877,7 +934,8 @@ class SubscriptionService {
         try {
           const invoiceRef = `SUB-${subscriptionId.toString()}`;
           invoice = await zohoBooksService.createSubscriptionInvoice({
-            contactId, planName, amount, currency: 'INR', referenceNumber: invoiceRef
+            contactId, planName, amount, currency: 'INR', referenceNumber: invoiceRef,
+            vendorGstNumber: vendorInfo.gstNumber
           });
           await zohoBooksService.recordInvoicePayment({
             contactId, invoiceId: invoice.id, amount, paymentDate: new Date(), razorpayPaymentId

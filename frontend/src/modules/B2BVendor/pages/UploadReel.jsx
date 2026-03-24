@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiVideo, FiArrowLeft, FiUpload, FiSearch, FiChevronDown, FiCheck, FiX } from 'react-icons/fi';
+import { FiVideo, FiArrowLeft, FiUpload, FiSearch, FiChevronDown, FiCheck, FiX, FiPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
@@ -51,12 +51,17 @@ export default function UploadReel() {
   // and append extra playlist categories for properties.
   const playlistCategories = useMemo(() => {
     const subs = allCategories.flatMap((cat) => cat.subcategories || []);
-    const names = subs
+    const subNames = subs
       .map((s) => (typeof s === 'string' ? s : s?.name))
       .filter(Boolean);
 
+    // Also include main category names if they have no subcategories
+    const catNames = allCategories
+      .filter(cat => !cat.subcategories || cat.subcategories.length === 0)
+      .map(cat => cat.name);
+
     const extra = ['Flat', 'Villa/Row House', 'Commercial Property'];
-    const merged = [...names, ...extra];
+    const merged = [...subNames, ...catNames, ...extra];
 
     const unique = Array.from(
       new Map(
@@ -314,13 +319,31 @@ export default function UploadReel() {
                       value={categorySearchQuery}
                       onChange={(e) => setCategorySearchQuery(e.target.value)}
                     />
-                    {categorySearchQuery && (
-                      <button
-                        onClick={() => setCategorySearchQuery('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        <FiX size={14} />
-                      </button>
+                     {categorySearchQuery && (
+                      <div className="flex gap-1 absolute right-3 top-1/2 -translate-y-1/2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newCat = categorySearchQuery.trim();
+                            setForm(f => ({
+                              ...f,
+                              categoryId: '',
+                              categoryName: newCat,
+                            }));
+                            setIsCategoryDropdownOpen(false);
+                            setCategorySearchQuery('');
+                          }}
+                          className="bg-primary-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-primary-700"
+                        >
+                          Add New
+                        </button>
+                        <button
+                          onClick={() => setCategorySearchQuery('')}
+                          className="text-gray-400 hover:text-gray-600 px-1"
+                        >
+                          <FiX size={14} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -363,7 +386,28 @@ export default function UploadReel() {
                     ))
                   ) : (
                     <div className="p-8 text-center">
-                      <p className="text-gray-400 text-sm">No categories found matching "{categorySearchQuery}"</p>
+                      <p className="text-gray-400 text-sm mb-4">No categories found matching "{categorySearchQuery}"</p>
+                    </div>
+                  )}
+                  {categorySearchQuery.trim() && !playlistCategories.some(cat => cat.toLowerCase() === categorySearchQuery.trim().toLowerCase()) && (
+                    <div className="p-1 px-3 mt-1 pt-2 border-t border-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newCat = categorySearchQuery.trim();
+                          setForm(f => ({
+                            ...f,
+                            categoryId: '',
+                            categoryName: newCat,
+                          }));
+                          setIsCategoryDropdownOpen(false);
+                          setCategorySearchQuery('');
+                        }}
+                        className="w-full text-left px-4 py-3 bg-primary-50 rounded-xl text-primary-700 text-sm font-bold hover:bg-primary-100 transition-colors border border-primary-200/50 flex items-center justify-between"
+                      >
+                        <span>Add "{categorySearchQuery}" as New Category</span>
+                        <FiPlus className="text-primary-600" />
+                      </button>
                     </div>
                   )}
                 </div>

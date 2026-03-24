@@ -10,6 +10,7 @@ import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadToCloudinary, deleteFromCloudinary, uploadUrlToCloudinary } from '../utils/cloudinary.util.js';
 import { publishReelToYouTube, fetchPlaylistItems, fetchVideoById, deleteVideoFromYouTube } from '../services/youtubeReel.service.js';
 import notificationService from '../services/notification.service.js';
+import { ensureCategoryStructure } from '../services/categoryAutomation.service.js';
 
 const REEL_ACTIVE_HOURS = 24; // kept for backwards compatibility only
 
@@ -121,6 +122,12 @@ export const uploadReel = asyncHandler(async (req, res) => {
     durationSeconds: uploadResult.duration || null,
     status: 'pending',
   });
+
+  // Proactively ensure categoryName exists in B2BCategory if it's not already there
+  // For reels, we add it as a main category if it doesn't exist, as the frontend uses it for playlists
+  ensureCategoryStructure({
+    category: String(categoryName).trim(),
+  }).catch(err => console.error('[Reel Upload] Category auto-add failed:', err.message));
 
   // 🔹 Consume addon if necessary (Middleware flagged this)
   if (uploaderType === 'vendor' && req.subscriptionLimits?.reels?.useAddon) {

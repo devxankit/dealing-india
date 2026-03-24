@@ -182,6 +182,7 @@ const formatVendorBlock = (vendor) => {
       <p style="margin:4px 0;"><strong>Name:</strong> ${name}</p>
       <p style="margin:4px 0;"><strong>Email:</strong> ${email}</p>
       <p style="margin:4px 0;"><strong>Phone:</strong> ${phone}</p>
+      ${vendor.gstNumber ? `<p style="margin:4px 0;"><strong>GST Number:</strong> ${vendor.gstNumber}</p>` : ''}
     </div>
   `;
 };

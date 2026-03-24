@@ -59,6 +59,19 @@ const vendorAddonSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Razorpay signature is required'],
     },
+    // Payment breakdown for GST
+    basePrice: {
+      type: Number,
+      required: [false],
+    },
+    gstAmount: {
+      type: Number,
+      required: [false],
+    },
+    totalAmount: {
+      type: Number,
+      required: [false],
+    },
   },
   {
     timestamps: true,

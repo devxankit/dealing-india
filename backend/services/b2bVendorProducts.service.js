@@ -4,6 +4,7 @@ import Vendor from '../models/Vendor.model.js';
 import { uploadBase64ToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.util.js';
 import { sanitizeImageUrl, sanitizeImageUrls } from '../utils/imageValidation.util.js';
 import subscriptionService from './subscription.service.js';
+import { ensureCategoryStructure } from './categoryAutomation.service.js';
 
 /**
  * Verify vendor is B2B type
@@ -306,6 +307,8 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     }
     // Process specifications into attributes array
     const processedAttributes = [];
+    const fieldUpdates = [];
+
     if (specifications && Array.isArray(specifications)) {
       specifications.forEach(spec => {
         if (!spec.name || !spec.value) return;
@@ -315,8 +318,19 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
           name: spec.name,
           value: spec.value,
         });
+
+        // Collect field updates for B2BCategory options auto-add
+        fieldUpdates.push({ label: spec.name, value: spec.value });
       });
     }
+
+    // Proactively ensure category/subcategory/options exist in DB
+    // We do this in a non-blocking background task to keep latency low
+    ensureCategoryStructure({
+      category: (category || '').trim(),
+      subcategory: (subcategory || '').trim(),
+      fieldUpdates,
+    }).catch(err => console.error('[B2B Product Create] Category auto-add failed:', err.message));
 
     // We no longer push category/subcategory/bulkPricing to attributes
     // Use the native schema fields instead
@@ -502,6 +516,8 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
 
     // Process specifications
     const processedAttributes = [];
+    const fieldUpdates = [];
+
     if (specifications !== undefined) {
       // Add standard specifications
       if (Array.isArray(specifications)) {
@@ -513,6 +529,9 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
             name: spec.name,
             value: spec.value,
           });
+
+          // Collect field updates
+          fieldUpdates.push({ label: spec.name, value: spec.value });
         });
       }
 
@@ -520,6 +539,15 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
 
       updateData.attributes = processedAttributes;
     }
+
+    // Proactively ensure category/subcategory/options exist in DB
+    const finalCategory = category !== undefined ? category : existingProduct.category;
+    const finalSubcategory = subcategory !== undefined ? subcategory : existingProduct.subcategory;
+    ensureCategoryStructure({
+      category: (finalCategory || '').trim(),
+      subcategory: (finalSubcategory || '').trim(),
+      fieldUpdates,
+    }).catch(err => console.error('[B2B Product Update] Category auto-add failed:', err.message));
 
     // Update stock status if availability or explicit quantity changed
     if (availability !== undefined || payloadStockQuantity !== undefined) {

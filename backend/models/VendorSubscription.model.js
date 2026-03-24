@@ -67,6 +67,19 @@ const vendorSubscriptionSchema = new mongoose.Schema(
     razorpaySubscriptionId: {
       type: String,
     },
+    // Payment Breakdown for GST compliance
+    basePrice: {
+      type: Number,
+      default: 0,
+    },
+    gstAmount: {
+      type: Number,
+      default: 0,
+    },
+    totalAmount: {
+      type: Number,
+      default: 0,
+    },
     // Zoho Books integration fields
     zohoContactId: {
       type: String,

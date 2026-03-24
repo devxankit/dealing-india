@@ -91,10 +91,7 @@ import { startReelExpiryCron } from "./Cron/ReelExpiry.cron.js";
 import musicRoutes from "./routes/music.routes.js";
 import vendorFollowRoutes from "./routes/vendorFollow.routes.js";
 
-B2BSubscriptionExpiryCron.start();
-syncVendorViewsCron.start();
-bannerBookingCron();
-startReelExpiryCron();
+// (Cron initializations moved inside startServer to avoid database buffering timeouts)
 
 // Initialize Express app
 const app = express();
@@ -437,6 +434,13 @@ const startServer = async () => {
 
     // Connect to Redis
     await connectRedis();
+
+    // Start background cron jobs after database connection is ready
+    B2BSubscriptionExpiryCron.start();
+    syncVendorViewsCron.start();
+    bannerBookingCron();
+    startReelExpiryCron();
+    console.log("✅ Background Cron Jobs initialized");
 
     // Drop problematic OTP index if it exists
     try {

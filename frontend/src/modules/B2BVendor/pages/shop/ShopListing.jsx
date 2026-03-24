@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FiHome, FiArrowLeft } from "react-icons/fi";
@@ -13,8 +13,17 @@ const ShopListing = () => {
     const [submitting, setSubmitting] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
     const { status, loading: subLoading, fetchStatus, hasActiveSubscription, refreshStatus } = useSubscriptionStore();
+    const [initializing, setInitializing] = useState(true);
 
-    if (subLoading && !status) {
+    useEffect(() => {
+        const init = async () => {
+            await fetchStatus();
+            setInitializing(false);
+        };
+        init();
+    }, [fetchStatus]);
+
+    if ((subLoading || initializing) && !status) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px]">
                 <div className="w-12 h-12 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>

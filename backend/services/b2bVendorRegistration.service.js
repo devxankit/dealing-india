@@ -212,8 +212,10 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       phone: phone.trim(),
       password: hashedPassword,
       storeName: storeName.trim(),
+      storeDescription: storeDescription ? storeDescription.trim() : undefined,
       address,
       documents: processedDocuments,
+      gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
       vendorType: 'b2b',
       status: 'pending',
       isEmailVerified: true,
@@ -221,6 +223,7 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       role: 'vendor',
       commissionRate: 0,
       businessType: businessType || 'Textile',
+      businessTypeRef: businessTypeRef || undefined,
       selectedSubTypes: selectedSubTypes || []
     };
 

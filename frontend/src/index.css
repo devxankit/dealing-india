@@ -324,4 +324,22 @@ body::-webkit-scrollbar {
     will-change: scroll-position;
     transform: translateZ(0);
   }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Some devices might need a fallback or min value */
+  .pt-safe-min {
+    padding-top: max(env(safe-area-inset-top), 0.5rem);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .h-safe-area {
+    height: env(safe-area-inset-bottom);
+    min-height: 0.5rem;
+  }
 }

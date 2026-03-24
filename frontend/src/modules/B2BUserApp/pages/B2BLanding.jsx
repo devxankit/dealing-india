@@ -760,7 +760,7 @@ const B2BLanding = () => {
         <div className="min-h-screen bg-white font-sans text-gray-900 flex flex-col scrollbar-hide">
 
             {/* --- HEADER + TOOLBAR (web: logo spans both rows) --- */}
-            <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
+            <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm pt-safe">
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6">
                     {/* Web (md+): Grid with logo spanning both rows */}
                     <div className="hidden md:grid md:grid-cols-[auto_1fr] md:items-center md:gap-4 md:py-1">
@@ -1257,7 +1257,7 @@ const B2BLanding = () => {
                                 {isPriceFilterOpen && (
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                                        className="absolute top-full right-2 md:right-0 md:left-auto mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-5"
+                                        className="absolute top-full left-1/2 -translate-x-1/2 md:left-auto md:right-0 md:translate-x-0 mt-2 w-[calc(100vw-2rem)] md:w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-5"
                                     >
                                         <h4 className="font-black text-gray-400 mb-4 text-[9px] uppercase tracking-[0.2em]">Quick Business Filters</h4>
                                         <div className="space-y-1">

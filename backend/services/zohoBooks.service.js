@@ -23,8 +23,8 @@ async function getAccessToken() {
   }
 
   if (!ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET || !ZOHO_REFRESH_TOKEN) {
-    console.error('[Zoho] Missing OAuth env vars');
-    throw new Error('Zoho OAuth env vars are not fully configured');
+    console.error('[Zoho] Missing OAuth configuration in environment variables');
+    throw new Error('Zoho OAuth env vars are not fully configured. Ensure ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, and ZOHO_REFRESH_TOKEN are set.');
   }
 
   const params = new URLSearchParams({
@@ -35,18 +35,21 @@ async function getAccessToken() {
   });
 
   const url = `${ZOHO_ACCOUNTS_BASE}/oauth/v2/token`;
+  console.log('[Zoho] Requesting new access token...');
   const res = await axios.post(url, params.toString(), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     timeout: 10000,
   });
 
   if (!res.data?.access_token) {
+    console.error('[Zoho] Token refresh failed response:', res.data);
     throw new Error(`Failed to obtain Zoho access token: ${res.data?.error || 'unknown error'}`);
   }
 
   cachedAccessToken = res.data.access_token;
   const expiresInSec = Number(res.data.expires_in || 3600);
   cachedAccessTokenExpiresAt = Date.now() + expiresInSec * 1000;
+  console.log('[Zoho] New access token obtained');
   return cachedAccessToken;
 }
 
@@ -58,6 +61,7 @@ async function zohoRequest(method, path, { params = {}, data = {} } = {}) {
   const url = `${ZOHO_BOOKS_BASE}${path}`;
 
   try {
+    console.log(`[Zoho] ${method} ${path}`);
     const res = await axios.request({
       method,
       url,
@@ -72,14 +76,17 @@ async function zohoRequest(method, path, { params = {}, data = {} } = {}) {
     });
 
     if (res.data?.code && res.data.code !== 0) {
+      console.error('[Zoho] API Error Response:', res.data);
       throw new Error(`Zoho API error (${res.data.code}): ${res.data.message || 'Unknown error'}`);
     }
 
     return res.data;
   } catch (err) {
     if (err.response?.data) {
+      console.error('[Zoho] HTTP Error Response:', err.response.data);
       throw new Error(`Zoho integration error: ${err.response.data.message || JSON.stringify(err.response.data)}`);
     }
+    console.error('[Zoho] Request failed:', err.message);
     throw err;
   }
 }
@@ -90,7 +97,7 @@ async function findContactByEmail(email) {
   return data?.contacts?.[0] || null;
 }
 
-async function createContact({ name, companyName, email, phone }) {
+async function createContact({ name, companyName, email, phone, gstNumber }) {
   const contact = {
     contact_name: companyName || name || email || 'Customer',
     company_name: companyName || undefined,
@@ -101,6 +108,8 @@ async function createContact({ name, companyName, email, phone }) {
       phone: phone || undefined,
       is_primary_contact: true,
     }],
+    gst_no: gstNumber || undefined,
+    gst_treatment: gstNumber ? 'business_gst' : 'consumer',
   };
   if (phone) contact.phone = phone;
 
@@ -113,18 +122,33 @@ export async function ensureZohoContactForVendor(vendor) {
   if (vendor.zohoContactId) return vendor.zohoContactId;
 
   let contact = await findContactByEmail(vendor.email);
-  if (!contact) {
+  if (contact) {
+    // Proactively update contact with GST if available
+    if (vendor.gstNumber && !contact.gst_no) {
+      try {
+        await zohoRequest('PUT', `/contacts/${contact.contact_id}`, {
+          data: {
+            gst_no: vendor.gstNumber,
+            gst_treatment: 'business_gst'
+          }
+        });
+      } catch (e) {
+        console.warn('[Zoho] Failed to update contact GST:', e.message);
+      }
+    }
+  } else {
     contact = await createContact({
       name: vendor.name || vendor.storeName,
       companyName: vendor.storeName || vendor.businessName,
       email: vendor.email,
       phone: vendor.phone,
+      gstNumber: vendor.gstNumber,
     });
   }
-  return contact.contact_id;
+  return contact?.contact_id || contact?.contact_person_id;
 }
 
-export async function createSubscriptionInvoice({ contactId, planName, amount, currency = 'INR', referenceNumber, notes }) {
+export async function createSubscriptionInvoice({ contactId, planName, amount, currency = 'INR', referenceNumber, notes, vendorGstNumber }) {
   const dateStr = new Date().toISOString().slice(0, 10);
   const invoice = {
     customer_id: contactId,
@@ -133,13 +157,20 @@ export async function createSubscriptionInvoice({ contactId, planName, amount, c
     reference_number: referenceNumber,
     line_items: [{ description: planName || 'Subscription', rate: amount, quantity: 1 }],
     currency_code: currency,
-    ...(notes ? { notes } : {}),
+    notes: `${notes || ''}\n\nVendor GST: ${vendorGstNumber || 'N/A'}\nAdmin GST: ${process.env.ADMIN_GST_NUMBER || 'Configuring...'}`,
+    gst_no: vendorGstNumber || undefined,
+    gst_treatment: vendorGstNumber ? 'business_gst' : 'consumer',
   };
 
+  console.log(`[Zoho] Creating invoice for contact: ${contactId}, Amount: ${amount}`);
   const data = await zohoRequest('POST', '/invoices', { data: invoice });
   const inv = data?.invoice;
-  if (!inv) throw new Error('Zoho did not return invoice');
+  if (!inv) {
+    console.error('[Zoho] Invoice creation returned no invoice data');
+    throw new Error('Zoho did not return invoice');
+  }
 
+  console.log(`[Zoho] Invoice created: ${inv.invoice_number} (ID: ${inv.invoice_id})`);
   return {
     id: inv.invoice_id,
     number: inv.invoice_number,
@@ -157,10 +188,13 @@ export async function downloadInvoicePdf(invoiceId) {
   try {
     console.log(`[Zoho] Attempting to download PDF for invoice: ${invoiceId}`);
     const res = await axios.get(url, {
-      params: { accept: 'pdf', organization_id: ZOHO_ORG_ID },
-      headers: { Authorization: `Zoho-oauthtoken ${token}` },
+      params: { accept: 'pdf' },
+      headers: { 
+        Authorization: `Zoho-oauthtoken ${token}`,
+        'X-com-zoho-books-organizationid': ZOHO_ORG_ID
+      },
       responseType: 'arraybuffer',
-      timeout: 20000,
+      timeout: 30000,
     });
     const buffer = Buffer.from(res.data);
     if (buffer.slice(0, 4).toString() === '%PDF') {

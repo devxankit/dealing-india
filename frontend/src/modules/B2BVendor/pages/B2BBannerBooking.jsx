@@ -360,6 +360,8 @@ const B2BBannerBooking = () => {
                     await loadData();
                     setShowBookingModal(false);
                     resetForm();
+                    // Redirect to vendor store page on user app
+                    setTimeout(() => navigate(`/b2b/shop/${vendor?._id || vendor?.id}`), 1500);
                 } else if (bookingData.razorpayOrder) {
                     // For Razorpay, open payment gateway
                     toast.success("Booking initiated! Opening payment gateway...");
@@ -459,7 +461,8 @@ const B2BBannerBooking = () => {
                         toast.success("Payment successful! Your banner booking is pending admin approval.");
                         setShowBookingModal(false);
                         resetForm();
-                        await loadData();
+                        // Redirect to vendor store page on user app 
+                        setTimeout(() => navigate(`/b2b/shop/${vendor?._id || vendor?.id}`), 1500);
                     } catch (error) {
                         console.error("Payment confirmation error:", error);
                         toast.error(error?.response?.data?.message || error?.message || "Payment verification failed. Please contact support.");

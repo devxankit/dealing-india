@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiCheck, FiStar, FiInfo, FiCreditCard, FiCheckCircle,
     FiRefreshCw, FiX, FiCalendar, FiAlertTriangle, FiClock,
-    FiDollarSign, FiPackage, FiShield, FiExternalLink, FiPlusCircle, FiGrid
+    FiDollarSign, FiPackage, FiShield, FiExternalLink, FiPlusCircle, FiGrid,
+    FiArrowRight
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { getActiveB2BPlans, getB2BPlanByIdSync } from '../../../shared/utils/b2bPlanManager';
@@ -34,6 +35,10 @@ const B2BVendorSubscription = () => {
     const [addonBalance, setAddonBalance] = useState([]);
     const [loadingAddons, setLoadingAddons] = useState(false);
     const [processingAddonId, setProcessingAddonId] = useState(null);
+
+    // Payment Confirmation Modal State
+    const [showPayModal, setShowPayModal] = useState(false);
+    const [payModalData, setPayModalData] = useState(null);
 
     useEffect(() => {
         loadSubscriptionData();
@@ -136,22 +141,45 @@ const B2BVendorSubscription = () => {
     const handleUpgrade = async (planId) => {
         if (processingPlanId) return;
 
+        const plan = availablePlans.find(p => (p._id || p.id) === planId);
+        if (!plan) return;
+
         try {
             setProcessingPlanId(planId);
             toast.loading('Calculating upgrade price...', { id: 'upgrade-init' });
 
             const response = await subscriptionService.initializeUpgrade(planId);
-            const { razorpay, razorpayKeyId, finalAmount, credit, remainingDays } = response;
+            const { razorpay, razorpayKeyId, finalAmount, credit, remainingDays, baseAmount, gstAmount } = response;
 
+            setPayModalData({
+                id: planId,
+                name: plan.name,
+                basePrice: baseAmount || Math.round(finalAmount / 1.18),
+                gstAmount: gstAmount || Math.round((finalAmount / 1.18) * 0.18),
+                totalAmount: finalAmount,
+                credit: credit,
+                remainingDays: remainingDays,
+                type: 'upgrade',
+                upgradeDetails: response
+            });
+            setShowPayModal(true);
+        } catch (error) {
+            console.error('Upgrade initialization error:', error);
+            toast.error(error.message || 'Failed to calculate upgrade price');
+        } finally {
             toast.dismiss('upgrade-init');
+            setProcessingPlanId(null);
+        }
+    };
 
-            // Simplified confirmation, you can enhance this with a custom modal later
-            const proceed = window.confirm(`Upgrade to this plan for ₹${finalAmount.toLocaleString('en-IN')}?\n\nCalculation:\n- Credit for ${remainingDays} days: ₹${credit.toLocaleString('en-IN')}\n- Final Payable: ₹${finalAmount.toLocaleString('en-IN')}`);
+    const proceedWithUpgrade = async (planId) => {
+        const upgradeData = payModalData?.upgradeDetails;
+        if (!upgradeData) return;
 
-            if (!proceed) {
-                setProcessingPlanId(null);
-                return;
-            }
+        setShowPayModal(false);
+        try {
+            setProcessingPlanId(planId);
+            const { razorpay, razorpayKeyId, finalAmount } = upgradeData;
 
             if (razorpay && razorpayKeyId) {
                 try {
@@ -172,6 +200,7 @@ const B2BVendorSubscription = () => {
                     };
 
                     await subscriptionService.verifyUpgradePayment(verifyData);
+                    await refreshStatus(); // Force global status update
 
                     toast.success('Subscription upgraded successfully!', { id: 'verify-upgrade' });
                     loadSubscriptionData();
@@ -195,6 +224,26 @@ const B2BVendorSubscription = () => {
     const handleSubscribe = async (planId) => {
         if (processingPlanId) return;
 
+        const plan = availablePlans.find(p => (p._id || p.id) === planId);
+        if (!plan) return;
+
+        // Initial GST calculation for display (dynamic at interaction time)
+        const gstAmount = Math.round(plan.price * 0.18);
+        const totalAmount = plan.price + gstAmount;
+
+        setPayModalData({
+            id: planId,
+            name: plan.name,
+            basePrice: plan.price,
+            gstAmount: gstAmount,
+            totalAmount: totalAmount,
+            type: 'subscribe'
+        });
+        setShowPayModal(true);
+    };
+
+    const proceedWithSubscription = async (planId) => {
+        setShowPayModal(false);
         try {
             setProcessingPlanId(planId);
 
@@ -225,6 +274,7 @@ const B2BVendorSubscription = () => {
                     };
 
                     await subscriptionService.verifyPayment(verifyData);
+                    await refreshStatus(); // Force global status update
 
                     toast.success('Subscription activated successfully!', { id: 'verify-payment' });
                     loadSubscriptionData();
@@ -239,9 +289,13 @@ const B2BVendorSubscription = () => {
             if (subscription?.razorpaySubscriptionUrl) {
                 toast.success('Redirecting to payment page...');
                 window.open(subscription.razorpaySubscriptionUrl, '_blank');
-                setTimeout(() => loadSubscriptionData(), 2000);
+                setTimeout(() => {
+                    loadSubscriptionData();
+                    refreshStatus();
+                }, 2000);
             } else if (subscription?.status === 'active') {
                 // Free plan activated
+                await refreshStatus(); // Force global status update
                 toast.success('Subscription activated successfully!');
                 loadSubscriptionData();
             } else {
@@ -260,6 +314,25 @@ const B2BVendorSubscription = () => {
     const handleBuyAddon = async (planId) => {
         if (processingAddonId) return;
 
+        const addon = availableAddons.find(a => (a._id || a.id) === planId);
+        if (!addon) return;
+
+        const gstAmount = Math.round(addon.price * 0.18);
+        const totalAmount = addon.price + gstAmount;
+
+        setPayModalData({
+            id: planId,
+            name: addon.name,
+            basePrice: addon.price,
+            gstAmount: gstAmount,
+            totalAmount: totalAmount,
+            type: 'addon'
+        });
+        setShowPayModal(true);
+    };
+
+    const proceedWithAddonPurchase = async (planId) => {
+        setShowPayModal(false);
         try {
             setProcessingAddonId(planId);
             toast.loading('Initializing purchase...', { id: 'addon-init' });
@@ -1012,6 +1085,107 @@ const B2BVendorSubscription = () => {
                                         </ul>
                                     </div>
                                 )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Payment Confirmation Modal */}
+            <AnimatePresence>
+                {showPayModal && payModalData && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowPayModal(false)}
+                            className="absolute inset-0 bg-navy-950/80 backdrop-blur-sm"
+                        />
+                        
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden"
+                        >
+                            {/* Modal Header */}
+                            <div className="bg-primary-600 p-8 text-white relative">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                                <button 
+                                    onClick={() => setShowPayModal(false)}
+                                    className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                                >
+                                    <FiX size={20} />
+                                </button>
+                                
+                                <h3 className="text-2xl font-black uppercase tracking-tight mb-1">Confirm Payment</h3>
+                                <p className="text-primary-100 font-medium opacity-80">Final breakdown before checkout</p>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="p-8">
+                                <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Selected Item</span>
+                                            <span className="text-xl font-bold text-gray-900">{payModalData.name}</span>
+                                        </div>
+                                        <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center">
+                                            <FiCreditCard size={24} />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 pt-4 border-t border-gray-200/60">
+                                        <div className="flex justify-between text-gray-600 font-medium">
+                                            <span>Base Price</span>
+                                            <span>₹{(payModalData.basePrice + (payModalData.credit || 0)).toLocaleString('en-IN')}</span>
+                                        </div>
+                                        {payModalData.type === 'upgrade' && payModalData.credit > 0 && (
+                                            <div className="flex justify-between text-emerald-600 font-bold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100/50">
+                                                <div className="flex items-center gap-1.5">
+                                                    <FiCheckCircle size={14} />
+                                                    <span>Credit Applied</span>
+                                                </div>
+                                                <span>- ₹{payModalData.credit.toLocaleString('en-IN')}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between text-gray-600 font-medium">
+                                            <div className="flex items-center gap-2">
+                                                <span>GST (18%)</span>
+                                                <div className="group relative">
+                                                    <FiInfo size={14} className="text-gray-400" />
+                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center">
+                                                        Goods and Services Tax as per Government regulations
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <span>+ ₹{payModalData.gstAmount?.toLocaleString('en-IN') || Math.round(payModalData.basePrice * 0.18).toLocaleString('en-IN')}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-center mb-10 px-2">
+                                    <span className="text-lg font-black text-gray-900 uppercase">Total Amount</span>
+                                    <span className="text-3xl font-black text-primary-600">
+                                        ₹{(payModalData.totalAmount || (payModalData.basePrice + Math.round(payModalData.basePrice * 0.18))).toLocaleString('en-IN')}
+                                    </span>
+                                </div>
+
+                                <button
+                                    onClick={() => {
+                                        if (payModalData.type === 'subscribe') proceedWithSubscription(payModalData.id);
+                                        if (payModalData.type === 'upgrade') proceedWithUpgrade(payModalData.id);
+                                        if (payModalData.type === 'addon') proceedWithAddonPurchase(payModalData.id);
+                                    }}
+                                    className="w-full py-5 bg-primary-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-primary-200 hover:bg-primary-700 transition-all flex items-center justify-center gap-3 active:scale-95"
+                                >
+                                    Proceed To Pay
+                                    <FiArrowRight size={20} />
+                                </button>
+                                <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-6">
+                                    Trusted & Secured Payment Interface
+                                </p>
                             </div>
                         </motion.div>
                     </div>
