@@ -80,6 +80,10 @@ const vendorSubscriptionSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    discount: {
+      type: Number,
+      default: 0,
+    },
     // Zoho Books integration fields
     zohoContactId: {
       type: String,

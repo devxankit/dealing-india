@@ -149,16 +149,27 @@ const B2BVendorSubscription = () => {
             toast.loading('Calculating upgrade price...', { id: 'upgrade-init' });
 
             const response = await subscriptionService.initializeUpgrade(planId);
-            const { razorpay, razorpayKeyId, finalAmount, credit, remainingDays, baseAmount, gstAmount } = response;
-
+            const { 
+                finalAmount, 
+                credit, 
+                remainingDays, 
+                baseAmount, 
+                gstAmount, 
+                newPlanPrice 
+            } = response;
+            
+            const gstPercentage = plan.gst || 18;
+            
             setPayModalData({
                 id: planId,
                 name: plan.name,
-                basePrice: baseAmount || Math.round(finalAmount / 1.18),
-                gstAmount: gstAmount || Math.round((finalAmount / 1.18) * 0.18),
+                originalPrice: newPlanPrice || plan.price,
+                basePrice: baseAmount, // This is the net base after credit
+                gstAmount: gstAmount,
                 totalAmount: finalAmount,
                 credit: credit,
                 remainingDays: remainingDays,
+                gstPercentage: gstPercentage,
                 type: 'upgrade',
                 upgradeDetails: response
             });
@@ -228,13 +239,19 @@ const B2BVendorSubscription = () => {
         if (!plan) return;
 
         // Initial GST calculation for display (dynamic at interaction time)
-        const gstAmount = Math.round(plan.price * 0.18);
-        const totalAmount = plan.price + gstAmount;
+        const discountAmount = plan.discount || 0;
+        const gstPercentage = plan.gst || 18;
+        const priceAfterDiscount = Math.max(0, plan.price - discountAmount);
+        const gstAmount = Math.round(priceAfterDiscount * (gstPercentage / 100));
+        const totalAmount = priceAfterDiscount + gstAmount;
 
         setPayModalData({
             id: planId,
             name: plan.name,
+            originalPrice: plan.price,
             basePrice: plan.price,
+            discount: discountAmount,
+            gstPercentage: gstPercentage,
             gstAmount: gstAmount,
             totalAmount: totalAmount,
             type: 'subscribe'
@@ -317,13 +334,19 @@ const B2BVendorSubscription = () => {
         const addon = availableAddons.find(a => (a._id || a.id) === planId);
         if (!addon) return;
 
-        const gstAmount = Math.round(addon.price * 0.18);
-        const totalAmount = addon.price + gstAmount;
+        const discountAmount = addon.discount || 0;
+        const gstPercentage = addon.gst || 18;
+        const priceAfterDiscount = Math.max(0, addon.price - discountAmount);
+        const gstAmount = Math.round(priceAfterDiscount * (gstPercentage / 100));
+        const totalAmount = priceAfterDiscount + gstAmount;
 
         setPayModalData({
             id: planId,
             name: addon.name,
+            originalPrice: addon.price,
             basePrice: addon.price,
+            discount: discountAmount,
+            gstPercentage: gstPercentage,
             gstAmount: gstAmount,
             totalAmount: totalAmount,
             type: 'addon'
@@ -1139,20 +1162,28 @@ const B2BVendorSubscription = () => {
                                     <div className="space-y-4 pt-4 border-t border-gray-200/60">
                                         <div className="flex justify-between text-gray-600 font-medium">
                                             <span>Base Price</span>
-                                            <span>₹{(payModalData.basePrice + (payModalData.credit || 0)).toLocaleString('en-IN')}</span>
+                                            <span>₹{(payModalData.originalPrice || payModalData.basePrice || 0).toLocaleString('en-IN')}</span>
                                         </div>
+                                        {payModalData.discount > 0 && (
+                                            <div className="flex justify-between text-rose-600 font-bold bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-100/50">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span>Special Discount</span>
+                                                </div>
+                                                <span>- ₹{payModalData.discount.toLocaleString('en-IN')}</span>
+                                            </div>
+                                        )}
                                         {payModalData.type === 'upgrade' && payModalData.credit > 0 && (
                                             <div className="flex justify-between text-emerald-600 font-bold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100/50">
                                                 <div className="flex items-center gap-1.5">
                                                     <FiCheckCircle size={14} />
-                                                    <span>Credit Applied</span>
+                                                    <span>Upgrade Credit</span>
                                                 </div>
                                                 <span>- ₹{payModalData.credit.toLocaleString('en-IN')}</span>
                                             </div>
                                         )}
                                         <div className="flex justify-between text-gray-600 font-medium">
                                             <div className="flex items-center gap-2">
-                                                <span>GST (18%)</span>
+                                                <span>GST ({payModalData.gstPercentage || 18}%)</span>
                                                 <div className="group relative">
                                                     <FiInfo size={14} className="text-gray-400" />
                                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center">
@@ -1160,7 +1191,7 @@ const B2BVendorSubscription = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <span>+ ₹{payModalData.gstAmount?.toLocaleString('en-IN') || Math.round(payModalData.basePrice * 0.18).toLocaleString('en-IN')}</span>
+                                            <span>+ ₹{(payModalData.gstAmount || 0).toLocaleString('en-IN')}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1168,7 +1199,7 @@ const B2BVendorSubscription = () => {
                                 <div className="flex justify-between items-center mb-10 px-2">
                                     <span className="text-lg font-black text-gray-900 uppercase">Total Amount</span>
                                     <span className="text-3xl font-black text-primary-600">
-                                        ₹{(payModalData.totalAmount || (payModalData.basePrice + Math.round(payModalData.basePrice * 0.18))).toLocaleString('en-IN')}
+                                        ₹{(payModalData.totalAmount || 0).toLocaleString('en-IN')}
                                     </span>
                                 </div>
 

@@ -148,14 +148,59 @@ export async function ensureZohoContactForVendor(vendor) {
   return contact?.contact_id || contact?.contact_person_id;
 }
 
-export async function createSubscriptionInvoice({ contactId, planName, amount, currency = 'INR', referenceNumber, notes, vendorGstNumber }) {
+export async function createSubscriptionInvoice({ 
+  contactId, 
+  planName, 
+  amount, 
+  currency = 'INR', 
+  referenceNumber, 
+  notes, 
+  vendorGstNumber,
+  baseAmount,
+  gstAmount,
+  discount
+}) {
   const dateStr = new Date().toISOString().slice(0, 10);
+  
+  const lineItems = [];
+  if (baseAmount && gstAmount) {
+    // 1. Base Plan Price
+    lineItems.push({
+      description: planName || 'Subscription',
+      rate: baseAmount,
+      quantity: 1,
+    });
+
+    // 2. Discount (if any)
+    if (discount && discount > 0) {
+      lineItems.push({
+        description: 'Discount Applied',
+        rate: -discount,
+        quantity: 1,
+      });
+    }
+
+    // 3. GST
+    lineItems.push({
+      description: 'GST (Tax)',
+      rate: gstAmount,
+      quantity: 1,
+    });
+  } else {
+    // Fallback to total amount single line
+    lineItems.push({
+      description: planName || 'Subscription',
+      rate: amount,
+      quantity: 1,
+    });
+  }
+
   const invoice = {
     customer_id: contactId,
     date: dateStr,
     payment_terms: 0,
     reference_number: referenceNumber,
-    line_items: [{ description: planName || 'Subscription', rate: amount, quantity: 1 }],
+    line_items: lineItems,
     currency_code: currency,
     notes: `${notes || ''}\n\nVendor GST: ${vendorGstNumber || 'N/A'}\nAdmin GST: ${process.env.ADMIN_GST_NUMBER || 'Configuring...'}`,
     gst_no: vendorGstNumber || undefined,

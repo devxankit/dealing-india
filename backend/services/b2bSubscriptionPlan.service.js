@@ -109,11 +109,18 @@ class B2BSubscriptionPlanService {
       }
 
       const planPrice = parseFloat(price) || 0;
+      const discountAmount = parseFloat(planData.discount) || 0;
+      const gstPercentage = parseFloat(planData.gst) || 18;
+      
+      const priceAfterDiscount = Math.max(0, planPrice - discountAmount);
+      const gstAmount = Math.round(priceAfterDiscount * (gstPercentage / 100));
+      const totalAmount = priceAfterDiscount + gstAmount;
+
       const planName = name.trim();
       let razorpayPlanId = null;
 
       // 🔹 Create in Razorpay if it's a paid plan
-      if (planPrice > 0) {
+      if (totalAmount > 0) {
         try {
           // Determine period and interval for Razorpay
           let razorPeriod = 'monthly';
@@ -126,16 +133,15 @@ class B2BSubscriptionPlanService {
 
           const razorpayPlan = await razorpayService.createPlan({
             name: planName,
-            amount: planPrice,
+            amount: totalAmount,
             currency: 'INR',
             period: razorPeriod,
             interval: razorInterval,
-            description: description?.trim() || `${duration} months subscription for ${planName}`,
+            description: description?.trim() || `${duration} months subscription for ${planName} (Inc. GST)`,
           });
           razorpayPlanId = razorpayPlan.id;
         } catch (err) {
           console.error('Initial Razorpay plan creation failed:', err);
-          // We continue because DB creation is the primary source of truth
         }
       }
 
@@ -143,6 +149,8 @@ class B2BSubscriptionPlanService {
         name: planName,
         duration,
         price: planPrice,
+        discount: discountAmount,
+        gst: gstPercentage,
         features: features.filter(f => f && f.trim()),
         description: description?.trim(),
         reelsLimit: planData.reelsLimit || 0,
@@ -207,24 +215,43 @@ class B2BSubscriptionPlanService {
       const isPriceChanged =
         price !== undefined && parseFloat(price) !== plan.price;
 
+      const isDiscountChanged =
+        updateData.discount !== undefined && parseFloat(updateData.discount) !== (plan.discount || 0);
+
+      const isGstChanged =
+        updateData.gst !== undefined && parseFloat(updateData.gst) !== (plan.gst || 18);
+
       const isNameChanged =
         name !== undefined && name.trim() !== plan.name;
 
-      const newPrice = price !== undefined ? parseFloat(price) : plan.price;
+      const finalBasePrice = price !== undefined ? parseFloat(price) : plan.price;
+      const finalDiscount = updateData.discount !== undefined ? parseFloat(updateData.discount) : (plan.discount || 0);
+      const finalGst = updateData.gst !== undefined ? parseFloat(updateData.gst) : (plan.gst || 18);
+
+      const priceAfterDiscount = Math.max(0, finalBasePrice - finalDiscount);
+      const gstAmount = Math.round(priceAfterDiscount * (finalGst / 100));
+      const finalTotalAmount = priceAfterDiscount + gstAmount;
+
+      const isTotalAmountChanged =
+        isPriceChanged || isDiscountChanged || isGstChanged;
 
       /**
        * 🔹 Rule:
-       * - price OR name change ho
-       * - aur plan paid ho (> 0)
+       * - price, discount, gst OR name change ho
+       * - AUR, ya phir agar plan paid hai magar koi Razorpay Plan ID nahi hai (!plan.razorpayPlanId)
+       * - aur final plan paid ho (> 0)
        * → naya Razorpay plan create karo
        */
-      if ((isPriceChanged || isNameChanged) && newPrice > 0) {
+      if (
+        (isTotalAmountChanged || isNameChanged || !plan.razorpayPlanId) &&
+        finalTotalAmount > 0
+      ) {
         const planName = name?.trim() || plan.name;
         const planDuration = duration !== undefined ? Number(duration) : plan.duration;
         const planDescription =
           description?.trim() ||
           plan.description ||
-          `${planDuration} months subscription for ${planName}`;
+          `${planDuration} months subscription for ${planName} (Inc. GST)`;
 
         try {
           // Determine period and interval for Razorpay
@@ -238,7 +265,7 @@ class B2BSubscriptionPlanService {
 
           const razorpayPlan = await razorpayService.createPlan({
             name: planName,
-            amount: newPrice,
+            amount: finalTotalAmount,
             currency: 'INR',
             period: razorPeriod,
             interval: razorInterval,
@@ -248,18 +275,20 @@ class B2BSubscriptionPlanService {
           updateData.razorpayPlanId = razorpayPlan.id;
         } catch (err) {
           console.error('Razorpay plan creation failed:', err);
-          throw new Error('Could not create Razorpay plan');
+          throw new Error(`Could not create Razorpay plan: ${err.message}`);
         }
       }
 
       // 🔹 Free plan case
-      if (newPrice === 0) {
+      if (finalTotalAmount === 0) {
         updateData.razorpayPlanId = null;
       }
 
       // 🔹 Update DB fields
       if (name !== undefined) plan.name = name.trim();
       if (price !== undefined) plan.price = parseFloat(price);
+      if (updateData.discount !== undefined) plan.discount = parseFloat(updateData.discount);
+      if (updateData.gst !== undefined) plan.gst = parseFloat(updateData.gst);
       if (duration !== undefined) plan.duration = duration;
 
       if (features !== undefined) {

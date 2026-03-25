@@ -51,6 +51,19 @@ function fixLegacyDynamicUrl(reel) {
     .replace(/:upload:/g, ':');
 }
 
+/** Detect if URL is YouTube or Direct Video */
+function detectReelLinkType(url) {
+  if (!url) return { reelType: 'upload', externalLinkType: 'cloudinary' };
+  
+  const isYouTube = url.includes('youtube.com/') || url.includes('youtu.be/') || url.includes('youtube-nocookie.com/');
+  if (isYouTube) return { reelType: 'link', externalLinkType: 'youtube' };
+  
+  const isCloudinary = url.includes('cloudinary.com/');
+  if (isCloudinary) return { reelType: 'upload', externalLinkType: 'cloudinary' };
+  
+  return { reelType: 'link', externalLinkType: 'direct' };
+}
+
 
 /** Get uploader display name */
 async function getUploaderName(uploaderId, uploaderType) {
@@ -62,19 +75,9 @@ async function getUploaderName(uploaderId, uploaderType) {
   return u?.name || 'User';
 }
 
-/**
- * Upload reel (vendor or user)
- * POST /api/reels
- * Body: multipart with video file + title, description, categoryId, categoryName, productId?, propertyId?
- */
 export const uploadReel = asyncHandler(async (req, res) => {
-  if (!req.file || !req.file.buffer) {
-    return res.status(400).json({ success: false, message: 'Video file is required' });
-  }
-  const { title, description, categoryId, categoryName, productId, propertyId, price } = req.body;
-  if (!title || !categoryName) {
-    return res.status(400).json({ success: false, message: 'Title and category are required' });
-  }
+  const { title, description, categoryId, categoryName, productId, propertyId, price, videoLink } = req.body;
+  
   const role = req.user.role;
   if (role !== 'vendor' && role !== 'user') {
     return res.status(403).json({ success: false, message: 'Only vendors or users can upload reels' });
@@ -83,13 +86,37 @@ export const uploadReel = asyncHandler(async (req, res) => {
   const uploaderType = role === 'vendor' ? 'vendor' : 'user';
   const uploaderName = await getUploaderName(uploaderId, uploaderType);
 
-  const uploadResult = await uploadToCloudinary(req.file.buffer, 'reels', {
-    resource_type: 'video',
-    timeout: 120000,
-    eager_async: true,
-  });
-  if (!uploadResult?.secure_url) {
-    return res.status(500).json({ success: false, message: 'Video upload failed' });
+  if (!req.file && !videoLink) {
+    return res.status(400).json({ success: false, message: 'Video file or link is required' });
+  }
+  if (!title || !categoryName) {
+    return res.status(400).json({ success: false, message: 'Title and category are required' });
+  }
+
+  let uploadResult = { secure_url: null, public_id: null, duration: null };
+  let reelType = 'upload';
+  let externalLinkType = 'cloudinary';
+
+  if (videoLink) {
+    // Basic validation
+    try { new URL(videoLink); } catch (e) {
+      return res.status(400).json({ success: false, message: 'Invalid video link format' });
+    }
+    const detected = detectReelLinkType(videoLink);
+    reelType = detected.reelType;
+    externalLinkType = detected.externalLinkType;
+    uploadResult.secure_url = videoLink;
+  } else {
+    // Handle File Upload
+    const result = await uploadToCloudinary(req.file.buffer, 'reels', {
+      resource_type: 'video',
+      timeout: 120000,
+      eager_async: true,
+    });
+    if (!result?.secure_url) {
+      return res.status(500).json({ success: false, message: 'Video upload failed' });
+    }
+    uploadResult = result;
   }
 
   // Enforce max duration of 60 seconds (best-effort, based on Cloudinary metadata)
@@ -116,6 +143,8 @@ export const uploadReel = asyncHandler(async (req, res) => {
     uploaderId,
     uploaderType,
     uploaderName,
+    reelType,
+    externalLinkType,
     videoUrl: uploadResult.secure_url,
     originalVideoUrl: uploadResult.secure_url,
     videoPublicId: uploadResult.public_id || null,
@@ -230,22 +259,27 @@ export const adminApproveReel = asyncHandler(async (req, res) => {
   let youtubeUploadError = null;
 
   try {
-    // Proactively freeze URLs that are still dynamic (legacy or missed processing)
-    if (reel.videoUrl?.includes('cloudinary.com') && (reel.videoUrl.includes('/e_mute/') || reel.videoUrl.includes('/ac_none/') || reel.videoUrl.includes('l_video:') || reel.videoUrl.includes('l_audio:'))) {
-      try {
-        const processedResult = await uploadUrlToCloudinary(reel.videoUrl, 'reels/processed', {
-          resource_type: 'video',
-        });
-        reel.videoUrl = processedResult.secure_url;
-        reel.videoPublicId = processedResult.public_id;
-      } catch (err) {
-        console.error('[Admin Approve] Failed to freeze dynamic URL:', err.message);
+    // Skip YouTube upload for external links
+    if (reel.reelType === 'link') {
+      console.log(`[Admin Approve] Reel ${reel._id} is a link (${reel.externalLinkType}), skipping YouTube upload.`);
+    } else {
+      // Proactively freeze URLs that are still dynamic
+      if (reel.videoUrl?.includes('cloudinary.com') && (reel.videoUrl.includes('/e_mute/') || reel.videoUrl.includes('/ac_none/') || reel.videoUrl.includes('l_video:') || reel.videoUrl.includes('l_audio:'))) {
+        try {
+          const processedResult = await uploadUrlToCloudinary(reel.videoUrl, 'reels/processed', {
+            resource_type: 'video',
+          });
+          reel.videoUrl = processedResult.secure_url;
+          reel.videoPublicId = processedResult.public_id;
+        } catch (err) {
+          console.error('[Admin Approve] Failed to freeze dynamic URL:', err.message);
+        }
       }
-    }
 
-    const result = await publishReelToYouTube(reel);
-    youtubeVideoId = result?.youtubeVideoId || null;
-    youtubePlaylistId = result?.youtubePlaylistId || null;
+      const result = await publishReelToYouTube(reel);
+      youtubeVideoId = result?.youtubeVideoId || null;
+      youtubePlaylistId = result?.youtubePlaylistId || null;
+    }
   } catch (err) {
     youtubeUploadFailed = true;
     youtubeUploadError = err.message || 'YouTube upload failed';
@@ -635,9 +669,12 @@ export const getFeed = asyncHandler(async (req, res) => {
   const categoryName = req.query.category;
   const vendorIdFilter = req.query.vendorId || null;
 
-  // Feed source: Only reels that have successfully reached YouTube
+  // Feed source: Only reels that have successfully reached YouTube OR are link-based reels
   const filter = {
-    youtubeVideoId: { $type: 'string', $regex: /.+/ }, // Strictly non-empty YouTube ID
+    $or: [
+      { youtubeVideoId: { $type: "string", $regex: /.+/ } },
+      { reelType: "link", status: "approved" },
+    ],
   };
    // Note: We don't check 'status' here because if it's on YouTube, it's implicitly approved/live.
   if (categoryName) filter.categoryName = new RegExp(categoryName, 'i');
@@ -752,8 +789,11 @@ export const getReelById = asyncHandler(async (req, res) => {
   }
 
   const reel = await Reel.findById(id).lean();
-  if (!reel || !reel.youtubeVideoId) {
-    return res.status(404).json({ success: false, message: 'Reel not found or not published to YouTube' });
+  if (!reel || (!reel.youtubeVideoId && reel.reelType !== "link")) {
+    return res.status(404).json({
+      success: false,
+      message: "Reel not found or not published to YouTube",
+    });
   }
 
   let vendorInfo = null;

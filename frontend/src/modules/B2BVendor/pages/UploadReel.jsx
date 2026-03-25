@@ -25,6 +25,8 @@ export default function UploadReel() {
     categoryName: '',
     price: '',
   });
+  const [submissionType, setSubmissionType] = useState('file'); // 'file' or 'link'
+  const [videoLink, setVideoLink] = useState('');
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
@@ -124,11 +126,12 @@ export default function UploadReel() {
       return;
     }
     const categoryName = (form.categoryName || '').trim();
-    if (!categoryName) {
-      toast.error('Please select a category');
+    const isLink = submissionType === 'link';
+    if (isLink && !videoLink.trim()) {
+      toast.error('Please provide a video link');
       return;
     }
-    if (!file) {
+    if (!isLink && !file) {
       toast.error('Please select a video file');
       return;
     }
@@ -136,11 +139,16 @@ export default function UploadReel() {
     setLoading(true);
     try {
       const fd = new FormData();
-      fd.append('video', file);
+      if (submissionType === 'file' && file) {
+        fd.append('video', file);
+      } else if (videoLink.trim()) {
+        fd.append('videoLink', videoLink.trim());
+      }
+      
       fd.append('title', form.title.trim().slice(0, MAX_TITLE));
       fd.append('description', (form.description || '').trim().slice(0, MAX_DESC));
       fd.append('categoryName', categoryName);
-      fd.append('price', form.price ? Number(form.price) : 0); // Added 'price' to FormData
+      fd.append('price', form.price ? Number(form.price) : 0);
       if (form.categoryId) fd.append('categoryId', form.categoryId);
 
       const res = await api.post('/reels', fd);
@@ -201,37 +209,83 @@ export default function UploadReel() {
       </div>
 
       <SubscriptionGate action="reels" showLimitInfo={false} fullPage={true}>
-        <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Video *</label>
-          <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-primary-300 transition-colors">
-            <input
-              type="file"
-              accept="video/*"
-              onChange={onFileChange}
-              className="hidden"
-              id="reel-video"
-            />
-            <label htmlFor="reel-video" className="cursor-pointer block">
-              {filePreview ? (
-                <video
-                  src={filePreview}
-                  className="mx-auto max-h-64 rounded-xl bg-black"
-                  controls
-                  muted
-                  playsInline
-                  onLoadedMetadata={handlePreviewLoadedMetadata}
-                />
-              ) : (
-                <div className="py-8">
-                  <FiUpload className="mx-auto text-4xl text-gray-400 mb-2" />
-                  <p className="text-gray-600 font-medium">Click to select video</p>
-                  <p className="text-xs text-gray-400 mt-1">MP4, MOV, WebM, etc. Max {MAX_VIDEO_MB}MB</p>
-                </div>
-              )}
-            </label>
-          </div>
+        {/* Toggle between File and Link */}
+        <div className="flex bg-gray-100 p-1 rounded-2xl mb-6">
+          <button
+            type="button"
+            onClick={() => setSubmissionType('file')}
+            className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+              submissionType === 'file' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Upload File
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubmissionType('link')}
+            className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+              submissionType === 'link' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Video Link
+          </button>
         </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+        
+        {submissionType === 'file' ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Video File *</label>
+            <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-primary-300 transition-colors">
+              <input
+                type="file"
+                accept="video/*"
+                onChange={onFileChange}
+                className="hidden"
+                id="reel-video"
+              />
+              <label htmlFor="reel-video" className="cursor-pointer block">
+                {filePreview ? (
+                  <video
+                    src={filePreview}
+                    className="mx-auto max-h-64 rounded-xl bg-black"
+                    controls
+                    muted
+                    playsInline
+                    onLoadedMetadata={handlePreviewLoadedMetadata}
+                  />
+                ) : (
+                  <div className="py-8">
+                    <FiUpload className="mx-auto text-4xl text-gray-400 mb-2" />
+                    <p className="text-gray-600 font-medium">Click to select video</p>
+                    <p className="text-xs text-gray-400 mt-1">MP4, MOV, WebM, etc. Max {MAX_VIDEO_MB}MB</p>
+                  </div>
+                )}
+              </label>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">External Video Link *</label>
+            <div className="relative">
+              <input
+                type="url"
+                placeholder="Paste YouTube or Direct Video URL (e.g. https://youtu.be/...)"
+                className="w-full px-4 py-4 pr-12 border border-gray-100 rounded-2xl focus:ring-1 focus:ring-primary-500 bg-white shadow-sm"
+                value={videoLink}
+                onChange={(e) => setVideoLink(e.target.value)}
+              />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-primary-500">
+                <FiVideo size={20} />
+              </div>
+            </div>
+            <p className="mt-3 text-[10px] text-gray-500 font-medium uppercase tracking-[0.05em] leading-relaxed">
+              Supported: YouTube links or direct MP4/WebM URLs.
+              <br/>
+              <span className="text-rose-500">Note:</span> Link-based reels will not be uploaded to Dealing India's YouTube channel but will be playable in the feed.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-4">
             <div>
@@ -423,10 +477,10 @@ export default function UploadReel() {
         <div className="flex gap-3 pt-4">
           <button
             type="submit"
-            disabled={loading || !file || !form.title?.trim()}
-            className="flex-1 py-3 rounded-xl bg-primary-600 text-white font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            disabled={loading || (!file && !videoLink.trim()) || !form.title?.trim()}
+            className="flex-1 py-3 rounded-xl bg-primary-600 text-white font-black uppercase tracking-widest text-xs hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary-100"
           >
-            {loading ? 'Uploading…' : 'Submit for review'}
+            {loading ? 'Processing…' : 'Submit for review'}
           </button>
           <button
             type="button"

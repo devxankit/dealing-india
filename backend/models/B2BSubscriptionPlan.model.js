@@ -18,6 +18,16 @@ const b2bSubscriptionPlanSchema = new mongoose.Schema(
       required: [true, 'Price is required'],
       min: [0, 'Price cannot be negative'],
     },
+    discount: {
+      type: Number,
+      default: 0,
+      min: [0, 'Discount cannot be negative'],
+    },
+    gst: {
+      type: Number,
+      default: 18,
+      min: [0, 'GST cannot be negative'],
+    },
     features: [
       {
         type: String,

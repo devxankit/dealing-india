@@ -31,6 +31,17 @@ const normalizeStatus = (status) => {
   return status || '';
 };
 
+const getReelYoutubeId = (reel) => {
+  if (!reel) return null;
+  if (reel.youtubeVideoId) return reel.youtubeVideoId;
+  if (reel.reelType === 'link' && reel.externalLinkType === 'youtube') {
+    const url = reel.videoUrl;
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|embed\/|shorts\/))([^&?\/ ]{11})/);
+    return match ? match[1] : null;
+  }
+  return null;
+};
+
 export default function ReelModeration() {
   const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -246,7 +257,15 @@ export default function ReelModeration() {
                 className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
                 <div className="aspect-[28/16] max-h-[280px] bg-gray-900 relative group overflow-hidden">
-                  {reel.videoUrl ? (
+                  {getReelYoutubeId(reel) ? (
+                    <div className="w-full h-full pointer-events-none">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${getReelYoutubeId(reel)}?controls=0&modestbranding=1&rel=0&mute=1`}
+                        className="w-full h-full"
+                        title={reel.title}
+                      />
+                    </div>
+                  ) : reel.videoUrl ? (
                     <video
                       src={reel.videoUrl}
                       className="w-full h-full object-cover"
@@ -326,6 +345,11 @@ export default function ReelModeration() {
                     >
                       {normalizeStatus(reel.status)}
                     </span>
+                    {reel.reelType === 'link' && (
+                      <span className="ml-1 text-[9px] font-black px-1.5 py-0.5 rounded bg-blue-600 text-white uppercase tracking-widest">
+                        Link
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="p-4">
@@ -465,7 +489,15 @@ export default function ReelModeration() {
               {/* Video Section */}
               <div className="flex-1 bg-black relative flex items-center justify-center p-2 md:p-6 min-h-[400px]">
                 <div className="relative w-full h-full max-w-[400px] aspect-[9/16] bg-gray-900 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-gray-800">
-                  {previewReel.videoUrl && (
+                  {getReelYoutubeId(previewReel) ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${getReelYoutubeId(previewReel)}?autoplay=1&mute=0&rel=0`}
+                      className="w-full h-full"
+                      title={previewReel.title}
+                      allow="autoplay; encrypted-media"
+                      allowFullScreen
+                    />
+                  ) : previewReel.videoUrl && (
                     <video
                       src={previewReel.videoUrl}
                       controls

@@ -72,6 +72,11 @@ const vendorAddonSchema = new mongoose.Schema(
       type: Number,
       required: [false],
     },
+    discount: {
+      type: Number,
+      required: [false],
+      default: 0,
+    },
   },
   {
     timestamps: true,

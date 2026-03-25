@@ -1256,8 +1256,10 @@ const B2BLanding = () => {
                             <AnimatePresence>
                                 {isPriceFilterOpen && (
                                     <motion.div
-                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                                        className="absolute top-full left-1/2 -translate-x-1/2 md:left-auto md:right-0 md:translate-x-0 mt-2 w-[calc(100vw-2rem)] md:w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-5"
+                                        initial={{ opacity: 0, y: 10, x: '-50%' }} 
+                                        animate={{ opacity: 1, y: 0, x: '-50%' }} 
+                                        exit={{ opacity: 0, y: 10, x: '-50%' }}
+                                        className="absolute top-full left-1/2 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-5"
                                     >
                                         <h4 className="font-black text-gray-400 mb-4 text-[9px] uppercase tracking-[0.2em]">Quick Business Filters</h4>
                                         <div className="space-y-1">

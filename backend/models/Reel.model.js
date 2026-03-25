@@ -13,6 +13,16 @@ const reelSchema = new mongoose.Schema(
     uploaderName: { type: String, trim: true, default: '' },
     videoUrl: { type: String, required: true },
     originalVideoUrl: { type: String, default: null },
+    reelType: {
+      type: String,
+      enum: ['upload', 'link'],
+      default: 'upload',
+    },
+    externalLinkType: {
+      type: String,
+      enum: ['youtube', 'direct', 'cloudinary'],
+      default: 'cloudinary',
+    },
     videoPublicId: { type: String, default: null },
     thumbnailUrl: { type: String, default: null },
     durationSeconds: { type: Number, default: null },

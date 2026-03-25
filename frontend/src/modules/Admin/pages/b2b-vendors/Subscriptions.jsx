@@ -99,15 +99,10 @@ const Subscriptions = () => {
     };
 
     const handleEditPlan = (plan) => {
-        // Find which business types allow this plan
-        const planId = plan._id || plan.id;
-        const currentAllowedTypes = businessSettings
-            .filter(setting => setting.allowedPlans?.includes(planId))
-            .map(setting => setting.businessTypeId?._id || setting.businessTypeId);
-
         setEditingPlan({ 
             ...plan, 
-            allowedBusinessTypes: currentAllowedTypes 
+            discount: plan.discount || 0,
+            gst: plan.gst || 18
         });
         setShowPlanForm(true);
     };
@@ -129,6 +124,8 @@ const Subscriptions = () => {
                     features: editingPlan.features,
                     isActive: editingPlan.isActive,
                     description: editingPlan.description,
+                    discount: editingPlan.discount,
+                    gst: editingPlan.gst,
                     productLimit: editingPlan.productLimit,
                     reelsLimit: editingPlan.reelsLimit,
                     lotSlotLimit: editingPlan.lotSlotLimit,
@@ -144,6 +141,8 @@ const Subscriptions = () => {
                     price: editingPlan.price,
                     features: editingPlan.features,
                     description: editingPlan.description,
+                    discount: editingPlan.discount,
+                    gst: editingPlan.gst,
                     productLimit: editingPlan.productLimit,
                     reelsLimit: editingPlan.reelsLimit,
                     lotSlotLimit: editingPlan.lotSlotLimit,
@@ -153,28 +152,6 @@ const Subscriptions = () => {
                 toast.success('Plan created successfully');
             }
 
-            // Update Business Type Accessibility
-            const finalPlanId = planId || (await getB2BPlans(true, { isAdmin: true })).find(p => p.name === editingPlan.name)?._id;
-            
-            if (finalPlanId && editingPlan.allowedBusinessTypes) {
-                const updatePromises = businessSettings.map(async (setting) => {
-                    const btId = setting.businessTypeId?._id || setting.businessTypeId;
-                    const isNowSelected = editingPlan.allowedBusinessTypes.includes(btId);
-                    const wasSelected = setting.allowedPlans?.includes(finalPlanId);
-
-                    if (isNowSelected !== wasSelected) {
-                        const newAllowedPlans = isNowSelected
-                            ? [...(setting.allowedPlans || []), finalPlanId]
-                            : (setting.allowedPlans || []).filter(id => id !== finalPlanId);
-                        
-                        await api.put(`/admin/business-settings/update/${setting._id}`, {
-                            allowedPlans: newAllowedPlans
-                        });
-                    }
-                });
-                await Promise.all(updatePromises);
-                await loadBusinessTypes(); // Refresh settings state
-            }
 
             // Reload plans after save
             await loadPlans();
@@ -513,9 +490,14 @@ const Subscriptions = () => {
                                         <div className="flex items-center justify-between mb-4">
                                             <div>
                                                 <h3 className="text-lg font-bold text-gray-800">{plan.name}</h3>
-                                                <p className="text-2xl font-extrabold text-primary-600 mt-2">
+                                                <p className="text-2xl font-extrabold text-slate-800 mt-2">
                                                     ₹{plan.price.toLocaleString('en-IN')}
                                                 </p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[10px] font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                                        ₹{Math.round((Math.max(0, (plan.price || 0) - (plan.discount || 0))) * (1 + (plan.gst || 18) / 100)).toLocaleString('en-IN')} Total (Inc. GST)
+                                                    </span>
+                                                </div>
                                             </div>
                                             <button
                                                 onClick={() => handleEditPlan(plan)}
@@ -599,10 +581,48 @@ const Subscriptions = () => {
                                     type="number"
                                     value={editingPlan.price}
                                     onChange={(e) => setEditingPlan({ ...editingPlan, price: parseFloat(e.target.value) || 0 })}
-                                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-primary-500"
+                                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-primary-500 font-bold"
                                     placeholder="9999"
                                     min="0"
                                 />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase tracking-tighter">Discount (₹)</label>
+                                    <input
+                                        type="number"
+                                        value={editingPlan.discount}
+                                        onChange={(e) => setEditingPlan({ ...editingPlan, discount: parseFloat(e.target.value) || 0 })}
+                                        className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-primary-500 font-bold"
+                                        placeholder="0"
+                                        min="0"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase tracking-tighter">GST (%)</label>
+                                    <input
+                                        type="number"
+                                        value={editingPlan.gst}
+                                        onChange={(e) => setEditingPlan({ ...editingPlan, gst: parseFloat(e.target.value) || 0 })}
+                                        className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-primary-500 font-bold"
+                                        placeholder="18"
+                                        min="0"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="bg-primary-50 p-6 rounded-[2rem] border-2 border-primary-100 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
+                                <div className="text-center md:text-left">
+                                    <p className="text-xs font-black text-primary-600 uppercase tracking-widest leading-none">Net Subscription Value</p>
+                                    <p className="text-[10px] text-primary-400 font-bold mt-1">(Base Price - Discount) + GST</p>
+                                </div>
+                                <div className="text-center md:text-right">
+                                    <p className="text-3xl font-black text-primary-700 leading-none">
+                                        ₹{Math.round((Math.max(0, (editingPlan.price || 0) - (editingPlan.discount || 0))) * (1 + (editingPlan.gst || 0) / 100)).toLocaleString('en-IN')}
+                                    </p>
+                                    <p className="text-[9px] font-black text-primary-500 uppercase tracking-widest mt-2 bg-white/50 px-2 py-1 rounded-full inline-block">Will create/update Razorpay Plan</p>
+                                </div>
                             </div>
 
                             {/* Structured Feature Configuration */}
@@ -733,48 +753,6 @@ const Subscriptions = () => {
                                 </div>
                             </div>
 
-                            {/* Accessible Business Types */}
-                            <div className="bg-white p-6 rounded-[2rem] border border-primary-100 shadow-sm space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                                        Accessible Business Types
-                                    </h3>
-                                    <button
-                                        onClick={() => {
-                                            const allIds = businessTypes.map(b => b._id);
-                                            const current = editingPlan.allowedBusinessTypes || [];
-                                            const next = current.length === allIds.length ? [] : allIds;
-                                            setEditingPlan({ ...editingPlan, allowedBusinessTypes: next });
-                                        }}
-                                        className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline"
-                                    >
-                                        {editingPlan.allowedBusinessTypes?.length === businessTypes.length ? 'Deselect All' : 'Select All'}
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                    {businessTypes.map(type => (
-                                        <button
-                                            key={type._id}
-                                            onClick={() => {
-                                                const current = editingPlan.allowedBusinessTypes || [];
-                                                const next = current.includes(type._id)
-                                                    ? current.filter(id => id !== type._id)
-                                                    : [...current, type._id];
-                                                setEditingPlan({ ...editingPlan, allowedBusinessTypes: next });
-                                            }}
-                                            className={`px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center justify-between border-2 ${
-                                                editingPlan.allowedBusinessTypes?.includes(type._id)
-                                                ? 'bg-primary-50 border-primary-500 text-primary-700'
-                                                : 'bg-slate-50 border-slate-100 text-slate-400 opacity-60'
-                                            }`}
-                                        >
-                                            <span className="truncate">{type.name}</span>
-                                            {editingPlan.allowedBusinessTypes?.includes(type._id) && <FiCheckCircle />}
-                                        </button>
-                                    ))}
-                                </div>
-                                <p className="text-[9px] text-slate-400 font-medium italic">Selecting a business type here makes this plan available for vendors in that category during registration/upgrade.</p>
-                            </div>
 
                             <div className="flex items-center gap-2">
                                 <input

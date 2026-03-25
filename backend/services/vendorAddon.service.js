@@ -4,7 +4,6 @@ import Vendor from '../models/Vendor.model.js';
 import razorpayService from './razorpay.service.js';
 import mongoose from 'mongoose';
 
-const GST_RATE = 0.18;
 
 class VendorAddonService {
   /**
@@ -92,9 +91,13 @@ class VendorAddonService {
         throw new Error('Invalid or inactive add-on plan');
       }
 
-      const price = addonPlan.price;
-      const gstAmount = Math.round(price * GST_RATE);
-      const totalAmount = price + gstAmount;
+      const price = addonPlan.price || 0;
+      const discountAmount = addonPlan.discount || 0;
+      const gstPercentage = addonPlan.gst || 18;
+
+      const priceAfterDiscount = Math.max(0, price - discountAmount);
+      const gstAmount = Math.round(priceAfterDiscount * (gstPercentage / 100));
+      const totalAmount = priceAfterDiscount + gstAmount;
 
       const receiptId = `addon_${Date.now()}_${vendorId.toString().slice(-4)}`;
 
@@ -160,9 +163,13 @@ class VendorAddonService {
       if (!addonPlan) throw new Error('Add-on plan not found');
 
       // 4. Create VendorAddon Record
-      const price = addonPlan.price;
-      const gstAmount = Math.round(price * GST_RATE);
-      const totalAmount = price + gstAmount;
+      const price = addonPlan.price || 0;
+      const discountAmount = addonPlan.discount || 0;
+      const gstPercentage = addonPlan.gst || 18;
+
+      const priceAfterDiscount = Math.max(0, price - discountAmount);
+      const gstAmount = Math.round(priceAfterDiscount * (gstPercentage / 100));
+      const totalAmount = priceAfterDiscount + gstAmount;
 
       const [vendorAddon] = await VendorAddon.create([{
         vendorId,
@@ -176,6 +183,7 @@ class VendorAddonService {
         razorpayOrderId,
         razorpaySignature,
         basePrice: price,
+        discount: discountAmount,
         gstAmount,
         totalAmount
       }], { session });
@@ -285,8 +293,15 @@ class VendorAddonService {
         try {
           const invoiceRef = `ADDON-${addonId.toString()}`;
           invoice = await zohoBooksService.createSubscriptionInvoice({
-            contactId, planName, amount, currency: 'INR', referenceNumber: invoiceRef,
-            vendorGstNumber: vendorInfo.gstNumber
+            contactId,
+            planName,
+            amount,
+            currency: 'INR',
+            referenceNumber: invoiceRef,
+            vendorGstNumber: vendorInfo.gstNumber,
+            baseAmount: addonDoc.basePrice,
+            gstAmount: addonDoc.gstAmount,
+            discount: addonDoc.discount
           });
           await zohoBooksService.recordInvoicePayment({
             contactId, invoiceId: invoice.id, amount, paymentDate: new Date(), razorpayPaymentId

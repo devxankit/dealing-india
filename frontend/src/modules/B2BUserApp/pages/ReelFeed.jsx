@@ -293,6 +293,17 @@ export default function ReelFeed() {
     return type.charAt(0).toUpperCase() + type.slice(1);
   }
 
+  const getReelYoutubeId = (reel) => {
+    if (!reel) return null;
+    if (reel.youtubeVideoId) return reel.youtubeVideoId;
+    if (reel.reelType === 'link' && reel.externalLinkType === 'youtube') {
+      const url = reel.videoUrl;
+      const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|embed\/|shorts\/))([^&?\/ ]{11})/);
+      return match ? match[1] : null;
+    }
+    return null;
+  };
+
   const openShareModal = () => {
     if (!currentReel) return;
     setShowShareModal(true);
@@ -436,11 +447,11 @@ export default function ReelFeed() {
               className="absolute inset-0 flex flex-col"
             >
               <div className="flex-1 flex items-center justify-center bg-black relative">
-                {currentReel.youtubeVideoId ? (
+                {getReelYoutubeId(currentReel) ? (
                   <div className="w-full h-full pointer-events-none">
                     <iframe
                       title={currentReel.title}
-                      src={`https://www.youtube.com/embed/${currentReel.youtubeVideoId}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${currentReel.youtubeVideoId}&rel=0&modestbranding=1&controls=0&disablekb=1&enablejsapi=1`}
+                      src={`https://www.youtube.com/embed/${getReelYoutubeId(currentReel)}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${getReelYoutubeId(currentReel)}&rel=0&modestbranding=1&controls=0&disablekb=1&enablejsapi=1`}
                       className="w-full h-full"
                       allow="autoplay; encrypted-media; picture-in-picture"
                       allowFullScreen
