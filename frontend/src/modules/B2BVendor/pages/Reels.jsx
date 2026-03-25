@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiVideo, FiPlus, FiClock, FiCheck, FiX, FiPlay, FiTrash2, FiMusic, FiAlertTriangle, FiRefreshCw } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
+import { getSocket } from '../../../shared/utils/socket';
 import dayjs from 'dayjs';
 
 export default function Reels() {
@@ -84,6 +85,22 @@ export default function Reels() {
     fetchReels();
   }, [page]);
 
+  // Real-time update listener for reel status changes
+  useEffect(() => {
+    const socket = getSocket();
+    if (socket) {
+      const handleNotification = (notif) => {
+        if (notif.type === 'reel_status') {
+          toast.success(notif.message || 'One of your reels status has been updated!');
+          fetchReels();
+        }
+      };
+      
+      socket.on('new_notification', handleNotification);
+      return () => socket.off('new_notification', handleNotification);
+    }
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -136,6 +153,7 @@ export default function Reels() {
                     className="w-full h-full object-cover"
                     muted
                     playsInline
+                    crossOrigin="anonymous"
                     preload="metadata"
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -248,6 +266,7 @@ export default function Reels() {
                 controls
                 autoPlay
                 playsInline
+                crossOrigin="anonymous"
               />
             </motion.div>
           </div>

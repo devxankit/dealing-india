@@ -287,8 +287,14 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                 if (f.type === 'select') {
                     if (value === '__OTHER__') value = dynamicValues[`${key}_custom`] || '';
                 }
+                
+                // 🔹 Fix: Handle multi-select arrays for string-type backend
+                if (Array.isArray(value)) {
+                    value = value.join(', ');
+                }
+
                 if (key.endsWith('_custom') || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) return null;
-                return { name: key, value };
+                return { name: key, value: String(value) };
             }).filter(Boolean);
 
             // Filter out any dynamic fields that might already exist in specifications to avoid duplicates
@@ -305,7 +311,10 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                 specifications: [
                     ...genericSpecs,
                     ...dynamicSpecs
-                ],
+                ].map(spec => ({
+                    ...spec,
+                    value: Array.isArray(spec.value) ? spec.value.join(', ') : String(spec.value || '')
+                })),
                 bulkPricing: formData.bulkPricing.filter(tier => tier.minQty && tier.price),
             };
 

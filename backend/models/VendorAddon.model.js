@@ -77,6 +77,26 @@ const vendorAddonSchema = new mongoose.Schema(
       required: [false],
       default: 0,
     },
+    // Zoho Books integration fields
+    zohoInvoiceId: {
+      type: String,
+    },
+    zohoInvoiceStatus: {
+      type: String,
+    },
+    zohoInvoicePdfUrl: {
+      type: String,
+    },
+    zohoPaymentId: {
+      type: String,
+    },
+    accountingErrors: [
+      {
+        at: { type: String },
+        message: { type: String },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
   },
   {
     timestamps: true,

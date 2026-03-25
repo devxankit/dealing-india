@@ -108,10 +108,22 @@ async function createContact({ name, companyName, email, phone, gstNumber }) {
       phone: phone || undefined,
       is_primary_contact: true,
     }],
-    gst_no: gstNumber || undefined,
-    gst_treatment: gstNumber ? 'business_gst' : 'consumer',
   };
+  
   if (phone) contact.phone = phone;
+
+  // Temporarily skip GST treatment because it is failing with 'Invalid Element'
+  /*
+  const isIndianOrg = getZohoConfig().ZOHO_BOOKS_BASE.includes('.zohoapis.in');
+  if (isIndianOrg) {
+    if (gstNumber) {
+      contact.gst_no = gstNumber;
+      contact.gst_treatment = 'business_gst';
+    } else {
+      contact.gst_treatment = 'business_none'; 
+    }
+  }
+  */
 
   const data = await zohoRequest('POST', '/contacts', { data: contact });
   return data?.contact || null;
@@ -163,7 +175,7 @@ export async function createSubscriptionInvoice({
   const dateStr = new Date().toISOString().slice(0, 10);
   
   const lineItems = [];
-  if (baseAmount && gstAmount) {
+  if (baseAmount !== undefined && baseAmount !== null && gstAmount !== undefined && gstAmount !== null) {
     // 1. Base Plan Price
     lineItems.push({
       description: planName || 'Subscription',
@@ -203,9 +215,12 @@ export async function createSubscriptionInvoice({
     line_items: lineItems,
     currency_code: currency,
     notes: `${notes || ''}\n\nVendor GST: ${vendorGstNumber || 'N/A'}\nAdmin GST: ${process.env.ADMIN_GST_NUMBER || 'Configuring...'}`,
-    gst_no: vendorGstNumber || undefined,
-    gst_treatment: vendorGstNumber ? 'business_gst' : 'consumer',
+    // gst_no: vendorGstNumber || undefined,
+    // gst_treatment: vendorGstNumber ? 'business_gst' : 'consumer',
   };
+
+  // if (!invoice.gst_no) delete invoice.gst_no;
+  // if (!invoice.gst_treatment) invoice.gst_treatment = 'consumer';
 
   console.log(`[Zoho] Creating invoice for contact: ${contactId}, Amount: ${amount}`);
   const data = await zohoRequest('POST', '/invoices', { data: invoice });
@@ -233,10 +248,10 @@ export async function downloadInvoicePdf(invoiceId) {
   try {
     console.log(`[Zoho] Attempting to download PDF for invoice: ${invoiceId}`);
     const res = await axios.get(url, {
-      params: { accept: 'pdf' },
       headers: { 
         Authorization: `Zoho-oauthtoken ${token}`,
-        'X-com-zoho-books-organizationid': ZOHO_ORG_ID
+        'X-com-zoho-books-organizationid': ZOHO_ORG_ID,
+        'Accept': 'application/pdf'
       },
       responseType: 'arraybuffer',
       timeout: 30000,
@@ -254,11 +269,11 @@ export async function downloadInvoicePdf(invoiceId) {
   }
 }
 
-export async function recordInvoicePayment({ contactId, invoiceId, amount, paymentDate, razorpayPaymentId, paymentMode = 'razorpay' }) {
+export async function recordInvoicePayment({ contactId, invoiceId, amount, paymentDate, razorpayPaymentId, paymentMode = 'Others' }) {
   const date = (paymentDate ? new Date(paymentDate) : new Date()).toISOString().slice(0, 10);
   const payment = {
     customer_id: contactId,
-    payment_mode: paymentMode,
+    payment_mode: paymentMode.toLowerCase() === 'razorpay' ? 'Others' : paymentMode,
     amount,
     date,
     reference_number: razorpayPaymentId,

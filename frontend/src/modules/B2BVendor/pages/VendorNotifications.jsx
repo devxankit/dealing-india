@@ -15,107 +15,48 @@ import {
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
 import B2BVendorLayout from '../components/Layout/B2BVendorLayout';
+import { useNotifications } from '../../../shared/hooks/useNotifications';
 
 const VendorNotifications = () => {
-    const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all'); // 'all', 'unread', 'read'
-    const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
-    const [unreadCount, setUnreadCount] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
 
-    // Fetch notifications
-    const fetchNotifications = useCallback(async (page = 1) => {
-        try {
-            setLoading(true);
-            const params = { page, limit: 20 };
-            if (filter === 'unread') params.isRead = false;
-            if (filter === 'read') params.isRead = true;
+    const {
+        notifications,
+        unreadCount,
+        loading,
+        pagination,
+        fetchNotifications,
+        fetchUnreadCount,
+        markAsRead,
+        markAllAsRead,
+        deleteNotification,
+    } = useNotifications({
+        autoFetch: true,
+        filters: { page: 1, limit: 20 }
+    });
 
-            const response = await api.get('/vendor/notifications', { params });
-
-            if (response.success) {
-                setNotifications(response.data.notifications || []);
-                setPagination(response.data.pagination || { page: 1, totalPages: 1, total: 0 });
-            }
-        } catch (error) {
-            console.error('Error fetching notifications:', error);
-            toast.error('Failed to load notifications');
-        } finally {
-            setLoading(false);
-        }
-    }, [filter]);
-
-    // Fetch unread count
-    const fetchUnreadCount = async () => {
-        try {
-            const response = await api.get('/vendor/notifications/unread-count');
-            if (response.success) {
-                setUnreadCount(response.data.unreadCount || 0);
-            }
-        } catch (error) {
-            console.error('Error fetching unread count:', error);
-        }
-    };
-
+    // Update filters when state changes
     useEffect(() => {
-        fetchNotifications();
-        fetchUnreadCount();
-    }, [fetchNotifications]);
+        const params = { page: 1, limit: 20 };
+        if (filter === 'unread') params.isRead = false;
+        if (filter === 'read') params.isRead = true;
+        fetchNotifications(params);
+    }, [filter, fetchNotifications]);
 
     // Refresh notifications
     const handleRefresh = async () => {
         setRefreshing(true);
-        await fetchNotifications(pagination.page);
+        await fetchNotifications({ page: pagination.page, limit: 20 });
         await fetchUnreadCount();
         setRefreshing(false);
-    };
-
-    // Mark single notification as read
-    const markAsRead = async (id) => {
-        try {
-            await api.put(`/vendor/notifications/${id}/read`);
-            setNotifications(prev =>
-                prev.map(n => n._id === id ? { ...n, isRead: true, readAt: new Date() } : n)
-            );
-            setUnreadCount(prev => Math.max(0, prev - 1));
-        } catch (error) {
-            toast.error('Failed to mark as read');
-        }
-    };
-
-    // Mark all as read
-    const markAllAsRead = async () => {
-        try {
-            await api.put('/vendor/notifications/read-all');
-            setNotifications(prev => prev.map(n => ({ ...n, isRead: true, readAt: new Date() })));
-            setUnreadCount(0);
-            toast.success('All notifications marked as read');
-        } catch (error) {
-            toast.error('Failed to mark all as read');
-        }
-    };
-
-    // Delete notification
-    const deleteNotification = async (id) => {
-        try {
-            await api.delete(`/vendor/notifications/${id}`);
-            const notif = notifications.find(n => n._id === id);
-            setNotifications(prev => prev.filter(n => n._id !== id));
-            if (!notif?.isRead) {
-                setUnreadCount(prev => Math.max(0, prev - 1));
-            }
-            toast.success('Notification deleted');
-        } catch (error) {
-            toast.error('Failed to delete notification');
-        }
     };
 
     // Delete all read notifications
     const deleteAllRead = async () => {
         try {
             await api.delete('/vendor/notifications/read-all');
-            setNotifications(prev => prev.filter(n => !n.isRead));
+            fetchNotifications({ page: 1, limit: 20 });
             toast.success('All read notifications deleted');
         } catch (error) {
             toast.error('Failed to delete read notifications');

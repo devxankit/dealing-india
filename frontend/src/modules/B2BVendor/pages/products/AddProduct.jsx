@@ -47,7 +47,7 @@ const AddProduct = () => {
                 </div>
             </div>
 
-            <SubscriptionGate action="product" showLimitInfo={false}>
+            <SubscriptionGate action="product" showLimitInfo={false} fullPage={true}>
                 <B2BVendorProductForm isEdit={false} />
             </SubscriptionGate>
         </motion.div>

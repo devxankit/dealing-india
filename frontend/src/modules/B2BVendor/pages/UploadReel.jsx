@@ -7,6 +7,7 @@ import api from '../../../shared/utils/api';
 import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
 import SubscriptionGate from '../components/SubscriptionGate';
 import QuotaBanner from '../components/QuotaBanner';
+import useSubscriptionStore from '../store/subscriptionStore';
 
 const MAX_VIDEO_MB = 100;
 const MAX_DURATION_SECONDS = 60;
@@ -16,6 +17,7 @@ const MAX_DESC = 500;
 export default function UploadReel() {
   const navigate = useNavigate();
   const { categories: allCategories, initialize: fetchB2BCategories } = useB2BCategoryStore();
+  const { status, canUploadReel } = useSubscriptionStore();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: '',
@@ -252,6 +254,7 @@ export default function UploadReel() {
                     controls
                     muted
                     playsInline
+                    crossOrigin="anonymous"
                     onLoadedMetadata={handlePreviewLoadedMetadata}
                   />
                 ) : (

@@ -69,7 +69,7 @@ const getChildRoute = (parentRoute, childName) => {
     return routeMap[parentRoute]?.[childName] || parentRoute;
 };
 
-let lastUnreadFetchTime = 0;
+import { useNotificationStore } from "../../../../shared/store/notificationStore";
 
 const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const location = useLocation();
@@ -77,30 +77,18 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const { vendor } = useB2BVendorAuthStore();
     const { settings } = useVendorSettings();
     const [expandedItems, setExpandedItems] = useState({});
-    const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+    
+    // Use global notification store
+    const { unreadCount: unreadNotificationCount, fetchUnreadCount } = useNotificationStore();
 
     const displayVendorName = vendor?.name || "B2B Vendor";
     const vendorInitial = displayVendorName.charAt(0).toUpperCase();
 
     useEffect(() => {
-        const fetchUnreadCount = async () => {
-            const now = Date.now();
-            if (now - lastUnreadFetchTime < 2000) return;
-
-            lastUnreadFetchTime = now;
-            try {
-                const response = await api.get('/vendor/notifications/unread-count');
-                if (response.success) {
-                    setUnreadNotificationCount(response.data.unreadCount || 0);
-                }
-            } catch (error) {
-                // Silently fail
-            }
-        };
         fetchUnreadCount();
         const interval = setInterval(fetchUnreadCount, 60000);
         return () => clearInterval(interval);
-    }, []);
+    }, [fetchUnreadCount]);
 
     const filteredMenu = b2bVendorMenu.filter(item => {
         if (item.title === "Dashboard") return true;

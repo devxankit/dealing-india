@@ -113,7 +113,8 @@ class VendorAddonService {
           basePrice: price.toString(),
           gstAmount: gstAmount.toString(),
           totalAmount: totalAmount.toString(),
-          type: 'b2b_addon'
+          type: 'b2b_addon',
+          planName: addonPlan.name
         }
       );
 
@@ -245,7 +246,7 @@ class VendorAddonService {
     try {
       console.log(`[AddonPay][Zoho] Starting integration helper for addon: ${addonId.toString()}`);
       const { default: zohoBooksService } = await import('./zohoBooks.service.js');
-      const { sendPaymentSuccessEmail } = await import('../utils/email.js');
+      const { sendPaymentSuccessEmail } = await import('./email.service.js');
       const { default: Vendor } = await import('../models/Vendor.model.js');
 
       const addonDoc = await VendorAddon.findById(addonId).populate('addonPlanId').populate('vendorId');
@@ -258,9 +259,12 @@ class VendorAddonService {
       }
 
       const planDoc = addonDoc.addonPlanId;
-      const amount = addonDoc.totalAmount || planDoc?.price || 0;
+      const amount = Number(addonDoc.totalAmount || planDoc?.price || 0);
       const planName = planDoc?.name || `Add-on: ${addonDoc.featureType}`;
       const razorpayPaymentId = addonDoc.paymentId;
+      const basePrice = Number(addonDoc.basePrice || 0);
+      const gstAmount = Number(addonDoc.gstAmount || 0);
+      const discount = Number(addonDoc.discount || 0);
 
       const v = addonDoc.vendorId;
       if (!v || !v.email) {
@@ -274,16 +278,34 @@ class VendorAddonService {
         storeName: v.storeName || v.businessName,
         email: v.email,
         phone: v.phone,
-        gstNumber: v.gstNumber
+        gstNumber: v.gstNumber,
+        zohoContactId: v.zohoContactId
       };
 
       // 1. Zoho Contact
-      let contactId = v.zohoContactId;
+      let contactId = vendorInfo.zohoContactId;
+      console.log(`[AddonPay][Zoho] Syncing contact for vendor: ${vendorInfo.email}, Existing ID: ${contactId || 'None'}`);
+      
       if (!contactId) {
         try {
-          contactId = await zohoBooksService.ensureZohoContactForVendor(vendorInfo);
-          await Vendor.findByIdAndUpdate(v._id, { zohoContactId: contactId });
-        } catch (e) { console.error('Zoho contact failed:', e.message); }
+          contactId = await zohoBooksService.ensureZohoContactForVendor({
+            email: vendorInfo.email,
+            phone: vendorInfo.phone,
+            name: vendorInfo.name,
+            storeName: vendorInfo.storeName || vendorInfo.name,
+            gstNumber: vendorInfo.gstNumber || null,
+            zohoContactId: null
+          });
+          
+          if (vendorInfo._id && contactId) {
+            await Vendor.findByIdAndUpdate(vendorInfo._id, { zohoContactId: contactId });
+          }
+        } catch (e) { 
+          console.error('[AddonPay][Zoho] Contact Sync failed:', e.message); 
+          await VendorAddon.findByIdAndUpdate(addonId, {
+            $push: { accountingErrors: { at: 'zoho_contact_sync', message: e.message } }
+          });
+        }
       }
 
       // 2. Zoho Invoice & Payment
@@ -299,38 +321,70 @@ class VendorAddonService {
             currency: 'INR',
             referenceNumber: invoiceRef,
             vendorGstNumber: vendorInfo.gstNumber,
-            baseAmount: addonDoc.basePrice,
-            gstAmount: addonDoc.gstAmount,
-            discount: addonDoc.discount
+            baseAmount: basePrice,
+            gstAmount: gstAmount,
+            discount: discount
           });
-          await zohoBooksService.recordInvoicePayment({
-            contactId, invoiceId: invoice.id, amount, paymentDate: new Date(), razorpayPaymentId
+          
+          const paymentResult = await zohoBooksService.recordInvoicePayment({
+            contactId, 
+            invoiceId: invoice.id, 
+            amount, 
+            paymentDate: new Date(), 
+            razorpayPaymentId
           });
 
           if (invoice.id) {
             invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(invoice.id);
           }
-        } catch (e) { console.error('Zoho Invoice failed:', e.message); }
+          
+          await VendorAddon.findByIdAndUpdate(addonId, {
+            zohoInvoiceId: invoice?.id,
+            zohoInvoiceStatus: invoice?.status,
+            zohoInvoicePdfUrl: invoice?.pdfUrl,
+            zohoPaymentId: paymentResult?.id
+          });
+        } catch (e) { 
+          console.error('[AddonPay][Zoho] Invoice/Payment phase failed:', e.message); 
+          await VendorAddon.findByIdAndUpdate(addonId, {
+            $push: { accountingErrors: { at: 'zoho_invoice_payment', message: e.message } }
+          });
+        }
       }
 
       // 3. Emails
       const vendorEmail = vendorInfo.email;
       const adminEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
       const commonEmailData = {
-        amount, planName, title: planName, paymentFor: 'addon_purchase',
-        paymentDate: new Date(), transactionId: razorpayPaymentId,
-        referenceId: `ADDON-${addonId}`, paymentMethod: 'razorpay',
-        vendor: vendorInfo, invoicePdfBuffer
+        amount, 
+        planName, 
+        title: planName, 
+        paymentFor: 'addon_purchase',
+        paymentDate: new Date(), 
+        transactionId: razorpayPaymentId,
+        referenceId: `ADDON-${addonId}`, 
+        paymentMethod: 'razorpay',
+        vendor: vendorInfo, 
+        invoicePdfBuffer
       };
 
-      if (vendorEmail) await sendPaymentSuccessEmail({ ...commonEmailData, to: vendorEmail }).catch(e => console.error('Vendor email failed:', e.message));
-      if (adminEmail) await sendPaymentSuccessEmail({ ...commonEmailData, to: adminEmail }).catch(e => console.error('Admin email failed:', e.message));
-
-      await VendorAddon.findByIdAndUpdate(addonId, {
-        zohoInvoiceId: invoice?.id,
-        zohoInvoiceStatus: invoice?.status,
-        zohoInvoicePdfUrl: invoice?.pdfUrl
-      });
+      if (vendorEmail) {
+        await sendPaymentSuccessEmail({ ...commonEmailData, to: vendorEmail }).catch(async e => {
+          console.error('Vendor addon email failed:', e.message);
+          await VendorAddon.findByIdAndUpdate(addonId, {
+            $push: { accountingErrors: { at: 'vendor_email', message: e.message } }
+          });
+        });
+      }
+      
+      if (adminEmail) {
+        await sendPaymentSuccessEmail({ ...commonEmailData, to: adminEmail }).catch(async e => {
+          console.error('Admin addon email failed:', e.message);
+          await VendorAddon.findByIdAndUpdate(addonId, {
+            $push: { accountingErrors: { at: 'admin_email', message: e.message } }
+          });
+        });
+      }
 
     } catch (err) {
       console.error('[AddonPay][Critical] Integration helper failed:', err);

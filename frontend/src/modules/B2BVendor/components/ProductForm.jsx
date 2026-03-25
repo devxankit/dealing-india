@@ -337,9 +337,15 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                         value = dynamicValues[`${key}_custom`] || '';
                     }
                 }
+                
+                // 🔹 Fix: Handle multi-select arrays for string-type backend
+                if (Array.isArray(value)) {
+                    value = value.join(', ');
+                }
+
                 // Skip internal keys and empty values
                 if (key.endsWith('_custom') || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) return null;
-                return { name: key, value };
+                return { name: key, value: String(value) };
             }).filter(Boolean);
 
             // Filter out any dynamic fields that might already exist in specifications to avoid duplicates
@@ -351,7 +357,10 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
             const finalSpecs = [
                 ...genericSpecs,
                 ...dynamicSpecs,
-            ];
+            ].map(spec => ({
+                ...spec,
+                value: Array.isArray(spec.value) ? spec.value.join(', ') : String(spec.value || '')
+            }));
 
             // Prepare data for API
             const productPayload = {

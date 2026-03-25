@@ -271,6 +271,7 @@ export default function ReelModeration() {
                       className="w-full h-full object-cover"
                       muted
                       playsInline
+                      crossOrigin="anonymous"
                       preload="metadata"
                       poster={reel.thumbnailUrl}
                     />
@@ -504,6 +505,7 @@ export default function ReelModeration() {
                       autoPlay
                       loop
                       muted={!!playingSongId}
+                      crossOrigin="anonymous"
                       className="w-full h-full object-cover"
                     />
                   )}

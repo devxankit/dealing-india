@@ -1,12 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  getNotifications as fetchNotifications,
-  getUnreadCount as fetchUnreadCount,
-  markAsRead as markNotificationAsRead,
-  markAllAsRead as markAllNotificationsAsRead,
-  deleteNotification as deleteNotificationById,
-} from '../services/notificationService';
-import { initializeSocket, getSocket, disconnectSocket } from '../utils/socket';
+import { useEffect, useCallback, useRef } from 'react';
+import { useNotificationStore } from '../store/notificationStore';
+import { initializeSocket, getSocket } from '../utils/socket';
 
 /**
  * Custom hook for managing notifications with real-time updates
@@ -23,16 +17,20 @@ export const useNotifications = (options = {}) => {
     enableSocket = true,
   } = options;
 
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 0,
-  });
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    error,
+    pagination,
+    fetchNotifications,
+    fetchUnreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    handleNewNotification,
+    handleNotificationRead
+  } = useNotificationStore();
 
   const socketInitialized = useRef(false);
   const filtersRef = useRef(initialFilters);
@@ -59,175 +57,47 @@ export const useNotifications = (options = {}) => {
 
     if (!socketInitialized.current) {
       const socket = initializeSocket(token);
-      if (!socket) {
-        // No token or socket initialization failed, skip socket setup
-        return;
-      }
+      if (!socket) return;
       socketInitialized.current = true;
 
       // Listen for new notifications
       socket.on('new_notification', (notification) => {
-        setNotifications((prev) => {
-          // Check if notification already exists (prevent duplicates)
-          const exists = prev.some((n) => n._id === notification._id);
-          if (exists) return prev;
-          // Add new notification at the beginning
-          return [notification, ...prev];
-        });
-        setUnreadCount((prev) => prev + 1);
+        handleNewNotification(notification);
       });
 
       // Listen for notification read updates
-      socket.on('notification_read', ({ notificationId, isRead }) => {
-        setNotifications((prev) =>
-          prev.map((n) =>
-            n._id === notificationId ? { ...n, isRead, readAt: new Date() } : n
-          )
-        );
-        if (isRead) {
-          setUnreadCount((prev) => Math.max(0, prev - 1));
-        }
+      socket.on('notification_read', ({ notificationId }) => {
+        handleNotificationRead(notificationId);
       });
 
       // Listen for all notifications read
-      socket.on('all_notifications_read', ({ count }) => {
-        setNotifications((prev) =>
-          prev.map((n) => ({ ...n, isRead: true, readAt: new Date() }))
-        );
-        setUnreadCount(0);
+      socket.on('all_notifications_read', () => {
+        markAllAsRead(); // Implicitly clears state locally
       });
 
       // Listen for notification deleted
       socket.on('notification_deleted', ({ notificationId }) => {
-        setNotifications((prev) => {
-          const notification = prev.find((n) => n._id === notificationId);
-          const wasUnread = notification && !notification.isRead;
-          const updated = prev.filter((n) => n._id !== notificationId);
-          if (wasUnread) {
-            setUnreadCount((prev) => Math.max(0, prev - 1));
-          }
-          return updated;
-        });
+        deleteNotification(notificationId);
       });
 
       // Listen for read notifications deleted
       socket.on('read_notifications_deleted', () => {
-        // Refetch notifications to get updated list
-        fetchNotificationsList();
+        fetchNotifications(filtersRef.current);
       });
     }
 
     return () => {
-      // Don't disconnect socket here as it might be used by other components
-      // Socket will be cleaned up on app unmount or logout
+      // Socket logic remains persistent
     };
-  }, [enableSocket]);
-
-  // Fetch notifications list
-  const fetchNotificationsList = useCallback(async (customFilters = {}) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const mergedFilters = { ...filtersRef.current, ...customFilters };
-      const result = await fetchNotifications(mergedFilters);
-      setNotifications(result.notifications || []);
-      setPagination(result.pagination || pagination);
-    } catch (err) {
-      // Silently handle network errors (backend might not be running)
-      if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')) {
-        console.warn('Backend server not available. Using empty notifications list.');
-        setNotifications([]);
-        setError(null); // Don't show error for network issues
-      } else {
-        setError(err.message || 'Failed to fetch notifications');
-        console.error('Error fetching notifications:', err);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Fetch unread count
-  const fetchUnreadCountValue = useCallback(async () => {
-    try {
-      const count = await fetchUnreadCount();
-      setUnreadCount(count);
-    } catch (err) {
-      // Silently handle network errors (backend might not be running)
-      if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')) {
-        console.warn('Backend server not available. Unread count will be 0.');
-        setUnreadCount(0);
-      } else {
-        console.error('Error fetching unread count:', err);
-      }
-      // Don't set error for unread count as it's a background operation
-    }
-  }, []);
-
-  // Mark notification as read
-  const markAsRead = useCallback(async (notificationId) => {
-    try {
-      await markNotificationAsRead(notificationId);
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n._id === notificationId
-            ? { ...n, isRead: true, readAt: new Date() }
-            : n
-        )
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error('Error marking notification as read:', err);
-      throw err;
-    }
-  }, []);
-
-  // Mark all notifications as read
-  const markAllAsRead = useCallback(async () => {
-    try {
-      await markAllNotificationsAsRead();
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, isRead: true, readAt: new Date() }))
-      );
-      setUnreadCount(0);
-    } catch (err) {
-      console.error('Error marking all notifications as read:', err);
-      throw err;
-    }
-  }, []);
-
-  // Delete notification
-  const deleteNotification = useCallback(async (notificationId) => {
-    try {
-      await deleteNotificationById(notificationId);
-      setNotifications((prev) => {
-        const notification = prev.find((n) => n._id === notificationId);
-        const wasUnread = notification && !notification.isRead;
-        const updated = prev.filter((n) => n._id !== notificationId);
-        if (wasUnread) {
-          setUnreadCount((prev) => Math.max(0, prev - 1));
-        }
-        return updated;
-      });
-    } catch (err) {
-      console.error('Error deleting notification:', err);
-      throw err;
-    }
-  }, []);
-
-  // Update filters
-  const updateFilters = useCallback((newFilters) => {
-    filtersRef.current = { ...filtersRef.current, ...newFilters };
-    fetchNotificationsList(newFilters);
-  }, [fetchNotificationsList]);
+  }, [enableSocket, handleNewNotification, handleNotificationRead, markAllAsRead, deleteNotification, fetchNotifications]);
 
   // Auto-fetch on mount
   useEffect(() => {
     if (autoFetch) {
-      fetchNotificationsList();
-      fetchUnreadCountValue();
+      fetchNotifications(filtersRef.current);
+      fetchUnreadCount();
     }
-  }, [autoFetch, fetchNotificationsList, fetchUnreadCountValue]);
+  }, [autoFetch, fetchNotifications, fetchUnreadCount]);
 
   // Poll for unread count updates (fallback if socket disconnected)
   useEffect(() => {
@@ -236,13 +106,12 @@ export const useNotifications = (options = {}) => {
     const interval = setInterval(() => {
       const socket = getSocket();
       if (!socket || !socket.connected) {
-        // Socket disconnected, poll for updates
-        fetchUnreadCountValue();
+        fetchUnreadCount();
       }
     }, 30000); // Poll every 30 seconds
 
     return () => clearInterval(interval);
-  }, [enableSocket, fetchUnreadCountValue]);
+  }, [enableSocket, fetchUnreadCount]);
 
   return {
     notifications,
@@ -250,15 +119,14 @@ export const useNotifications = (options = {}) => {
     loading,
     error,
     pagination,
-    fetchNotifications: fetchNotificationsList,
-    fetchUnreadCount: fetchUnreadCountValue,
+    fetchNotifications,
+    fetchUnreadCount,
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    updateFilters,
     refetch: () => {
-      fetchNotificationsList();
-      fetchUnreadCountValue();
+      fetchNotifications(filtersRef.current);
+      fetchUnreadCount();
     },
   };
 };

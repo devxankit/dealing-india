@@ -482,22 +482,43 @@ class SubscriptionRulesService {
         };
 
         if (!subData) {
-            // No subscription: Strict restriction
+            // Fetch vendor info to ensure businessType is available even without subscription
+            const vendor = await Vendor.findById(vendorId).select('businessType').lean();
+            const businessType = vendor?.businessType;
+
             const productCount = await this.getProductCount(vendorId);
             const reelCount = await this.getReelCount(vendorId);
             const lotSlotCount = await this.getLotSlotCount(vendorId);
             const propertyCount = await Product.countDocuments({ vendorId, formType: 'property' });
 
             return {
-                hasSubscription: false,
+                hasSubscription: (addonStats.products + addonStats.reels + addonStats.lot_slot) > 0,
                 hasShop,
                 plan: { id: null, name: 'No Active Plan', type: 'none', expiresAt: null },
-                businessType: null,
+                businessType: businessType || 'textile',
                 limits: {
-                    products: { allowed: false, limit: 0, current: productCount, remaining: 0 },
-                    lotSlot: { allowed: false, current: lotSlotCount },
+                    products: { 
+                        allowed: addonStats.products > 0, 
+                        limit: addonStats.products, 
+                        current: productCount, 
+                        remaining: addonStats.products, // 🟢 Correct: addonStats already is (total - used)
+                        hasAddon: addonStats.products > 0
+                    },
+                    lotSlot: { 
+                        allowed: addonStats.lot_slot > 0, 
+                        limit: addonStats.lot_slot,
+                        current: lotSlotCount, 
+                        remaining: addonStats.lot_slot, // 🟢 Correct
+                        hasAddon: addonStats.lot_slot > 0
+                    },
                     properties: { allowed: false, maxImages: 0 },
-                    reels: { allowed: addonStats.reels > 0, limit: 0, current: reelCount }
+                    reels: { 
+                        allowed: addonStats.reels > 0, 
+                        limit: addonStats.reels, 
+                        current: reelCount,
+                        remaining: addonStats.reels, // 🟢 Correct
+                        hasAddon: addonStats.reels > 0
+                    }
                 },
                 addons: addonStats
             };
@@ -511,18 +532,27 @@ class SubscriptionRulesService {
         const reelCount = await this.getReelCount(vendorId);
         const propertyCount = await Product.countDocuments({ vendorId, formType: 'property' });
 
-        // 🔹 Rule: Follow DB Fields Strictly
-        const productLimitValue = plan.productLimit === 'unlimited' ? -1 : (Number(plan.productLimit) || 0);
-        const lotSlotLimitValue = plan.lotSlotLimit === 'unlimited' ? -1 : (Number(plan.lotSlotLimit) || 0);
-        const reelLimitValue = plan.reelsLimit === 'unlimited' ? -1 : (Number(plan.reelsLimit) || 0);
+        // 🔹 Rule: Calculate total capacity including addons
+        const subProductLimit = plan.productLimit === 'unlimited' ? -1 : (Number(plan.productLimit) || 0);
+        const subLotSlotLimit = plan.lotSlotLimit === 'unlimited' ? -1 : (Number(plan.lotSlotLimit) || 0);
+        const subReelLimit = plan.reelsLimit === 'unlimited' ? -1 : (Number(plan.reelsLimit) || 0);
+        
+        // 🔹 Correct Remaining Calculation: Max(0, BaseLimit - Current) + AddonAvailable
+        const productRemaining = subProductLimit === -1 ? -1 : (Math.max(0, subProductLimit - productCount) + addonStats.products);
+        const lotSlotRemaining = subLotSlotLimit === -1 ? -1 : (Math.max(0, subLotSlotLimit - lotSlotCount) + addonStats.lot_slot);
+        const reelRemaining = subReelLimit === -1 ? -1 : (Math.max(0, subReelLimit - reelCount) + addonStats.reels);
+
+        const totalProductLimit = subProductLimit === -1 ? -1 : (subProductLimit + addonStats.products);
+        const totalLotSlotLimit = subLotSlotLimit === -1 ? -1 : (subLotSlotLimit + addonStats.lot_slot);
+        const totalReelLimit = subReelLimit === -1 ? -1 : (subReelLimit + addonStats.reels);
+
         const imagesPerListing = plan.imagesPerListing === 'unlimited' ? -1 : (Number(plan.imagesPerListing) || 0);
         const shopSlideshow = !!plan.shopSlideshow;
 
-        // Properties typically follow product limits unless it's a dedicated property plan
-        // But to be safe and logic-consistent, we allow them if productLimit > 0 or if bizType is developer/broker
+        // Properties follow product limits unless it's a dedicated property plan
         const propertyLimitValue = (businessType === BUSINESS_TYPES.DEVELOPER || businessType === BUSINESS_TYPES.BROKER) 
-            ? productLimitValue 
-            : (productLimitValue > 0 ? productLimitValue : 0);
+            ? subProductLimit 
+            : (subProductLimit > 0 ? subProductLimit : 0);
 
         return {
             hasSubscription: true,
@@ -536,17 +566,17 @@ class SubscriptionRulesService {
             businessType: subData.vendor?.businessType,
             limits: {
                 products: {
-                    allowed: productLimitValue !== 0,
-                    limit: productLimitValue,
+                    allowed: totalProductLimit !== 0,
+                    limit: totalProductLimit,
                     current: productCount,
-                    remaining: productLimitValue === -1 ? -1 : Math.max(0, productLimitValue - productCount),
+                    remaining: productRemaining,
                     hasAddon: addonStats.products > 0
                 },
                 lotSlot: {
-                    allowed: lotSlotLimitValue !== 0,
-                    limit: lotSlotLimitValue,
+                    allowed: totalLotSlotLimit !== 0,
+                    limit: totalLotSlotLimit,
                     current: lotSlotCount,
-                    remaining: lotSlotLimitValue === -1 ? -1 : Math.max(0, lotSlotLimitValue - lotSlotCount),
+                    remaining: lotSlotRemaining,
                     hasAddon: addonStats.lot_slot > 0
                 },
                 properties: {
@@ -557,10 +587,10 @@ class SubscriptionRulesService {
                     maxImages: imagesPerListing
                 },
                 reels: {
-                    allowed: true, // Always allowed to attempt if has sub, but checked against limit
-                    limit: reelLimitValue,
+                    allowed: true,
+                    limit: totalReelLimit,
                     current: reelCount,
-                    remaining: reelLimitValue === -1 ? -1 : Math.max(0, reelLimitValue - reelCount),
+                    remaining: reelRemaining,
                     hasAddon: addonStats.reels > 0
                 },
                 shopSlideshow: shopSlideshow

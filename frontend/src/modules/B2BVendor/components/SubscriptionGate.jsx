@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiLock, FiAlertCircle, FiArrowRight, FiRefreshCw, FiPlus, FiCheckCircle, FiPackage, FiCreditCard, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
@@ -30,8 +30,11 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
     const [showShopModal, setShowShopModal] = useState(false);
     const [showAddonModal, setShowAddonModal] = useState(false);
     const [addonPlans, setAddonPlans] = useState([]);
+    const [basePlans, setBasePlans] = useState([]);
     const [loadingAddons, setLoadingAddons] = useState(false);
     const [processingAddonId, setProcessingAddonId] = useState(null);
+    const [processingPlanId, setProcessingPlanId] = useState(null);
+    const fetchAttempted = useRef(false);
 
     const loading = settingsLoading || subscriptionLoading;
 
@@ -47,7 +50,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             case 'product': return settings.enabledModules.includes('product');
             case 'property': return settings.enabledModules.includes('property');
             case 'lotslot': return settings.enabledModules.includes('lotslot');
-            case 'reels': return true; // Reels are usually enabled if B2B is enabled
+            case 'reels': return true;
             default: return true;
         }
     };
@@ -62,25 +65,45 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         }
     };
 
-    const handleFetchAddons = async (silent = false) => {
+    const handleFetchAddonsAndPlans = useCallback(async (silent = false) => {
+        if (fetchAttempted.current) return;
+        
         try {
             if (!silent) setLoadingAddons(true);
-            const plans = await subscriptionService.getAddonPlans();
+            fetchAttempted.current = true;
+            
             const featureTypeMap = {
                 product: 'products',
                 lotslot: 'lot_slot',
                 reels: 'reels'
             };
-            const filtered = plans.filter(p => p.featureType === featureTypeMap[action]);
-            setAddonPlans(filtered);
+
+            const promises = [
+                subscriptionService.getAddonPlans(featureTypeMap[action])
+            ];
+
+            // If fullPage and blocked, also fetch base plans
+            if (fullPage) {
+                promises.push(subscriptionService.getPlans());
+            }
+
+            const [addons, plans] = await Promise.all(promises);
+            
+            setAddonPlans(addons || []);
+            if (plans) {
+                // Show all active plans
+                setBasePlans(plans.filter(p => p.isActive !== false));
+            }
+
             if (!silent) setShowAddonModal(true);
-            return filtered;
         } catch (err) {
-            if (!silent) toast.error('Failed to load addon plans');
+            console.error('Fetch error in SubscriptionGate:', err);
+            if (!silent) toast.error('Failed to load purchase options');
+            fetchAttempted.current = false; // Allow retry if failed
         } finally {
             if (!silent) setLoadingAddons(false);
         }
-    };
+    }, [action, fullPage]);
 
     const handleBuyAddon = async (planId) => {
         if (processingAddonId) return;
@@ -109,7 +132,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                 await subscriptionService.verifyAddonPayment(verifyData);
                 toast.success('Add-on purchased successfully!', { id: 'verify-addon-gate' });
                 setShowAddonModal(false);
-                fetchStatus(true); // Refresh store
+                await fetchStatus(true);
             }
         } catch (error) {
             toast.error(error.message || 'Failed to purchase add-on');
@@ -118,21 +141,66 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         }
     };
 
-    const permission = getPermission();
+    const handleSubscribeBase = async (planId) => {
+        if (processingPlanId) return;
+        try {
+            setProcessingPlanId(planId);
+            const response = await subscriptionService.createSubscription(planId);
+            const { razorpay, razorpayKeyId } = response;
+
+            if (razorpay && razorpayKeyId) {
+                const paymentResponse = await initializeRazorpayCheckout({
+                    key: razorpayKeyId,
+                    amount: razorpay.amount / 100,
+                    orderId: razorpay.id || razorpay.orderId,
+                    name: 'Dealing India B2B',
+                    description: `Subscription: ${planId}`,
+                });
+
+                toast.loading('Activating subscription...', { id: 'verify-base-gate' });
+
+                const verifyData = {
+                    planId: planId,
+                    ...handlePaymentSuccess(paymentResponse)
+                };
+
+                await subscriptionService.verifyPayment(verifyData);
+                toast.success('Subscription activated!', { id: 'verify-base-gate' });
+                await fetchStatus(true);
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to activate subscription');
+        } finally {
+            setProcessingPlanId(null);
+        }
+    };
+
+    const permission = useMemo(() => {
+        switch (action) {
+            case 'product': return canCreateProduct();
+            case 'lotslot': return canCreateLotSlot();
+            case 'property': return canCreateProperty();
+            case 'reels': return canUploadReel();
+            default: return { allowed: true };
+        }
+    }, [action, canCreateProduct, canCreateLotSlot, canCreateProperty, canUploadReel, status]);
 
     // Auto-fetch addons in fullPage mode if limit reached
     useEffect(() => {
-        if (fullPage && !permission.allowed && permission.requiresAddon && addonPlans.length === 0 && !loadingAddons) {
-            handleFetchAddons(true);
+        if (fullPage && !permission.allowed && !fetchAttempted.current && !loadingAddons) {
+            handleFetchAddonsAndPlans(true);
         }
-    }, [fullPage, permission, addonPlans.length, loadingAddons]);
+    }, [fullPage, permission.allowed, loadingAddons, handleFetchAddonsAndPlans]);
 
     if (!isModuleEnabled()) return null;
 
     if (loading && !status) {
         return (
-            <div className="animate-pulse">
-                <div className="h-12 bg-gray-200 rounded-xl w-40"></div>
+            <div className="animate-pulse flex items-center justify-center p-12 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-100">
+                <div className="text-center">
+                    <FiRefreshCw className="animate-spin text-4xl text-gray-200 mx-auto mb-4" />
+                    <div className="h-4 bg-gray-100 rounded w-32 mx-auto"></div>
+                </div>
             </div>
         );
     }
@@ -192,59 +260,85 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
     if (!permission.allowed) {
         if (fullPage) {
             return (
-                <div className="bg-white border-2 border-dashed border-amber-100 rounded-[2.5rem] p-8 md:p-12 text-center max-w-2xl mx-auto shadow-sm">
+                <div className="bg-white border-2 border-dashed border-amber-100 rounded-[2.5rem] p-8 md:p-12 text-center max-w-4xl mx-auto shadow-sm">
                     <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center text-amber-600 mx-auto mb-6">
                         <FiAlertCircle className="text-4xl" />
                     </div>
                     <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Requirement Unmet</h2>
-                    <p className="text-gray-500 mb-8 max-w-sm mx-auto font-medium">{permission.message}</p>
+                    <p className="text-gray-500 mb-10 max-w-sm mx-auto font-medium">{permission.message}</p>
                     
-                    {permission.requiresAddon ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                        {/* BASE PLANS SECTION */}
                         <div className="space-y-6">
-                            <div className="h-px bg-gray-100 w-full mb-6"></div>
-                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Available Add-on Packs</h3>
-                            
+                            <h3 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] flex items-center gap-2 justify-center lg:justify-start">
+                                <FiCreditCard /> Primary Plans
+                            </h3>
+                            <div className="grid grid-cols-1 gap-3">
+                                {basePlans.length > 0 ? basePlans.map(plan => (
+                                    <button
+                                        key={plan._id}
+                                        onClick={() => handleSubscribeBase(plan._id)}
+                                        disabled={!!processingPlanId}
+                                        className="flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-indigo-500 hover:bg-indigo-50 transition-all group/item bg-gray-50/20"
+                                    >
+                                        <div className="text-left">
+                                            <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.duration} Month Duration</p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className="font-black text-lg text-indigo-600">₹{plan.price}</span>
+                                            <div className="w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-indigo-600 group-hover/item:text-white group-hover/item:border-indigo-600 transition-all shadow-sm">
+                                                {processingPlanId === plan._id ? <FiRefreshCw className="animate-spin" size={18} /> : <FiArrowRight size={18} />}
+                                            </div>
+                                        </div>
+                                    </button>
+                                )) : !loadingAddons && (
+                                    <p className="text-gray-400 text-xs italic">No base plans available for your category.</p>
+                                )}
+                                {loadingAddons && <div className="animate-spin h-8 w-8 border-4 border-primary-600 border-t-transparent rounded-full mx-auto"></div>}
+                            </div>
+                        </div>
+
+                        {/* ADDONS SECTION */}
+                        <div className="space-y-6">
+                            <h3 className="text-xs font-black text-amber-600 uppercase tracking-[0.2em] flex items-center gap-2 justify-center lg:justify-start">
+                                <FiPackage /> Add-on Packs
+                            </h3>
                             <div className="grid grid-cols-1 gap-3">
                                 {addonPlans.map(plan => (
                                     <button
                                         key={plan._id}
                                         onClick={() => handleBuyAddon(plan._id)}
                                         disabled={!!processingAddonId}
-                                        className="flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-primary-500 hover:bg-primary-50 transition-all group/item bg-gray-50/50"
+                                        className="flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-amber-500 hover:bg-amber-50 transition-all group/item bg-gray-50/20"
                                     >
                                         <div className="text-left">
-                                            <p className="font-black text-gray-900 uppercase text-xs tracking-tight">{plan.name}</p>
+                                            <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
                                             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.quantity} Extra Units</p>
                                         </div>
                                         <div className="flex items-center gap-4">
-                                            <span className="font-black text-lg text-primary-600">₹{plan.price}</span>
-                                            <div className="w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-primary-600 group-hover/item:text-white group-hover/item:border-primary-600 transition-all shadow-sm">
+                                            <span className="font-black text-lg text-amber-600">₹{plan.price}</span>
+                                            <div className="w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-amber-600 group-hover/item:text-white group-hover/item:border-amber-600 transition-all shadow-sm">
                                                 {processingAddonId === plan._id ? <FiRefreshCw className="animate-spin" size={18} /> : <FiPlus size={18} />}
                                             </div>
                                         </div>
                                     </button>
                                 ))}
-                                {loadingAddons && <div className="animate-spin h-8 w-8 border-4 border-primary-600 border-t-transparent rounded-full mx-auto"></div>}
                                 {addonPlans.length === 0 && !loadingAddons && (
-                                    <p className="text-gray-400 text-xs italic">No add-ons available. Please upgrade your main plan.</p>
+                                    <div className="p-8 border-2 border-dashed border-gray-100 rounded-3xl text-center">
+                                        <p className="text-gray-400 text-xs italic">No add-ons available for this feature. Please consider upgrading to a Primary Plan.</p>
+                                    </div>
                                 )}
                             </div>
-
-                            <button 
-                                onClick={() => navigate('/b2b-vendor/subscription')} 
-                                className="mt-8 text-xs font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto"
-                            >
-                                <FiCreditCard /> View Full Subscription Plans
-                            </button>
                         </div>
-                    ) : (
-                        <button 
-                            onClick={() => navigate('/b2b-vendor/subscription')} 
-                            className="px-8 py-4 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 shadow-xl shadow-primary-100 flex items-center justify-center gap-2 mx-auto"
-                        >
-                            Upgrade Subscription <FiArrowRight />
-                        </button>
-                    )}
+                    </div>
+
+                    <button 
+                        onClick={() => navigate('/b2b-vendor/subscription')} 
+                        className="mt-12 text-xs font-black text-gray-400 hover:text-gray-900 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto transition-colors"
+                    >
+                        View Full Subscription Dashboard <FiArrowRight />
+                    </button>
                 </div>
             );
         }
@@ -252,7 +346,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         return (
             <div className="relative group">
                 <button
-                    onClick={permission.requiresAddon ? handleFetchAddons : () => navigate('/b2b-vendor/subscription')}
+                    onClick={permission.requiresAddon ? () => handleFetchAddonsAndPlans(false) : () => navigate('/b2b-vendor/subscription')}
                     className="flex items-center gap-2 px-5 py-2.5 bg-amber-50 text-amber-600 rounded-xl font-bold border border-amber-200 hover:bg-amber-100 transition-all"
                 >
                     <FiAlertCircle className="text-lg" />

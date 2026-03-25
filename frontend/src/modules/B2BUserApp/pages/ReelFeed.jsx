@@ -466,6 +466,7 @@ export default function ReelFeed() {
                     controls
                     playsInline
                     muted={isMuted}
+                    crossOrigin="anonymous"
                   />
                 )}
                 

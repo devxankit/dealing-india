@@ -673,7 +673,7 @@ export const getFeed = asyncHandler(async (req, res) => {
   const filter = {
     $or: [
       { youtubeVideoId: { $type: "string", $regex: /.+/ } },
-      { reelType: "link", status: "approved" },
+      { status: "approved" },
     ],
   };
    // Note: We don't check 'status' here because if it's on YouTube, it's implicitly approved/live.

@@ -123,9 +123,9 @@ export const useSubscriptionStore = create((set, get) => ({
         return {
             allowed: true,
             maxImages: state.status?.limits?.properties?.maxImages || 5,
-            remaining: limits.remaining,
-            current: limits.current,
-            limit: limits.limit
+            remaining: limits.remaining ?? 0,
+            current: limits.current ?? 0,
+            limit: limits.limit ?? 0
         };
     },
 
@@ -134,17 +134,7 @@ export const useSubscriptionStore = create((set, get) => ({
         if (!state.status?.hasSubscription) return { allowed: false, message: 'Please purchase a subscription plan to start listing.' };
 
         const limits = state.status?.limits?.lotSlot;
-        
-        if (!limits?.allowed) {
-            // Check if user has purchased addons even if plan doesn't allow it
-            if (limits.hasAddon) {
-                return {
-                    allowed: true,
-                    isAddon: true,
-                    message: 'Using purchased add-on units.'
-                };
-            }
-
+        if (!limits?.allowed && !limits?.hasAddon) {
             return {
                 allowed: false,
                 requiresAddon: true,
@@ -153,7 +143,36 @@ export const useSubscriptionStore = create((set, get) => ({
             };
         }
 
-        return { allowed: true };
+        // Check remaining limit
+        const remaining = limits.remaining;
+        
+        if (limits.limit !== -1 && remaining !== undefined && remaining <= 0) {
+            // Check if user has purchased addons
+            if (limits.hasAddon) {
+                return {
+                    allowed: true,
+                    isAddon: true,
+                    message: 'Using purchased add-on units.',
+                    remaining: limits.remaining,
+                    current: limits.current,
+                    limit: limits.limit
+                };
+            }
+
+            return {
+                allowed: false,
+                requiresAddon: true,
+                featureType: 'lot_slot',
+                message: `Lot/Slot limit reached. Please buy an add-on pack.`
+            };
+        }
+
+        return { 
+            allowed: true, 
+            remaining: limits.remaining ?? 0,
+            current: limits.current ?? 0,
+            limit: limits.limit ?? 0
+        };
     },
 
     canCreateProperty: () => {
@@ -171,9 +190,9 @@ export const useSubscriptionStore = create((set, get) => ({
         return {
             allowed: true,
             maxImages: limits.maxImages,
-            current: limits.current,
-            limit: limits.limit,
-            remaining: limits.remaining
+            current: limits.current ?? 0,
+            limit: limits.limit ?? 0,
+            remaining: limits.remaining ?? 0
         };
     },
 
@@ -206,9 +225,9 @@ export const useSubscriptionStore = create((set, get) => ({
 
         return {
             allowed: true,
-            remaining: limits.remaining,
-            current: limits.current,
-            limit: limits.limit
+            remaining: limits.remaining ?? 0,
+            current: limits.current ?? 0,
+            limit: limits.limit ?? 0
         };
     },
 

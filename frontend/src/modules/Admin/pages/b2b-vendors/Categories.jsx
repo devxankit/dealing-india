@@ -12,6 +12,14 @@ const B2BCategories = () => {
     const [editingSubcategory, setEditingSubcategory] = useState({ categoryId: null, index: null });
     const [addingSubcategory, setAddingSubcategory] = useState(null); // Track which category is adding subcategory
     const [newSubcategoryName, setNewSubcategoryName] = useState(''); // Store new subcategory name
+    const [deleteConfirm, setDeleteConfirm] = useState({ 
+        show: false, 
+        type: null, 
+        id: null, 
+        name: '', 
+        parentId: null,
+        inputName: '' 
+    });
 
     const [formData, setFormData] = useState({
         categoryName: '',
@@ -149,40 +157,56 @@ const B2BCategories = () => {
     };
 
     const handleDeleteCategory = async (categoryId, categoryName) => {
-        if (window.confirm(`Are you sure you want to delete "${categoryName}"?`)) {
-            try {
-                setLoading(true);
-                const response = await api.delete(`/admin/b2b-categories/${categoryId}`);
-                if (response.success) {
-                    toast.success('Category deleted');
-                    loadCategories();
-                }
-            } catch (error) {
-                console.error('Error deleting category:', error);
-                toast.error(error.response?.data?.message || 'Failed to delete category');
-            } finally {
-                setLoading(false);
-            }
-        }
+        setDeleteConfirm({
+            show: true,
+            type: 'category',
+            id: categoryId,
+            name: categoryName,
+            parentId: null,
+            inputName: ''
+        });
     };
 
     const handleDeleteSubcategory = async (categoryId, subcategoryName) => {
-        if (window.confirm(`Are you sure you want to delete "${subcategoryName}"?`)) {
-            try {
-                setLoading(true);
-                const response = await api.delete(`/admin/b2b-categories/${categoryId}/subcategories`, {
-                    data: { subcategoryName }
+        setDeleteConfirm({
+            show: true,
+            type: 'subcategory',
+            id: subcategoryName, // For subcategory, 'id' is the name in this specific API
+            name: subcategoryName,
+            parentId: categoryId,
+            inputName: ''
+        });
+    };
+
+    const executeDelete = async () => {
+        const { type, id, name, parentId, inputName } = deleteConfirm;
+        
+        if (inputName !== name) {
+            toast.error(`Please type "${name}" correctly to confirm`);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            let response;
+            if (type === 'category') {
+                response = await api.delete(`/admin/b2b-categories/${id}`);
+            } else {
+                response = await api.delete(`/admin/b2b-categories/${parentId}/subcategories`, {
+                    data: { subcategoryName: name }
                 });
-                if (response.success) {
-                    toast.success('Subcategory deleted');
-                    loadCategories();
-                }
-            } catch (error) {
-                console.error('Error deleting subcategory:', error);
-                toast.error(error.response?.data?.message || 'Failed to delete subcategory');
-            } finally {
-                setLoading(false);
             }
+
+            if (response.success) {
+                toast.success(`${type === 'category' ? 'Category' : 'Subcategory'} deleted`);
+                setDeleteConfirm({ show: false, type: null, id: null, name: '', parentId: null, inputName: '' });
+                loadCategories();
+            }
+        } catch (error) {
+            console.error(`Error deleting ${type}:`, error);
+            toast.error(error.response?.data?.message || `Failed to delete ${type}`);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -276,8 +300,9 @@ const B2BCategories = () => {
                 </button>
             </div>
 
-            {/* Add Category Form Modal */}
+            {/* Modals Container */}
             <AnimatePresence>
+                {/* Add Category Form Modal */}
                 {showAddForm && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
                         <motion.div
@@ -419,6 +444,61 @@ const B2BCategories = () => {
                                 >
                                     Add Category
                                 </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {/* Secure Delete Confirmation Modal */}
+                {deleteConfirm.show && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl border border-red-50"
+                        >
+                            <div className="flex flex-col items-center text-center">
+                                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                                    <FiTrash2 className="text-4xl text-red-500" />
+                                </div>
+                                <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Serious Action Required</h2>
+                                <p className="text-gray-500 mb-8 font-medium">
+                                    You are about to delete <span className="text-red-600 font-bold">"{deleteConfirm.name}"</span>. 
+                                    This action is permanent and will affect all associated products.
+                                </p>
+                                
+                                <div className="w-full text-left space-y-3 mb-8">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2">Type name to confirm</label>
+                                    <input
+                                        type="text"
+                                        value={deleteConfirm.inputName}
+                                        onChange={(e) => setDeleteConfirm(prev => ({ ...prev, inputName: e.target.value }))}
+                                        placeholder={deleteConfirm.name}
+                                        className="w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-red-500 focus:bg-white transition-all outline-none font-bold text-gray-900 shadow-inner dark:placeholder:text-gray-300"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div className="flex gap-4 w-full">
+                                    <button
+                                        onClick={() => setDeleteConfirm({ show: false, type: null, id: null, name: '', parentId: null, inputName: '' })}
+                                        className="flex-1 px-4 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={executeDelete}
+                                        disabled={deleteConfirm.inputName !== deleteConfirm.name || loading}
+                                        className={`flex-1 px-4 py-4 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-lg ${
+                                            deleteConfirm.inputName === deleteConfirm.name 
+                                            ? 'bg-red-600 text-white shadow-red-200 hover:bg-red-700' 
+                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                                        }`}
+                                    >
+                                        {loading ? 'Deleting...' : 'Delete Forever'}
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     </div>

@@ -38,15 +38,20 @@ const QuotaBanner = ({ action, className = "" }) => {
             return null;
     }
 
-    const { current, limit, remaining } = permission;
-
-    // Handle unlimited or undefined limits
+    const { current = 0, limit = 0, remaining = 0 } = permission || {};
     const isUnlimited = limit === -1;
     const hasLimitInfo = limit !== undefined && current !== undefined;
 
-    if (!hasLimitInfo && !isUnlimited) return null;
+    if (!hasLimitInfo && !isUnlimited) {
+        return (
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm mb-6 animate-pulse">
+                <div className="h-4 bg-gray-100 rounded w-1/3 mb-2" />
+                <div className="h-2 bg-gray-100 rounded w-full" />
+            </div>
+        );
+    }
 
-    const percentage = isUnlimited ? 0 : Math.min(100, (current / limit) * 100);
+    const percentage = isUnlimited ? 0 : (limit > 0 ? Math.min(100, (current / limit) * 100) : (current > 0 ? 100 : 0));
     const isLow = !isUnlimited && (limit - current) <= (limit * 0.2); // Less than 20% remaining
     const isExhausted = !isUnlimited && current >= limit;
 

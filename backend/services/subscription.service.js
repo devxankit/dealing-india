@@ -872,22 +872,43 @@ class SubscriptionService {
   }
 
   async getVendorBillingHistory(vendorId) {
-    const subs = await VendorSubscription.find({ vendorId }).populate('planId').sort({ createdAt: -1 }).lean();
+    const [subs, addons] = await Promise.all([
+      VendorSubscription.find({ vendorId }).populate('planId').sort({ createdAt: -1 }).lean(),
+      (await import('../models/VendorAddon.model.js')).default.find({ vendorId }).populate('addonPlanId').sort({ createdAt: -1 }).lean()
+    ]);
+
     const history = [];
+
+    // Process Subscriptions
     for (const sub of subs) {
-      if (sub.lastPaymentDate || sub.status === 'active') {
+      if (sub.lastPaymentDate || sub.status === 'active' || sub.status === 'expired') {
         history.push({
           id: sub._id.toString(),
           transactionCode: sub.razorpayOrderId || `SUB-${sub._id}`,
-          amount: sub.planId?.price || 0,
+          amount: sub.totalAmount || sub.planId?.price || 0,
           type: 'subscription_payment',
-          status: 'completed',
+          status: sub.status === 'failed' ? 'failed' : 'completed',
           date: sub.lastPaymentDate || sub.startDate,
           planName: sub.planId?.name || 'Unknown'
         });
       }
     }
-    return history;
+
+    // Process Addons
+    for (const addon of addons) {
+      history.push({
+        id: addon._id.toString(),
+        transactionCode: addon.razorpayOrderId || `ADDON-${addon._id}`,
+        amount: addon.totalAmount || 0,
+        type: 'addon_purchase',
+        status: addon.status === 'failed' ? 'failed' : 'completed',
+        date: addon.purchaseDate || addon.createdAt,
+        planName: addon.addonPlanId?.name || `Add-on: ${addon.featureType}`
+      });
+    }
+
+    // Sort combined history by date descending
+    return history.sort((a, b) => new Date(b.date) - new Date(a.date));
   }
 
   async processZohoAndEmailForSubscription(subscriptionId, customAmount = null) {
@@ -906,9 +927,12 @@ class SubscriptionService {
       }
 
       const planDoc = subscriptionDoc.planId;
-      const amount = customAmount || subscriptionDoc.totalAmount || planDoc?.price || 0;
+      const amount = Number(customAmount || subscriptionDoc.totalAmount || planDoc?.price || 0);
       const planName = planDoc?.name || 'Subscription Plan';
       const razorpayPaymentId = subscriptionDoc.razorpayPaymentId;
+      const basePrice = Number(subscriptionDoc.basePrice || 0);
+      const gstAmount = Number(subscriptionDoc.gstAmount || 0);
+      const discount = Number(subscriptionDoc.discount || 0);
 
       // Construct vendor info, handling both registered and pending vendors
       let vendorInfo = {};
@@ -958,7 +982,12 @@ class SubscriptionService {
           if (vendorInfo._id && contactId) {
             await Vendor.findByIdAndUpdate(vendorInfo._id, { zohoContactId: contactId });
           }
-        } catch (e) { console.error('[SubPay][Zoho] Sync contact failed:', e.message); }
+        } catch (e) { 
+          console.error('[SubPay][Zoho] Sync contact failed:', e.message); 
+          await VendorSubscription.findByIdAndUpdate(subscriptionId, {
+            $push: { accountingErrors: { at: 'zoho_contact_sync', message: e.message } }
+          });
+        }
       }
 
       // 2. Zoho Invoice & Payment
@@ -974,9 +1003,9 @@ class SubscriptionService {
             currency: 'INR',
             referenceNumber: invoiceRef,
             vendorGstNumber: vendorInfo.gstNumber,
-            baseAmount: subscriptionDoc.basePrice,
-            gstAmount: subscriptionDoc.gstAmount,
-            discount: subscriptionDoc.discount
+            baseAmount: basePrice,
+            gstAmount: gstAmount,
+            discount: discount
           });
           await zohoBooksService.recordInvoicePayment({
             contactId, invoiceId: invoice.id, amount, paymentDate: new Date(), razorpayPaymentId
@@ -985,7 +1014,12 @@ class SubscriptionService {
           if (invoice.id) {
             invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(invoice.id);
           }
-        } catch (e) { console.error('Zoho Invoice failed:', e.message); }
+        } catch (e) { 
+          console.error('[SubPay][Zoho] Invoice/Payment phase failed:', e.message); 
+          await VendorSubscription.findByIdAndUpdate(subscriptionId, {
+            $push: { accountingErrors: { at: 'zoho_invoice_payment', message: e.message } }
+          });
+        }
       }
 
       // 3. Emails
@@ -998,8 +1032,18 @@ class SubscriptionService {
         vendor: vendorInfo, invoicePdfBuffer
       };
 
-      if (vendorEmail) await sendPaymentSuccessEmail({ ...commonEmailData, to: vendorEmail }).catch(e => console.error('Vendor email failed:', e.message));
-      if (adminEmail) await sendPaymentSuccessEmail({ ...commonEmailData, to: adminEmail }).catch(e => console.error('Admin email failed:', e.message));
+      if (vendorEmail) await sendPaymentSuccessEmail({ ...commonEmailData, to: vendorEmail }).catch(async e => {
+        console.error('Vendor email failed:', e.message);
+        await VendorSubscription.findByIdAndUpdate(subscriptionId, {
+          $push: { accountingErrors: { at: 'vendor_email', message: e.message } }
+        });
+      });
+      if (adminEmail) await sendPaymentSuccessEmail({ ...commonEmailData, to: adminEmail }).catch(async e => {
+        console.error('Admin email failed:', e.message);
+        await VendorSubscription.findByIdAndUpdate(subscriptionId, {
+          $push: { accountingErrors: { at: 'admin_email', message: e.message } }
+        });
+      });
 
       await VendorSubscription.findByIdAndUpdate(subscriptionId, {
         zohoContactId: contactId,

@@ -111,42 +111,41 @@ const B2BVendorDashboard = () => {
             {/* ------------------------------------------
                 SECTION 1: HEADER (ALWAYS VISIBLE)
             ------------------------------------------ */}
-            <header className="bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-sm border border-slate-100 flex flex-col lg:flex-row justify-between gap-8">
-                <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center shadow-2xl">
-                        <span className="text-white text-3xl font-black">{vendor?.name?.charAt(0)}</span>
+            <header className="bg-white rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-10 shadow-sm border border-slate-100 flex flex-col lg:flex-row justify-between gap-6 sm:gap-8">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start lg:items-center gap-4 sm:gap-6 text-center sm:text-left">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-900 rounded-2xl sm:rounded-[2rem] flex items-center justify-center shadow-2xl flex-shrink-0">
+                        <span className="text-white text-2xl sm:text-3xl font-black">{vendor?.name?.charAt(0)}</span>
                     </div>
-                    <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-baseline gap-3">
-                                {vendor?.name}
+                    <div className="min-w-0 w-full lg:w-auto">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                            <h1 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                                <span className="truncate max-w-full">{vendor?.name}</span>
                                 {vendor?.storeName && (
-                                    <span className="text-primary-600 font-extrabold text-xl px-3 py-1 bg-primary-50 rounded-xl border border-primary-100 shadow-sm">
+                                    <span className="text-primary-600 font-extrabold text-base sm:text-xl px-2 sm:px-3 py-0.5 sm:py-1 bg-primary-50 rounded-xl border border-primary-100 shadow-sm whitespace-nowrap">
                                         {vendor.storeName}
                                     </span>
                                 )}
                             </h1>
-                            <span className="px-3 py-1 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-full">
-                                {vendor?.businessType}
+                            <span className="inline-block px-3 py-1 bg-slate-100 text-slate-600 text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded-full w-fit mx-auto sm:mx-0">
+                                {vendor?.businessType || 'B2B Vendor'}
                             </span>
-
                         </div>
-                        <p className="text-slate-400 font-medium flex items-center gap-2">
-                            <FiCheckCircle className="text-emerald-500" /> Account Verified & Active
+                        <p className="text-slate-400 font-medium flex items-center justify-center sm:justify-start gap-2 text-sm sm:text-base">
+                            <FiCheckCircle className="text-emerald-500 flex-shrink-0" /> Account Verified & Active
                         </p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 lg:w-96">
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Overall Status</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:w-96">
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
+                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0 sm:mb-1">Overall Status</p>
                         <p className="text-sm font-black text-slate-800">Operational</p>
                     </div>
-                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                        <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Nearest Expiry</p>
+                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
+                        <p className="text-[9px] sm:text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-0 sm:mb-1">Nearest Expiry</p>
                         <p className="text-sm font-black text-amber-700">
                             {dashboard.subscriptions.length > 0
-                                ? new Date(Math.min(...dashboard.subscriptions.map(s => new Date(s.expiry)))).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                                ? new Date(Math.min(...dashboard.subscriptions.map(s => new Date(s.expiry)))).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
                                 : 'No Active Plan'}
                         </p>
                     </div>
