@@ -4,6 +4,7 @@ import { FiSearch, FiTrash2, FiEye, FiUser, FiToggleLeft, FiToggleRight, FiArrow
 import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import B2BVendorDetailModal from "./components/B2BVendorDetailModal";
+import B2BVendorFollowersModal from "./components/B2BVendorFollowersModal";
 import { useB2BVendorManagementStore } from "../../store/b2bVendorManagementStore";
 import toast from "react-hot-toast";
 import useDebounce from "../../../../shared/hooks/useDebounce";
@@ -14,6 +15,7 @@ const ManageB2BVendors = () => {
     const debouncedSearchQuery = useDebounce(searchQuery, 500);
     const [selectedVendor, setSelectedVendor] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isFollowersModalOpen, setIsFollowersModalOpen] = useState(false);
     const [selectedCity, setSelectedCity] = useState('All Cities');
     const [selectedBusinessType, setSelectedBusinessType] = useState('All Types');
     const { b2bVendors, isLoading, fetchB2BVendors, deleteB2BVendor, toggleB2BVendorActive } = useB2BVendorManagementStore();
@@ -112,6 +114,11 @@ const ManageB2BVendors = () => {
         setIsModalOpen(true);
     };
 
+    const handleViewFollowers = (vendor) => {
+        setSelectedVendor(vendor);
+        setIsFollowersModalOpen(true);
+    };
+
     const handleDelete = async (id) => {
         if (!window.confirm("Are you sure you want to permanently delete this B2B vendor? This action cannot be undone.")) {
             return;
@@ -183,11 +190,15 @@ const ManageB2BVendors = () => {
         {
             key: "followerCount",
             label: "Followers",
-            render: (val) => (
-                <div className="flex items-center gap-1.5 font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-lg w-fit">
+            render: (val, row) => (
+                <button
+                    onClick={() => handleViewFollowers(row)}
+                    className="flex items-center gap-1.5 font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-lg w-fit hover:bg-primary-100 transition-all border border-transparent hover:border-primary-200"
+                    title="Click to view followers"
+                >
                     <FiUsers className="text-xs" />
                     {val || 0}
-                </div>
+                </button>
             )
         },
         { key: "products", label: "Products", render: (val) => val || 0 },
@@ -443,6 +454,12 @@ const ManageB2BVendors = () => {
                     handleReject(selectedVendor?._id || selectedVendor?.id);
                     setIsModalOpen(false);
                 }}
+            />
+
+            <B2BVendorFollowersModal
+                isOpen={isFollowersModalOpen}
+                onClose={() => setIsFollowersModalOpen(false)}
+                vendor={selectedVendor}
             />
         </motion.div>
     );

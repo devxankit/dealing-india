@@ -55,9 +55,10 @@ export const useNotificationStore = create((set, get) => ({
             set((state) => ({
                 notifications: state.notifications.map(n => 
                     n._id === id ? { ...n, isRead: true, readAt: new Date() } : n
-                ),
-                unreadCount: Math.max(0, state.unreadCount - 1)
+                )
             }));
+            // Fetch fresh count from server to ensure accuracy (esp. regarding excluded types)
+            get().fetchUnreadCount();
             return true;
         } catch (error) {
             console.error('Error marking as read:', error);
@@ -72,6 +73,8 @@ export const useNotificationStore = create((set, get) => ({
                 notifications: state.notifications.map(n => ({ ...n, isRead: true, readAt: new Date() })),
                 unreadCount: 0
             }));
+            // Sync with server
+            get().fetchUnreadCount();
             return true;
         } catch (error) {
             console.error('Error marking all as read:', error);
@@ -87,9 +90,10 @@ export const useNotificationStore = create((set, get) => ({
             await deleteNotificationApi(id);
             
             set((state) => ({
-                notifications: state.notifications.filter(n => n._id !== id),
-                unreadCount: wasUnread ? Math.max(0, state.unreadCount - 1) : state.unreadCount
+                notifications: state.notifications.filter(n => n._id !== id)
             }));
+            // Fetch fresh count to ensure accuracy
+            get().fetchUnreadCount();
             return true;
         } catch (error) {
             console.error('Error deleting notification:', error);

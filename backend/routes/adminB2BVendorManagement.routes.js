@@ -7,7 +7,8 @@ import {
     updateStatus,
     getVendor,
     toggleActive,
-    getVendorDashboardForAdmin
+    getVendorDashboardForAdmin,
+    getVendorFollowersForAdmin
 } from '../controllers/vendorManagement.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
@@ -26,6 +27,7 @@ router.get('/pending', asyncHandler(getPendingB2BVendors));
 router.put('/:id/status', asyncHandler(updateStatus));
 router.patch('/:id/toggle-active', asyncHandler(toggleActive));
 router.get('/:id/dashboard', asyncHandler(getVendorDashboardForAdmin));
+router.get('/:id/followers', asyncHandler(getVendorFollowersForAdmin));
 router.get('/:id', asyncHandler(getVendor));
 router.delete('/:id', asyncHandler(removeB2BVendor));
 

@@ -22,6 +22,8 @@ import VendorSubscription from '../models/VendorSubscription.model.js';
 import Notification from '../models/Notification.model.js';
 import Vendor from '../models/Vendor.model.js';
 import ShopUnit from '../models/ShopUnit.model.js';
+import VendorFollow from '../models/VendorFollow.model.js';
+import mongoose from 'mongoose';
 
 /**
  * Helper to clear vendor-related cache
@@ -551,6 +553,116 @@ export const getVendorDashboardForAdmin = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error fetching vendor dashboard for admin:', error);
+    next(error);
+  }
+};
+export const getVendorFollowersForAdmin = async (req, res, next) => {
+  try {
+    const { id: vendorId } = req.params;
+    const vendorDoc = await Vendor.findById(vendorId).select('email').lean();
+    console.log(`[Followers Debug] Fetching followers for vendor: ${vendorId} (${vendorDoc?.email})`);
+    const followers = await VendorFollow.aggregate([
+      { 
+        $match: { 
+          vendorId: { 
+            $in: [
+              mongoose.Types.ObjectId.isValid(vendorId) ? new mongoose.Types.ObjectId(vendorId) : null,
+              vendorId,
+              vendorId.toString()
+            ].filter(Boolean)
+          } 
+        } 
+      },
+      {
+        $addFields: {
+          convertedUserId: {
+            $convert: {
+              input: '$userId',
+              to: 'objectId',
+              onError: '$userId',
+              onNull: '$userId'
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          let: { cId: '$convertedUserId', uId: '$userId' },
+          pipeline: [
+            { $match: { $expr: { $or: [{ $eq: ['$_id', '$$cId'] }, { $eq: ['$_id', '$$uId'] }] } } }
+          ],
+          as: 'userData'
+        }
+      },
+      {
+        $lookup: {
+          from: 'vendors',
+          let: { cId: '$convertedUserId', uId: '$userId' },
+          pipeline: [
+            { $match: { $expr: { $or: [{ $eq: ['$_id', '$$cId'] }, { $eq: ['$_id', '$$uId'] }] } } }
+          ],
+          as: 'vendorData'
+        }
+      },
+      { $sort: { createdAt: -1 } }
+    ]);
+
+    console.log(`[Followers Debug] Found ${followers.length} raw records to process`);
+
+    const followersData = (followers || []).map(f => {
+      const user = f.userData?.[0];
+      if (user) {
+        // Filter out self-follows in list (ID and Email match check)
+        const isSelf = user._id.toString() === vendorId.toString() || 
+                       (vendorDoc?.email && user.email?.toLowerCase() === vendorDoc.email.toLowerCase());
+        
+        if (isSelf) return null;
+
+        return {
+          _id: f._id,
+          userId: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          avatar: user.avatar,
+          role: user.role || 'user',
+          followedAt: f.createdAt
+        };
+      }
+      
+      const v = f.vendorData?.[0];
+      if (v) {
+        // Filter out self-follows in list (ID and Email match check)
+        const isSelf = v._id.toString() === vendorId.toString() || 
+                       (vendorDoc?.email && v.email?.toLowerCase() === vendorDoc.email.toLowerCase());
+        
+        if (isSelf) return null;
+
+        return {
+          _id: f._id,
+          userId: v._id,
+          name: v.storeName || v.name,
+          email: v.email,
+          phone: v.phone,
+          avatar: v.storeLogo,
+          role: 'vendor',
+          followedAt: f.createdAt
+        };
+      }
+      return null;
+    }).filter(Boolean);
+
+    console.log(`[Followers Debug] Returning ${followersData.length} valid followers`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        followers: followersData,
+        total: followersData.length
+      }
+    });
+  } catch (error) {
     next(error);
   }
 };

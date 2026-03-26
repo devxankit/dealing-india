@@ -14,6 +14,7 @@ import {
     FiUsers,
     FiUserPlus,
     FiUserCheck,
+    FiVideo,
 } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import { motion } from "framer-motion";
@@ -47,7 +48,28 @@ const B2BVendorStore = () => {
     // Tabs: "main" (products or properties) and "reels"
     const [activeTab, setActiveTab] = useState("main");
     const [reelCategoryFilter, setReelCategoryFilter] = useState("");
+    const [categorySearch, setCategorySearch] = useState("");
+    const [debouncedCategorySearch, setDebouncedCategorySearch] = useState("");
     const { categories: allCategories, initialize: fetchB2BCategories } = useB2BCategoryStore();
+
+    // Debounce category search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedCategorySearch(categorySearch);
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [categorySearch]);
+
+    const getReelYoutubeId = (reel) => {
+        if (!reel) return null;
+        if (reel.youtubeVideoId) return reel.youtubeVideoId;
+        if (reel.reelType === 'link' && reel.externalLinkType === 'youtube') {
+            const url = reel.videoUrl;
+            const match = url?.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|embed\/|shorts\/))([^&?\/ ]{11})/);
+            return match ? match[1] : null;
+        }
+        return null;
+    };
 
     useEffect(() => {
         fetchB2BCategories();
@@ -243,8 +265,11 @@ const B2BVendorStore = () => {
             ).values()
         );
 
-        return unique.sort((a, b) => a.localeCompare(b));
-    }, [allCategories]);
+        const sorted = unique.sort((a, b) => a.localeCompare(b));
+        if (!debouncedCategorySearch) return sorted;
+        const q = debouncedCategorySearch.toLowerCase();
+        return sorted.filter(name => name.toLowerCase().includes(q));
+    }, [allCategories, debouncedCategorySearch]);
 
     const filteredReels = useMemo(() => {
         let list = [...reels];
@@ -630,31 +655,49 @@ const B2BVendorStore = () => {
 
                 {/* Reels Tab Category Filter */}
                 {activeTab === "reels" && hasReels && (
-                    <div className="mb-6 flex items-center gap-3">
-                        <div className="relative group min-w-[200px]">
+                    <div className="mb-6 flex flex-col md:flex-row items-center gap-4">
+                        <div className="relative group w-full md:w-64">
                             <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-600 transition-colors" />
                             <select
                                 value={reelCategoryFilter}
                                 onChange={(e) => setReelCategoryFilter(e.target.value)}
                                 className="w-full pl-10 pr-6 py-3 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-800 outline-none focus:border-primary-200 transition-all appearance-none"
                             >
+                                <option value=""> {reelCategoryFilter || "Select Category"} </option>
                                 <option value="">All Categories</option>
                                 {playlistCategories.map((name) => (
                                     <option key={name} value={name}>
                                         {name}
                                     </option>
                                 ))}
+                                {playlistCategories.length === 0 && debouncedCategorySearch && (
+                                    <option disabled>No categories found</option>
+                                )}
                             </select>
                             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                                 <FiChevronDown />
                             </div>
                         </div>
+
+                        <div className="relative w-full md:w-64">
+                            <input
+                                type="text"
+                                value={categorySearch}
+                                onChange={(e) => setCategorySearch(e.target.value)}
+                                placeholder="Search category..."
+                                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-500 outline-none focus:border-primary-200 transition-all shadow-sm"
+                            />
+                            <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85Zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
+                            </svg>
+                        </div>
+
                         {reelCategoryFilter && (
                             <button
                                 onClick={() => setReelCategoryFilter("")}
                                 className="text-xs font-bold text-primary-600 hover:text-primary-700 uppercase tracking-widest"
                             >
-                                Clear
+                                Clear Filter
                             </button>
                         )}
                     </div>
@@ -790,17 +833,23 @@ const B2BVendorStore = () => {
                                     <div className="relative pb-[140%] bg-gray-900">
                                         {(
                                             reel.thumbnailUrl ||
-                                            (reel.youtubeVideoId && `https://img.youtube.com/vi/${reel.youtubeVideoId}/hqdefault.jpg`)
+                                            (getReelYoutubeId(reel) && `https://img.youtube.com/vi/${getReelYoutubeId(reel)}/hqdefault.jpg`)
                                         ) && (
                                                 <img
-                                                    src={reel.thumbnailUrl || `https://img.youtube.com/vi/${reel.youtubeVideoId}/hqdefault.jpg`}
+                                                    src={reel.thumbnailUrl || `https://img.youtube.com/vi/${getReelYoutubeId(reel)}/hqdefault.jpg`}
                                                     alt={reel.title}
                                                     className="absolute inset-0 w-full h-full object-cover"
                                                 />
                                             )}
-                                        {!reel.thumbnailUrl && (
-                                            <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-xs">
-                                                Reel
+                                        {(!reel.thumbnailUrl && !getReelYoutubeId(reel)) && (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 text-xs">
+                                                <FiVideo size={24} className="mb-2 opacity-20" />
+                                                <span className="font-black uppercase tracking-[0.2em]">Reel</span>
+                                            </div>
+                                        )}
+                                        {getReelYoutubeId(reel) && (
+                                            <div className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded shadow-lg z-10">
+                                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.377.505 9.377.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
                                             </div>
                                         )}
                                     </div>
@@ -809,11 +858,18 @@ const B2BVendorStore = () => {
                                             <p className="text-[10px] font-black text-gray-900 truncate uppercase tracking-tight">
                                                 {reel.title}
                                             </p>
-                                            {reel.price > 0 && (
-                                                <span className="shrink-0 text-[10px] font-black text-primary-600">
-                                                    ₹{reel.price}
-                                                </span>
-                                            )}
+                                            <div className="flex flex-col items-end">
+                                                {reel.price > 0 && (
+                                                    <span className="shrink-0 text-[10px] font-black text-primary-600">
+                                                        ₹{reel.price}
+                                                    </span>
+                                                )}
+                                                {reel.minimum && (
+                                                    <span className="shrink-0 text-[8px] font-bold text-gray-400">
+                                                        Min: {reel.minimum}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </button>

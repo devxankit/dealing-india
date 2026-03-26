@@ -76,7 +76,7 @@ async function getUploaderName(uploaderId, uploaderType) {
 }
 
 export const uploadReel = asyncHandler(async (req, res) => {
-  const { title, description, categoryId, categoryName, productId, propertyId, price, videoLink } = req.body;
+  const { title, description, categoryId, categoryName, productId, propertyId, price, minimum, videoLink } = req.body;
   
   const role = req.user.role;
   if (role !== 'vendor' && role !== 'user') {
@@ -149,6 +149,7 @@ export const uploadReel = asyncHandler(async (req, res) => {
     originalVideoUrl: uploadResult.secure_url,
     videoPublicId: uploadResult.public_id || null,
     durationSeconds: uploadResult.duration || null,
+    minimum: minimum ? String(minimum).trim().slice(0, 50) : '',
     status: 'pending',
   });
 

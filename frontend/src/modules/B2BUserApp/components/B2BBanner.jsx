@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { getActiveBanners } from "../services/bannerService";
-import { useAuthStore } from "../../../shared/store/authStore";
 
 const B2BBanner = () => {
     const navigate = useNavigate();
@@ -87,17 +86,15 @@ const B2BBanner = () => {
         setCurrentSlide((prev) => (prev === 0 ? banners.length - 1 : prev - 1));
     };
 
-    const { isAuthenticated } = useAuthStore();
-
     const handleBannerClick = (banner) => {
-        if (!isAuthenticated) {
-            navigate('/b2b/login', { state: { from: { pathname: window.location.pathname } } });
-            return;
-        }
-
+        // Priority 1: Redirect to Vendor Shop URL if vendorId is present
         if (banner.vendorId) {
             navigate(`/b2b/vendor/${banner.vendorId}`);
-        } else if (banner.link && banner.link !== '#' && banner.link !== '') {
+            return;
+        } 
+        
+        // Priority 2: Use specific link if provided
+        if (banner.link && banner.link !== '#' && banner.link !== '' && banner.link !== '/') {
             if (banner.link.startsWith('http')) {
                 window.location.href = banner.link;
             } else {

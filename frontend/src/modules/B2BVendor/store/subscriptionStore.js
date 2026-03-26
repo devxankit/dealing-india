@@ -187,6 +187,30 @@ export const useSubscriptionStore = create((set, get) => ({
             };
         }
 
+        // Check remaining limit
+        const remaining = limits.remaining;
+        
+        if (limits.limit !== -1 && remaining !== undefined && remaining <= 0) {
+            if (limits.hasAddon) {
+                return {
+                    allowed: true,
+                    isAddon: true,
+                    message: 'Using purchased add-on units.',
+                    maxImages: limits.maxImages,
+                    remaining: limits.remaining,
+                    current: limits.current,
+                    limit: limits.limit
+                };
+            }
+
+            return {
+                allowed: false,
+                requiresAddon: true,
+                featureType: 'property',
+                message: `Property limit reached (${limits.current}/${limits.limit}). Please buy an add-on pack.`
+            };
+        }
+
         return {
             allowed: true,
             maxImages: limits.maxImages,

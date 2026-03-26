@@ -557,6 +557,12 @@ export default function ReelModeration() {
                           <p className="text-sm font-bold text-primary-600">₹{previewReel.price}</p>
                         </div>
                       )}
+                      {previewReel.minimum && (
+                        <div>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Minimum</span>
+                          <p className="text-sm font-bold text-indigo-600">Min: {previewReel.minimum}</p>
+                        </div>
+                      )}
                     </div>
 
                     {previewReel.musicId && (

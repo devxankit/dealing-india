@@ -7,7 +7,7 @@ import api from '../../../shared/utils/api';
 import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
 import SubscriptionGate from '../components/SubscriptionGate';
 import QuotaBanner from '../components/QuotaBanner';
-import useSubscriptionStore from '../store/subscriptionStore';
+import { useSubscriptionStore } from '../store/subscriptionStore';
 
 const MAX_VIDEO_MB = 100;
 const MAX_DURATION_SECONDS = 60;
@@ -26,6 +26,7 @@ export default function UploadReel() {
     subCategoryId: '',
     categoryName: '',
     price: '',
+    minimum: '',
   });
   const [submissionType, setSubmissionType] = useState('file'); // 'file' or 'link'
   const [videoLink, setVideoLink] = useState('');
@@ -151,6 +152,7 @@ export default function UploadReel() {
       fd.append('description', (form.description || '').trim().slice(0, MAX_DESC));
       fd.append('categoryName', categoryName);
       fd.append('price', form.price ? Number(form.price) : 0);
+      fd.append('minimum', form.minimum || '');
       if (form.categoryId) fd.append('categoryId', form.categoryId);
 
       const res = await api.post('/reels', fd);
@@ -191,24 +193,59 @@ export default function UploadReel() {
 
       <QuotaBanner action="reels" />
 
-      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-8">
-        <p className="text-blue-900 font-bold mb-2">Hello vendor !</p>
-        <p className="text-blue-800 text-sm mb-4">When uploading a reel of your products on dealingindia, note:</p>
-        <ul className="space-y-3 text-sm text-blue-800">
-          <li className="flex items-center gap-2">
-            <span className="text-lg">✅</span>
-            <span>Use only the original video and your voice.</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-lg">❌</span>
-            <span>Videos with any kind of film songs or celebrity voices will not be accepted.</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-lg">⚠️</span>
-            <span>Due to copyright rules, such videos will be deleted immediately by the admin.</span>
-          </li>
-        </ul>
-      </div>
+      {submissionType === 'file' ? (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-8 shadow-sm">
+          <p className="text-blue-900 font-bold mb-2">Hello vendor !</p>
+          <p className="text-blue-800 text-sm mb-4">When uploading a reel of your products on dealingindia, note:</p>
+          <ul className="space-y-3 text-sm text-blue-800">
+            <li className="flex items-center gap-2">
+              <span className="text-lg">✅</span>
+              <span>Use only the original video and your voice.</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-lg">❌</span>
+              <span>Videos with any kind of film songs or celebrity voices will not be accepted.</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-lg">⚠️</span>
+              <span>Due to copyright rules, such videos will be deleted immediately by the admin.</span>
+            </li>
+          </ul>
+        </div>
+      ) : (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 mb-8 shadow-sm">
+          <p className="text-indigo-900 font-bold mb-4 flex items-center gap-2">
+            <FiVideo className="text-indigo-600" /> YouTube Shorts kaise upload kare:
+          </p>
+          <div className="space-y-4">
+            <div className="flex gap-3">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black">1</span>
+              <p className="text-indigo-800 text-sm leading-relaxed">YouTube app open kare, Bottom me ➕ (Create) par click kare, <strong>“Create a Short”</strong> select kare</p>
+            </div>
+            <div className="flex gap-3">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black">2</span>
+              <p className="text-indigo-800 text-sm leading-relaxed">Apna product video upload kare</p>
+            </div>
+            
+            <div className="pt-3 border-t border-indigo-100/50">
+              <p className="text-indigo-900 font-black mb-2 text-[11px] uppercase tracking-wider">🔗 Link kaise copy kare:</p>
+              <ul className="space-y-1.5 text-sm text-indigo-800 font-medium">
+                <li className="flex items-center gap-2">• Short video open kare</li>
+                <li className="flex items-center gap-2">• Share button dabaye</li>
+                <li className="flex items-center gap-2">• “Copy Link” par click kare</li>
+              </ul>
+            </div>
+
+            <div className="pt-3 border-t border-indigo-100/50">
+              <p className="text-rose-700 font-black mb-1 text-[11px] uppercase tracking-wider">📌 Important:</p>
+              <p className="text-rose-600 text-sm font-medium">Sirf apne product ka hi video hona chahiye. Dusre ka video ya link 🔗 use kiya to reject ho jayega.</p>
+            </div>
+            <p className="text-emerald-700 font-bold text-sm pt-2 italic flex items-center gap-2">
+              🚀 Quality video upload karoge to jyada buyers milenge!
+            </p>
+          </div>
+        </div>
+      )}
 
       <SubscriptionGate action="reels" showLimitInfo={false} fullPage={true}>
         {/* Toggle between File and Link */}
@@ -282,10 +319,8 @@ export default function UploadReel() {
                 <FiVideo size={20} />
               </div>
             </div>
-            <p className="mt-3 text-[10px] text-gray-500 font-medium uppercase tracking-[0.05em] leading-relaxed">
-              Supported: YouTube links or direct MP4/WebM URLs.
-              <br/>
-              <span className="text-rose-500">Note:</span> Link-based reels will not be uploaded to Dealing India's YouTube channel but will be playable in the feed.
+            <p className="mt-3 text-[10px] text-gray-400 font-medium uppercase tracking-[0.05em]">
+              Supported: YouTube Links, YouTube Shorts, or Direct MP4 URLs.
             </p>
           </div>
         )}
@@ -321,6 +356,19 @@ export default function UploadReel() {
                   min="0"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Minimum (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 50 Pcs or 10 kg"
+                className="w-full px-4 py-2 border border-gray-100 rounded-xl focus:ring-1 focus:ring-primary-500"
+                value={form.minimum}
+                onChange={(e) => setForm({ ...form, minimum: e.target.value })}
+              />
             </div>
 
             <div>

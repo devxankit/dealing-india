@@ -180,21 +180,9 @@ class SubscriptionRulesService {
                 vendorAddonService.getTotalAvailableAddonUnits(vendorId, 'products')
             ]);
 
-            const currentCount = await this.getProductCount(vendorId);
-
-            // 1. Business Type Restriction: Only Textile/General B2B can create products
-            if (subData) {
-                const businessType = this.normalizeBusinessType(subData.vendor?.businessType);
-                if (businessType !== BUSINESS_TYPES.TEXTILE) {
-                    return { 
-                        allowed: false, 
-                        message: 'Product listings are only available for Textile/B2B vendors. Your current business category does not support this task.' 
-                    };
-                }
-            }
-
             // 1. MUST HAVE SUBSCRIPTION
             if (!subData) {
+                const currentCount = await this.getProductCount(vendorId);
                 // If no subscription, check for addons only
                 if (addonCount > 0) return { allowed: true, useAddon: true, currentCount, limit: 0, addonCount };
                 
@@ -205,7 +193,18 @@ class SubscriptionRulesService {
                 };
             }
 
+            // 2. Business Type Restriction: Only Textile/General B2B can create products
+            const businessType = this.normalizeBusinessType(subData.vendor?.businessType);
+            if (businessType !== BUSINESS_TYPES.TEXTILE) {
+                return { 
+                    allowed: false, 
+                    message: 'Product listings are only available for Textile/B2B vendors. Your current business category does not support this task.' 
+                };
+            }
+
             const plan = subData.plan || {};
+            const sinceDate = subData.subscription?.startDate || new Date(0);
+            const currentCount = await this.getProductCount(vendorId, sinceDate);
             
             // 🔹 Dynamic Limit Check from DB
             const subLimit = plan.productLimit === 'unlimited' ? -1 : (Number(plan.productLimit) || 0);
@@ -271,20 +270,24 @@ class SubscriptionRulesService {
 
             // 3. Check Subscription allowance
             const plan = subData.plan || {};
-            const isAllowed = plan.lotSlotLimit === 'unlimited' || Number(plan.lotSlotLimit) > 0;
+            const sinceDate = subData.subscription?.startDate || new Date(0);
+            const currentCount = await this.getLotSlotCount(vendorId, sinceDate);
+            const subLimit = plan.lotSlotLimit === 'unlimited' ? -1 : (Number(plan.lotSlotLimit) || 0);
 
-            if (isAllowed) {
-                return { allowed: true, useAddon: false };
+            if (subLimit === -1 || (subLimit > 0 && currentCount < subLimit)) {
+                return { allowed: true, useAddon: false, currentCount, limit: subLimit };
             }
 
             // 4. Check Addon pool
             if (addonCount > 0) {
-                return { allowed: true, useAddon: true, addonCount };
+                return { allowed: true, useAddon: true, currentCount, limit: subLimit, addonCount };
             }
 
             return { 
                 allowed: false, 
-                message: 'Lot/Slot listings are not included in your current plan. Please upgrade to Diamond or purchase a Lot/Slot add-on.',
+                message: 'Lot/Slot listing limit reached for your current plan. Please upgrade or purchase a Lot/Slot add-on.',
+                currentCount,
+                limit: subLimit,
                 requiresAddon: true,
                 featureType: 'lot_slot'
             };
@@ -340,9 +343,42 @@ class SubscriptionRulesService {
             
             // Must have a Premium plan OR explicitly allowed images
             if (planType === PLAN_TYPES.PREMIUM || (plan && plan.imagesPerListing !== undefined)) {
+                
+                const sinceDate = subData.subscription?.startDate || new Date(0);
+                const currentCount = await Product.countDocuments({ 
+                    vendorId, 
+                    formType: 'property',
+                    createdAt: { $gte: sinceDate }
+                });
+                
+                if (subLimit !== -1 && currentCount >= subLimit) {
+                    const addonCount = await vendorAddonService.getTotalAvailableAddonUnits(vendorId, 'property');
+                    if (addonCount > 0) {
+                        return { 
+                            allowed: true, 
+                            useAddon: true, 
+                            maxImages: maxImages,
+                            current: currentCount,
+                            limit: subLimit,
+                            addonCount
+                        };
+                    }
+                    
+                    return {
+                        allowed: false,
+                        requiresAddon: true,
+                        featureType: 'property',
+                        message: `Property listing limit reached (${currentCount}/${subLimit}). Please purchase an add-on pack.`,
+                        maxImages
+                    };
+                }
+
                 return { 
                     allowed: true, 
-                    maxImages: maxImages 
+                    maxImages: maxImages,
+                    current: currentCount,
+                    limit: subLimit,
+                    remaining: subLimit === -1 ? -1 : (subLimit - currentCount)
                 };
             }
 
@@ -369,12 +405,13 @@ class SubscriptionRulesService {
                 vendorAddonService.getTotalAvailableAddonUnits(vendorId, 'reels')
             ]);
 
-            const currentCount = await this.getReelCount(vendorId);
-            
             // Reels are typically limited or infinite based on plan.
             let subLimit = 0;
+            let currentCount = 0;
             if (subData) {
                 const plan = subData.plan || {};
+                const sinceDate = subData.subscription?.startDate || new Date(0);
+                currentCount = await this.getReelCount(vendorId, sinceDate);
                 subLimit = plan.reelsLimit === 'unlimited' ? -1 : (Number(plan.reelsLimit) || 0);
             } else {
                 // Return false if no subscription and no addon
@@ -409,17 +446,24 @@ class SubscriptionRulesService {
     }
 
     /**
-     * Get current product count for vendor
+     * Get current product count for vendor since a specific date
      * @param {String} vendorId - Vendor ID
+     * @param {Date} sinceDate - Optional start date
      * @returns {Number} Product count
      */
-    async getProductCount(vendorId) {
+    async getProductCount(vendorId, sinceDate = null) {
         try {
-            return await Product.countDocuments({
+            const query = {
                 vendorId,
                 isActive: { $ne: false },
-                formType: { $ne: 'property' } // Don't count properties as products
-            });
+                formType: { $ne: 'property' }
+            };
+
+            if (sinceDate) {
+                query.createdAt = { $gte: sinceDate };
+            }
+
+            return await Product.countDocuments(query);
         } catch (error) {
             console.error('Error counting products:', error);
             return 0;
@@ -427,17 +471,18 @@ class SubscriptionRulesService {
     }
 
     /**
-     * Get current lot/slot count for vendor
+     * Get current lot/slot count for vendor since a specific date
      * @param {String} vendorId - Vendor ID
+     * @param {Date} sinceDate - Optional start date
      * @returns {Number} LotSlot count
      */
-    async getLotSlotCount(vendorId) {
+    async getLotSlotCount(vendorId, sinceDate = null) {
         try {
-            // Lifetime count: include all ever created (even inactive/deleted) 
-            // to prevent reuse of slots.
-            return await LotSlot.countDocuments({
-                vendorId
-            });
+            const query = { vendorId };
+            if (sinceDate) {
+                query.createdAt = { $gte: sinceDate };
+            }
+            return await LotSlot.countDocuments(query);
         } catch (error) {
             console.error('Error counting lot/slots:', error);
             return 0;
@@ -445,16 +490,23 @@ class SubscriptionRulesService {
     }
 
     /**
-     * Get current reel count for vendor
+     * Get current reel count for vendor since a specific date
      * @param {String} vendorId - Vendor ID
+     * @param {Date} sinceDate - Optional start date
      * @returns {Number} Reel count
      */
-    async getReelCount(vendorId) {
+    async getReelCount(vendorId, sinceDate = null) {
         try {
-            return await Reel.countDocuments({
+            const query = {
                 uploaderId: vendorId,
                 uploaderType: 'vendor'
-            });
+            };
+
+            if (sinceDate) {
+                query.createdAt = { $gte: sinceDate };
+            }
+
+            return await Reel.countDocuments(query);
         } catch (error) {
             console.error('Error counting reels:', error);
             return 0;
@@ -478,7 +530,8 @@ class SubscriptionRulesService {
         const addonStats = {
             reels: addons.filter(a => a.featureType === 'reels').reduce((sum, a) => sum + (a.totalQuantity - a.usedCount), 0),
             products: addons.filter(a => a.featureType === 'products').reduce((sum, a) => sum + (a.totalQuantity - a.usedCount), 0),
-            lot_slot: addons.filter(a => a.featureType === 'lot_slot').reduce((sum, a) => sum + (a.totalQuantity - a.usedCount), 0)
+            lot_slot: addons.filter(a => a.featureType === 'lot_slot').reduce((sum, a) => sum + (a.totalQuantity - a.usedCount), 0),
+            property: addons.filter(a => a.featureType === 'property').reduce((sum, a) => sum + (a.totalQuantity - a.usedCount), 0)
         };
 
         if (!subData) {
@@ -511,7 +564,14 @@ class SubscriptionRulesService {
                         remaining: addonStats.lot_slot, // 🟢 Correct
                         hasAddon: addonStats.lot_slot > 0
                     },
-                    properties: { allowed: false, maxImages: 0 },
+                    properties: { 
+                        allowed: addonStats.property > 0, 
+                        limit: addonStats.property,
+                        current: propertyCount,
+                        remaining: addonStats.property,
+                        hasAddon: addonStats.property > 0,
+                        maxImages: 0 
+                    },
                     reels: { 
                         allowed: addonStats.reels > 0, 
                         limit: addonStats.reels, 
@@ -526,11 +586,16 @@ class SubscriptionRulesService {
 
         const plan = subData.plan || {};
         const businessType = this.normalizeBusinessType(subData.vendor?.businessType);
+        const sinceDate = subData.subscription?.startDate || new Date(0);
 
-        const productCount = await this.getProductCount(vendorId);
-        const lotSlotCount = await this.getLotSlotCount(vendorId);
-        const reelCount = await this.getReelCount(vendorId);
-        const propertyCount = await Product.countDocuments({ vendorId, formType: 'property' });
+        const productCount = await this.getProductCount(vendorId, sinceDate);
+        const lotSlotCount = await this.getLotSlotCount(vendorId, sinceDate);
+        const reelCount = await this.getReelCount(vendorId, sinceDate);
+        const propertyCount = await Product.countDocuments({ 
+            vendorId, 
+            formType: 'property',
+            createdAt: { $gte: sinceDate }
+        });
 
         // 🔹 Rule: Calculate total capacity including addons
         const subProductLimit = plan.productLimit === 'unlimited' ? -1 : (Number(plan.productLimit) || 0);
@@ -580,10 +645,11 @@ class SubscriptionRulesService {
                     hasAddon: addonStats.lot_slot > 0
                 },
                 properties: {
-                    allowed: propertyLimitValue !== 0,
-                    limit: propertyLimitValue,
+                    allowed: propertyLimitValue !== 0 || addonStats.property > 0,
+                    limit: propertyLimitValue === -1 ? -1 : (propertyLimitValue + addonStats.property),
                     current: propertyCount,
-                    remaining: propertyLimitValue === -1 ? -1 : Math.max(0, propertyLimitValue - propertyCount),
+                    remaining: propertyLimitValue === -1 ? -1 : (Math.max(0, propertyLimitValue - propertyCount) + addonStats.property),
+                    hasAddon: addonStats.property > 0,
                     maxImages: imagesPerListing
                 },
                 reels: {

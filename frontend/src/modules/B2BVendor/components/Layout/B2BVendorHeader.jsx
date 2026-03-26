@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import Button from "../../../Admin/components/Button";
 import NotificationWindow from "../../../Admin/components/Layout/NotificationWindow";
 import { useNotifications } from "../../../../shared/hooks/useNotifications";
+import { useNotificationStore } from "../../../../shared/store/notificationStore";
 
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
@@ -17,7 +18,7 @@ const B2BVendorHeader = ({ onMenuClick }) => {
     const { vendor, logout } = useB2BVendorAuthStore();
 
     const [showNotifications, setShowNotifications] = useState(false);
-    const { unreadCount } = useNotifications();
+    const unreadCount = useNotificationStore(state => state.unreadCount);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const userMenuRef = useRef(null);
 

@@ -86,8 +86,8 @@ const Followers = () => {
                         >
                             <div className="flex items-center gap-4 mb-6">
                                 <div className="w-14 h-14 rounded-2xl bg-gray-50 overflow-hidden border-2 border-white shadow-md flex items-center justify-center text-gray-400">
-                                    {follower.profilePicture ? (
-                                        <img src={follower.profilePicture} alt={follower.name} className="w-full h-full object-cover" />
+                                    {follower.avatar ? (
+                                        <img src={follower.avatar} alt={follower.name} className="w-full h-full object-cover" />
                                     ) : (
                                         <FiUser size={24} />
                                     )}

@@ -19,6 +19,17 @@ export default function Reels() {
   const [musicLoading, setMusicLoading] = useState(false);
   const [replacingId, setReplacingId] = useState(null);
 
+  const getReelYoutubeId = (reel) => {
+    if (!reel) return null;
+    if (reel.youtubeVideoId) return reel.youtubeVideoId;
+    if (reel.reelType === 'link' && reel.externalLinkType === 'youtube') {
+      const url = reel.videoUrl;
+      const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|embed\/|shorts\/))([^&?\/ ]{11})/);
+      return match ? match[1] : null;
+    }
+    return null;
+  };
+
   const fetchReels = async () => {
     setLoading(true);
     try {
@@ -148,14 +159,24 @@ export default function Reels() {
             {reels.map((reel) => (
               <div key={reel._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
                 <div className="aspect-[9/16] bg-gray-900 relative">
-                  <video
-                    src={reel.videoUrl}
-                    className="w-full h-full object-cover"
-                    muted
-                    playsInline
-                    crossOrigin="anonymous"
-                    preload="metadata"
-                  />
+                  {getReelYoutubeId(reel) ? (
+                    <div className="w-full h-full pointer-events-none">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${getReelYoutubeId(reel)}?controls=0&modestbranding=1&rel=0&mute=1`}
+                        className="w-full h-full"
+                        title={reel.title}
+                      />
+                    </div>
+                  ) : (
+                    <video
+                      src={reel.videoUrl}
+                      className="w-full h-full object-cover"
+                      muted
+                      playsInline
+                      crossOrigin="anonymous"
+                      preload="metadata"
+                    />
+                  )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button
                       onClick={() => setPreviewReel(reel)}
@@ -164,7 +185,7 @@ export default function Reels() {
                       <FiPlay fill="currentColor" />
                     </button>
                   </div>
-                  <div className="absolute top-3 left-3">
+                  <div className="absolute top-3 left-3 flex flex-col gap-1.5">
                     <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
                       (reel.status === 'approved' || reel.status === 'expired') ? 'bg-emerald-500 text-white' :
                       reel.status === 'pending' ? 'bg-amber-500 text-white' :
@@ -172,6 +193,11 @@ export default function Reels() {
                       }`}>
                       {reel.status === 'expired' ? 'approved' : reel.status}
                     </span>
+                    {reel.reelType === 'link' && (
+                      <span className="px-2 py-1 rounded-lg bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider">
+                        Link
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="p-3">
@@ -260,14 +286,24 @@ export default function Reels() {
               >
                 <FiX size={20} />
               </button>
-              <video
-                src={previewReel.videoUrl}
-                className="w-full h-full object-contain"
-                controls
-                autoPlay
-                playsInline
-                crossOrigin="anonymous"
-              />
+              {getReelYoutubeId(previewReel) ? (
+                <iframe
+                  src={`https://www.youtube.com/embed/${getReelYoutubeId(previewReel)}?autoplay=1&mute=0&rel=0`}
+                  className="w-full h-full border-0"
+                  title={previewReel.title}
+                  allow="autoplay; encrypted-media"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  src={previewReel.videoUrl}
+                  className="w-full h-full object-contain"
+                  controls
+                  autoPlay
+                  playsInline
+                  crossOrigin="anonymous"
+                />
+              )}
             </motion.div>
           </div>
         )}

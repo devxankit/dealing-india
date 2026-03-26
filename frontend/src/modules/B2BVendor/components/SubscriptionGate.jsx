@@ -35,6 +35,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
     const [processingAddonId, setProcessingAddonId] = useState(null);
     const [processingPlanId, setProcessingPlanId] = useState(null);
     const fetchAttempted = useRef(false);
+    const hideBasePlans = useMemo(() => ['product', 'property', 'lotslot', 'reels'].includes(action), [action]);
 
     const loading = settingsLoading || subscriptionLoading;
 
@@ -75,15 +76,16 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             const featureTypeMap = {
                 product: 'products',
                 lotslot: 'lot_slot',
-                reels: 'reels'
+                reels: 'reels',
+                property: 'property'
             };
 
             const promises = [
                 subscriptionService.getAddonPlans(featureTypeMap[action])
             ];
 
-            // If fullPage and blocked, also fetch base plans
-            if (fullPage) {
+            // If fullPage and blocked, also fetch base plans (unless hidden for this action)
+            if (fullPage && !hideBasePlans) {
                 promises.push(subscriptionService.getPlans());
             }
 
@@ -267,40 +269,44 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                     <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Requirement Unmet</h2>
                     <p className="text-gray-500 mb-10 max-w-sm mx-auto font-medium">{permission.message}</p>
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                    <div className={`grid grid-cols-1 ${hideBasePlans ? '' : 'lg:grid-cols-2'} gap-10`}>
                         {/* BASE PLANS SECTION */}
-                        <div className="space-y-6">
-                            <h3 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] flex items-center gap-2 justify-center lg:justify-start">
-                                <FiCreditCard /> Primary Plans
-                            </h3>
-                            <div className="grid grid-cols-1 gap-3">
-                                {basePlans.length > 0 ? basePlans.map(plan => (
-                                    <button
-                                        key={plan._id}
-                                        onClick={() => handleSubscribeBase(plan._id)}
-                                        disabled={!!processingPlanId}
-                                        className="flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-indigo-500 hover:bg-indigo-50 transition-all group/item bg-gray-50/20"
-                                    >
-                                        <div className="text-left">
-                                            <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
-                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.duration} Month Duration</p>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <span className="font-black text-lg text-indigo-600">₹{plan.price}</span>
-                                            <div className="w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-indigo-600 group-hover/item:text-white group-hover/item:border-indigo-600 transition-all shadow-sm">
-                                                {processingPlanId === plan._id ? <FiRefreshCw className="animate-spin" size={18} /> : <FiArrowRight size={18} />}
+                        {!hideBasePlans && (
+                            <div className="space-y-6">
+                                <h3 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] flex items-center gap-2 justify-center lg:justify-start">
+                                    <FiCreditCard /> Primary Plans
+                                </h3>
+                                <div className="grid grid-cols-1 gap-3">
+                                    {basePlans.length > 0 ? basePlans.map(plan => (
+                                        <button
+                                            key={plan._id}
+                                            onClick={() => handleSubscribeBase(plan._id)}
+                                            disabled={!!processingPlanId}
+                                            className="flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-indigo-500 hover:bg-indigo-50 transition-all group/item bg-gray-50/20"
+                                        >
+                                            <div className="text-left">
+                                                <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
+                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.duration} Month Duration</p>
                                             </div>
+                                            <div className="flex items-center gap-4">
+                                                <span className="font-black text-lg text-indigo-600">₹{plan.price}</span>
+                                                <div className="w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-indigo-600 group-hover/item:text-white group-hover/item:border-indigo-600 transition-all shadow-sm">
+                                                    {processingPlanId === plan._id ? <FiRefreshCw className="animate-spin" size={18} /> : <FiArrowRight size={18} />}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    )) : !loadingAddons && (
+                                        <div className="p-8 border-2 border-dashed border-gray-100 rounded-3xl text-center">
+                                            <p className="text-gray-400 text-xs italic">No base plans available for your category.</p>
                                         </div>
-                                    </button>
-                                )) : !loadingAddons && (
-                                    <p className="text-gray-400 text-xs italic">No base plans available for your category.</p>
-                                )}
-                                {loadingAddons && <div className="animate-spin h-8 w-8 border-4 border-primary-600 border-t-transparent rounded-full mx-auto"></div>}
+                                    )}
+                                    {loadingAddons && <div className="animate-spin h-8 w-8 border-4 border-primary-600 border-t-transparent rounded-full mx-auto"></div>}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* ADDONS SECTION */}
-                        <div className="space-y-6">
+                        <div className={hideBasePlans ? "max-w-md mx-auto w-full space-y-6" : "space-y-6"}>
                             <h3 className="text-xs font-black text-amber-600 uppercase tracking-[0.2em] flex items-center gap-2 justify-center lg:justify-start">
                                 <FiPackage /> Add-on Packs
                             </h3>
@@ -326,15 +332,24 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                 ))}
                                 {addonPlans.length === 0 && !loadingAddons && (
                                     <div className="p-8 border-2 border-dashed border-gray-100 rounded-3xl text-center">
-                                        <p className="text-gray-400 text-xs italic">No add-ons available for this feature. Please consider upgrading to a Primary Plan.</p>
+                                        <p className="text-gray-400 text-xs italic">No add-ons available for this feature. Please consider upgrading / buying units.</p>
                                     </div>
                                 )}
+                                {loadingAddons && <div className="animate-spin h-8 w-8 border-4 border-amber-600 border-t-transparent rounded-full mx-auto"></div>}
                             </div>
                         </div>
                     </div>
 
                     <button 
-                        onClick={() => navigate('/b2b-vendor/subscription')} 
+                        onClick={() => {
+                            const featureTypeMap = {
+                                product: 'products',
+                                lotslot: 'lot_slot',
+                                reels: 'reels',
+                                property: 'property'
+                            };
+                            navigate(`/b2b-vendor/subscription?feature=${featureTypeMap[action] || action}`);
+                        }} 
                         className="mt-12 text-xs font-black text-gray-400 hover:text-gray-900 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto transition-colors"
                     >
                         View Full Subscription Dashboard <FiArrowRight />
@@ -346,7 +361,15 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         return (
             <div className="relative group">
                 <button
-                    onClick={permission.requiresAddon ? () => handleFetchAddonsAndPlans(false) : () => navigate('/b2b-vendor/subscription')}
+                    onClick={permission.requiresAddon ? () => handleFetchAddonsAndPlans(false) : () => {
+                        const featureTypeMap = {
+                            product: 'products',
+                            lotslot: 'lot_slot',
+                            reels: 'reels',
+                            property: 'property'
+                        };
+                        navigate(`/b2b-vendor/subscription?feature=${featureTypeMap[action] || action}`);
+                    }}
                     className="flex items-center gap-2 px-5 py-2.5 bg-amber-50 text-amber-600 rounded-xl font-bold border border-amber-200 hover:bg-amber-100 transition-all"
                 >
                     <FiAlertCircle className="text-lg" />
@@ -389,7 +412,9 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                     {loadingAddons && <div className="animate-spin h-8 w-8 border-2 border-primary-600 border-t-transparent rounded-full mx-auto"></div>}
                                 </div>
 
-                                <button onClick={() => navigate('/b2b-vendor/subscription')} className="text-sm font-bold text-indigo-600 hover:underline">Or upgrade your full subscription plan</button>
+                                {!(hideBasePlans) && (
+                                    <button onClick={() => navigate('/b2b-vendor/subscription')} className="text-sm font-bold text-indigo-600 hover:underline">Or upgrade your full subscription plan</button>
+                                )}
                             </div>
                         </Modal>
                     )}

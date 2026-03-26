@@ -27,7 +27,17 @@ export default function ReelFeed() {
   const { categories: allCategories, initialize: fetchB2BCategories } = useB2BCategoryStore();
   const [activeCategory, setActiveCategory] = useState(searchParams.get("category") || "");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [categorySearch, setCategorySearch] = useState("");
+  const [debouncedCategorySearch, setDebouncedCategorySearch] = useState("");
   const isShowingGeneralFeed = useRef(false);
+
+  // Debounce category search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedCategorySearch(categorySearch);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [categorySearch]);
 
   const viewedRef = useRef(new Set());
   const wheelLockRef = useRef(false);
@@ -127,8 +137,12 @@ export default function ReelFeed() {
       ).values()
     );
 
-    return unique.sort((a, b) => a.localeCompare(b));
-  }, [allCategories]);
+    const sorted = unique.sort((a, b) => a.localeCompare(b));
+
+    if (!debouncedCategorySearch) return sorted;
+    const q = debouncedCategorySearch.toLowerCase();
+    return sorted.filter(name => name.toLowerCase().includes(q));
+  }, [allCategories, debouncedCategorySearch]);
 
   useEffect(() => {
     fetchB2BCategories();
@@ -409,27 +423,49 @@ export default function ReelFeed() {
                     initial={{ opacity: 0, y: -10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    className="absolute top-full left-0 mt-2 w-56 max-h-[60vh] overflow-y-auto bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl py-2 no-scrollbar"
+                    className="absolute top-full left-0 mt-2 w-64 max-h-[60vh] overflow-y-auto bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex flex-col no-scrollbar"
                   >
-                    <button
-                      onClick={() => { setActiveCategory(""); setShowCategoryDropdown(false); }}
-                      className={`w-full px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                        activeCategory === "" ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
-                      }`}
-                    >
-                      All Reels
-                    </button>
-                    {playlistCategories.map((name) => (
+                    {/* Search Category */}
+                    <div className="sticky top-0 p-3 bg-gray-900/90 backdrop-blur-md border-b border-white/5 z-10">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={categorySearch}
+                          onChange={(e) => setCategorySearch(e.target.value)}
+                          placeholder="Search categories..."
+                          className="w-full pl-8 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[11px] font-bold text-white placeholder:text-gray-500 outline-none focus:border-primary-500/50 transition-all"
+                        />
+                        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto no-scrollbar py-2">
                       <button
-                        key={name}
-                        onClick={() => { setActiveCategory(name); setShowCategoryDropdown(false); }}
-                        className={`w-full px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                          activeCategory === name ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
+                        onClick={() => { setActiveCategory(""); setShowCategoryDropdown(false); setCategorySearch(""); }}
+                        className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                          activeCategory === "" ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
                         }`}
                       >
-                        {name}
+                        All Reels
                       </button>
-                    ))}
+                      {playlistCategories.length > 0 ? (
+                        playlistCategories.map((name) => (
+                          <button
+                            key={name}
+                            onClick={() => { setActiveCategory(name); setShowCategoryDropdown(false); setCategorySearch(""); }}
+                            className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                              activeCategory === name ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
+                            }`}
+                          >
+                            {name}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest text-center">
+                          No categories found
+                        </div>
+                      )}
+                    </div>
                   </motion.div>
                 </>
               )}
@@ -482,6 +518,11 @@ export default function ReelFeed() {
                       {currentReel.price > 0 && (
                         <span className="px-2 py-0.5 rounded-lg bg-primary-500 text-white text-[10px] font-bold whitespace-nowrap shadow-sm">
                           ₹{currentReel.price}
+                        </span>
+                      )}
+                      {currentReel.minimum && (
+                        <span className="px-2 py-0.5 rounded-lg bg-white/20 backdrop-blur-md text-white text-[10px] font-bold whitespace-nowrap border border-white/20 shadow-sm">
+                          Min: {currentReel.minimum}
                         </span>
                       )}
                     </div>

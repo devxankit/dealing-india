@@ -97,7 +97,7 @@ const DataTable = ({
           <div className="divide-y divide-gray-100">
             {paginatedData.map((row, index) => (
               <div
-                key={`mobile-row-${row.id || row._id || index}`}
+                key={`mobile-row-${row ? (row.id || row._id || index) : index}`}
                 onClick={() => onRowClick && onRowClick(row)}
                 className={`p-5 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
                   } transition-colors active:bg-gray-100`}
@@ -196,7 +196,7 @@ const DataTable = ({
             ) : (
               paginatedData.map((row, index) => (
                 <tr
-                  key={`row-${row.id || row._id || index}`}
+                  key={`row-${row ? (row.id || row._id || index) : index}`}
                   onClick={() => onRowClick && onRowClick(row)}
                   className={`${onRowClick ? 'cursor-pointer hover:bg-gray-50/80' : ''
                     } transition-colors group`}

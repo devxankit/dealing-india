@@ -79,7 +79,9 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const [expandedItems, setExpandedItems] = useState({});
     
     // Use global notification store
-    const { unreadCount: unreadNotificationCount, fetchUnreadCount } = useNotificationStore();
+    // Use selectors for better reactivity and performance
+    const unreadNotificationCount = useNotificationStore(state => state.unreadCount);
+    const fetchUnreadCount = useNotificationStore(state => state.fetchUnreadCount);
 
     const displayVendorName = vendor?.name || "B2B Vendor";
     const vendorInitial = displayVendorName.charAt(0).toUpperCase();

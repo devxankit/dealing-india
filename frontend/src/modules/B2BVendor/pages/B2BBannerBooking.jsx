@@ -25,9 +25,11 @@ import {
     cancelBannerBooking
 } from "../services/b2bBannerService";
 import { initializeRazorpayCheckout, handlePaymentSuccess } from "../../../shared/services/paymentService";
+import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 
 const B2BBannerBooking = () => {
     const navigate = useNavigate();
+    const { vendor } = useB2BVendorAuthStore();
     const [slots, setSlots] = useState([]);
     const [bookings, setBookings] = useState([]);
     const [settings, setSettings] = useState({
@@ -360,15 +362,13 @@ const B2BBannerBooking = () => {
                     await loadData();
                     setShowBookingModal(false);
                     resetForm();
-                    // Redirect to vendor store page on user app
-                    setTimeout(() => navigate(`/b2b/shop/${vendor?._id || vendor?.id}`), 1500);
                 } else if (bookingData.razorpayOrder) {
                     // For Razorpay, open payment gateway
                     toast.success("Booking initiated! Opening payment gateway...");
                     await handleRazorpayPayment(
                         bookingData._id,
                         bookingData.razorpayOrder,
-                        calculatedPrice,
+                        bookingData.amount, // Use backend amount which includes GST
                         bookingData.razorpayKeyId
                     );
                 } else {
@@ -461,8 +461,7 @@ const B2BBannerBooking = () => {
                         toast.success("Payment successful! Your banner booking is pending admin approval.");
                         setShowBookingModal(false);
                         resetForm();
-                        // Redirect to vendor store page on user app 
-                        setTimeout(() => navigate(`/b2b/shop/${vendor?._id || vendor?.id}`), 1500);
+                        await loadData();
                     } catch (error) {
                         console.error("Payment confirmation error:", error);
                         toast.error(error?.response?.data?.message || error?.message || "Payment verification failed. Please contact support.");
@@ -502,9 +501,10 @@ const B2BBannerBooking = () => {
 
     const openBookingModal = (slot) => {
         setSelectedSlot(slot);
+        const shopUrl = window.location.origin + `/b2b/vendor/${vendor?._id || vendor?.id || ''}`;
         setFormData({
             title: "",
-            link: "",
+            link: shopUrl,
             image: null,
             preview: null,
             startDate: "",
@@ -650,8 +650,8 @@ const B2BBannerBooking = () => {
                                     <Badge variant="success">Available</Badge>
                                 )}
                             </div>
-                            <div className="text-xl font-bold text-gray-900 mb-1">{formatPrice(slot.price)}</div>
-                            <p className="text-xs text-gray-500 mb-4">Starting from {formatPrice(slot.price)}/day</p>
+                            <div className="text-xl font-bold text-gray-900 mb-1">{formatPrice(slot.price)} <span className="text-[10px] text-gray-400 font-medium">+ GST</span></div>
+                            <p className="text-xs text-gray-500 mb-4">Exclusive of 18% GST</p>
 
                             <button className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
                                 <FiPlus /> Book Now
@@ -776,19 +776,24 @@ const B2BBannerBooking = () => {
                                         )}
                                     </div>
 
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5 space-y-3">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500 font-medium">Base Booking Fee ({formData.durationDays} Day{formData.durationDays !== 1 ? 's' : ''})</span>
+                                            <span className="font-bold text-gray-900">{formatPrice(calculatedPrice)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500 font-medium">GST (18%)</span>
+                                            <span className="font-bold text-gray-900">{formatPrice(Math.round(calculatedPrice * 0.18))}</span>
+                                        </div>
+                                        <div className="h-px bg-blue-100/50 my-1" />
                                         <div className="flex justify-between items-center">
                                             <div>
-                                                <p className="text-sm font-medium text-gray-700">Total Price</p>
-                                                <p className="text-xs text-gray-500 mt-1">
-                                                    For {formData.durationDays} Day{formData.durationDays !== 1 ? 's' : ''} starting {formData.startDate ? new Date(formData.startDate).toLocaleDateString() : 'selected date'}
-                                                </p>
+                                                <p className="text-sm font-black text-gray-900 uppercase tracking-tight">Total Amount</p>
+                                                <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-0.5">Final Payable Price</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-2xl font-bold text-blue-600">{formatPrice(calculatedPrice)}</p>
-                                                <p className="text-xs text-gray-500 mt-1">
-                                                    FIXED DAILY RATE
-                                                </p>
+                                                <p className="text-2xl font-black text-blue-600 tracking-tight">{formatPrice(Math.round(calculatedPrice * 1.18))}</p>
+                                                <p className="text-[10px] text-gray-400 font-medium">Incl. all taxes</p>
                                             </div>
                                         </div>
                                     </div>
@@ -914,7 +919,7 @@ const B2BBannerBooking = () => {
                                     {/* Target URL */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Target URL (Optional)
+                                            Redirect URL (Pre-filled with your Shop)
                                         </label>
                                         <div className="relative">
                                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -950,7 +955,7 @@ const B2BBannerBooking = () => {
                                             "Processing..."
                                         ) : (
                                             <>
-                                                <FiCreditCard /> Book for {formatPrice(calculatedPrice)}
+                                                <FiCreditCard /> Pay {formatPrice(Math.round(calculatedPrice * 1.18))}
                                             </>
                                         )}
                                     </button>

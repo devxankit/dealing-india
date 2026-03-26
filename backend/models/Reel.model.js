@@ -47,6 +47,7 @@ const reelSchema = new mongoose.Schema(
     },
     musicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Music', default: null },
     price: { type: Number, default: 0 },
+    minimum: { type: String, trim: true, default: '' },
   },
   { timestamps: true }
 );

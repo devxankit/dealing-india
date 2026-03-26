@@ -52,8 +52,8 @@ const QuotaBanner = ({ action, className = "" }) => {
     }
 
     const percentage = isUnlimited ? 0 : (limit > 0 ? Math.min(100, (current / limit) * 100) : (current > 0 ? 100 : 0));
-    const isLow = !isUnlimited && (limit - current) <= (limit * 0.2); // Less than 20% remaining
-    const isExhausted = !isUnlimited && current >= limit;
+    const isLow = !isUnlimited && remaining <= (limit * 0.2) && remaining > 0;
+    const isExhausted = !isUnlimited && !permission.allowed;
 
     return (
         <motion.div
@@ -109,7 +109,7 @@ const QuotaBanner = ({ action, className = "" }) => {
                 )}
 
                 <button 
-                    onClick={() => navigate('/b2b-vendor/subscription')}
+                    onClick={() => navigate(`/b2b-vendor/subscription?feature=${action}`)}
                     className="flex items-center gap-1 text-xs font-bold text-primary-600 hover:text-primary-700 transition-colors py-1 px-2 rounded-lg hover:bg-primary-50"
                 >
                     View Plan <FiChevronRight />

@@ -40,8 +40,6 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const [dynamicFields, setDynamicFields] = useState([]);
     const [dynamicValues, setDynamicValues] = useState({});
     const [customMultiInputs, setCustomMultiInputs] = useState({});
-    const [customCategoryName, setCustomCategoryName] = useState("");
-    const [customSubcategoryName, setCustomSubcategoryName] = useState("");
 
     useEffect(() => {
         if (!categoriesCache) {
@@ -365,8 +363,8 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
             // Prepare data for API
             const productPayload = {
                 name: formData.name,
-                category: formData.category === '__OTHER_CAT__' ? customCategoryName : formData.category,
-                subcategory: formData.subcategory === '__OTHER_SUB__' ? customSubcategoryName : (formData.category === '__OTHER_CAT__' ? customSubcategoryName : (formData.subcategory || "")),
+                category: formData.category,
+                subcategory: formData.subcategory || "",
                 moq: parseInt(formData.moq) || 1,
                 price: parseFloat(formData.price),
                 description: formData.description || "",
@@ -453,24 +451,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     {categories.map((cat) => (
                                         <option key={cat.id} value={cat.name}>{cat.name}</option>
                                     ))}
-                                    <option value="__OTHER_CAT__">+ Add New Category...</option>
                                 </select>
-                                {formData.category === '__OTHER_CAT__' && (
-                                    <input
-                                        type="text"
-                                        placeholder="Enter your category name"
-                                        className="mt-2 w-full px-4 py-2.5 bg-white border-2 border-primary-100 focus:border-primary-500 rounded-xl outline-none"
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            // We'll handle the submission differently if it's __OTHER_CAT__
-                                            // But for now, let's store it somewhere.
-                                            // Actually, let's just use a separate state or a hack.
-                                            setCustomCategoryName(val);
-                                        }}
-                                        value={customCategoryName}
-                                        required
-                                    />
-                                )}
                             </div>
 
                             <div className="md:col-span-1">
@@ -489,18 +470,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     {subcategories.map((sub, index) => (
                                         <option key={index} value={sub.name}>{sub.name}</option>
                                     ))}
-                                    {formData.category && <option value="__OTHER_SUB__">+ Add New Subcategory...</option>}
                                 </select>
-                                {(formData.subcategory === '__OTHER_SUB__' || formData.category === '__OTHER_CAT__') && (
-                                    <input
-                                        type="text"
-                                        placeholder={formData.category === '__OTHER_CAT__' ? "New Subcategory (Optional)" : "Enter your subcategory name"}
-                                        className="mt-2 w-full px-4 py-2.5 bg-white border-2 border-primary-100 focus:border-primary-500 rounded-xl outline-none"
-                                        onChange={(e) => setCustomSubcategoryName(e.target.value)}
-                                        value={customSubcategoryName}
-                                        required={formData.subcategory === '__OTHER_SUB__'}
-                                    />
-                                )}
                             </div>
 
                             {/* Dynamic Fields Rendering Section */}

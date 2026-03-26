@@ -43,6 +43,17 @@ const B2BVendorSubscription = () => {
     useEffect(() => {
         loadSubscriptionData();
         loadAddonData();
+
+        // Handle URL search params for filtering
+        const params = new URLSearchParams(window.location.search);
+        const feature = params.get('feature');
+        if (feature) {
+            // Scroll to addons section if filtering by feature
+            setTimeout(() => {
+                const element = document.getElementById('addon-packs');
+                if (element) element.scrollIntoView({ behavior: 'smooth' });
+            }, 500);
+        }
     }, []);
 
 
@@ -803,8 +814,14 @@ const B2BVendorSubscription = () => {
                         ))}
                     </div>
                 ) : availableAddons.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {availableAddons.map((addon) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="addon-packs">
+                    {availableAddons
+                        .filter(addon => {
+                            const params = new URLSearchParams(window.location.search);
+                            const featureFilter = params.get('feature');
+                            return !featureFilter || addon.featureType === featureFilter;
+                        })
+                        .map((addon) => (
                             <motion.div
                                 key={addon._id}
                                 whileHover={{ y: -8, scale: 1.02 }}

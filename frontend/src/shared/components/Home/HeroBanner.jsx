@@ -62,7 +62,12 @@ const HeroBanner = () => {
     if (banner.vendorId) {
       const isMobileApp = location.pathname.startsWith('/app');
       const basePath = isMobileApp ? '/app' : '';
-      navigate(`${basePath}/vendor/${banner.vendorId}`);
+
+      // Check if it's a B2B vendor or banner
+      const isB2B = banner.bannerType === 'b2b' || (banner.vendorId && banner.vendorId.vendorType === 'b2b');
+      const venderIdStr = banner.vendorId?._id || banner.vendorId?.id || banner.vendorId;
+
+      navigate(`${basePath}${isB2B ? '/b2b' : ''}/vendor/${venderIdStr}`);
     } else if (banner.link) {
       if (banner.link.startsWith('http')) {
         window.location.href = banner.link;
