@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import Reel from '../models/Reel.model.js';
 import ReelLike from '../models/ReelLike.model.js';
 import ReelComment from '../models/ReelComment.model.js';
+import { validateYouTubeLinkReels } from '../services/youtubeLinkValidator.service.js';
 
 /**
  * Reel expiry cron is now disabled.
@@ -12,16 +13,34 @@ async function expireReels() {
   // no-op
 }
 
-let task = null;
+let expiryTask = null;
+let validationTask = null;
 
 export function startReelExpiryCron() {
-  if (task) return;
-  task = cron.schedule('*/15 * * * *', expireReels, { scheduled: true });
+  if (expiryTask) return;
+  expiryTask = cron.schedule('*/15 * * * *', expireReels, { scheduled: true });
 }
 
 export function stopReelExpiryCron() {
-  if (task) {
-    task.stop();
-    task = null;
+  if (expiryTask) {
+    expiryTask.stop();
+    expiryTask = null;
+  }
+}
+
+/**
+ * Periodically validates YouTube link reels.
+ * Runs every 8 hours.
+ */
+export function startYouTubeLinkValidationCron() {
+  if (validationTask) return;
+  validationTask = cron.schedule('0 */8 * * *', validateYouTubeLinkReels, { scheduled: true });
+  console.log('✅ YouTube link validation cron started (Every 8 hours)');
+}
+
+export function stopYouTubeLinkValidationCron() {
+  if (validationTask) {
+    validationTask.stop();
+    validationTask = null;
   }
 }

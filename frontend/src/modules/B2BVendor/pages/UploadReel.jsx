@@ -427,22 +427,6 @@ export default function UploadReel() {
                      {categorySearchQuery && (
                       <div className="flex gap-1 absolute right-3 top-1/2 -translate-y-1/2">
                         <button
-                          type="button"
-                          onClick={() => {
-                            const newCat = categorySearchQuery.trim();
-                            setForm(f => ({
-                              ...f,
-                              categoryId: '',
-                              categoryName: newCat,
-                            }));
-                            setIsCategoryDropdownOpen(false);
-                            setCategorySearchQuery('');
-                          }}
-                          className="bg-primary-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-primary-700"
-                        >
-                          Add New
-                        </button>
-                        <button
                           onClick={() => setCategorySearchQuery('')}
                           className="text-gray-400 hover:text-gray-600 px-1"
                         >
@@ -492,27 +476,6 @@ export default function UploadReel() {
                   ) : (
                     <div className="p-8 text-center">
                       <p className="text-gray-400 text-sm mb-4">No categories found matching "{categorySearchQuery}"</p>
-                    </div>
-                  )}
-                  {categorySearchQuery.trim() && !playlistCategories.some(cat => cat.toLowerCase() === categorySearchQuery.trim().toLowerCase()) && (
-                    <div className="p-1 px-3 mt-1 pt-2 border-t border-gray-50">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newCat = categorySearchQuery.trim();
-                          setForm(f => ({
-                            ...f,
-                            categoryId: '',
-                            categoryName: newCat,
-                          }));
-                          setIsCategoryDropdownOpen(false);
-                          setCategorySearchQuery('');
-                        }}
-                        className="w-full text-left px-4 py-3 bg-primary-50 rounded-xl text-primary-700 text-sm font-bold hover:bg-primary-100 transition-colors border border-primary-200/50 flex items-center justify-between"
-                      >
-                        <span>Add "{categorySearchQuery}" as New Category</span>
-                        <FiPlus className="text-primary-600" />
-                      </button>
                     </div>
                   )}
                 </div>

@@ -87,7 +87,7 @@ import adminReelRoutes from "./routes/adminReel.routes.js";
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 import { syncVendorViewsCron } from "./Cron/VendorViewSync.cron.js";
 import bannerBookingCron from "./Cron/BannerBooking.cron.js";
-import { startReelExpiryCron } from "./Cron/ReelExpiry.cron.js";
+import { startReelExpiryCron, startYouTubeLinkValidationCron } from "./Cron/ReelExpiry.cron.js";
 import musicRoutes from "./routes/music.routes.js";
 import vendorFollowRoutes from "./routes/vendorFollow.routes.js";
 
@@ -440,6 +440,7 @@ const startServer = async () => {
     syncVendorViewsCron.start();
     bannerBookingCron();
     startReelExpiryCron();
+    startYouTubeLinkValidationCron();
     console.log("✅ Background Cron Jobs initialized");
 
     // Drop problematic OTP index if it exists

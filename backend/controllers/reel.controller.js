@@ -190,9 +190,16 @@ export const getMyReels = asyncHandler(async (req, res) => {
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
   const skip = (page - 1) * limit;
 
+  const query = { 
+    uploaderId,
+    $nor: [ 
+        { reelType: 'link', externalLinkType: 'youtube', isYouTubeLinkValid: false } 
+    ]
+  };
+
   const [reels, total] = await Promise.all([
-    Reel.find({ uploaderId }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-    Reel.countDocuments({ uploaderId }),
+    Reel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    Reel.countDocuments(query),
   ]);
 
   res.status(200).json({
@@ -208,7 +215,11 @@ export const getMyReels = asyncHandler(async (req, res) => {
  */
 export const adminListReels = asyncHandler(async (req, res) => {
   const { status, categoryName, page = 1, limit = 20 } = req.query;
-  const filter = {};
+  const filter = {
+    $nor: [ 
+        { reelType: 'link', externalLinkType: 'youtube', isYouTubeLinkValid: false } 
+    ]
+  };
   if (status) filter.status = status;
   if (categoryName) filter.categoryName = new RegExp(categoryName, 'i');
   const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(50, Math.max(1, parseInt(limit)));
@@ -672,10 +683,19 @@ export const getFeed = asyncHandler(async (req, res) => {
 
   // Feed source: Only reels that have successfully reached YouTube OR are link-based reels
   const filter = {
-    $or: [
-      { youtubeVideoId: { $type: "string", $regex: /.+/ } },
-      { status: "approved" },
-    ],
+    $and: [
+      {
+        $or: [
+          { youtubeVideoId: { $type: "string", $regex: /.+/ } },
+          { status: "approved" },
+        ],
+      },
+      {
+        $nor: [ 
+            { reelType: 'link', externalLinkType: 'youtube', isYouTubeLinkValid: false } 
+        ]
+      }
+    ]
   };
    // Note: We don't check 'status' here because if it's on YouTube, it's implicitly approved/live.
   if (categoryName) filter.categoryName = new RegExp(categoryName, 'i');
@@ -790,7 +810,9 @@ export const getReelById = asyncHandler(async (req, res) => {
   }
 
   const reel = await Reel.findById(id).lean();
-  if (!reel || (!reel.youtubeVideoId && reel.reelType !== "link")) {
+  if (!reel || 
+      (!reel.youtubeVideoId && reel.reelType !== "link") || 
+      (reel.reelType === 'link' && reel.externalLinkType === 'youtube' && reel.isYouTubeLinkValid === false)) {
     return res.status(404).json({
       success: false,
       message: "Reel not found or not published to YouTube",
