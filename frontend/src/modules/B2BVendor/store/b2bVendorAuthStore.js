@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import api from '../../../shared/utils/api';
+import { useSubscriptionStore } from './subscriptionStore';
+import { useDashboardStore } from './dashboardStore';
 
 export const useB2BVendorAuthStore = create(
     persist(
@@ -115,6 +117,11 @@ export const useB2BVendorAuthStore = create(
                     });
 
                     console.log('[B2B Vendor Login] State updated via set()');
+
+                    // Clear any stale state from previous sessions
+                    useSubscriptionStore.getState().clearStatus();
+                    useDashboardStore.getState().clearDashboard();
+
                     console.log('[B2B Vendor Login] Token in localStorage after set:', localStorage.getItem('b2b-vendor-token') ? 'Yes' : 'No');
 
                     return { success: true };
@@ -146,6 +153,11 @@ export const useB2BVendorAuthStore = create(
             logout: () => {
                 localStorage.removeItem('b2b-vendor-token');
                 sessionStorage.removeItem('b2b-vendor-login-timestamp');
+                
+                // Clear all vendor related stores
+                useSubscriptionStore.getState().clearStatus();
+                useDashboardStore.getState().clearDashboard();
+
                 set({
                     vendor: null,
                     token: null,

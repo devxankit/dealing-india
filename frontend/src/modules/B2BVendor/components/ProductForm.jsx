@@ -234,13 +234,14 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
     const { canCreateProduct } = useSubscriptionStore();
     const productPermission = canCreateProduct();
-    const MAX_PHOTOS = productPermission.maxImages !== undefined ? productPermission.maxImages : 5;
+    const MAX_PHOTOS = productPermission.maxImages !== undefined ? parseInt(productPermission.maxImages) : 5;
 
     const handleMultipleImageUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (!files.length) return;
 
-        if (formData.images.length + files.length > MAX_PHOTOS) {
+        // Handle case where limit is -1 (unlimited) or high
+        if (MAX_PHOTOS !== -1 && formData.images.length + files.length > MAX_PHOTOS) {
             toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
             return;
         }
@@ -781,7 +782,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                             </label>
                         </div>
                         <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
-                            {MAX_PHOTOS === 0 ? "No photos allowed on this plan." : `First image is cover. Max ${MAX_PHOTOS} photos.`} Max 300KB each.
+                            {MAX_PHOTOS === 0 ? "No photos allowed on this plan." : `First image is cover. Max ${MAX_PHOTOS < 0 ? 'unlimited' : MAX_PHOTOS} photos.`} Max 300KB each.
                         </p>
                     </div>
 

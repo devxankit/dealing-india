@@ -243,6 +243,8 @@ const ProductCatalog = () => {
 
   const [dynamicFilters, setDynamicFilters] = useState({});
   const [dynamicSearchQueries, setDynamicSearchQueries] = useState({});
+  const lastParamsRef = useRef(''); // Cache for preventing infinite fetch loops
+  const lastLocParamsRef = useRef(''); // Cache for location filter loops
 
   const selectedSubcategoryObj = useMemo(() => {
     if (!selectedSubcategory) return null;
@@ -250,7 +252,11 @@ const ProductCatalog = () => {
       const sub = (cat.subcategories || []).find(
         (s) => (typeof s === "string" ? s : s?.name) === selectedSubcategory,
       );
-      if (sub) return typeof sub === "string" ? { name: sub, fields: [] } : sub;
+      if (sub) {
+        // Return a stable object or existing reference if possible
+        const normalized = typeof sub === "string" ? { name: sub, fields: [] } : sub;
+        return normalized;
+      }
     }
     return null;
   }, [selectedSubcategory, allCategories]);
@@ -1383,8 +1389,11 @@ const ProductCatalog = () => {
   }, []);
 
   useEffect(() => {
-    fetchListingLocationFilters();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const locKey = JSON.stringify({ selectedCity, selectedArea, selectedBusinessType });
+    if (locKey !== lastLocParamsRef.current) {
+        lastLocParamsRef.current = locKey;
+        fetchListingLocationFilters();
+    }
   }, [selectedCity, selectedArea, selectedBusinessType]);
 
   // Update markets from store when available
@@ -1451,7 +1460,32 @@ const ProductCatalog = () => {
     }
 
     const timeoutId = setTimeout(() => {
-      fetchB2BProducts();
+      // Build a stable key that represents the current selection state
+      const currentParamsKey = JSON.stringify({
+        selectedState,
+        selectedCity,
+        selectedItemType,
+        selectedArea,
+        selectedMarket,
+        selectedCategory,
+        selectedSubcategory,
+        selectedBusinessType,
+        selectedBusinessSubType,
+        selectedBusinessCategory,
+        dynamicFilters,
+        searchQuery,
+        strict: searchParams.get("strict"),
+        sortBy,
+        sortOrder,
+        categoryCount: allCategories.length
+      });
+
+      // ONLY fetch if the selection has actually changed.
+      // This breaks reference-based loops (like {} !== {}) and state re-sync loops.
+      if (currentParamsKey !== lastParamsRef.current) {
+        lastParamsRef.current = currentParamsKey;
+        fetchB2BProducts();
+      }
     }, 500); // 500ms debounce
 
     return () => clearTimeout(timeoutId);
@@ -1468,7 +1502,7 @@ const ProductCatalog = () => {
     selectedBusinessSubType,
     selectedBusinessCategory,
     allCategories.length,
-    dynamicFilters,
+    JSON.stringify(dynamicFilters),
     searchQuery,
     searchParams.get("strict"),
     sortBy,
@@ -2099,8 +2133,8 @@ const ProductCatalog = () => {
         customNav={headerBusinessTypeDropdown}
       />
 
-      {/* Mobile: Search bar in place of chips */}
-      <div className="md:hidden px-4 py-3 bg-white border-b border-gray-50">
+      {/* Mobile: Search bar sticks under white header */}
+      <div className="md:hidden sticky top-[calc(4rem+env(safe-area-inset-top))] z-40 px-4 py-3 bg-white border-b border-gray-50">
         <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 py-1 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
           <FiSearch className="text-gray-400 mr-2" size={16} />
           <input
@@ -2108,10 +2142,8 @@ const ProductCatalog = () => {
             placeholder="SEARCH PRODUCTS AND SHOPS"
             className="w-full bg-transparent py-1.5 text-[10px] font-bold text-gray-700 outline-none placeholder:text-gray-400 h-9 uppercase tracking-tight"
             value={searchQuery}
-            onChange={(e) => handleHeaderSearchChange(e.target.value)}
-            onKeyDown={(e) =>
-              e.key === "Enter" && handleHeaderSearchSubmit(searchQuery, true)
-            }
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleHeaderSearchSubmit(searchQuery)}
           />
         </div>
         <div className="mt-2 grid grid-cols-3 gap-2">
@@ -2133,11 +2165,13 @@ const ProductCatalog = () => {
             </button>
           )}
           {noProductsInBusinessType && (
-            <div className="w-full px-3 py-2 bg-amber-50 border border-amber-100 rounded-full text-[10px] font-bold text-amber-800 text-center">
+            <div className="col-span-3 px-3 py-2 bg-amber-50 border border-amber-100 rounded-full text-[10px] font-bold text-amber-800 text-center">
               No products listed in this business type
             </div>
           )}
         </div>
+      </div>
+      
         {isCityDropdownOpen && (
           <div
             className="md:hidden fixed inset-0 z-[70] bg-black/40"
@@ -2346,13 +2380,12 @@ const ProductCatalog = () => {
             </div>
           </div>
         )}
-      </div>
 
       <main className="max-w-7xl mx-auto px-4 py-4 md:py-8">
         {/* Search & Filter Bar */}
         <div className="space-y-4 md:space-y-6 mb-6 md:mb-10">
           {/* Location Filters */}
-          <div className="hidden md:flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+          <div className="hidden md:flex flex-col md:flex-row gap-4 items-stretch md:items-center sticky top-[calc(5rem+env(safe-area-inset-top))] z-40 bg-white/95 backdrop-blur-md p-3 rounded-2xl border border-gray-100 shadow-sm mb-4">
             {noProductsInBusinessType ? (
               <div className="px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl text-[11px] font-bold text-amber-800">
                 No products listed in this business type

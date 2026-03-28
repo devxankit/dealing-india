@@ -9,7 +9,7 @@ import { debounce } from '../../../../shared/utils/helpers';
 import api from '../../../../shared/utils/api';
 import { useAuthStore } from '../../../../shared/store/authStore';
 
-const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true, searchQuery: propSearchQuery, onSearchChange, onSearchSubmit, hideSearch = false, customNav, searchPlaceholder = "SEARCH PRODUCTS AND SHOPS", suggestionEndpoint = "/products/b2b-suggestions" }) => {
+const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true, searchQuery: propSearchQuery, onSearchChange, onSearchSubmit, hideSearch = false, customNav, searchPlaceholder = "SEARCH PRODUCTS AND SHOPS", suggestionEndpoint = "/products/b2b-suggestions", transparent = false, minimal = false }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [currentSearchParams] = useSearchParams();
@@ -124,30 +124,30 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
     };
 
     return (
-        <header className={`${sticky ? 'sticky top-0' : 'relative'} z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm flex-shrink-0 pt-safe`}>
-            <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between gap-2 md:gap-4">
-                <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-                    {showBack && (
-                        <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                            <FiArrowLeft className="text-lg md:text-xl text-gray-700" />
-                        </button>
-                    )}
-
-                    {(title === "Business Dashboard" ||
-                        title === "Real Estate Hub" ||
-                        title === "Real Estate Developers" ||
-                        title === "Developer Properties" ||
-                        title === "Verified Brokers" ||
-                        title === "Become a Seller" ||
-                        location.pathname.includes('/real-estate/property/')) && (
-                            <Link to="/b2b/catalog" className="flex-shrink-0">
-                                <img
-                                    src={appLogo.src}
-                                    alt="Dealing India"
-                                    className="h-12 md:h-24 w-auto object-contain"
-                                />
-                            </Link>
+        <div className="flex-shrink-0">
+            <header className={`${sticky !== false ? 'fixed top-0 left-0 right-0' : 'relative'} z-[1000] ${transparent ? 'bg-transparent border-none shadow-none' : 'bg-white border-b border-gray-100 shadow-sm'} flex-shrink-0 pt-safe`}>
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between gap-2 md:gap-4">
+                    <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+                        {showBack && (
+                            <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                                <FiArrowLeft className="text-lg md:text-xl text-gray-700" />
+                            </button>
                         )}
+                        {(title === "Business Dashboard" ||
+                            title === "Real Estate Hub" ||
+                            title === "Real Estate Developers" ||
+                            title === "Developer Properties" ||
+                            title === "Verified Brokers" ||
+                            title === "Become a Seller" ||
+                            location.pathname.includes('/real-estate/property/')) && (
+                                <Link to="/b2b/catalog" className="flex-shrink-0">
+                                    <img
+                                        src={appLogo.src}
+                                        alt="Dealing India"
+                                        className="h-10 md:h-14 w-auto object-contain"
+                                    />
+                                </Link>
+                            )}
 
                     {title === "Bulk Marketplace" ||
                         title === "My Business Account" ||
@@ -181,7 +181,8 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                     )}
 
                     {/* Mobile quick links beside logo */}
-                    <div className="flex md:hidden items-center gap-1 ml-1">
+                    {!minimal && (
+                        <div className="flex md:hidden items-center gap-1 ml-1">
                         <Link
                             to="/b2b/catalog?itemType=lotslot"
                             className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
@@ -201,6 +202,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             Seller
                         </Link>
                     </div>
+                    )}
 
                     {/* Desktop Extra Links Next to Logo */}
                     {/* Desktop Extra Links Next to Logo */}
@@ -320,8 +322,12 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         </Link>
                     )}
                 </div>
-            </div>
-        </header>
+                </div>
+            </header>
+            {sticky !== false && !transparent && (
+                <div className="h-16 md:h-20 pt-safe" />
+            )}
+        </div>
     );
 };
 

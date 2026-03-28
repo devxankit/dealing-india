@@ -974,7 +974,7 @@ class SubscriptionService {
             name: vendorInfo.name,
             storeName: vendorInfo.storeName || vendorInfo.name,
             gstNumber: vendorInfo.gstNumber || null,
-            zohoContactId: null
+            zohoContactId: vendorInfo.zohoContactId || null
           });
 
           console.log(`[SubPay][Zoho] Contact Sync Result: ${contactId}`);

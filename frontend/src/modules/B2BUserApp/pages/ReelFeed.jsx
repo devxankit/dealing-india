@@ -119,6 +119,7 @@ export default function ReelFeed() {
       loadingMoreRef.current = false;
     }
   }, [activeCategory]);
+
   const playlistCategories = useMemo(() => {
     const subs = allCategories.flatMap((cat) => cat.subcategories || []);
     const names = subs
@@ -285,9 +286,7 @@ export default function ReelFeed() {
 
   const getShareUrl = useCallback(() => {
     if (!currentReel) return "";
-    // We send them to the backend /api/reels/share/:id endpoint
-    // This allows the backend to serve OG meta tags dynamically before redirecting to the app
-    const apiBase = api.defaults.baseURL; // Usually ends with /api
+    const apiBase = api.defaults.baseURL;
     const baseUrl = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
     return `${baseUrl}/api/reels/share/${currentReel._id}`;
   }, [currentReel]);
@@ -390,105 +389,29 @@ export default function ReelFeed() {
 
   return (
     <div
-      className="min-h-screen bg-black flex flex-col pb-[calc(4rem+env(safe-area-inset-bottom))]"
+      className="h-[100dvh] w-full bg-black relative overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <B2BHeader hideSearch sticky />
-
-      <div className="flex-1 relative overflow-hidden">
-        {/* Category Dropdown Filter - Floating Over Reel */}
-        <div className="absolute top-[calc(1rem+env(safe-area-inset-top))] left-4 z-[40]">
-          <div className="relative">
-            <button
-              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-              className="flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md border border-white/20 rounded-full text-white text-[11px] font-bold uppercase tracking-widest hover:bg-black/60 transition-all shadow-2xl"
-            >
-              <FiFilter className="text-primary-500" />
-              <span className="max-w-[120px] truncate">{activeCategory || "All Reels"}</span>
-              <FiChevronDown className={`transition-transform duration-300 ${showCategoryDropdown ? 'rotate-180' : ''}`} />
-            </button>
-
-            <AnimatePresence>
-              {showCategoryDropdown && (
-                <>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[-1]"
-                    onClick={() => setShowCategoryDropdown(false)}
-                  />
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    className="absolute top-full left-0 mt-2 w-64 max-h-[60vh] overflow-y-auto bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex flex-col no-scrollbar"
-                  >
-                    {/* Search Category */}
-                    <div className="sticky top-0 p-3 bg-gray-900/90 backdrop-blur-md border-b border-white/5 z-10">
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={categorySearch}
-                          onChange={(e) => setCategorySearch(e.target.value)}
-                          placeholder="Search categories..."
-                          className="w-full pl-8 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[11px] font-bold text-white placeholder:text-gray-500 outline-none focus:border-primary-500/50 transition-all"
-                        />
-                        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto no-scrollbar py-2">
-                      <button
-                        onClick={() => { setActiveCategory(""); setShowCategoryDropdown(false); setCategorySearch(""); }}
-                        className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                          activeCategory === "" ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
-                        }`}
-                      >
-                        All Reels
-                      </button>
-                      {playlistCategories.length > 0 ? (
-                        playlistCategories.map((name) => (
-                          <button
-                            key={name}
-                            onClick={() => { setActiveCategory(name); setShowCategoryDropdown(false); setCategorySearch(""); }}
-                            className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                              activeCategory === name ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
-                            }`}
-                          >
-                            {name}
-                          </button>
-                        ))
-                      ) : (
-                        <div className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest text-center">
-                          No categories found
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        <AnimatePresence>
+      {/* Background Video Layer - Full Screen */}
+      <div className="absolute inset-0 z-0 bg-black">
+        <AnimatePresence mode="wait">
           {currentReel && (
             <motion.div
               key={currentReel._id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 flex flex-col"
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0"
             >
-              <div className="flex-1 flex items-center justify-center bg-black relative">
+              <div className="h-full w-full flex items-center justify-center bg-black relative">
                 {getReelYoutubeId(currentReel) ? (
                   <div className="w-full h-full pointer-events-none">
                     <iframe
                       title={currentReel.title}
-                      src={`https://www.youtube.com/embed/${getReelYoutubeId(currentReel)}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${getReelYoutubeId(currentReel)}&rel=0&modestbranding=1&controls=0&disablekb=1&enablejsapi=1`}
-                      className="w-full h-full"
+                      src={`https://www.youtube.com/embed/${getReelYoutubeId(currentReel)}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${getReelYoutubeId(currentReel)}&rel=0&modestbranding=1&controls=0&disablekb=1&enablejsapi=1&iv_load_policy=3&showinfo=0`}
+                      className="w-full h-full scale-[1.3] md:scale-[1.05]"
                       allow="autoplay; encrypted-media; picture-in-picture"
                       allowFullScreen
                     />
@@ -496,10 +419,9 @@ export default function ReelFeed() {
                 ) : (
                   <video
                     src={currentReel.videoUrl}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-cover"
                     autoPlay
                     loop
-                    controls
                     playsInline
                     muted={isMuted}
                     crossOrigin="anonymous"
@@ -510,6 +432,7 @@ export default function ReelFeed() {
                 <div className="absolute inset-0 z-10" />
               </div>
 
+              {/* OVERLAYS INSIDE MOTION DIV */}
               <div className="absolute bottom-0 left-0 right-0 p-4 pb-24 bg-gradient-to-t from-black/80 z-20">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -583,49 +506,127 @@ export default function ReelFeed() {
         </AnimatePresence>
       </div>
 
-      <AnimatePresence>
-        {showShareModal && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 z-[45] backdrop-blur-[2px]"
-              style={{ bottom: '64px' }}
-              onClick={closeShareModal}
-            />
-            <motion.div
-              initial={{ opacity: 0, y: 100 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 100 }}
-              className="fixed bottom-[72px] left-3 right-3 z-[45] bg-gray-900 rounded-2xl px-5 pt-5 pb-6 border border-white/10 shadow-2xl"
+      <div className="h-full w-full relative z-40 pointer-events-none">
+        {/* Category Dropdown Filter - Floating Over Reel */}
+        <div className="absolute top-[calc(1.5rem+env(safe-area-inset-top))] left-4 z-[40] pointer-events-auto">
+          <div className="relative">
+            <button
+              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+              className="flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-md border border-white/20 rounded-full text-white text-[11px] font-bold uppercase tracking-widest hover:bg-black/60 transition-all shadow-2xl"
             >
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-semibold text-white">Share this reel</h3>
-                <button onClick={closeShareModal} className="p-2 text-gray-400 hover:text-white">
-                  <FiX className="text-xl" />
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <button onClick={copyLink} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 text-white">
-                  <FiCopy className="text-2xl" />
-                  <span className="text-sm">Copy link</span>
-                </button>
-                <button onClick={shareOnWhatsApp} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 text-white">
-                  <FaWhatsapp className="text-2xl text-[#25D366]" />
-                  <span className="text-sm">WhatsApp</span>
-                </button>
-                {typeof navigator !== "undefined" && navigator.share && (
-                  <button onClick={nativeShare} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 text-white">
-                    <FiShare2 className="text-2xl" />
-                    <span className="text-sm">More</span>
+              <FiFilter className="text-primary-500" />
+              <span className="max-w-[120px] truncate">{activeCategory || "All Reels"}</span>
+              <FiChevronDown className={`transition-transform duration-300 ${showCategoryDropdown ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {showCategoryDropdown && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-[-1]"
+                    onClick={() => setShowCategoryDropdown(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    className="absolute top-full left-0 mt-2 w-64 max-h-[60vh] overflow-y-auto bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex flex-col no-scrollbar"
+                  >
+                    <div className="sticky top-0 p-3 bg-gray-900/90 backdrop-blur-md border-b border-white/5 z-10">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={categorySearch}
+                          onChange={(e) => setCategorySearch(e.target.value)}
+                          placeholder="Search categories..."
+                          className="w-full pl-8 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[11px] font-bold text-white placeholder:text-gray-500 outline-none focus:border-primary-500/50 transition-all"
+                        />
+                        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto no-scrollbar py-2">
+                      <button
+                        onClick={() => { setActiveCategory(""); setShowCategoryDropdown(false); setCategorySearch(""); }}
+                        className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                          activeCategory === "" ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
+                        }`}
+                      >
+                        All Reels
+                      </button>
+                      {playlistCategories.length > 0 ? (
+                        playlistCategories.map((name) => (
+                          <button
+                            key={name}
+                            onClick={() => { setActiveCategory(name); setShowCategoryDropdown(false); setCategorySearch(""); }}
+                            className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                              activeCategory === name ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
+                            }`}
+                          >
+                            {name}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest text-center">
+                          No categories found
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Share Modal */}
+        <AnimatePresence>
+          {showShareModal && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/40 z-[45] backdrop-blur-[2px]"
+                style={{ bottom: '64px' }}
+                onClick={closeShareModal}
+              />
+              <motion.div
+                initial={{ opacity: 0, y: 100 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 100 }}
+                className="fixed bottom-[72px] left-3 right-3 z-[45] bg-gray-900 rounded-2xl px-5 pt-5 pb-6 border border-white/10 shadow-2xl pointer-events-auto"
+              >
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-lg font-semibold text-white">Share this reel</h3>
+                  <button onClick={closeShareModal} className="p-2 text-gray-400 hover:text-white">
+                    <FiX className="text-xl" />
                   </button>
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <button onClick={copyLink} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 text-white">
+                    <FiCopy className="text-2xl" />
+                    <span className="text-sm">Copy link</span>
+                  </button>
+                  <button onClick={shareOnWhatsApp} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 text-white">
+                    <FaWhatsapp className="text-2xl text-[#25D366]" />
+                    <span className="text-sm">WhatsApp</span>
+                  </button>
+                  {typeof navigator !== "undefined" && navigator.share && (
+                    <button onClick={nativeShare} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 text-white">
+                      <FiShare2 className="text-2xl" />
+                      <span className="text-sm">More</span>
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </div>
 
       <B2BBottomNav />
     </div>

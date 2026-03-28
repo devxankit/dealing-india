@@ -122,7 +122,7 @@ export const useSubscriptionStore = create((set, get) => ({
 
         return {
             allowed: true,
-            maxImages: state.status?.limits?.properties?.maxImages || 5,
+            maxImages: limits.maxImages || state.status?.limits?.properties?.maxImages || 5,
             remaining: limits.remaining ?? 0,
             current: limits.current ?? 0,
             limit: limits.limit ?? 0
@@ -269,7 +269,9 @@ export const useSubscriptionStore = create((set, get) => ({
     // Check if should show different listing sections based on business type
     isTextileVendor: () => {
         const state = get();
-        return state.status?.businessType === 'textile';
+        const bt = (state.status?.businessType || '').toLowerCase().trim();
+        // Allow anything that doesn't scream "Real Estate" to be treated as B2B/Textile
+        return bt === 'textile' || (!bt.includes('developer') && !bt.includes('broker') && !bt.includes('property'));
     },
 
     isPropertyVendor: () => {

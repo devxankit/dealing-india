@@ -94,7 +94,14 @@ async function zohoRequest(method, path, { params = {}, data = {} } = {}) {
 async function findContactByEmail(email) {
   if (!email) return null;
   const data = await zohoRequest('GET', '/contacts', { params: { email } });
-  return data?.contacts?.[0] || null;
+  const contacts = data?.contacts || [];
+  
+  // Strict match in case Zoho returns partial matches or first page of all contacts
+  const exactMatch = contacts.find(c => 
+    String(c.email || '').toLowerCase() === String(email).toLowerCase()
+  );
+  
+  return exactMatch || null;
 }
 
 async function createContact({ name, companyName, email, phone, gstNumber }) {

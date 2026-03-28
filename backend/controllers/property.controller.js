@@ -589,7 +589,7 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 export const getAllProperties = asyncHandler(async (req, res) => {
     const { search, city, area, market, propertyType, flatType, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, strict, sortBy, sortOrder } = req.query;
 
-    let query = { isActive: true };
+    let query = { isActive: { $ne: false } }; // Show all active or uninitialized properties
     const queryConditions = [];
 
     if (vendorId) queryConditions.push({ vendorId });
@@ -643,6 +643,14 @@ export const getAllProperties = asyncHandler(async (req, res) => {
             });
         }
     }
+
+    // NEW: Broaden vendor matching - only check approved vendors for public feed
+    const approvedVendors = await Vendor.find({ 
+        status: 'approved',
+        isActive: true 
+    }).select('_id').lean();
+    const approvedVendorIds = approvedVendors.map(v => v._id);
+    queryConditions.push({ vendorId: { $in: approvedVendorIds } });
 
     // Handle Location Filters (City, Area, Market) - Match property location OR vendor location
     if (city && city !== 'All Cities') {
@@ -721,22 +729,33 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     // Filter by Vendor Type
     let vendorMatch = {};
     if (type === 'developer') {
-        vendorMatch.businessType = { $regex: 'developer', $options: 'i' };
+        vendorMatch.businessType = { $regex: '^developer', $options: 'i' };
     } else if (type === 'broker') {
-        vendorMatch.businessType = { $regex: 'broker', $options: 'i' };
+        vendorMatch.businessType = { $regex: '^broker', $options: 'i' };
     }
 
     let properties = await Property.find(query)
         .populate({
             path: 'vendorId',
-            select: 'storeName address businessType phone storeLogo',
-            match: Object.keys(vendorMatch).length > 0 ? vendorMatch : undefined
+            select: 'storeName address businessType phone storeLogo status'
         })
         .populate('shopUnitId')
+        .sort({ createdAt: -1 }) // Sort at DB level
         .lean();
 
-    // Filter out properties where vendor didn't match the type
-    let filteredResults = properties.filter(p => p.vendorId !== null);
+    // Filter out properties where vendor didn't match the type or is missing
+    let filteredResults = properties.filter(p => {
+        if (!p.vendorId) return false;
+        
+        // If a specific vendor type was requested (developer/broker), filter for it
+        if (Object.keys(vendorMatch).length > 0) {
+            const bType = String(p.vendorId.businessType || '').toLowerCase();
+            if (type === 'developer' && !bType.startsWith('developer')) return false;
+            if (type === 'broker' && !bType.startsWith('broker')) return false;
+        }
+        
+        return true;
+    });
 
     // Helpers for normalization
     const getPriceInLakhs = (amount, unit) => {

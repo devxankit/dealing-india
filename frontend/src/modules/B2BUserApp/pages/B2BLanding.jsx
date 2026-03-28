@@ -81,6 +81,9 @@ const B2BLanding = () => {
     const priceDesktopRef = useRef(null);
     const priceMobileRef = useRef(null);
     const businessTypeRef = useRef(null);
+    const headerRef = useRef(null);
+    const toolbarRef = useRef(null);
+    const [headerHeight, setHeaderHeight] = useState(120); // Default fallback
 
     const [citySearchQuery, setCitySearchQuery] = useState('');
 
@@ -126,6 +129,32 @@ const B2BLanding = () => {
         fetchBusinessTypes();
         fetchAllVendors();
     }, [fetchCategories, fetchLocations, selectedCity]);
+
+    // Effect to calculate header height dynamically
+    useEffect(() => {
+        const updateHeight = () => {
+            const header = headerRef.current;
+            const toolbar = toolbarRef.current;
+            
+            if (header) {
+                let height = header.offsetHeight;
+                // On mobile, if toolbar exists and is fixed, add its height
+                if (window.innerWidth < 768 && toolbar) {
+                    height += toolbar.offsetHeight;
+                }
+                setHeaderHeight(height);
+            }
+        };
+
+        // Initial update with small delay for layout stabilization
+        const timer = setTimeout(updateHeight, 150);
+        
+        window.addEventListener('resize', updateHeight);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('resize', updateHeight);
+        };
+    }, []);
 
     // Only show vendors that have a shop (shopUnit) in the strip; dedupe by id so same card never appears twice
     const vendorsWithShop = useMemo(() => {
@@ -758,9 +787,8 @@ const B2BLanding = () => {
 
     return (
         <div className="min-h-screen bg-white font-sans text-gray-900 flex flex-col scrollbar-hide">
-
-            {/* --- HEADER + TOOLBAR (web: logo spans both rows) --- */}
-            <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm pt-safe">
+            {/* --- FIXED HEADER + TOOLBAR (Web) / HEADER ONLY (Mobile) --- */}
+            <div ref={headerRef} className="fixed top-0 left-0 right-0 z-[1000] bg-white border-b border-gray-100 shadow-sm pt-safe pb-1">
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6">
                     {/* Web (md+): Grid with logo spanning both rows */}
                     <div className="hidden md:grid md:grid-cols-[auto_1fr] md:items-center md:gap-4 md:py-1">
@@ -1205,8 +1233,11 @@ const B2BLanding = () => {
                 )}
             </AnimatePresence>
 
+            {/* Dynamic Spacer to handle fixed header height */}
+            <div style={{ height: `${headerHeight}px` }} className="flex-none"></div>
+
             {/* --- TOOLBAR (mobile only; web has it in header) --- */}
-            <section className="md:hidden bg-white border-b border-gray-100 shadow-sm relative z-40 flex-none">
+            <section ref={toolbarRef} className="md:hidden fixed top-[calc(3.5rem+env(safe-area-inset-top))] left-0 right-0 z-[90] bg-white border-b border-gray-100 shadow-sm flex-none">
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-1 md:py-1.5 flex flex-col md:flex-row items-stretch md:items-center gap-2">
 
                     <div className="flex gap-2 w-full md:w-auto">
@@ -1407,8 +1438,10 @@ const B2BLanding = () => {
                 </div>
             </section>
 
-            {/* --- BANNER SECTION --- */}
-            <section className="w-full bg-white pt-2 pb-2">
+
+
+        {/* --- BANNER SECTION --- */}
+        <section className="w-full bg-white pt-2 pb-2 mt-4 md:mt-0">
                 <div className="max-w-[1920px] mx-auto px-2 md:px-4">
                     <div className="rounded-[1rem] md:rounded-[1.4rem] overflow-hidden border border-gray-50">
                         <B2BBanner />

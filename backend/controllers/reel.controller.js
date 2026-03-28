@@ -149,15 +149,9 @@ export const uploadReel = asyncHandler(async (req, res) => {
     originalVideoUrl: uploadResult.secure_url,
     videoPublicId: uploadResult.public_id || null,
     durationSeconds: uploadResult.duration || null,
-    minimum: minimum ? String(minimum).trim().slice(0, 50) : '',
     status: 'pending',
+    minimum: minimum ? String(minimum).trim().slice(0, 50) : '',
   });
-
-  // Proactively ensure categoryName exists in B2BCategory if it's not already there
-  // For reels, we add it as a main category if it doesn't exist, as the frontend uses it for playlists
-  ensureCategoryStructure({
-    category: String(categoryName).trim(),
-  }).catch(err => console.error('[Reel Upload] Category auto-add failed:', err.message));
 
   // 🔹 Consume addon if necessary (Middleware flagged this)
   if (uploaderType === 'vendor' && req.subscriptionLimits?.reels?.useAddon) {

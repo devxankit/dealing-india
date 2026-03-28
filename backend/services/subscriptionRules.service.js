@@ -193,15 +193,7 @@ class SubscriptionRulesService {
                 };
             }
 
-            // 2. Business Type Restriction: Only Textile/General B2B can create products
-            const businessType = this.normalizeBusinessType(subData.vendor?.businessType);
-            if (businessType !== BUSINESS_TYPES.TEXTILE) {
-                return { 
-                    allowed: false, 
-                    message: 'Product listings are only available for Textile/B2B vendors. Your current business category does not support this task.' 
-                };
-            }
-
+            // 2. Subscription Limit Check (Bypassing hard business type block to allow flexibility)
             const plan = subData.plan || {};
             const sinceDate = subData.subscription?.startDate || new Date(0);
             const currentCount = await this.getProductCount(vendorId, sinceDate);
@@ -245,15 +237,9 @@ class SubscriptionRulesService {
                 vendorAddonService.getTotalAvailableAddonUnits(vendorId, 'lot_slot')
             ]);
 
-            // 1. Business Type Restriction
+            // 1. Subscription Check (Bypassing hard business type block)
             if (subData) {
-                const businessType = this.normalizeBusinessType(subData.vendor?.businessType);
-                if (businessType !== BUSINESS_TYPES.TEXTILE) {
-                    return { 
-                        allowed: false, 
-                        message: 'Lot/Slot tasks are only available for Textile manufacturers.' 
-                    };
-                }
+                // Logic removed specialized block to allow flexible modules
             }
 
             // 2. MUST HAVE SUBSCRIPTION
@@ -306,15 +292,9 @@ class SubscriptionRulesService {
         try {
             const subData = await this.getActiveSubscription(vendorId);
             
-            // 1. Business Type Restriction: Only Developer/Broker can create properties
+            // 1. Subscription Check (Bypassing hard business type block)
             if (subData) {
-                const businessType = this.normalizeBusinessType(subData.vendor?.businessType);
-                if (businessType === BUSINESS_TYPES.TEXTILE) {
-                    return { 
-                        allowed: false, 
-                        message: 'Property listings are only available for Developers and Brokers. Your current business category does not support this task.' 
-                    };
-                }
+                // Logic removed specialized block to allow flexible modules
             }
 
             // 1. MUST HAVE SUBSCRIPTION
@@ -635,7 +615,8 @@ class SubscriptionRulesService {
                     limit: totalProductLimit,
                     current: productCount,
                     remaining: productRemaining,
-                    hasAddon: addonStats.products > 0
+                    hasAddon: addonStats.products > 0,
+                    maxImages: imagesPerListing
                 },
                 lotSlot: {
                     allowed: totalLotSlotLimit !== 0,

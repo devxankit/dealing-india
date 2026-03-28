@@ -1,4 +1,4 @@
-// server.js - Updated at 2026-03-05 11:08
+﻿// server.js - Updated at 2026-03-05 11:08
 import express from "express";
 import http from "http";
 import cors from "cors";
@@ -14,7 +14,7 @@ const envPath = path.resolve(process.cwd(), ".env");
 // console.log('--- Initializing Server ---');
 // console.log(`Working Directory: ${process.cwd()}`);
 // console.log(`Searching .env at: ${envPath}`);
-// console.log(`.env file exists? ${fs.existsSync(envPath) ? '✅ YES' : '❌ NO'}`);
+// console.log(`.env file exists? ${fs.existsSync(envPath) ? 'âœ… YES' : 'âŒ NO'}`);
 
 dotenv.config();
 
@@ -173,8 +173,8 @@ app.use(
         return callback(null, true);
       }
 
-      // Silently reject — do NOT throw an error (prevents 500s in production)
-      console.warn(`⚠️  CORS rejected origin: ${origin}`);
+      // Silently reject â€” do NOT throw an error (prevents 500s in production)
+      console.warn(`âš ï¸  CORS rejected origin: ${origin}`);
       return callback(null, false);
     },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -363,17 +363,17 @@ app.use("/api/admin/users", adminUserRoutes);
 
 // Global error handler for unhandled promise rejections
 process.on("unhandledRejection", (reason, promise) => {
-  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+  console.error("âŒ Unhandled Rejection at:", promise, "reason:", reason);
   // Don't exit the process in production, just log
   if (process.env.NODE_ENV === "production") {
     console.error(
-      "⚠️  Unhandled promise rejection logged. Server continues running.",
+      "âš ï¸  Unhandled promise rejection logged. Server continues running.",
     );
   }
 });
 
 process.on("uncaughtException", (error) => {
-  console.error("❌ Uncaught Exception:", error);
+  console.error("âŒ Uncaught Exception:", error);
   // In production, log and continue; in development, might want to exit
   if (process.env.NODE_ENV !== "production") {
     process.exit(1);
@@ -412,21 +412,21 @@ const startServer = async () => {
       .map(([key]) => key);
 
     if (missingVars.length > 0) {
-      console.error("❌ CRITICAL: Missing required environment variables:");
+      console.error("âŒ CRITICAL: Missing required environment variables:");
       missingVars.forEach((varName) => {
         console.error(`   - ${varName}`);
       });
-      console.error("⚠️  Server will start but may not function correctly.");
+      console.error("âš ï¸  Server will start but may not function correctly.");
     }
 
     // Check email configuration (critical for registration)
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       console.error(
-        "⚠️  WARNING: Email service not configured (EMAIL_USER or EMAIL_PASS missing)",
+        "âš ï¸  WARNING: Email service not configured (EMAIL_USER or EMAIL_PASS missing)",
       );
-      console.error("⚠️  Registration will fail without email service.");
+      console.error("âš ï¸  Registration will fail without email service.");
     } else {
-      // console.log('✅ Email service configuration found');
+      // console.log('âœ… Email service configuration found');
     }
 
     // Connect to database
@@ -441,7 +441,7 @@ const startServer = async () => {
     bannerBookingCron();
     startReelExpiryCron();
     startYouTubeLinkValidationCron();
-    console.log("✅ Background Cron Jobs initialized");
+    console.log("âœ… Background Cron Jobs initialized");
 
     // Drop problematic OTP index if it exists
     try {
@@ -458,7 +458,7 @@ const startServer = async () => {
       );
       if (problematicIndex) {
         await otpCollection.dropIndex(problematicIndex.name);
-        console.log("✅ Dropped problematic OTP index");
+        console.log("âœ… Dropped problematic OTP index");
       }
     } catch (indexError) {
       // Index might not exist or already dropped, ignore
@@ -486,7 +486,7 @@ const startServer = async () => {
           { expiresAt: 1 },
           { expireAfterSeconds: 0 },
         );
-        console.log("✅ Created TTL index for TemporaryRegistration");
+        console.log("âœ… Created TTL index for TemporaryRegistration");
       }
     } catch (ttlIndexError) {
       // Index might already exist or collection doesn't exist yet, ignore
@@ -502,23 +502,23 @@ const startServer = async () => {
     const io = setupSocketIO(httpServer, corsOrigins);
     // Make io instance available to routes/controllers
     app.set("io", io);
-    // console.log('✅ Socket.io initialized');
+    // console.log('âœ… Socket.io initialized');
 
     // Start server after database connection
     httpServer
       .listen(PORT, () => {
-        console.log(`\n🚀 Server is running!`);
+        console.log(`\nðŸš€ Server is running!`);
         console.log(`   Port: ${PORT}`);
         console.log(`   Environment: ${process.env.NODE_ENV || "development"}`);
         console.log(`   CORS Origins: ${corsOrigins.length} configured`);
         console.log(
-          `   Database: ${mongoose.connection.readyState === 1 ? "✅ Connected" : "❌ Not Connected"}`,
+          `   Database: ${mongoose.connection.readyState === 1 ? "âœ… Connected" : "âŒ Not Connected"}`,
         );
         console.log(
-          `   Redis: ${redisClient.isReady ? "✅ Connected" : "❌ Not Connected"}`,
+          `   Redis: ${redisClient.isReady ? "âœ… Connected" : "âŒ Not Connected"}`,
         );
         console.log(
-          `   Email Service: ${process.env.EMAIL_USER && process.env.EMAIL_PASS ? "✅ Configured" : "❌ Not Configured"}`,
+          `   Email Service: ${process.env.EMAIL_USER && process.env.EMAIL_PASS ? "âœ… Configured" : "âŒ Not Configured"}`,
         );
 
         if (process.env.NODE_ENV === "production") {
@@ -537,22 +537,22 @@ const startServer = async () => {
         if (process.env.NODE_ENV === "production") {
           if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
             console.error(
-              "\n🚨 CRITICAL WARNING: Email service not configured in production!",
+              "\nðŸš¨ CRITICAL WARNING: Email service not configured in production!",
             );
             console.error(
-              "🚨 Registration will fail. Please set EMAIL_USER and EMAIL_PASS in Render environment variables.",
+              "ðŸš¨ Registration will fail. Please set EMAIL_USER and EMAIL_PASS in Render environment variables.",
             );
           }
           if (!process.env.SOCKET_CORS_ORIGIN) {
             console.warn(
-              "\n⚠️  WARNING: SOCKET_CORS_ORIGIN not set. Socket.io may not work correctly.",
+              "\nâš ï¸  WARNING: SOCKET_CORS_ORIGIN not set. Socket.io may not work correctly.",
             );
           }
         }
       })
       .on("error", (err) => {
         if (err.code === "EADDRINUSE") {
-          console.error(`\n❌ Port ${PORT} is already in use!`);
+          console.error(`\nâŒ Port ${PORT} is already in use!`);
           console.error(
             `   Please kill the process using port ${PORT} or change the PORT in .env file`,
           );
@@ -561,15 +561,14 @@ const startServer = async () => {
           );
           process.exit(1);
         } else {
-          console.error("❌ Server error:", err);
+          console.error("âŒ Server error:", err);
           process.exit(1);
         }
       });
   } catch (error) {
-    console.error("❌ Failed to start server:", error);
+    console.error("âŒ Failed to start server:", error);
     process.exit(1);
   }
 };
 
 startServer();
-// Restart trigger
