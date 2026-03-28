@@ -124,7 +124,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
     };
 
     return (
-        <header className={`${sticky ? 'sticky top-0' : 'relative'} z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm flex-shrink-0`}>
+        <header className={`${sticky ? 'sticky top-0' : 'relative'} z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm flex-shrink-0 pt-safe`}>
             <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between gap-2 md:gap-4">
                 <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
                     {showBack && (

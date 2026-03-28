@@ -390,7 +390,7 @@ export default function ReelFeed() {
 
   return (
     <div
-      className="min-h-screen bg-black flex flex-col pb-16"
+      className="min-h-screen bg-black flex flex-col pb-[calc(4rem+env(safe-area-inset-bottom))]"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -398,7 +398,7 @@ export default function ReelFeed() {
 
       <div className="flex-1 relative overflow-hidden">
         {/* Category Dropdown Filter - Floating Over Reel */}
-        <div className="absolute top-4 left-4 z-[40]">
+        <div className="absolute top-[calc(1rem+env(safe-area-inset-top))] left-4 z-[40]">
           <div className="relative">
             <button
               onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}

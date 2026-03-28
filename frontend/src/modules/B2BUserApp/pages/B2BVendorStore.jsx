@@ -329,7 +329,7 @@ const B2BVendorStore = () => {
     const mainTabLabel = isPropertyVendor ? "Properties" : "Products";
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="min-h-screen bg-gray-50 pb-[calc(6rem+env(safe-area-inset-bottom))]">
             <B2BHeader
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
