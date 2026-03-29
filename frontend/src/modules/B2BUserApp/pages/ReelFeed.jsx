@@ -393,8 +393,8 @@ export default function ReelFeed() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Background Video Layer - Full Screen */}
-      <div className="absolute inset-0 z-0 bg-black">
+      {/* Background Video Layer - Starts below status bar */}
+      <div className="absolute inset-x-0 bottom-0 top-[env(safe-area-inset-top)] z-0 bg-black">
         <AnimatePresence mode="wait">
           {currentReel && (
             <motion.div
@@ -433,7 +433,7 @@ export default function ReelFeed() {
               </div>
 
               {/* OVERLAYS INSIDE MOTION DIV */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 pb-24 bg-gradient-to-t from-black/80 z-20">
+              <div className="absolute bottom-0 left-0 right-0 p-4 pb-[calc(110px+env(safe-area-inset-bottom))] bg-gradient-to-t from-black/80 z-20">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -465,7 +465,7 @@ export default function ReelFeed() {
                 </div>
               </div>
 
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-6 z-30">
+              <div className="absolute right-3 bottom-[calc(170px+env(safe-area-inset-bottom))] flex flex-col gap-6 z-30">
                 <button
                   onClick={() => toggleLike(currentReel)}
                   className="flex flex-col items-center text-white"
@@ -507,8 +507,8 @@ export default function ReelFeed() {
       </div>
 
       <div className="h-full w-full relative z-40 pointer-events-none">
-        {/* Category Dropdown Filter - Floating Over Reel */}
-        <div className="absolute top-[calc(1.5rem+env(safe-area-inset-top))] left-4 z-[40] pointer-events-auto">
+        {/* Category Dropdown Filter - Positioned relative to the shifted video area */}
+        <div className="absolute top-[calc(1rem+env(safe-area-inset-top))] left-4 z-[40] pointer-events-auto">
           <div className="relative">
             <button
               onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
@@ -591,14 +591,14 @@ export default function ReelFeed() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 bg-black/40 z-[45] backdrop-blur-[2px]"
-                style={{ bottom: '64px' }}
+                style={{ bottom: 'calc(64px + env(safe-area-inset-bottom))' }}
                 onClick={closeShareModal}
               />
               <motion.div
                 initial={{ opacity: 0, y: 100 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 100 }}
-                className="fixed bottom-[72px] left-3 right-3 z-[45] bg-gray-900 rounded-2xl px-5 pt-5 pb-6 border border-white/10 shadow-2xl pointer-events-auto"
+                className="fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-3 right-3 z-[45] bg-gray-900 rounded-2xl px-5 pt-5 pb-6 border border-white/10 shadow-2xl pointer-events-auto"
               >
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="text-lg font-semibold text-white">Share this reel</h3>

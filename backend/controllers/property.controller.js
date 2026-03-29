@@ -194,7 +194,7 @@ export const addProperty = asyncHandler(async (req, res) => {
     const maxImages = req.subscriptionLimits?.property?.maxImages || 50;
 
     const { media } = req.body;
-    if (media && media.length > maxImages) {
+    if (maxImages !== -1 && media && media.length > maxImages) {
         return res.status(400).json({
             success: false,
             message: `Image limit exceeded. Maximum ${maxImages} images allowed for your subscription.`
@@ -348,7 +348,7 @@ export const updateProperty = asyncHandler(async (req, res) => {
         // Developer: 50 images, Broker: 5 images
         const maxImages = req.subscriptionLimits?.property?.maxImages || 50;
 
-        if (req.body.media.length > maxImages) {
+        if (maxImages !== -1 && req.body.media.length > maxImages) {
             return res.status(400).json({
                 success: false,
                 message: `Image limit exceeded. Maximum ${maxImages} images allowed for your subscription.`
