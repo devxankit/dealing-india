@@ -8,6 +8,8 @@ import {
   adminRetryYouTubeUpload,
   adminRejectReel,
   adminDeleteReel,
+  adminListReelReports,
+  adminResolveReelReport,
 } from '../controllers/reel.controller.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
@@ -23,5 +25,9 @@ router.post('/:id/retry-youtube', asyncHandler(adminRetryYouTubeUpload));
 router.post('/:id/reject', asyncHandler(adminRejectReel));
 
 router.delete('/:id', asyncHandler(adminDeleteReel));
+
+// Report Management
+router.get('/reports/all', asyncHandler(adminListReelReports));
+router.post('/reports/:id/resolve', asyncHandler(adminResolveReelReport));
 
 export default router;

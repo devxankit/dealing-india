@@ -326,6 +326,10 @@ class VendorAddonService {
             discount: discount
           });
           
+          if (invoice.id) {
+            await zohoBooksService.markInvoiceAsSent(invoice.id);
+          }
+          
           const paymentResult = await zohoBooksService.recordInvoicePayment({
             contactId, 
             invoiceId: invoice.id, 

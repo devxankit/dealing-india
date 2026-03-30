@@ -12,4 +12,8 @@ router.use(authorize('admin'));
 // Get all B2B vendor subscriptions
 router.get('/', AdminB2BVendorSubscriptionController.getSubscriptions);
 
+// Billing & Invoices
+router.get('/vendor/:vendorId/billing', AdminB2BVendorSubscriptionController.getVendorBillingHistory);
+router.get('/invoice/:invoiceId', AdminB2BVendorSubscriptionController.downloadVendorInvoice);
+
 export default router;

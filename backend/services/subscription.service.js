@@ -771,7 +771,8 @@ class SubscriptionService {
         expiry: sub.endDate ? new Date(sub.endDate).toISOString().split('T')[0] : null,
         renew: sub.autoRenew,
         startDate: sub.startDate ? new Date(sub.startDate).toISOString().split('T')[0] : null,
-        subscriptionId: sub._id
+        subscriptionId: sub._id,
+        zohoInvoiceId: sub.zohoInvoiceId
       }));
     } catch (error) {
       console.error('Error getting all subscriptions:', error);
@@ -889,7 +890,8 @@ class SubscriptionService {
           type: 'subscription_payment',
           status: sub.status === 'failed' ? 'failed' : 'completed',
           date: sub.lastPaymentDate || sub.startDate,
-          planName: sub.planId?.name || 'Unknown'
+          planName: sub.planId?.name || 'Unknown',
+          zohoInvoiceId: sub.zohoInvoiceId
         });
       }
     }
@@ -903,7 +905,8 @@ class SubscriptionService {
         type: 'addon_purchase',
         status: addon.status === 'failed' ? 'failed' : 'completed',
         date: addon.purchaseDate || addon.createdAt,
-        planName: addon.addonPlanId?.name || `Add-on: ${addon.featureType}`
+        planName: addon.addonPlanId?.name || `Add-on: ${addon.featureType}`,
+        zohoInvoiceId: addon.zohoInvoiceId
       });
     }
 
@@ -1007,6 +1010,12 @@ class SubscriptionService {
             gstAmount: gstAmount,
             discount: discount
           });
+
+          // Mark as sent so it's not a draft (required for PDF and some states)
+          if (invoice.id) {
+            await zohoBooksService.markInvoiceAsSent(invoice.id);
+          }
+
           await zohoBooksService.recordInvoicePayment({
             contactId, invoiceId: invoice.id, amount, paymentDate: new Date(), razorpayPaymentId
           });

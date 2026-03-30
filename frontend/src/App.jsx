@@ -115,6 +115,9 @@ const AdminReelModeration = lazyWithRetry(
 const AdminMusicLibrary = lazyWithRetry(
   () => import("./modules/Admin/pages/MusicLibrary"),
 );
+const AdminReelReports = lazyWithRetry(
+  () => import("./modules/Admin/pages/ReelReports"),
+);
 const RouteWrapper = lazyWithRetry(
   () => import("./shared/components/RouteWrapper"),
 );
@@ -188,6 +191,9 @@ const B2BVendorProfile = lazyWithRetry(
 );
 const B2BVendorSubscription = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/Subscription"),
+);
+const B2BVendorBilling = lazyWithRetry(
+  () => import("./modules/B2BVendor/pages/Billing"),
 );
 const B2BVendorBannerBooking = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/B2BBannerBooking"),
@@ -405,6 +411,7 @@ const AppRoutes = () => {
 
           <Route path="notifications" element={<Notifications />} />
           <Route path="reels" element={<AdminReelModeration />} />
+          <Route path="reel-reports" element={<AdminReelReports />} />
           <Route path="music-library" element={<AdminMusicLibrary />} />
           <Route path="support-settings" element={<SupportSettings />} />
         </Route>
@@ -556,6 +563,7 @@ const AppRoutes = () => {
           />
 
           <Route path="subscription" element={<B2BVendorSubscription />} />
+          <Route path="billing" element={<B2BVendorBilling />} />
           <Route path="banner-booking" element={<B2BVendorBannerBooking />} />
           <Route path="lotslot">
             <Route

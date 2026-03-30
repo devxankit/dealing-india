@@ -103,7 +103,7 @@ const ManageProperties = () => {
                     >
                         <option value="all">All Property Types</option>
                         <option value="flat">Flat</option>
-                        <option value="villa">Villa</option>
+                        <option value="villa">Row house / Villa</option>
                         <option value="commercial">Commercial</option>
                     </select>
                     {/* Wrapped with SubscriptionGate to enforce Premium plan and show max images */}
@@ -237,7 +237,7 @@ const ManageProperties = () => {
                                             </div>
                                             <div className="text-center">
                                                 <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Type</p>
-                                                <p className="text-[10px] font-black text-slate-700 truncate">{property.propertyType === 'Plot' ? 'Plot' : 'Villa'}</p>
+                                                <p className="text-[10px] font-black text-slate-700 truncate">{property.propertyType === 'Plot' ? 'Plot' : 'Row house / Villa'}</p>
                                             </div>
                                         </div>
                                     );

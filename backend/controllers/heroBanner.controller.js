@@ -266,8 +266,15 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
                 currency: 'INR',
                 referenceNumber: invoiceRef,
                 notes: invoiceNotes,
+                vendorGstNumber: vendorDoc.gstNumber,
+                baseAmount: booking.baseAmount,
+                gstAmount: booking.gstAmount
             });
             console.log('[BannerPay][Zoho] Invoice created', invoice);
+
+            if (invoice.id) {
+                await zohoBooksService.markInvoiceAsSent(invoice.id);
+            }
 
             // 3. Record payment
             const payment = await zohoBooksService.recordInvoicePayment({
@@ -557,8 +564,15 @@ export const confirmPayment = asyncHandler(async (req, res) => {
             currency: 'INR',
             referenceNumber: invoiceRef,
             notes: invoiceNotes,
+            vendorGstNumber: vendorDoc.gstNumber,
+            baseAmount: booking.baseAmount,
+            gstAmount: booking.gstAmount
         });
         console.log('[BannerPay][Zoho] Invoice created', invoice);
+
+        if (invoice.id) {
+            await zohoBooksService.markInvoiceAsSent(invoice.id);
+        }
 
         // 3. Record payment
         const payment = await zohoBooksService.recordInvoicePayment({

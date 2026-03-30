@@ -26,6 +26,7 @@ import {
   FiGift,
   FiVideo,
   FiMusic,
+  FiAlertTriangle,
 } from "react-icons/fi";
 import { useAdminAuthStore } from "../../store/adminStore";
 import adminMenu from "../../config/adminMenu.json";
@@ -53,6 +54,7 @@ const iconMap = {
   "Support Settings": FiMessageCircle,
   Settings: FiSettings,
   "Reel Moderation": FiVideo,
+  "Reel Reports": FiAlertTriangle,
   "Music Library": FiMusic,
   Firebase: FiDatabase,
 };
@@ -83,6 +85,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   const [expandedItems, setExpandedItems] = useState({});
   const [isMobile, setIsMobile] = useState(false);
   const [pendingReelsCount, setPendingReelsCount] = useState(0);
+  const [pendingReportsCount, setPendingReportsCount] = useState(0);
 
   // Fetch count of pending reels for moderation badge
   useEffect(() => {
@@ -107,7 +110,23 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     };
 
     fetchPendingReelsCount();
-    const interval = setInterval(fetchPendingReelsCount, 60000);
+    
+    const fetchPendingReportsCount = async () => {
+      try {
+        const res = await api.get(`/admin/reels/reports/all?status=pending&limit=1`);
+        if (!cancelled && res?.pagination?.total != null) {
+          setPendingReportsCount(res.pagination.total);
+        }
+      } catch {
+        if (!cancelled) setPendingReportsCount(0);
+      }
+    };
+    fetchPendingReportsCount();
+
+    const interval = setInterval(() => {
+      fetchPendingReelsCount();
+      fetchPendingReportsCount();
+    }, 60000);
 
     return () => {
       cancelled = true;
@@ -267,6 +286,11 @@ const AdminSidebar = ({ isOpen, onClose }) => {
             {item.route === "/admin/reels" && pendingReelsCount > 0 && (
               <span className="inline-flex items-center justify-center min-w-[18px] px-1.5 py-0.5 rounded-full bg-red-500 text-[11px] font-semibold text-white">
                 {pendingReelsCount > 99 ? "99+" : pendingReelsCount}
+              </span>
+            )}
+            {item.route === "/admin/reel-reports" && pendingReportsCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] px-1.5 py-0.5 rounded-full bg-red-500 text-[11px] font-semibold text-white">
+                {pendingReportsCount > 99 ? "99+" : pendingReportsCount}
               </span>
             )}
           </span>

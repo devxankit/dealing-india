@@ -242,6 +242,13 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + plan.duration);
 
+      const basePrice = plan.price || 0;
+      const discount = plan.discount || 0;
+      const priceAfterDiscount = Math.max(0, basePrice - discount);
+      const gstPercentage = plan.gst || 18;
+      const gstAmount = Math.round(priceAfterDiscount * (gstPercentage / 100));
+      const totalAmount = priceAfterDiscount + gstAmount;
+
       const subscriptionData = {
         vendorId: createdVendor._id,
         planId: plan._id,
@@ -254,7 +261,11 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
         razorpaySignature: paymentData.razorpaySignature,
         lastPaymentDate: startDate,
         nextBillingDate: endDate,
-        usage: { lastResetDate: startDate }
+        usage: { lastResetDate: startDate },
+        basePrice,
+        discount,
+        gstAmount,
+        totalAmount
       };
       subscription = await VendorSubscription.create([subscriptionData], { session });
     }
@@ -294,6 +305,13 @@ export const createB2BSubscriptionAfterPayment = async (planId, paymentData, ema
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + plan.duration);
 
+    const basePrice = plan.price || 0;
+    const discount = plan.discount || 0;
+    const priceAfterDiscount = Math.max(0, basePrice - discount);
+    const gstPercentage = plan.gst || 18;
+    const gstAmount = Math.round(priceAfterDiscount * (gstPercentage / 100));
+    const totalAmount = priceAfterDiscount + gstAmount;
+
     const [subscription] = await VendorSubscription.create([{
       vendorId: null,
       planId: plan._id,
@@ -308,7 +326,11 @@ export const createB2BSubscriptionAfterPayment = async (planId, paymentData, ema
       razorpaySignature: paymentData.razorpaySignature,
       lastPaymentDate: startDate,
       nextBillingDate: endDate,
-      usage: { lastResetDate: startDate }
+      usage: { lastResetDate: startDate },
+      basePrice,
+      discount,
+      gstAmount,
+      totalAmount
     }], { session });
 
     await session.commitTransaction();

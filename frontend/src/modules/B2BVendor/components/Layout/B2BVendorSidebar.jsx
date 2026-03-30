@@ -34,7 +34,7 @@ const iconMap = {
     "Manage Properties": FiHome,
     "Add Commercial": FiPlus,
     "Add Flat": FiPlus,
-    "Add Villa / Row House": FiPlus,
+    "Add Row house / Villa": FiPlus,
     "Lot/Slot Listings": FiPlus,
     Subscription: FiCreditCard,
     "Banner Booking": FiImage,
@@ -44,6 +44,7 @@ const iconMap = {
     Security: FiBriefcase,
     Reels: FiVideo,
     Followers: FiUsers,
+    "Billing & Invoices": FiCreditCard,
 };
 
 const getChildRoute = (parentRoute, childName) => {
@@ -56,7 +57,7 @@ const getChildRoute = (parentRoute, childName) => {
             "Manage Properties": "/b2b-vendor/properties/manage-properties",
             "Add Commercial": "/b2b-vendor/properties/add-commercial",
             "Add Flat": "/b2b-vendor/properties/add-flat",
-            "Add Villa / Row House": "/b2b-vendor/properties/add-villa"
+            "Add Row house / Villa": "/b2b-vendor/properties/add-villa"
         },
         "/b2b-vendor/lotslot": {
             "Manage Lots": "/b2b-vendor/lotslot/manage-lots",
@@ -95,7 +96,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const filteredMenu = b2bVendorMenu.filter(item => {
         if (item.title === "Dashboard") return true;
 
-        const alwaysVisible = ["Subscription", "Banner Booking", "Notifications", "Account Settings"];
+        const alwaysVisible = ["Subscription", "Billing & Invoices", "Banner Booking", "Notifications", "Account Settings"];
         if (alwaysVisible.includes(item.title)) return true;
 
         if (!settings || !settings.enabledModules) return false;
@@ -122,7 +123,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
         const childFormMap = {
             'Add Commercial': 'property',
             'Add Flat': 'flat',
-            'Add Villa / Row House': 'villa'
+            'Add Row house / Villa': 'villa'
         };
 
         return item.children.filter((child) => {

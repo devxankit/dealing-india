@@ -17,7 +17,9 @@ import {
     FiCalendar,
     FiArrowUpRight,
     FiArrowLeft,
-    FiMapPin
+    FiMapPin,
+    FiDownload,
+    FiFileText
 } from "react-icons/fi";
 import api from "../../../../shared/utils/api";
 import { getBusinessTypes } from "../../../../shared/utils/businessTypeCache";
@@ -28,6 +30,7 @@ const AdminVendorDashboardView = () => {
     const navigate = useNavigate();
     const [data, setData] = useState(null);
     const [settings, setSettings] = useState(null);
+    const [billingHistory, setBillingHistory] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -55,6 +58,12 @@ const AdminVendorDashboardView = () => {
                     if (settingsRes.success) {
                         setSettings(settingsRes.data);
                     }
+                }
+
+                // 4. Fetch Billing History
+                const billingRes = await api.get(`/admin/b2b-vendors/subscriptions/vendor/${id}/billing`);
+                if (billingRes.success) {
+                    setBillingHistory(billingRes.data);
                 }
             } catch (error) {
                 console.error("Error fetching vendor dashboard:", error);
@@ -104,6 +113,33 @@ const AdminVendorDashboardView = () => {
         enableLotSlotListing: true,
         enableBanner: true,
         widgets: ['stats', 'listings_overview', 'subscription_status', 'banner_promo', 'alerts']
+    };
+
+    const handleDownloadInvoice = async (invoiceId) => {
+        if (!invoiceId) {
+            toast.error("Invoice ID not found. The invoice might not have been generated yet.");
+            return;
+        }
+
+        const toastId = toast.loading("Preparing invoice...");
+        try {
+            const response = await api.get(`/admin/b2b-vendors/subscriptions/invoice/${invoiceId}`, {
+                responseType: 'blob'
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Invoice-${invoiceId}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success("Invoice downloaded successfully", { id: toastId });
+        } catch (error) {
+            console.error('Invoice Download Failed:', error);
+            toast.error("Failed to download invoice. Please try again later.", { id: toastId });
+        }
     };
 
     return (
@@ -296,6 +332,69 @@ const AdminVendorDashboardView = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Billing History & Invoices */}
+                    <div>
+                        <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 ml-2">Billing & Invoices</h2>
+                        <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm overflow-hidden">
+                            {billingHistory.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 pb-4">
+                                                <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+                                                <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Plan / Item</th>
+                                                <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
+                                                <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                                <th className="pb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Invoice</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {billingHistory.map((item, idx) => (
+                                                <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
+                                                    <td className="py-5 text-xs font-bold text-slate-600">
+                                                        {new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    </td>
+                                                    <td className="py-5">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-black text-slate-800">{item.planName}</span>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">#{item.transactionCode}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-5 text-sm font-black text-slate-900">
+                                                        ₹{item.amount.toLocaleString('en-IN')}
+                                                    </td>
+                                                    <td className="py-5">
+                                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${item.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                                                            {item.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-5 text-right">
+                                                        {item.zohoInvoiceId ? (
+                                                            <button
+                                                                onClick={() => handleDownloadInvoice(item.zohoInvoiceId)}
+                                                                className="p-2.5 bg-primary-50 text-primary-600 hover:bg-primary-600 hover:text-white rounded-xl transition-all shadow-sm flex items-center gap-2 text-xs font-black uppercase float-right"
+                                                                title="Download PDF Invoice"
+                                                            >
+                                                                <FiDownload size={14} />
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Not Available</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                                    <FiFileText className="mx-auto text-3xl text-slate-300 mb-3" />
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No billing history found</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
                     {/* Shop Details & Staff */}
                     {shopUnit && (

@@ -155,8 +155,8 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                 newVals[`${f.label}_custom`] = strVal || '';
                             }
                         } else if (f.type === 'multi-select') {
-                            const arrVal = Array.isArray(val) ? val : [val];
-                            if (!newVals[f.label]) newVals[f.label] = arrVal.map(v => (v != null ? String(v) : ''));
+                            const arrVal = Array.isArray(val) ? val : (typeof val === 'string' ? val.split(',').map(v => v.trim()) : [val]);
+                            if (!newVals[f.label]) newVals[f.label] = arrVal.map(v => (v != null ? String(v) : '')).filter(Boolean);
                         } else if (!newVals[f.label]) {
                             newVals[f.label] = val;
                         }
@@ -507,65 +507,90 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                             )}
 
                                             {f.type === "multi-select" && (
-                                                <div className="space-y-3">
-                                                    <select
-                                                        multiple
-                                                        value={Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label].filter(v => (f.options || []).some(o => String(o) === String(v))) : []}
-                                                        className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-primary-500 rounded-xl outline-none min-h-[80px]"
-                                                        onChange={(e) => {
-                                                            const vals = [...e.target.selectedOptions].map(o => o.value);
-                                                            const customVals = (dynamicValues[f.label] || []).filter(v => !(f.options || []).some(o => String(o).toLowerCase() === String(v).toLowerCase()));
-                                                            setDynamicValues(p => ({ ...p, [f.label]: [...vals, ...customVals] }));
-                                                        }}
-                                                    >
-                                                        {(f.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                    </select>
-                                                    <div className="flex flex-wrap gap-2 items-center">
-                                                        <input
-                                                            type="text"
-                                                            value={customMultiInputs[f.label] ?? ''}
-                                                            className="flex-1 min-w-[120px] px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:border-primary-500 outline-none"
-                                                            placeholder="Add custom value (not in list)"
-                                                            onChange={(e) => setCustomMultiInputs(p => ({ ...p, [f.label]: e.target.value }))}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    e.preventDefault();
+                                                <div className="space-y-4">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 bg-white p-3 rounded-xl border border-gray-100 shadow-inner max-h-72 overflow-y-auto custom-scrollbar">
+                                                        {(f.options || []).map(opt => {
+                                                            const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
+                                                            const isChecked = currentVals.includes(opt);
+                                                            return (
+                                                                <label key={opt} className={`flex items-start gap-2 p-2.5 rounded-lg cursor-pointer transition-all ${isChecked ? 'bg-primary-50 border-primary-100' : 'hover:bg-gray-50 border-transparent'} border min-w-0`}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isChecked}
+                                                                        onChange={(e) => {
+                                                                            if (e.target.checked) {
+                                                                                setDynamicValues(p => ({ ...p, [f.label]: [...currentVals, opt] }));
+                                                                            } else {
+                                                                                setDynamicValues(p => ({ ...p, [f.label]: currentVals.filter(v => v !== opt) }));
+                                                                            }
+                                                                        }}
+                                                                        className="w-4 h-4 mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 flex-shrink-0"
+                                                                    />
+                                                                    <span className="text-[11px] font-black text-gray-800 uppercase leading-tight whitespace-normal break-words">{opt}</span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+
+                                                    <div className="flex flex-col gap-2">
+                                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Or add custom value</p>
+                                                        <div className="flex gap-2">
+                                                            <input
+                                                                type="text"
+                                                                value={customMultiInputs[f.label] ?? ''}
+                                                                className="flex-1 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:border-primary-500 outline-none"
+                                                                placeholder="Type and press Enter"
+                                                                onChange={(e) => setCustomMultiInputs(p => ({ ...p, [f.label]: e.target.value }))}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        const v = (customMultiInputs[f.label] ?? '').trim();
+                                                                        if (!v) return;
+                                                                        const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
+                                                                        if (currentVals.some(c => String(c).toLowerCase() === v.toLowerCase())) return;
+                                                                        setDynamicValues(p => ({ ...p, [f.label]: [...currentVals, v] }));
+                                                                        setCustomMultiInputs(p => ({ ...p, [f.label]: '' }));
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
                                                                     const v = (customMultiInputs[f.label] ?? '').trim();
                                                                     if (!v) return;
                                                                     const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
                                                                     if (currentVals.some(c => String(c).toLowerCase() === v.toLowerCase())) return;
                                                                     setDynamicValues(p => ({ ...p, [f.label]: [...currentVals, v] }));
                                                                     setCustomMultiInputs(p => ({ ...p, [f.label]: '' }));
-                                                                }
-                                                            }}
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                const v = (customMultiInputs[f.label] ?? '').trim();
-                                                                if (!v) return;
-                                                                const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
-                                                                if (currentVals.some(c => String(c).toLowerCase() === v.toLowerCase())) return;
-                                                                setDynamicValues(p => ({ ...p, [f.label]: [...currentVals, v] }));
-                                                                setCustomMultiInputs(p => ({ ...p, [f.label]: '' }));
-                                                            }}
-                                                            className="px-3 py-2 bg-primary-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary-700"
-                                                        >
-                                                            Add
-                                                        </button>
+                                                                }}
+                                                                className="bg-primary-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary-700 transition-colors shadow-sm"
+                                                            >
+                                                                Add
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                    {Array.isArray(dynamicValues[f.label]) && dynamicValues[f.label].filter(v => !(f.options || []).some(o => String(o).toLowerCase() === String(v).toLowerCase())).length > 0 && (
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {dynamicValues[f.label].filter(v => !(f.options || []).some(o => String(o).toLowerCase() === String(v).toLowerCase())).map((customVal, idx) => (
-                                                                <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-[10px] font-bold">
-                                                                    {customVal}
-                                                                    <button type="button" onClick={() => {
-                                                                        const currentVals = [...(dynamicValues[f.label] || [])];
-                                                                        const filtered = currentVals.filter(c => { return c !== customVal; });
-                                                                        setDynamicValues(p => ({ ...p, [f.label]: filtered }));
-                                                                    }} className="text-gray-400 hover:text-red-600 ml-0.5">&times;</button>
-                                                                </span>
-                                                            ))}
+
+                                                    {Array.isArray(dynamicValues[f.label]) && dynamicValues[f.label].filter(v => !(f.options || []).includes(v)).length > 0 && (
+                                                        <div className="space-y-2">
+                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-1">Added Values</p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {dynamicValues[f.label].filter(v => !(f.options || []).includes(v)).map((customVal, idx) => (
+                                                                    <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-[10px] font-bold border border-gray-200">
+                                                                        {customVal}
+                                                                        <button 
+                                                                            type="button" 
+                                                                            onClick={() => {
+                                                                                const currentVals = [...(dynamicValues[f.label] || [])];
+                                                                                const filtered = currentVals.filter(c => c !== customVal);
+                                                                                setDynamicValues(p => ({ ...p, [f.label]: filtered }));
+                                                                            }} 
+                                                                            className="text-gray-400 hover:text-red-600 ml-1 leading-none"
+                                                                        >
+                                                                            &times;
+                                                                        </button>
+                                                                    </span>
+                                                                ))}
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>

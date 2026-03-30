@@ -34,6 +34,8 @@ const RealEstate = () => {
     const [selectedListingType, setSelectedListingType] = useState('All');
     const [selectedPropertyType, setSelectedPropertyType] = useState(searchParams.get('propertyType') || 'All');
     const [selectedFlatType, setSelectedFlatType] = useState(searchParams.get('flatType') || 'All');
+    const [selectedFloors, setSelectedFloors] = useState(searchParams.get('floors') || 'All');
+
     const [selectedArea, setSelectedArea] = useState('All Areas');
     const [selectedMarket, setSelectedMarket] = useState('All Markets');
     const [availableMarkets, setAvailableMarkets] = useState([]);
@@ -66,7 +68,8 @@ const RealEstate = () => {
         market: false,
         budget: false,
         size: false,
-        flatType: true
+        flatType: true,
+        floors: true
     });
 
     const toggleSection = (section) => {
@@ -90,8 +93,9 @@ const RealEstate = () => {
                 city: selectedCity === 'All Cities' ? '' : selectedCity,
                 area: selectedArea === 'All Areas' ? '' : selectedArea,
                 market: selectedMarket === 'All Markets' ? '' : selectedMarket,
-                propertyType: selectedPropertyType === 'All' ? '' : selectedPropertyType,
+                propertyType: (selectedPropertyType === 'Row house / Villa' ? 'Villa' : (selectedPropertyType === 'All' ? '' : selectedPropertyType)),
                 flatType: (selectedPropertyType === 'Flat' && selectedFlatType !== 'All') ? selectedFlatType : '',
+                floors: (selectedPropertyType === 'Row house / Villa' && selectedFloors !== 'All') ? selectedFloors : '',
                 minPrice: appliedPrice.min,
                 maxPrice: appliedPrice.max,
                 minSize: appliedSize.min,
@@ -108,8 +112,10 @@ const RealEstate = () => {
                 let nextProperties = Array.isArray(response.data) ? response.data : [];
                 // Fallback client-side filter for mixed legacy data (Plot used for Villa).
                 if (selectedPropertyType !== 'All') {
-                    const selected = selectedPropertyType.toLowerCase();
+                    let selected = selectedPropertyType.toLowerCase();
+                    if (selected === 'row house / villa') selected = 'villa';
                     const normalizedSelectedFlatType = String(selectedFlatType || 'All').replace(/\s+/g, '').toUpperCase();
+
                     nextProperties = nextProperties.filter((property) => {
                         const type = String(property?.propertyType || '').toLowerCase();
                         const propertyFlatType = String(property?.flatDetails?.flatType || '').replace(/\s+/g, '').toUpperCase();
@@ -118,7 +124,10 @@ const RealEstate = () => {
                             : [];
 
                         // Priority 1: Explicit Match
-                        if (selected === 'villa' && (type === 'villa' || type === 'plot')) return true;
+                        if (selected === 'villa' && (type === 'villa' || type === 'plot')) {
+                            if (selectedFloors === 'All') return true;
+                            return String(property?.plotDetails?.floors || '').toLowerCase() === selectedFloors.toLowerCase();
+                        }
                         if (selected === 'flat') {
                             const isFlatProperty =
                                 type === 'flat' ||
@@ -136,7 +145,10 @@ const RealEstate = () => {
                         if (selected === 'commercial' && commercialTypes.includes(type)) return true;
 
                         // Priority 3: Structural Match (for legacy/missing types)
-                        if (selected === 'villa' && property?.plotDetails?.plotArea > 0) return true;
+                        if (selected === 'villa' && property?.plotDetails?.plotArea > 0) {
+                            if (selectedFloors === 'All') return true;
+                            return String(property?.plotDetails?.floors || '').toLowerCase() === selectedFloors.toLowerCase();
+                        }
 
                         return type === selected;
                     });
@@ -200,7 +212,7 @@ const RealEstate = () => {
             fetchProperties();
         }, 500);
         return () => clearTimeout(timeoutId);
-    }, [searchQuery, selectedCity, selectedArea, selectedMarket, selectedPropertyType, selectedFlatType, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType, selectedVendorId, sortBy, sortOrder]);
+    }, [searchQuery, selectedCity, selectedArea, selectedMarket, selectedPropertyType, selectedFlatType, selectedFloors, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType, selectedVendorId, sortBy, sortOrder]);
 
     // Sync URL searchParams to local state for back/forward navigation and external links
     useEffect(() => {
@@ -370,6 +382,7 @@ const RealEstate = () => {
         setSelectedListingType('All');
         setSelectedPropertyType('All');
         setSelectedFlatType('All');
+        setSelectedFloors('All');
         setSelectedBusinessType('All');
         setSelectedPriceUnit('All');
         setSelectedAreaUnit('All');
@@ -449,7 +462,8 @@ const RealEstate = () => {
                             className="overflow-hidden"
                         >
                             <div className="p-4 space-y-2">
-                                {['All', 'Flat', 'Villa', 'Commercial'].map((type) => (
+                                {['All', 'Flat', 'Row house / Villa', 'Commercial'].map((type) => (
+
                                     <button
                                         key={type}
                                         onClick={() => setSelectedPropertyType(type)}
@@ -491,6 +505,44 @@ const RealEstate = () => {
                                             key={type}
                                             onClick={() => setSelectedFlatType(type)}
                                             className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${selectedFlatType === type
+                                                ? 'bg-primary-600 text-white shadow-lg shadow-primary-100'
+                                                : 'text-gray-500 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+
+            {/* Floors Filter - Only for Row house / Villa */}
+            {selectedPropertyType === 'Row house / Villa' && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <button
+                        onClick={() => toggleSection('floors')}
+                        className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    >
+                        <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Floors</h3>
+                        <FiChevronDown className={`text-gray-400 transition-transform ${openSections.floors ? 'rotate-180' : ''}`} />
+                    </button>
+                    <AnimatePresence>
+                        {openSections.floors && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="p-4 space-y-2">
+                                    {['All', 'Ground', 'G+1', 'G+2'].map((type) => (
+                                        <button
+                                            key={type}
+                                            onClick={() => setSelectedFloors(type)}
+                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${selectedFloors === type
                                                 ? 'bg-primary-600 text-white shadow-lg shadow-primary-100'
                                                 : 'text-gray-500 hover:bg-gray-50'
                                                 }`}
@@ -1012,8 +1064,8 @@ const RealEstate = () => {
                 )}
             </AnimatePresence>
 
-            <main className="max-w-7xl mx-auto px-4 py-8">
-                {/* Location Filters - Replaces Sidebar City Filter */}
+            <main className=" mx-auto px-4 py-8">
+                {/* Location Filters - Replaces Sidebar City Filter max-w-7xl*/}
                 <div className="hidden lg:flex flex-col md:flex-row gap-4 items-stretch md:items-center mb-6">
                     {/* City Searchable Dropdown */}
                     <div className="relative w-full md:w-64" data-city-dropdown>

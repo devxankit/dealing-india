@@ -39,12 +39,22 @@ export const getB2BAvailableLocations = async (options = {}) => {
       .lean();
 
     if (b2bVendors.length === 0) {
-      return { states: [] };
+      return { states: [], areas: [], markets: [] };
     }
 
-    // Use ALL approved vendors for location data (not just those with products)
-    // This ensures cities from newly registered vendors also appear in the filter
-    const vendorsWithActiveProducts = b2bVendors;
+    // Only include vendors who HAVE active products (excluding shop-listings) or active lot/slots.
+    // This ensures that the filter only shows cities that will actually return search results.
+    const [productVendorIds, lotSlotVendorIds] = await Promise.all([
+      Product.distinct('vendorId', { isActive: true, isVisible: { $ne: false }, formType: { $ne: 'shop-listing' } }),
+      LotSlot.distinct('vendorId', { isActive: true, isVisible: { $ne: false } }),
+    ]);
+
+    const activeVendorIds = new Set([
+      ...productVendorIds.map(id => String(id)),
+      ...lotSlotVendorIds.map(id => String(id))
+    ]);
+
+    const vendorsWithActiveProducts = b2bVendors.filter(v => activeVendorIds.has(String(v._id)));
 
     // Extract unique states and cities
     const locationMap = new Map(); // state -> Set of cities
@@ -407,8 +417,8 @@ export const getB2BListingLocations = async (options = {}) => {
   // Product locations come from vendor registered address.
   if (includeProducts) {
     const [productVendorIds, lotSlotVendorIds] = await Promise.all([
-      Product.distinct('vendorId', { isActive: true, isVisible: { $ne: false } }),
-      LotSlot.distinct('vendorId', { isActive: true }),
+      Product.distinct('vendorId', { isActive: true, isVisible: { $ne: false }, formType: { $ne: 'shop-listing' } }),
+      LotSlot.distinct('vendorId', { isActive: true, isVisible: { $ne: false } }),
     ]);
 
     const listingVendorIds = new Set([

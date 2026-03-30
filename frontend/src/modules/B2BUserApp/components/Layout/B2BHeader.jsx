@@ -174,7 +174,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         title !== "Verified Brokers" &&
                         title !== "Become a Seller" &&
                         !location.pathname.includes('/real-estate/property/') && (
-                            <h1 className="text-sm md:text-xl font-black text-gray-900 truncate uppercase tracking-tight">
+                            <h1 className="text-sm md:text-xl font-black text-gray-900 uppercase tracking-tight">
                                 {title}
                             </h1>
                         )
@@ -187,7 +187,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             to="/b2b/catalog?itemType=lotslot"
                             className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
                         >
-                            <img src={lotSlotIcon} alt="Lot" className="h-7 w-auto object-contain" /> Lot / SOT
+                            <img src={lotSlotIcon} alt="Lot" className="h-7 w-auto object-contain" /> Lot / Slot
                         </Link>
                         <Link
                             to="/b2b/real-estate"
@@ -218,7 +218,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             to="/b2b/catalog?itemType=lotslot"
                             className="px-3 py-2 text-xs md:text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
                         >
-                            <img src={lotSlotIcon} alt="Lot" className="h-7 md:h-10 w-auto object-contain" /> Lot / SOT
+                            <img src={lotSlotIcon} alt="Lot" className="h-7 md:h-10 w-auto object-contain" /> Lot / Slot
                         </Link>
                     </div>
                 </div>

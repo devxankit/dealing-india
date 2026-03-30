@@ -119,18 +119,16 @@ async function createContact({ name, companyName, email, phone, gstNumber }) {
   
   if (phone) contact.phone = phone;
 
-  // Temporarily skip GST treatment because it is failing with 'Invalid Element'
-  /*
   const isIndianOrg = getZohoConfig().ZOHO_BOOKS_BASE.includes('.zohoapis.in');
   if (isIndianOrg) {
     if (gstNumber) {
       contact.gst_no = gstNumber;
       contact.gst_treatment = 'business_gst';
     } else {
-      contact.gst_treatment = 'business_none'; 
+      // For types where GST is optional, it should be treated as consumer or unregistered business
+      contact.gst_treatment = 'consumer'; 
     }
   }
-  */
 
   const data = await zohoRequest('POST', '/contacts', { data: contact });
   return data?.contact || null;
@@ -221,13 +219,11 @@ export async function createSubscriptionInvoice({
     reference_number: referenceNumber,
     line_items: lineItems,
     currency_code: currency,
-    notes: `${notes || ''}\n\nVendor GST: ${vendorGstNumber || 'N/A'}\nAdmin GST: ${process.env.ADMIN_GST_NUMBER || 'Configuring...'}`,
-    // gst_no: vendorGstNumber || undefined,
-    // gst_treatment: vendorGstNumber ? 'business_gst' : 'consumer',
+    gst_no: vendorGstNumber || undefined,
+    gst_treatment: vendorGstNumber ? 'business_gst' : 'consumer',
   };
 
-  // if (!invoice.gst_no) delete invoice.gst_no;
-  // if (!invoice.gst_treatment) invoice.gst_treatment = 'consumer';
+  if (!invoice.gst_no) delete invoice.gst_no;
 
   console.log(`[Zoho] Creating invoice for contact: ${contactId}, Amount: ${amount}`);
   const data = await zohoRequest('POST', '/invoices', { data: invoice });
@@ -244,6 +240,17 @@ export async function createSubscriptionInvoice({
     status: inv.status,
     pdfUrl: inv.invoice_pdf_url || inv.invoice_url || null,
   };
+}
+
+/**
+ * Mark an invoice as sent and optionally email it via Zoho
+ * Required for some Zoho orgs to allow PDF download via API
+ */
+export async function markInvoiceAsSent(invoiceId, sendEmail = false) {
+  if (!invoiceId) return null;
+  const path = `/invoices/${invoiceId}/status/sent`;
+  const params = sendEmail ? { send: true } : {};
+  return await zohoRequest('POST', path, { params });
 }
 
 export async function downloadInvoicePdf(invoiceId) {
@@ -290,10 +297,17 @@ export async function recordInvoicePayment({ contactId, invoiceId, amount, payme
   return { id: data?.payment?.payment_id || null, status: data?.payment?.status || null };
 }
 
+export async function getInvoicesForContact(contactId) {
+  if (!contactId) return [];
+  const data = await zohoRequest('GET', '/invoices', { params: { customer_id: contactId } });
+  return data?.invoices || [];
+}
+
 export default {
   getAccessToken,
   ensureZohoContactForVendor,
   createSubscriptionInvoice,
   recordInvoicePayment,
   downloadInvoicePdf,
+  getInvoicesForContact,
 };

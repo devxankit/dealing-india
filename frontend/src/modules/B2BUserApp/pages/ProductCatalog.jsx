@@ -47,9 +47,13 @@ const ProductCatalog = () => {
   const [selectedSubcategory, setSelectedSubcategory] = useState(
     searchParams.get("subcategory") || null,
   );
-  const [expandedCategory, setExpandedCategory] = useState(
-    searchParams.get("category") || null,
-  );
+  const [expandedCategory, setExpandedCategory] = useState(() => {
+    // Only auto-expand category collections on desktop on initial load
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      return searchParams.get("category") || null;
+    }
+    return null;
+  });
   const [selectedCity, setSelectedCity] = useState(
     searchParams.get("city") || "All Cities",
   );
@@ -132,6 +136,7 @@ const ProductCatalog = () => {
   const businessTypeDropdownRef = useRef(null);
   const [mobileExpandedBusinessType, setMobileExpandedBusinessType] =
     useState(null);
+  const [showMobileSubcategoryCard, setShowMobileSubcategoryCard] = useState(false);
 
   const [sortBy, setSortBy] = useState(
     searchParams.get("sortBy") || "createdAt",
@@ -160,24 +165,36 @@ const ProductCatalog = () => {
     return "Newest First";
   };
 
-  // Open Business Type menu from bottom-nav shortcut (mobile only)
+
+
+  // Handle "open" parameter from bottom-nav shortcuts (mobile only)
   useEffect(() => {
+    if (typeof window === "undefined" || window.innerWidth >= 1024) return;
+
     const openParam = searchParams.get("open");
-    if (
-      openParam === "business" &&
-      typeof window !== "undefined" &&
-      window.innerWidth < 768
-    ) {
-      // Ensure business types are loaded before opening for a smooth UX
-      if (businessTypes && businessTypes.length > 0) {
-        setIsBusinessTypeDropdownOpen(true);
-        const newParams = new URLSearchParams(searchParams);
-        newParams.delete("open");
-        setSearchParams(newParams, { replace: true });
+    if (!openParam) return;
+
+    const newParams = new URLSearchParams(searchParams);
+    let handled = false;
+
+    if (openParam === "categories") {
+      if (selectedCategory && selectedCategory !== "All") {
+        setExpandedCategory(selectedCategory);
+        setShowMobileSubcategoryCard(true);
+      } else {
+        setIsMainCategoryDropdownOpen(true);
       }
+      handled = true;
+    } else if (openParam === "business" && businessTypes?.length > 0) {
+      setIsBusinessTypeDropdownOpen(true);
+      handled = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, businessTypes.length]);
+
+    if (handled) {
+      newParams.delete("open");
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, selectedCategory, businessTypes?.length]);
 
   useEffect(() => {
     if (!reelCategoryForFilter) {
@@ -325,62 +342,64 @@ const ProductCatalog = () => {
   const renderFilters = () => {
     return (
       <div className="space-y-6">
-        {/* Business Category Filter */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <button
-            onClick={() => toggleFilter("businessCategory")}
-            className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors">
-            <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">
-              Business Category
-            </h3>
-            <div className="flex items-center gap-2">
-              {selectedBusinessCategory && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedBusinessCategory(null);
-                  }}
-                  className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">
-                  RESET
-                </span>
-              )}
-              <FiChevronDown
-                className={`text-gray-400 transition-transform ${openFilters.businessCategory ? "rotate-180" : ""}`}
-              />
-            </div>
-          </button>
-          <AnimatePresence>
-            {openFilters.businessCategory && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden">
-                <div className="p-5 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                  <button
-                    onClick={() => {
-                      setSelectedBusinessCategory(null);
-                      if (isMobileFilterOpen) setIsMobileFilterOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${!selectedBusinessCategory ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
-                    All Categories
-                  </button>
-                  {BUSINESS_CATEGORIES.map((cat) => (
+        {/* Browse Categories Filter */}
+        {(!isBigTextilePlayer || selectedItemType === "lotslot") && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden" ref={mainCategoryDropdownRef}>
+            <button
+              onClick={() => setIsMainCategoryDropdownOpen(!isMainCategoryDropdownOpen)}
+              className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <FiGrid className={selectedCategory !== "All" ? "text-primary-600" : "text-gray-400"} />
+                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">
+                  {selectedCategory === "All" ? "Browse Categories" : selectedCategory}
+                </h3>
+              </div>
+              <FiChevronDown className={`text-gray-400 transition-transform ${isMainCategoryDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+            <AnimatePresence>
+              {isMainCategoryDropdownOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-4 space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
                     <button
-                      key={cat}
                       onClick={() => {
-                        setSelectedBusinessCategory(cat);
-                        if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                        setSelectedCategory("All");
+                        setExpandedCategory(null);
+                        setSelectedSubcategory(null);
+                        setIsMainCategoryDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${selectedBusinessCategory === cat ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
-                      {cat}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${selectedCategory === "All" ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}
+                    >
+                      ALL CATEGORIES
                     </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                    {categories.filter(cat => cat.name !== "All").map((cat) => (
+                      <button
+                        key={cat.id || cat.name}
+                        onClick={() => {
+                          handleCategoryClick(cat.name);
+                          setIsMainCategoryDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${selectedCategory === cat.name ? "bg-primary-50 text-primary-600" : "text-gray-700 hover:bg-gray-50"}`}
+                      >
+                        <span>{cat.name.toUpperCase()}</span>
+                        {cat.subcategories?.length > 0 && (
+                          <span className="text-[9px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-400">
+                            {cat.subcategories.length}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Subcategory Filter */}
         {(!isBigTextilePlayer || selectedItemType === "lotslot") && (
@@ -880,6 +899,63 @@ const ProductCatalog = () => {
           </AnimatePresence>
         </div>
 
+        {/* Business Category Filter */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button
+            onClick={() => toggleFilter("businessCategory")}
+            className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors">
+            <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">
+              Business Category
+            </h3>
+            <div className="flex items-center gap-2">
+              {selectedBusinessCategory && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedBusinessCategory(null);
+                  }}
+                  className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">
+                  RESET
+                </span>
+              )}
+              <FiChevronDown
+                className={`text-gray-400 transition-transform ${openFilters.businessCategory ? "rotate-180" : ""}`}
+              />
+            </div>
+          </button>
+          <AnimatePresence>
+            {openFilters.businessCategory && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden">
+                <div className="p-5 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                  <button
+                    onClick={() => {
+                      setSelectedBusinessCategory(null);
+                      if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${!selectedBusinessCategory ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
+                    All Categories
+                  </button>
+                  {BUSINESS_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        setSelectedBusinessCategory(cat);
+                        if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${selectedBusinessCategory === cat ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
       </div>
     );
   };
@@ -1017,15 +1093,13 @@ const ProductCatalog = () => {
     try {
       const params = {
         includeProducts: true,
-        includeProperties: true,
+        includeProperties: false,
       };
 
-      if (selectedCity && selectedCity !== "All Cities") {
-        params.city = selectedCity;
-      }
-      if (selectedArea) {
-        params.area = selectedArea;
-      }
+      // OPTIMIZED: We don't send selectedCity/Area here anymore because it causes 
+      // the filter list to shrink to ONLY the selected item (circular dependency).
+      // We want the user to always see all available cities/areas to switch between.
+
       // Filter cities (and areas/markets) by selected business type so only relevant locations show
       if (selectedBusinessType && selectedBusinessType.trim()) {
         params.businessTypeFilter = "include";
@@ -1391,8 +1465,8 @@ const ProductCatalog = () => {
   useEffect(() => {
     const locKey = JSON.stringify({ selectedCity, selectedArea, selectedBusinessType });
     if (locKey !== lastLocParamsRef.current) {
-        lastLocParamsRef.current = locKey;
-        fetchListingLocationFilters();
+      lastLocParamsRef.current = locKey;
+      fetchListingLocationFilters();
     }
   }, [selectedCity, selectedArea, selectedBusinessType]);
 
@@ -1408,6 +1482,9 @@ const ProductCatalog = () => {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
+      const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
+      if (!isDesktop) return;
+
       if (
         cityDropdownRef.current &&
         !cityDropdownRef.current.contains(event.target)
@@ -1608,7 +1685,13 @@ const ProductCatalog = () => {
   const handleSubcategoryClick = (subcategoryName, categoryName) => {
     setSelectedCategory(categoryName);
     setSelectedSubcategory(subcategoryName);
-    // Keep expandedCategory as categoryName so the card stays open for further filtering
+
+    // On mobile, close the variety exploration card after selection to show results
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setShowMobileSubcategoryCard(false);
+    }
+
+    // Keep expandedCategory as categoryName so the card stays open for further filtering on desktop
 
     // Clear search query
     setSearchQuery("");
@@ -1912,7 +1995,7 @@ const ProductCatalog = () => {
   const filteredAreasList = useMemo(() => {
     const areas =
       Array.isArray(listingLocationFilters.areas) &&
-      listingLocationFilters.areas.length > 0
+        listingLocationFilters.areas.length > 0
         ? listingLocationFilters.areas
         : (Array.isArray(availableAreas) ? availableAreas : []);
     const cityFiltered = areas.filter((item) => {
@@ -2171,219 +2254,219 @@ const ProductCatalog = () => {
           )}
         </div>
       </div>
-      
-        {isCityDropdownOpen && (
-          <div
-            className="md:hidden fixed inset-0 z-[70] bg-black/40"
-            onClick={() => setIsCityDropdownOpen(false)}>
-            <div
-              className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[65vh] overflow-hidden shadow-2xl"
-              onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                  Select City
-                </span>
-                <button
-                  onClick={() => setIsCityDropdownOpen(false)}
-                  className="text-xs font-bold text-gray-400">
-                  Close
-                </button>
-              </div>
-              <div className="relative mb-3">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="Search city..."
-                  className="w-full pl-8 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                  value={citySearchQuery}
-                  onChange={(e) => setCitySearchQuery(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2 max-h-[52vh] overflow-y-auto custom-scrollbar pr-1">
-                <button
-                  onClick={() => {
-                    setSelectedCity("All Cities");
-                    setIsCityDropdownOpen(false);
-                    setCitySearchQuery("");
-                  }}
-                  className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${selectedCity === "All Cities" ? "bg-primary-50 text-primary-600" : "bg-gray-50 text-gray-700"}`}>
-                  ALL CITIES
-                </button>
-                {filteredCitiesList.length > 0 ? (
-                  filteredCitiesList.map((city, index) => (
-                    <button
-                      key={`${city}-${index}`}
-                      onClick={() => {
-                        setSelectedCity(city);
-                        setIsCityDropdownOpen(false);
-                        setCitySearchQuery("");
-                      }}
-                      className={`w-full px-4 py-2 text-left text-[10px] font-bold rounded-lg transition-colors ${selectedCity === city ? "bg-primary-50 text-primary-600" : "bg-gray-50 text-gray-700"}`}>
-                      {city.toUpperCase()}
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-2 py-8 text-center text-[10px] text-gray-400 font-bold">
-                    NO CITIES FOUND
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-        {isMainCategoryDropdownOpen && (
-          <div
-            className="md:hidden fixed inset-0 z-[70] bg-black/40"
-            onClick={() => setIsMainCategoryDropdownOpen(false)}>
-            <div
-              className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-hidden shadow-2xl"
-              onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                  Browse Categories
-                </span>
-                <button
-                  onClick={() => setIsMainCategoryDropdownOpen(false)}
-                  className="text-xs font-bold text-gray-400">
-                  Close
-                </button>
-              </div>
-              <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1 space-y-2">
-                <button
-                  className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${selectedCategory === "All" ? "bg-primary-50 text-primary-600" : "bg-gray-50 text-gray-700"}`}
-                  onClick={() => {
-                    setSelectedCategory("All");
-                    setSelectedSubcategory(null);
-                    setExpandedCategory(null);
-                    setIsMainCategoryDropdownOpen(false);
-                  }}>
-                  ALL
-                </button>
-                {categories
-                  .filter((c) => c.name !== "All")
-                  .map((cat) => (
-                    <div
-                      key={cat.name}
-                      className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
-                      <button
-                        className={`w-full flex items-center justify-between px-4 py-2 text-[10px] font-black uppercase tracking-wider ${expandedCategory === cat.name ? "bg-primary-50 text-primary-600" : "text-gray-700"}`}
-                        onClick={() => {
-                          handleCategoryClick(cat.name);
-                        }}>
-                        <span>{cat.name}</span>
-                        <FiChevronRight
-                          className={`text-gray-400 transition-transform ${expandedCategory === cat.name ? "rotate-90" : ""}`}
-                        />
-                      </button>
-                      {expandedCategory === cat.name &&
-                        cat.subcategories?.length > 0 && (
-                          <div className="px-3 pb-3 pt-1 grid grid-cols-2 gap-2">
-                            {cat.subcategories.map((sub) => (
-                              <button
-                                key={sub}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${selectedSubcategory === sub ? "bg-primary-600 text-white border-primary-600" : "bg-white text-gray-700 border-gray-200"}`}
-                                onClick={() => {
-                                  handleSubcategoryClick(sub, cat.name);
-                                  setIsMainCategoryDropdownOpen(false);
-                                }}>
-                                {sub}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
-        )}
-        {isBusinessTypeDropdownOpen && (
-          <div
-            className="md:hidden fixed inset-0 z-[70] bg-black/40"
-            onClick={() => setIsBusinessTypeDropdownOpen(false)}>
-            <div
-              className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-hidden shadow-2xl"
-              onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                  Business Type
-                </span>
-                <button
-                  onClick={() => setIsBusinessTypeDropdownOpen(false)}
-                  className="text-xs font-bold text-gray-400">
-                  Close
-                </button>
-              </div>
-              <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1 space-y-2">
-                <button
-                  className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${!selectedBusinessType ? "bg-primary-50 text-primary-600" : "bg-gray-50 text-gray-700"}`}
-                  onClick={() => {
-                    setSelectedBusinessType(null);
-                    setSelectedBusinessSubType(null);
-                    setIsBusinessTypeDropdownOpen(false);
-                    setMobileExpandedBusinessType(null);
-                  }}>
-                  ALL BUSINESS TYPES
-                </button>
-                {businessTypes
-                  .filter((type) => {
-                    const name = (type.name || "").toUpperCase().trim();
-                    if (name === "DEVELOPER" || name === "PROPERTY BROKER")
-                      return false;
-                    if (
-                      selectedItemType === "lotslot" &&
-                      name === "PACKING MATERIAL"
-                    )
-                      return false;
-                    return true;
-                  })
-                  .map((type) => (
-                    <div
-                      key={type._id}
-                      className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
-                      <button
-                        className={`w-full flex items-center justify-between px-4 py-2 text-[10px] font-black uppercase tracking-wider ${mobileExpandedBusinessType === type.name ? "bg-primary-50 text-primary-600" : "text-gray-700"}`}
-                        onClick={() => {
-                          setSelectedBusinessType(type.name);
-                          setSelectedBusinessSubType(null);
-                          setMobileExpandedBusinessType((prev) =>
-                            prev === type.name ? null : type.name,
-                          );
-                        }}>
-                        <span>{type.name}</span>
-                        <FiChevronRight
-                          className={`text-gray-400 transition-transform ${mobileExpandedBusinessType === type.name ? "rotate-90" : ""}`}
-                        />
-                      </button>
-                      {mobileExpandedBusinessType === type.name &&
-                        type.subTypes &&
-                        type.subTypes.length > 0 && (
-                          <div className="px-3 pb-3 pt-1 grid grid-cols-2 gap-2">
-                            {type.subTypes.map((sub, idx) => (
-                              <button
-                                key={`${type._id}-${idx}`}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${selectedBusinessSubType === sub ? "bg-primary-600 text-white border-primary-600" : "bg-white text-gray-700 border-gray-200"}`}
-                                onClick={() => {
-                                  setSelectedBusinessSubType(sub);
-                                  setIsBusinessTypeDropdownOpen(false);
-                                  setMobileExpandedBusinessType(null);
-                                }}>
-                                {sub}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
-        )}
 
-      <main className="max-w-7xl mx-auto px-4 py-4 md:py-8">
-        {/* Search & Filter Bar */}
-        <div className="space-y-4 md:space-y-6 mb-6 md:mb-10">
+      {isCityDropdownOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-[70] bg-black/40"
+          onClick={() => setIsCityDropdownOpen(false)}>
+          <div
+            className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[65vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                Select City
+              </span>
+              <button
+                onClick={() => setIsCityDropdownOpen(false)}
+                className="text-xs font-bold text-gray-400">
+                Close
+              </button>
+            </div>
+            <div className="relative mb-3">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search city..."
+                className="w-full pl-8 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                value={citySearchQuery}
+                onChange={(e) => setCitySearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2 max-h-[52vh] overflow-y-auto custom-scrollbar pr-1">
+              <button
+                onClick={() => {
+                  setSelectedCity("All Cities");
+                  setIsCityDropdownOpen(false);
+                  setCitySearchQuery("");
+                }}
+                className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${selectedCity === "All Cities" ? "bg-primary-50 text-primary-600" : "bg-gray-50 text-gray-700"}`}>
+                ALL CITIES
+              </button>
+              {filteredCitiesList.length > 0 ? (
+                filteredCitiesList.map((city, index) => (
+                  <button
+                    key={`${city}-${index}`}
+                    onClick={() => {
+                      setSelectedCity(city);
+                      setIsCityDropdownOpen(false);
+                      setCitySearchQuery("");
+                    }}
+                    className={`w-full px-4 py-2 text-left text-[10px] font-bold rounded-lg transition-colors ${selectedCity === city ? "bg-primary-50 text-primary-600" : "bg-gray-50 text-gray-700"}`}>
+                    {city.toUpperCase()}
+                  </button>
+                ))
+              ) : (
+                <div className="px-2 py-8 text-center text-[10px] text-gray-400 font-bold">
+                  NO CITIES FOUND
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {isMainCategoryDropdownOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-[70] bg-black/40"
+          onClick={() => setIsMainCategoryDropdownOpen(false)}>
+          <div
+            className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                Browse Categories
+              </span>
+              <button
+                onClick={() => setIsMainCategoryDropdownOpen(false)}
+                className="text-xs font-bold text-gray-400">
+                Close
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1 space-y-2">
+              <button
+                className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${selectedCategory === "All" ? "bg-primary-50 text-primary-600" : "bg-gray-50 text-gray-700"}`}
+                onClick={() => {
+                  setSelectedCategory("All");
+                  setSelectedSubcategory(null);
+                  setExpandedCategory(null);
+                  setIsMainCategoryDropdownOpen(false);
+                }}>
+                ALL
+              </button>
+              {categories
+                .filter((c) => c.name !== "All")
+                .map((cat) => (
+                  <div
+                    key={cat.name}
+                    className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+                    <button
+                      className={`w-full flex items-center justify-between px-4 py-2 text-[10px] font-black uppercase tracking-wider ${expandedCategory === cat.name ? "bg-primary-50 text-primary-600" : "text-gray-700"}`}
+                      onClick={() => {
+                        handleCategoryClick(cat.name);
+                      }}>
+                      <span>{cat.name}</span>
+                      <FiChevronRight
+                        className={`text-gray-400 transition-transform ${expandedCategory === cat.name ? "rotate-90" : ""}`}
+                      />
+                    </button>
+                    {expandedCategory === cat.name &&
+                      cat.subcategories?.length > 0 && (
+                        <div className="px-3 pb-3 pt-1 grid grid-cols-2 gap-2">
+                          {cat.subcategories.map((sub) => (
+                            <button
+                              key={sub}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${selectedSubcategory === sub ? "bg-primary-600 text-white border-primary-600" : "bg-white text-gray-700 border-gray-200"}`}
+                              onClick={() => {
+                                handleSubcategoryClick(sub, cat.name);
+                                setIsMainCategoryDropdownOpen(false);
+                              }}>
+                              {sub}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {isBusinessTypeDropdownOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-[70] bg-black/40"
+          onClick={() => setIsBusinessTypeDropdownOpen(false)}>
+          <div
+            className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                Business Type
+              </span>
+              <button
+                onClick={() => setIsBusinessTypeDropdownOpen(false)}
+                className="text-xs font-bold text-gray-400">
+                Close
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1 space-y-2">
+              <button
+                className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${!selectedBusinessType ? "bg-primary-50 text-primary-600" : "bg-gray-50 text-gray-700"}`}
+                onClick={() => {
+                  setSelectedBusinessType(null);
+                  setSelectedBusinessSubType(null);
+                  setIsBusinessTypeDropdownOpen(false);
+                  setMobileExpandedBusinessType(null);
+                }}>
+                ALL BUSINESS TYPES
+              </button>
+              {businessTypes
+                .filter((type) => {
+                  const name = (type.name || "").toUpperCase().trim();
+                  if (name === "DEVELOPER" || name === "PROPERTY BROKER")
+                    return false;
+                  if (
+                    selectedItemType === "lotslot" &&
+                    name === "PACKING MATERIAL"
+                  )
+                    return false;
+                  return true;
+                })
+                .map((type) => (
+                  <div
+                    key={type._id}
+                    className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+                    <button
+                      className={`w-full flex items-center justify-between px-4 py-2 text-[10px] font-black uppercase tracking-wider ${mobileExpandedBusinessType === type.name ? "bg-primary-50 text-primary-600" : "text-gray-700"}`}
+                      onClick={() => {
+                        setSelectedBusinessType(type.name);
+                        setSelectedBusinessSubType(null);
+                        setMobileExpandedBusinessType((prev) =>
+                          prev === type.name ? null : type.name,
+                        );
+                      }}>
+                      <span>{type.name}</span>
+                      <FiChevronRight
+                        className={`text-gray-400 transition-transform ${mobileExpandedBusinessType === type.name ? "rotate-90" : ""}`}
+                      />
+                    </button>
+                    {mobileExpandedBusinessType === type.name &&
+                      type.subTypes &&
+                      type.subTypes.length > 0 && (
+                        <div className="px-3 pb-3 pt-1 grid grid-cols-2 gap-2">
+                          {type.subTypes.map((sub, idx) => (
+                            <button
+                              key={`${type._id}-${idx}`}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${selectedBusinessSubType === sub ? "bg-primary-600 text-white border-primary-600" : "bg-white text-gray-700 border-gray-200"}`}
+                              onClick={() => {
+                                setSelectedBusinessSubType(sub);
+                                setIsBusinessTypeDropdownOpen(false);
+                                setMobileExpandedBusinessType(null);
+                              }}>
+                              {sub}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main className=" mx-auto px-4 py-4 md:py-8">
+        {/* Search & Filter Bar max-w-7xl */}
+        <div className="space-y-4 md:space-y-6 mb-2">
           {/* Location Filters */}
           <div className="hidden md:flex flex-col md:flex-row gap-4 items-stretch md:items-center sticky top-[calc(5rem+env(safe-area-inset-top))] z-40 bg-white/95 backdrop-blur-md p-3 rounded-2xl border border-gray-100 shadow-sm mb-4">
             {noProductsInBusinessType ? (
@@ -2491,124 +2574,13 @@ const ProductCatalog = () => {
 
           {/* Mobile search already rendered above */}
 
-          {/* Main Category Dropdown Selection */}
-          <div className="w-full flex flex-col md:flex-row gap-4 items-stretch md:items-center">
-            {(!isBigTextilePlayer || selectedItemType === "lotslot") && (
-              <div
-                className="relative hidden md:block md:w-72"
-                ref={mainCategoryDropdownRef}>
-                <button
-                  onClick={() =>
-                    setIsMainCategoryDropdownOpen(!isMainCategoryDropdownOpen)
-                  }
-                  className={`flex items-center justify-between gap-3 px-6 py-3.5 md:py-4 bg-white border rounded-xl md:rounded-2xl text-[11px] md:text-sm font-black transition-all w-full shadow-sm hover:shadow-md ${selectedCategory !== "All"
-                    ? "border-primary-200 text-primary-600 bg-primary-50/20"
-                    : "border-gray-200 text-gray-700"
-                    }`}>
-                  <div className="flex items-center gap-2 uppercase tracking-widest">
-                    <FiGrid
-                      className={
-                        selectedCategory !== "All"
-                          ? "text-primary-600"
-                          : "text-gray-400"
-                      }
-                      size={16}
-                    />
-                    <span>
-                      {selectedCategory === "All"
-                        ? "Browse Categories"
-                        : selectedCategory}
-                    </span>
-                  </div>
-                  <FiChevronDown
-                    className={`transition-transform duration-300 ${isMainCategoryDropdownOpen ? "rotate-180" : ""}`}
-                  />
-                </button>
 
-                <AnimatePresence>
-                  {isMainCategoryDropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-[60]">
-                      <div className="p-2 max-h-[400px] overflow-y-auto">
-                        <button
-                          onClick={() => {
-                            setSelectedCategory("All");
-                            setExpandedCategory(null);
-                            setSelectedSubcategory(null);
-                            setIsMainCategoryDropdownOpen(false);
-                            setSearchQuery("");
-                          }}
-                          className={`w-full text-left px-4 py-3 rounded-lg text-[10px] md:text-xs font-black transition-all uppercase tracking-widest ${selectedCategory === "All" ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
-                          View All
-                        </button>
-                        {categories
-                          .filter((cat) => cat.name !== "All")
-                          .map((cat) => (
-                            <button
-                              key={cat.id}
-                              onClick={() => {
-                                handleCategoryClick(cat.name);
-                                setIsMainCategoryDropdownOpen(false);
-                              }}
-                              className={`w-full text-left px-4 py-3 rounded-lg text-[10px] md:text-xs font-black transition-all flex items-center justify-between group uppercase tracking-widest ${selectedCategory === cat.name ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
-                              <span>{cat.name}</span>
-                              {cat.subcategories?.length > 0 && (
-                                <span className="text-[9px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-400 group-hover:bg-primary-100 group-hover:text-primary-600">
-                                  {cat.subcategories.length}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-
-            {/* Quick filter info */}
-            {selectedCategory !== "All" && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 rounded-full border border-primary-100 self-start md:self-auto">
-                <span className="text-[9px] font-black text-primary-600 uppercase tracking-widest">
-                  Active:
-                </span>
-                <span className="text-[10px] font-bold text-gray-700 uppercase">
-                  {selectedCategory}
-                </span>
-                {selectedSubcategory && (
-                  <>
-                    <div className="w-1 h-1 bg-primary-300 rounded-full mx-1"></div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase">
-                      {selectedSubcategory}
-                    </span>
-                  </>
-                )}
-                {Object.entries(dynamicFilters).map(([key, value]) => {
-                  const displayValue = Array.isArray(value)
-                    ? value.join(", ")
-                    : value;
-                  if (!displayValue) return null;
-                  return (
-                    <React.Fragment key={key}>
-                      <div className="w-1 h-1 bg-primary-300 rounded-full mx-1"></div>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase">
-                        {key}: {displayValue}
-                      </span>
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
           {/* Category playlist removed: reels are shown as cards below */}
 
           {/* Full Width Subcategory Explorer Card */}
           <AnimatePresence mode="wait">
-            {expandedCategory && (
+            {expandedCategory && (typeof window !== "undefined" && (window.innerWidth >= 1024 || showMobileSubcategoryCard)) && (
               <motion.div
                 initial={{ height: 0, opacity: 0, scale: 0.98 }}
                 animate={{ height: "auto", opacity: 1, scale: 1 }}
@@ -2635,7 +2607,10 @@ const ProductCatalog = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => setExpandedCategory(null)}
+                      onClick={() => {
+                        setExpandedCategory(null);
+                        setShowMobileSubcategoryCard(false);
+                      }}
                       className="p-3 hover:bg-white rounded-2xl text-gray-400 transition-all hover:text-gray-600 shadow-sm border border-transparent hover:border-gray-100">
                       <FiX size={24} />
                     </button>
@@ -2681,7 +2656,7 @@ const ProductCatalog = () => {
           </AnimatePresence>
         </div>
 
-        <div className="mt-4 md:mt-6 flex flex-col lg:flex-row lg:items-start gap-8">
+        <div className="mt-2 flex flex-col lg:flex-row lg:items-start gap-8">
           {/* IndiaMart Style Sidebar */}
           <aside className="hidden lg:block w-72 flex-shrink-0 space-y-6 lg:sticky lg:top-28 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto pr-1">
             {renderFilters()}
@@ -2689,6 +2664,84 @@ const ProductCatalog = () => {
 
           {/* Product Listing Area */}
           <div className="flex-1 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-1">
+            {/* Active Filters Pill Bar */}
+            {selectedCategory !== "All" && (
+              <div className="flex flex-wrap items-center gap-2 mb-6">
+                <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 rounded-full border border-primary-100 shadow-sm">
+                  <span className="text-[9px] font-black text-primary-600 uppercase tracking-widest">
+                    ACTIVE CATEGORY:
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-700 uppercase">
+                    {selectedCategory}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setSelectedCategory("All");
+                      setSelectedSubcategory(null);
+                      setExpandedCategory(null);
+                    }}
+                    className="ml-1 text-gray-400 hover:text-primary-600 transition-colors"
+                  >
+                    <FiX size={14} />
+                  </button>
+                </div>
+
+                {selectedSubcategory && (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-full border border-gray-100 shadow-sm">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                      VARIETY:
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-700 uppercase">
+                      {selectedSubcategory}
+                    </span>
+                    <button
+                      onClick={() => setSelectedSubcategory(null)}
+                      className="ml-1 text-gray-400 hover:text-gray-900 transition-colors"
+                    >
+                      <FiX size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {Object.entries(dynamicFilters).map(([key, value]) => {
+                  const displayValue = Array.isArray(value) ? value.join(", ") : value;
+                  if (!displayValue) return null;
+                  return (
+                    <div key={key} className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-full border border-gray-100 shadow-sm">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                        {key}:
+                      </span>
+                      <span className="text-[10px] font-bold text-gray-700 uppercase">
+                        {displayValue}
+                      </span>
+                      <button
+                        onClick={() => {
+                          const newFilters = { ...dynamicFilters };
+                          delete newFilters[key];
+                          setDynamicFilters(newFilters);
+                        }}
+                        className="ml-1 text-gray-400 hover:text-gray-900 transition-colors"
+                      >
+                        <FiX size={14} />
+                      </button>
+                    </div>
+                  );
+                })}
+
+                <button
+                  onClick={() => {
+                    setSelectedCategory("All");
+                    setSelectedSubcategory(null);
+                    setExpandedCategory(null);
+                    setDynamicFilters({});
+                  }}
+                  className="px-4 py-2 text-[9px] font-black text-primary-600 hover:bg-primary-50 rounded-full uppercase tracking-widest transition-all"
+                >
+                  Clear All
+                </button>
+              </div>
+            )}
+
             {loading ? (
               <div className="flex flex-col items-center justify-center py-32">
                 <div className="relative">

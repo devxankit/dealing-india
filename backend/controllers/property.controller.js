@@ -587,7 +587,7 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 // @route   GET /api/public/property/all
 // @access  Public
 export const getAllProperties = asyncHandler(async (req, res) => {
-    const { search, city, area, market, propertyType, flatType, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, strict, sortBy, sortOrder } = req.query;
+    const { search, city, area, market, propertyType, flatType, floors, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, strict, sortBy, sortOrder } = req.query;
 
     let query = { isActive: { $ne: false } }; // Show all active or uninitialized properties
     const queryConditions = [];
@@ -643,6 +643,13 @@ export const getAllProperties = asyncHandler(async (req, res) => {
             });
         }
     }
+    
+    if (floors && floors !== 'All') {
+        const escapedFloors = floors.replace(/[+]/g, '\\$&');
+        queryConditions.push({ 'plotDetails.floors': { $regex: `^${escapedFloors}$`, $options: 'i' } });
+    }
+
+
 
     // NEW: Broaden vendor matching - only check approved vendors for public feed
     const approvedVendors = await Vendor.find({ 
@@ -750,8 +757,8 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         // If a specific vendor type was requested (developer/broker), filter for it
         if (Object.keys(vendorMatch).length > 0) {
             const bType = String(p.vendorId.businessType || '').toLowerCase();
-            if (type === 'developer' && !bType.startsWith('developer')) return false;
-            if (type === 'broker' && !bType.startsWith('broker')) return false;
+            if (type === 'developer' && !bType.includes('developer')) return false;
+            if (type === 'broker' && !bType.includes('broker')) return false;
         }
         
         return true;

@@ -38,7 +38,7 @@ export const getPublicProducts = async (filters) => {
 
     // --- Helper to build match query ---
     const buildMatchQuery = async (isLotSlot = false) => {
-        const query = { isActive: true };
+        const query = { isActive: true, isVisible: { $ne: false } };
 
         // Search Filter
         if (search) {
@@ -73,15 +73,18 @@ export const getPublicProducts = async (filters) => {
                 // Try to resolve category ID to name, or use as string
                 const cat = await B2BCategory.findById(categoryId);
                 const catName = cat ? cat.name : categoryId;
-                query.category = { $regex: new RegExp(`^${catName}$`, 'i') };
+                const escapedCatName = String(catName).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                query.category = { $regex: new RegExp(`^\\s*${escapedCatName}\\s*$`, 'i') };
             } catch (e) {
-                query.category = { $regex: new RegExp(`^${categoryId}$`, 'i') };
+                const escapedId = String(categoryId).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                query.category = { $regex: new RegExp(`^\\s*${escapedId}\\s*$`, 'i') };
             }
         }
 
         // Subcategory
         if (subcategoryId) {
-            query.subcategory = { $regex: new RegExp(`^${subcategoryId}$`, 'i') };
+            const escapedSub = String(subcategoryId).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            query.subcategory = { $regex: new RegExp(`^\\s*${escapedSub}\\s*$`, 'i') };
         }
 
         // Brand
@@ -151,14 +154,16 @@ export const getPublicProducts = async (filters) => {
         const normalizedCity = city ? normalizeCity(city) : null;
 
         if (normalizedState) {
-            vendorQuery['address.state'] = { $regex: new RegExp(`^${String(normalizedState).trim()}$`, 'i') };
+            const escapedState = String(normalizedState).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            vendorQuery['address.state'] = { $regex: new RegExp(`^\\s*${escapedState}\\s*$`, 'i') };
         }
         if (normalizedCity) {
+            const escapedCity = String(normalizedCity).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             // Special robust match for Agra/Aagra
-            if (normalizedCity.toLowerCase() === 'agra') {
-                vendorQuery['address.city'] = { $regex: /^(agra|aagra)$/i };
+            if (escapedCity.toLowerCase() === 'agra') {
+                vendorQuery['address.city'] = { $regex: /^\s*(agra|aagra)\s*$/i };
             } else {
-                vendorQuery['address.city'] = { $regex: new RegExp(`^${String(normalizedCity).trim()}$`, 'i') };
+                vendorQuery['address.city'] = { $regex: new RegExp(`^\\s*${escapedCity}\\s*$`, 'i') };
             }
         }
         if (area) vendorQuery['address.area'] = { $regex: new RegExp(`^${String(area).trim()}$`, 'i') };

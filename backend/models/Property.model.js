@@ -113,6 +113,7 @@ const propertySchema = new mongoose.Schema(
             legal: {
                 loanAvailable: { type: String, enum: ['Yes', 'No'] },
                 reraApproved: { type: String, enum: ['Yes', 'No'] },
+                reraNumber: String,
                 maintenanceCharges: String,
                 propertyTaxStatus: String
             }
@@ -147,6 +148,7 @@ const propertySchema = new mongoose.Schema(
             legal: {
                 loanAvailable: { type: String, enum: ['Yes', 'No'] },
                 reraApproved: { type: String, enum: ['Yes', 'No'] },
+                reraNumber: String,
                 maintenanceCharges: String,
                 propertyTaxStatus: String
             }
@@ -195,6 +197,7 @@ const propertySchema = new mongoose.Schema(
             legal: {
                 loanAvailable: { type: String, enum: ['Yes', 'No'] },
                 reraApproved: { type: String, enum: ['Yes', 'No'] },
+                reraNumber: String,
                 maintenanceCharges: String,
                 propertyTaxStatus: String
             }
@@ -234,6 +237,7 @@ const propertySchema = new mongoose.Schema(
         legal: {
             loanAvailable: { type: String, enum: ['Yes', 'No'], default: 'No' },
             reraApproved: { type: String, enum: ['Yes', 'No'], default: 'No' },
+            reraNumber: { type: String, trim: true },
             load: { type: String, trim: true, default: '' }
         },
 

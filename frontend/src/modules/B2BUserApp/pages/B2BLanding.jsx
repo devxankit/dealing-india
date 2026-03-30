@@ -135,7 +135,7 @@ const B2BLanding = () => {
         const updateHeight = () => {
             const header = headerRef.current;
             const toolbar = toolbarRef.current;
-            
+
             if (header) {
                 let height = header.offsetHeight;
                 // On mobile, if toolbar exists and is fixed, add its height
@@ -148,7 +148,7 @@ const B2BLanding = () => {
 
         // Initial update with small delay for layout stabilization
         const timer = setTimeout(updateHeight, 150);
-        
+
         window.addEventListener('resize', updateHeight);
         return () => {
             clearTimeout(timer);
@@ -846,7 +846,7 @@ const B2BLanding = () => {
                                         }}
                                         className="px-3 py-2 text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
                                     >
-                                        <img src={lotSlotIcon} alt="Lot" className="h-7 md:h-8 w-auto object-contain" /> Lot / SOT
+                                        <img src={lotSlotIcon} alt="Lot" className="h-7 md:h-8 w-auto object-contain" /> Lot / Slot
                                     </button>
                                     <button
                                         onClick={() => navigateWithAuth('/b2b/real-estate')}
@@ -1081,7 +1081,7 @@ const B2BLanding = () => {
                                     }}
                                     className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
                                 >
-                                    <img src={lotSlotIcon} alt="Lot" className="h-7 w-auto object-contain" /> Lot / SOT
+                                    <img src={lotSlotIcon} alt="Lot" className="h-7 w-auto object-contain" /> Lot / Slot
                                 </button>
                                 <button
                                     onClick={() => navigateWithAuth('/b2b/real-estate')}
@@ -1128,7 +1128,7 @@ const B2BLanding = () => {
                                         }
                                         setIsMobileMenuOpen(false);
                                     }} className="flex flex-col items-center gap-3 p-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all hover:bg-primary-100">
-                                        <img src={lotSlotIcon} alt="Lot" className="h-8 w-auto object-contain" /> Lot / SOT
+                                        <img src={lotSlotIcon} alt="Lot" className="h-8 w-auto object-contain" /> Lot / Slot
                                     </button>
                                     <button onClick={() => { navigateWithAuth('/b2b/real-estate'); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-3 p-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all hover:bg-primary-100">
                                         <img src={realEstateIcon} alt="Real Estate" className="h-6 w-auto object-contain" /> Real Estate
@@ -1237,7 +1237,7 @@ const B2BLanding = () => {
             <div style={{ height: `${headerHeight}px` }} className="flex-none"></div>
 
             {/* --- TOOLBAR (mobile only; web has it in header) --- */}
-            <section ref={toolbarRef} className="md:hidden fixed top-[calc(3.5rem+env(safe-area-inset-top))] left-0 right-0 z-[90] bg-white border-b border-gray-100 shadow-sm flex-none">
+            <section ref={toolbarRef} className="md:hidden fixed top-[calc(3.3rem+env(safe-area-inset-top))] left-0 right-0 z-[90] bg-white border-b border-gray-100 shadow-sm flex-none">
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-1 md:py-1.5 flex flex-col md:flex-row items-stretch md:items-center gap-2">
 
                     <div className="flex gap-2 w-full md:w-auto">
@@ -1287,8 +1287,8 @@ const B2BLanding = () => {
                             <AnimatePresence>
                                 {isPriceFilterOpen && (
                                     <motion.div
-                                        initial={{ opacity: 0, y: 10, x: '-50%' }} 
-                                        animate={{ opacity: 1, y: 0, x: '-50%' }} 
+                                        initial={{ opacity: 0, y: 10, x: '-50%' }}
+                                        animate={{ opacity: 1, y: 0, x: '-50%' }}
                                         exit={{ opacity: 0, y: 10, x: '-50%' }}
                                         className="absolute top-full left-1/2 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-5"
                                     >
@@ -1440,8 +1440,8 @@ const B2BLanding = () => {
 
 
 
-        {/* --- BANNER SECTION --- */}
-        <section className="w-full bg-white pt-2 pb-2 mt-4 md:mt-0">
+            {/* --- BANNER SECTION --- */}
+            <section className="w-full bg-white pt-2 pb-2 mt-4 md:mt-0">
                 <div className="max-w-[1920px] mx-auto px-2 md:px-4">
                     <div className="rounded-[1rem] md:rounded-[1.4rem] overflow-hidden border border-gray-50">
                         <B2BBanner />
@@ -1562,7 +1562,7 @@ const B2BLanding = () => {
                 )}
                 {activePopup === 'lots' && (
                     <ProductPopup
-                        title="Explore Lot / SOT"
+                        title="Explore Lot / Slot"
                         itemType="lotslot"
                         onViewAll={() => navigateWithAuth('/b2b/catalog?itemType=lotslot')}
                     />

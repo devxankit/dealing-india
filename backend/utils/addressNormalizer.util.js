@@ -107,11 +107,13 @@ const STATE_ALIASES = {
 // Major Indian cities with common misspellings and alternate names
 const CITY_ALIASES = {
     // Gujarat
-    'surat': 'Surat', 'suart': 'Surat', 'surt': 'Surat',
-    'ahmedabad': 'Ahmedabad', 'ahemdabad': 'Ahmedabad', 'ahmdabad': 'Ahmedabad',
-    'amdabad': 'Ahmedabad', 'amadabad': 'Ahmedabad', 'ahmadabad': 'Ahmedabad',
-    'vadodara': 'Vadodara', 'baroda': 'Vadodara', 'vadodra': 'Vadodara', 'vadodara': 'Vadodara',
-    'rajkot': 'Rajkot', 'rajkot': 'Rajkot',
+    'ahmedabad': 'Ahmedabad', 'ahemdabad': 'Ahmedabad', 'ahmdabad': 'Ahmedabad', 'ahmdbad': 'Ahmedabad',
+    'amdabad': 'Ahmedabad', 'amadabad': 'Ahmedabad', 'ahmadabad': 'Ahmedabad', 
+    'ahmedabafd': 'Ahmedabad', 'ahmadabaad': 'Ahmedabad', 'ahmedaabad': 'Ahmedabad',
+    'surat': 'Surat', 'suart': 'Surat', 'surt': 'Surat', 'suratgadh': 'Suratgarh',
+    'balotra': 'Balotra', 'balotara': 'Balotra', 'balutra': 'Balotra', 'balotara.': 'Balotra',
+    'vadodara': 'Vadodara', 'baroda': 'Vadodara', 'vadodra': 'Vadodara',
+    'rajkot': 'Rajkot',
     'gandhinagar': 'Gandhinagar', 'gandhi nagar': 'Gandhinagar',
     'bhavnagar': 'Bhavnagar', 'bhavnager': 'Bhavnagar',
     'jamnagar': 'Jamnagar', 'jamnager': 'Jamnagar',

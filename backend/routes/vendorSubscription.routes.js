@@ -21,5 +21,6 @@ router.post('/subscribe', logSubscriptionChange('vendor_subscribe'), VendorSubsc
 router.post('/upgrade', logSubscriptionChange('vendor_upgrade'), VendorSubscriptionController.upgrade);
 router.post('/cancel', logSubscriptionChange('vendor_cancel'), VendorSubscriptionController.cancelSubscription);
 router.put('/renewal', logSubscriptionChange('vendor_renewal_update'), VendorSubscriptionController.updateRenewal);
+router.get('/invoice/:invoiceId', VendorSubscriptionController.downloadInvoice);
 
 export default router;

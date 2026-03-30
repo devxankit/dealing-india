@@ -41,6 +41,11 @@
         "children": []
     },
     {
+        "title": "Billing & Invoices",
+        "route": "/b2b-vendor/billing",
+        "children": []
+    },
+    {
         "title": "Banner Booking",
         "route": "/b2b-vendor/banner-booking",
         "children": []

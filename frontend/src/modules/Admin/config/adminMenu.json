@@ -93,5 +93,10 @@
     "title": "Music Library",
     "route": "/admin/music-library",
     "children": []
+  },
+  {
+    "title": "Reel Reports",
+    "route": "/admin/reel-reports",
+    "children": []
   }
 ]

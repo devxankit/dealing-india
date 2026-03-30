@@ -349,7 +349,8 @@ export default function UploadReel() {
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
                 <input
                   type="number"
-                  placeholder="e.g. 599"
+                  step="any"
+                  placeholder="e.g. 599.50"
                   className="w-full pl-8 pr-4 py-2 border border-gray-100 rounded-xl focus:ring-1 focus:ring-primary-500"
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: e.target.value })}

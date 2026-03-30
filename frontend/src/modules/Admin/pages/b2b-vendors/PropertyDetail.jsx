@@ -200,7 +200,7 @@ const PropertyDetail = () => {
                                     </>
                                 )}
                                 <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold mt-2 uppercase tracking-wide">
-                                    {property.listingType} • {property.propertyType}
+                                    {property.listingType} • {property.propertyType === 'Villa' ? 'Row house / Villa' : property.propertyType}
                                 </span>
                             </div>
                         </div>
@@ -238,7 +238,7 @@ const PropertyDetail = () => {
                         {/* Villa/Plot Form Details */}
                         {property.plotDetails && (
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900 mb-4 uppercase tracking-wide">Villa Details</h3>
+                                <h3 className="text-lg font-bold text-gray-900 mb-4 uppercase tracking-wide">Row house / Villa Details</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     <SpecCard label="Master Room" value={renderValue(property.plotDetails.masterRoom)} />
                                     <SpecCard label="Terrace" value={renderValue(property.plotDetails.terrace)} />

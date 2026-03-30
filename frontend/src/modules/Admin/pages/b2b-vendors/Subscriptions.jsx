@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX, FiShoppingBag } from "react-icons/fi";
+import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX, FiShoppingBag, FiDownload } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import { getB2BPlans, updateB2BPlan, createB2BPlan, initializeDefaultPlans } from "../../../../shared/utils/b2bPlanManager";
@@ -234,6 +234,33 @@ const Subscriptions = () => {
         }
     };
 
+    const handleDownloadInvoice = async (invoiceId) => {
+        if (!invoiceId) {
+            toast.error("Invoice ID not found. The invoice might not have been generated yet.");
+            return;
+        }
+
+        const toastId = toast.loading("Preparing invoice...");
+        try {
+            const response = await api.get(`/admin/b2b-vendors/subscriptions/invoice/${invoiceId}`, {
+                responseType: 'blob'
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Invoice-${invoiceId}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success("Invoice downloaded successfully", { id: toastId });
+        } catch (error) {
+            console.error('Invoice Download Failed:', error);
+            toast.error("Failed to download invoice. Please try again later.", { id: toastId });
+        }
+    };
+
     const statsCards = [
         { label: "Active Subscriptions", value: stats.active.toString(), icon: FiCheckCircle, color: "text-green-600", bg: "bg-green-100" },
         { label: "Monthly Revenue", value: `₹${(stats.actualMonthlyRevenue || 0).toLocaleString('en-IN')}`, icon: FiTrendingUp, color: "text-blue-600", bg: "bg-blue-100" },
@@ -294,6 +321,30 @@ const Subscriptions = () => {
             )
         },
         { key: "expiryDate", label: "Expiry" },
+        {
+            key: "actions",
+            label: "Actions",
+            render: (val, row) => (
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => navigate(`/admin/b2b-vendors/manage/${row.vendorId}/dashboard`)}
+                        className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="View Vendor Dashboard"
+                    >
+                        <FiEye />
+                    </button>
+                    {row.zohoInvoiceId && (
+                        <button
+                            onClick={() => handleDownloadInvoice(row.zohoInvoiceId)}
+                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            title="Download Current Invoice"
+                        >
+                            <FiDownload />
+                        </button>
+                    )}
+                </div>
+            )
+        }
     ];
 
     // City dropdown options derived from subscriptions

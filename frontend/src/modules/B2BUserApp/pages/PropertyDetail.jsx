@@ -244,7 +244,7 @@ const PropertyDetail = () => {
                                     </div>
                                     <div>
                                         <span className="text-[8px] md:text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">Property Type</span>
-                                        <p className="text-[10px] md:text-sm font-black text-gray-900 uppercase">{property.propertyType}</p>
+                                        <p className="text-[10px] md:text-sm font-black text-gray-900 uppercase">{property.propertyType === 'Villa' ? 'Row house / Villa' : property.propertyType}</p>
                                     </div>
                                     <div>
                                         <span className="text-[8px] md:text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">Listing Type</span>

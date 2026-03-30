@@ -15,7 +15,8 @@ import {
   trackView,
   deleteMyReel,
   replaceSong,
-  getReelSharePage
+  getReelSharePage,
+  reportReel
 } from '../controllers/reel.controller.js';
 import { checkReelUpload } from '../middleware/subscriptionRestriction.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
@@ -43,8 +44,7 @@ router.get('/:id/comments', asyncHandler(getComments));
 router.post('/:id/comments', authenticate, authorize('user', 'vendor'), asyncHandler(addComment));
 router.post('/:id/view', optionalAuthenticate, asyncHandler(trackView));
 router.delete('/:id', authenticate, authorize('vendor', 'user'), asyncHandler(deleteMyReel));
-
-
+router.post('/:id/report', authenticate, authorize('user', 'vendor'), asyncHandler(reportReel));
 router.post('/:id/replace-song', authenticate, authorize('vendor', 'admin', 'superadmin'), asyncHandler(replaceSong));
 
 export default router;

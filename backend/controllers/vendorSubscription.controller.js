@@ -1,5 +1,6 @@
 import SubscriptionService from '../services/subscription.service.js';
 import subscriptionRulesService from '../services/subscriptionRules.service.js';
+import zohoBooksService from '../services/zohoBooks.service.js';
 
 class VendorSubscriptionController {
   async getTiers(req, res) {
@@ -278,6 +279,27 @@ class VendorSubscriptionController {
         success: false,
         message: error.message || 'Failed to load billing history'
       });
+    }
+  }
+
+  async downloadInvoice(req, res) {
+    try {
+      const { invoiceId } = req.params;
+      if (!invoiceId) {
+        return res.status(400).json({ success: false, message: 'Invoice ID is required' });
+      }
+
+      const pdfBuffer = await zohoBooksService.downloadInvoicePdf(invoiceId);
+      if (!pdfBuffer) {
+        return res.status(404).json({ success: false, message: 'Invoice PDF not found' });
+      }
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoiceId}.pdf`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      res.status(500).json({ success: false, message: error.message || 'Failed to download invoice' });
     }
   }
 

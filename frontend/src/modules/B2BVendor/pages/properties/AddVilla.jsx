@@ -12,10 +12,10 @@ const AddVilla = () => {
         >
             <div className="px-1 text-center mb-8">
                 <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">
-                    Add Villa
+                    Add Row house / Villa
                 </h1>
                 <p className="text-sm text-gray-500 font-medium pb-6">
-                    List a new villa for sale or lease.
+                    List a new row house or villa for sale or lease.
                 </p>
                 <div className="max-w-2xl mx-auto">
                     <QuotaBanner action="property" />
@@ -23,7 +23,7 @@ const AddVilla = () => {
             </div>
 
             <SubscriptionGate action="property" showLimitInfo={false} fullPage={true}>
-                <PlotForm formType="Villa" />
+                <PlotForm formType="Row house / Villa" />
             </SubscriptionGate>
         </motion.div>
     );

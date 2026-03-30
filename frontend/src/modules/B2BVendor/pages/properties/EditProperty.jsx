@@ -44,7 +44,7 @@ const EditProperty = () => {
 
     const bucket = getPropertyBucket(propertyData);
     if (bucket === "flat") return <FlatForm initialData={propertyData} isEdit={true} />;
-    if (bucket === "villa") return <PlotForm initialData={propertyData} isEdit={true} formType="Villa" />;
+    if (bucket === "villa") return <PlotForm initialData={propertyData} isEdit={true} formType="Row house / Villa" />;
     return <PropertyForm initialData={propertyData} isEdit={true} />;
 };
 

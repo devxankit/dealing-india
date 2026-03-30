@@ -41,7 +41,8 @@ const FlatForm = ({ initialData, isEdit }) => {
         },
         legal: {
             loanAvailable: 'No',
-            reraApproved: 'No'
+            reraApproved: 'No',
+            reraNumber: ''
         }
     };
 
@@ -671,6 +672,19 @@ const FlatForm = ({ initialData, isEdit }) => {
                                             <span className="text-[10px] font-black uppercase">RERA Approved</span>
                                             <div className="w-32">{renderToggle('flatDetails.legal.reraApproved', formData.flatDetails.legal.reraApproved)}</div>
                                         </div>
+                                        {formData.flatDetails.legal.reraApproved === 'Yes' && (
+                                            <div className="space-y-2 pt-2">
+                                                <label className="text-[10px] font-black uppercase">RERA Number</label>
+                                                <input
+                                                    type="text"
+                                                    name="flatDetails.legal.reraNumber"
+                                                    value={formData.flatDetails.legal.reraNumber || ''}
+                                                    onChange={handleChange}
+                                                    className="w-full px-6 py-3 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none font-bold text-slate-700 text-xs"
+                                                    placeholder="Enter RERA Number"
+                                                />
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="text-xl font-black text-slate-900 uppercase pt-4">Location</div>

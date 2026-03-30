@@ -1,0 +1,277 @@
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+    FiCreditCard, FiDownload, FiInfo, FiRefreshCw, 
+    FiPackage, FiPlusCircle, FiGrid, FiClock,
+    FiCheckCircle, FiXCircle, FiArrowRight
+} from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import subscriptionService from '../services/subscriptionService';
+import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
+
+const Billing = () => {
+    const { vendor } = useB2BVendorAuthStore();
+    const [billingHistory, setBillingHistory] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [downloadingId, setDownloadingId] = useState(null);
+
+    useEffect(() => {
+        loadBillingData();
+    }, []);
+
+    const loadBillingData = async () => {
+        try {
+            setLoading(true);
+            const history = await subscriptionService.getBillingHistory();
+            setBillingHistory(history);
+        } catch (err) {
+            console.error('Error loading billing data:', err);
+            toast.error('Failed to load billing history');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDownloadInvoice = async (invoiceId) => {
+        if (!invoiceId) {
+            toast.error('Invoice not available yet');
+            return;
+        }
+
+        try {
+            setDownloadingId(invoiceId);
+            toast.loading('Downloading invoice...', { id: 'download-invoice' });
+            await subscriptionService.downloadInvoice(invoiceId);
+            toast.success('Invoice downloaded successfully!', { id: 'download-invoice' });
+        } catch (err) {
+            console.error('Download error:', err);
+            toast.error('Failed to download invoice', { id: 'download-invoice' });
+        } finally {
+            setDownloadingId(null);
+        }
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        });
+    };
+
+    if (loading) {
+        return (
+            <div className="p-6 flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-600 border-t-transparent"></div>
+                    <p className="mt-4 text-gray-600 font-medium">Loading billing information...</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-6 max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-black text-gray-900 mb-2 uppercase tracking-tight">Billing & Invoices</h1>
+                    <p className="text-gray-500 font-medium">Manage your subscription invoices and transaction history.</p>
+                </div>
+                <button
+                    onClick={loadBillingData}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-100 rounded-2xl hover:border-primary-200 hover:bg-primary-50 transition-all shadow-sm active:scale-95 disabled:opacity-50 group font-bold text-gray-600"
+                >
+                    <FiRefreshCw className={`${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+                    Refresh Data
+                </button>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white p-6 rounded-[2rem] border-2 border-gray-50 shadow-sm"
+                >
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-2xl flex items-center justify-center">
+                            <FiCreditCard size={24} />
+                        </div>
+                        <p className="text-gray-400 font-black uppercase text-[10px] tracking-widest">Total Transactions</p>
+                    </div>
+                    <p className="text-3xl font-black text-gray-900">{billingHistory.length}</p>
+                </motion.div>
+
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-white p-6 rounded-[2rem] border-2 border-gray-50 shadow-sm"
+                >
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
+                            <FiCheckCircle size={24} />
+                        </div>
+                        <p className="text-gray-400 font-black uppercase text-[10px] tracking-widest">Active Plan</p>
+                    </div>
+                    <p className="text-xl font-black text-gray-900 truncate">
+                        {billingHistory.find(h => h.type === 'subscription_payment' && h.status === 'completed')?.planName || 'No Active Plan'}
+                    </p>
+                </motion.div>
+
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-white p-6 rounded-[2rem] border-2 border-gray-50 shadow-sm"
+                >
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                            <FiPackage size={24} />
+                        </div>
+                        <p className="text-gray-400 font-black uppercase text-[10px] tracking-widest">Last Transaction</p>
+                    </div>
+                    <p className="text-xl font-black text-gray-900">
+                        {billingHistory[0] ? formatDate(billingHistory[0].date) : 'N/A'}
+                    </p>
+                </motion.div>
+            </div>
+
+            {/* Billing History Table */}
+            <div className="mb-10">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center shadow-lg shadow-gray-200">
+                        <FiClock />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Transaction History</h3>
+                        <p className="text-gray-400 text-xs font-bold uppercase tracking-tighter">Your recent payments and invoices from Zoho Books</p>
+                    </div>
+                </div>
+
+                <div className="bg-white border-2 border-gray-50 rounded-[2.5rem] overflow-hidden shadow-sm">
+                    {billingHistory.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-50/50">
+                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Date</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Amount</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right whitespace-nowrap">Invoice</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {billingHistory.map((item, idx) => (
+                                        <tr key={idx} className="hover:bg-gray-50/50 transition-colors group">
+                                            <td className="px-8 py-6">
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm transition-transform group-hover:scale-110 ${
+                                                        item.type === 'subscription_payment' 
+                                                            ? 'bg-primary-100 text-primary-600' 
+                                                            : 'bg-indigo-100 text-indigo-600'
+                                                    }`}>
+                                                        {item.type === 'subscription_payment' ? <FiPackage /> : <FiPlusCircle />}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-black text-gray-900 text-sm leading-tight">{item.planName}</p>
+                                                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-tighter">
+                                                            Ref: {item.transactionCode}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6 text-center">
+                                                <span className="text-sm font-bold text-gray-500 tabular-nums">{formatDate(item.date)}</span>
+                                            </td>
+                                            <td className="px-8 py-6 text-center">
+                                                <div className="flex justify-center">
+                                                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2 ${
+                                                        item.status === 'completed' || item.status === 'active'
+                                                            ? 'bg-emerald-100 text-emerald-600' 
+                                                            : item.status === 'failed'
+                                                            ? 'bg-rose-100 text-rose-600'
+                                                            : 'bg-yellow-100 text-yellow-600'
+                                                    }`}>
+                                                        {item.status === 'completed' || item.status === 'active' ? <FiCheckCircle size={10} /> : <FiXCircle size={10} />}
+                                                        {item.status}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6 text-center">
+                                                <span className="font-black text-gray-900 text-lg tabular-nums">₹{item.amount.toLocaleString('en-IN')}</span>
+                                            </td>
+                                            <td className="px-8 py-6 text-right">
+                                                <button
+                                                    onClick={() => handleDownloadInvoice(item.zohoInvoiceId)}
+                                                    disabled={!item.zohoInvoiceId || downloadingId === item.zohoInvoiceId}
+                                                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tighter transition-all ${
+                                                        !item.zohoInvoiceId 
+                                                            ? 'bg-gray-50 text-gray-300 cursor-not-allowed border-2 border-gray-100' 
+                                                            : 'bg-white text-primary-600 border-2 border-primary-100 hover:bg-primary-600 hover:text-white hover:shadow-lg shadow-primary-100 active:scale-95'
+                                                    }`}
+                                                >
+                                                    {downloadingId === item.zohoInvoiceId ? (
+                                                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                                    ) : (
+                                                        <FiDownload size={14} />
+                                                    )}
+                                                    PDF
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="p-20 text-center">
+                            <div className="w-20 h-20 bg-gray-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border-2 border-dashed border-gray-200 text-gray-300">
+                                <FiCreditCard size={40} />
+                            </div>
+                            <h4 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">No Transactions Found</h4>
+                            <p className="text-gray-500 max-w-xs mx-auto text-sm font-medium">Your billing history will appear here once you purchase a subscription or add-on pack.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Zoho Info Banner */}
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-indigo-600 rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-indigo-100"
+            >
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24"></div>
+                
+                <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
+                    <div className="w-24 h-24 bg-white/20 backdrop-blur-xl rounded-3xl flex items-center justify-center text-5xl shadow-2xl">
+                        <FiInfo />
+                    </div>
+                    <div className="flex-1 text-center md:text-left">
+                        <h4 className="text-2xl font-black uppercase tracking-tight mb-3 italic">Zoho Books Integration</h4>
+                        <p className="text-indigo-100 text-lg font-medium leading-relaxed max-w-2xl">
+                            All your invoices are automatically generated via <span className="text-white font-bold underline decoration-2 underline-offset-4">Zoho Books</span>. 
+                            Our system syncs with Zoho in real-time to provide you with GST-compliant official billing documents.
+                        </p>
+                    </div>
+                    <div className="flex flex-col gap-3 w-full md:w-auto">
+                        <div className="px-6 py-3 bg-white/10 backdrop-blur rounded-2xl border border-white/20 text-xs font-black uppercase tracking-widest text-center">
+                            GST Compliant
+                        </div>
+                        <div className="px-6 py-3 bg-white/10 backdrop-blur rounded-2xl border border-white/20 text-xs font-black uppercase tracking-widest text-center">
+                            Instant PDF Download
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
+export default Billing;

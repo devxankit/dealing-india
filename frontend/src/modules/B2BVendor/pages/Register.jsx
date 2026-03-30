@@ -18,7 +18,12 @@ import api from '../../../shared/utils/api';
  * For all other business types: GST and document upload are compulsory.
  */
 
-const BROKER_BUSINESS_TYPES = ['property broker', 'other broker', 'gray broker'];
+const BROKER_BUSINESS_TYPES = [
+    'property broker', 
+    'gray market / gray broker', 
+    'agency/ agent( broker)', 
+    'support & services'
+];
 
 const B2BVendorRegister = () => {
     const navigate = useNavigate();

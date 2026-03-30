@@ -1,4 +1,5 @@
 import Reel from '../models/Reel.model.js';
+import ReelReport from '../models/ReelReport.model.js';
 import ReelLike from '../models/ReelLike.model.js';
 import ReelComment from '../models/ReelComment.model.js';
 import ReelView from '../models/ReelView.model.js';
@@ -1080,6 +1081,16 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
             image = reel.thumbnailUrl;
         } else if (reel.youtubeVideoId) {
             image = `https://img.youtube.com/vi/${reel.youtubeVideoId}/maxresdefault.jpg`;
+        } else if (reel.videoUrl && reel.videoUrl.includes('cloudinary.com')) {
+            // Generate a high-quality thumbnail from Cloudinary video (start of video)
+            // Replace extension with jpg and add transformations for better social preview
+            image = reel.videoUrl.replace(/\.(mp4|mkv|mov|avi|webm)$/, ".jpg")
+                                .replace("/upload/", "/upload/w_1200,h_630,c_fill,so_0/");
+        } else if (reel.videoUrl && (reel.videoUrl.includes('youtube.com') || reel.videoUrl.includes('youtu.be'))) {
+            const ytMatch = reel.videoUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|embed\/|shorts\/))([^&?\/ ]{11})/);
+            if (ytMatch && ytMatch[1]) {
+                image = `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
+            }
         } else if (reel.productId && (reel.productId.image || reel.productId.images?.[0])) {
             image = reel.productId.image || reel.productId.images[0];
         } else if (reel.propertyId && reel.propertyId.images?.[0]) {
@@ -1152,4 +1163,168 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
 
     res.set('Content-Type', 'text/html');
     res.send(html);
+});
+
+/**
+ * User/Vendor: Report a reel
+ * POST /api/reels/:id/report
+ * Body: { reason: string, comment?: string }
+ */
+export const reportReel = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { reason, comment } = req.body;
+    const userId = req.user?.vendorId || req.user?.id;
+    const userType = req.user.role === 'vendor' ? 'vendor' : 'user';
+
+    if (!userId) {
+        return res.status(401).json({ success: false, message: 'Login required to report' });
+    }
+
+    const reel = await Reel.findById(id);
+    if (!reel) {
+        return res.status(404).json({ success: false, message: 'Reel not found' });
+    }
+
+    if (!reason || reason.trim().length === 0) {
+        return res.status(400).json({ success: false, message: 'Reason is required' });
+    }
+
+    const report = await ReelReport.create({
+        reelId: id,
+        reporterId: userId,
+        reporterType: userType,
+        reason: reason.trim(),
+        comment: comment?.trim() || '',
+    });
+
+    // Notify Vendor about the report (Uploader)
+    if (reel.uploaderType === 'vendor') {
+        try {
+            const io = req.app.get('io');
+            await notificationService.createNotification({
+                recipientId: reel.uploaderId,
+                recipientType: 'vendor',
+                type: 'reel_report',
+                title: 'Reel Reported',
+                message: `One of your reels "${reel.title}" has been reported for: ${reason}. Please review your content.`,
+                actionUrl: '/b2b-vendor/reels',
+                metadata: { reelId: reel._id, reportId: report._id, reason }
+            }, io);
+        } catch (notifErr) {
+            console.error('[Reel Report] Notification to vendor failed:', notifErr.message);
+        }
+    }
+
+    res.status(201).json({
+        success: true,
+        message: 'Report submitted successfully. Our team will review it.',
+        data: { report }
+    });
+});
+
+/**
+ * Admin: List all reel reports
+ * GET /api/admin/reels/reports
+ */
+export const adminListReelReports = asyncHandler(async (req, res) => {
+    const { status, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (status) filter.status = status;
+
+    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(50, Math.max(1, parseInt(limit)));
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+
+    const [reports, total] = await Promise.all([
+        ReelReport.find(filter)
+            .populate({
+                path: 'reelId',
+                select: 'title videoUrl thumbnailUrl uploaderId uploaderType uploaderName status'
+            })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limitNum)
+            .lean(),
+        ReelReport.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+        success: true,
+        data: { reports },
+        pagination: { page: parseInt(page), limit: limitNum, total, pages: Math.ceil(total / limitNum) },
+    });
+});
+
+/**
+ * Admin: Resolve or Dismiss a reel report
+ * POST /api/admin/reels/reports/:id/resolve
+ * Body: { action: 'delete' | 'dismiss', comment?: string }
+ */
+export const adminResolveReelReport = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { action, comment } = req.body; 
+    const adminId = req.user.adminId || req.user.id;
+
+    const report = await ReelReport.findById(id).populate('reelId');
+    if (!report) {
+        return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+
+    if (report.status !== 'pending') {
+        return res.status(400).json({ success: false, message: 'Report is already resolved' });
+    }
+
+    if (action === 'delete') {
+        const reel = report.reelId;
+        if (reel) {
+            // Delete the reel logic
+            if (reel.youtubeVideoId) {
+                await deleteVideoFromYouTube(reel.youtubeVideoId).catch(err => {
+                    console.error('[adminResolveReport] YouTube delete failed:', err.message);
+                });
+            }
+
+            if (reel.videoPublicId) {
+                await deleteFromCloudinary(reel.videoPublicId, 'video').catch(() => { });
+            }
+            if (reel.thumbnailUrl && reel.thumbnailUrl.includes('cloudinary.com')) {
+                await deleteFromCloudinary(reel.thumbnailUrl, 'image').catch(() => { });
+            }
+
+            await ReelLike.deleteMany({ reelId: reel._id });
+            await ReelComment.deleteMany({ reelId: reel._id });
+            await ReelView.deleteMany({ reelId: reel._id });
+            await Reel.findByIdAndDelete(reel._id);
+
+            try {
+                const io = req.app.get('io');
+                await notificationService.createNotification({
+                    recipientId: reel.uploaderId,
+                    recipientType: reel.uploaderType,
+                    type: 'reel_removed',
+                    title: 'Reel Removed',
+                    message: `Your reel "${reel.title}" was removed by admin following reports.`,
+                    actionUrl: '/b2b-vendor/reels',
+                    metadata: { reelId: reel._id, reason: report.reason, action: 'deleted' }
+                }, io);
+            } catch (notifErr) {
+                console.error('[Reel Resolve] Notification failed:', notifErr.message);
+            }
+        }
+        report.actionTaken = 'deleted';
+        report.status = 'resolved';
+    } else {
+        report.actionTaken = 'no_action';
+        report.status = 'dismissed';
+    }
+
+    report.resolvedBy = adminId;
+    report.resolvedAt = new Date();
+    if (comment) report.comment = (report.comment || '') + '\nAdmin Resolution: ' + comment;
+    await report.save();
+
+    res.status(200).json({
+        success: true,
+        message: action === 'delete' ? 'Reel deleted and report resolved' : 'Report dismissed',
+        data: { report }
+    });
 });

@@ -55,7 +55,7 @@ const B2BVendorProperties = () => {
             }
             if (propertyType !== 'all' && propertyType !== 'Property') {
                 // Compatibility: some environments still store Villa entries as Plot.
-                params.propertyType = propertyType === 'Villa' ? 'Plot' : propertyType;
+                params.propertyType = propertyType === 'Row house / Villa' ? 'Plot' : propertyType;
             }
 
             const response = await api.get('/admin/properties', { params });
@@ -151,7 +151,7 @@ const B2BVendorProperties = () => {
         if (propertyType === 'all') return true;
 
         const type = String(item.type || item.propertyType || '').toLowerCase();
-        if (propertyType === 'Villa') {
+        if (propertyType === 'Row house / Villa') {
             return type === 'villa' || type === 'plot';
         }
         if (propertyType === 'Property') {
@@ -207,7 +207,7 @@ const B2BVendorProperties = () => {
                         >
                             <option value="all">All Property Types</option>
                             <option value="Flat">Flat</option>
-                            <option value="Villa">Villa</option>
+                            <option value="Villa">Row house / Villa</option>
                             <option value="Property">Property</option>
                         </select>
                         <FiFilter className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />

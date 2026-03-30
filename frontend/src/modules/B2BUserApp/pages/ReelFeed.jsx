@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiHeart, FiVideo, FiShare2, FiEye, FiCopy, FiX, FiFilter, FiChevronDown, FiVolume2, FiVolumeX } from "react-icons/fi";
+import { FiHeart, FiVideo, FiShare2, FiEye, FiCopy, FiX, FiFilter, FiChevronDown, FiVolume2, FiVolumeX, FiFlag } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
@@ -29,6 +29,10 @@ export default function ReelFeed() {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
   const [debouncedCategorySearch, setDebouncedCategorySearch] = useState("");
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportComment, setReportComment] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
   const isShowingGeneralFeed = useRef(false);
 
   // Debounce category search
@@ -44,7 +48,7 @@ export default function ReelFeed() {
   const touchStartYRef = useRef(null);
   const loadingMoreRef = useRef(false);
   const hasAppliedInitialReelRef = useRef(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
 
   const fetchFeed = useCallback(async (pageNum = 1, append = false, pageToken = null, forceCategory = null) => {
     try {
@@ -379,6 +383,27 @@ export default function ReelFeed() {
     window.open(`https://api.whatsapp.com/send?phone=${formatted}&text=${msg}`, "_blank");
   };
 
+  const submitReport = async () => {
+    if (!reportReason) return;
+    setIsReporting(true);
+    try {
+      const res = await api.post(`/reels/${currentReel._id}/report`, {
+        reason: reportReason,
+        comment: reportComment
+      });
+      if (res.success) {
+        toast.success("Thank you for your report. We will review it shortly.");
+        setShowReportModal(false);
+        setReportReason("");
+        setReportComment("");
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to submit report");
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
   if (loading && reels.length === 0) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -494,6 +519,13 @@ export default function ReelFeed() {
                     <FiVolume2 className="text-3xl text-primary-500" />
                   )}
                   <span className="text-xs">{isMuted ? "Mute" : "Sound"}</span>
+                </button>
+                <button
+                  onClick={() => setShowReportModal(true)}
+                  className="flex flex-col items-center text-white/70 hover:text-white transition-colors"
+                >
+                  <FiFlag className="text-3xl" />
+                  <span className="text-xs">Report</span>
                 </button>
                 {currentReel.vendorPhone && (
                   <button onClick={handleWhatsApp} className="flex flex-col items-center text-[#25D366]">
@@ -624,6 +656,68 @@ export default function ReelFeed() {
                 </div>
               </motion.div>
             </>
+          )}
+        </AnimatePresence>
+
+        {/* Report Modal */}
+        <AnimatePresence>
+          {showReportModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm pointer-events-auto">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="w-full max-w-sm bg-gray-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+              >
+                <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">Report Reel</h3>
+                  <button onClick={() => { setShowReportModal(false); setReportReason(""); setReportComment(""); }} className="text-gray-400 hover:text-white transition-colors">
+                    <FiX className="text-2xl" />
+                  </button>
+                </div>
+                
+                <div className="p-6 space-y-4">
+                  <p className="text-sm text-gray-400 mb-2">Why are you reporting this reel?</p>
+                  
+                  <div className="grid grid-cols-1 gap-2">
+                    {["Spam", "Inappropriate", "Harassment", "False Info", "IP Violation", "Other"].map((reason) => (
+                      <button
+                        key={reason}
+                        onClick={() => setReportReason(reason)}
+                        className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-semibold ${
+                          reportReason === reason 
+                            ? "bg-primary-500/10 border-primary-500 text-primary-500" 
+                            : "bg-white/5 border-white/5 text-white hover:bg-white/10"
+                        }`}
+                      >
+                        {reason}
+                      </button>
+                    ))}
+                  </div>
+
+                  {reportReason && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                      <textarea
+                        value={reportComment}
+                        onChange={(e) => setReportComment(e.target.value)}
+                        placeholder="Tell us more (optional)..."
+                        className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-gray-500 focus:border-primary-500 outline-none transition-all resize-none"
+                      />
+                    </motion.div>
+                  )}
+
+                  <button
+                    disabled={!reportReason || isReporting}
+                    onClick={submitReport}
+                    className="w-full py-4 bg-primary-600 disabled:bg-gray-700 text-white rounded-2xl font-bold text-base shadow-lg shadow-primary-900/20 active:scale-95 transition-all mt-4 flex items-center justify-center gap-2"
+                  >
+                    {isReporting ? (
+                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    ) : "Submit Report"}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>

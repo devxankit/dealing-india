@@ -159,7 +159,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
             {/* Content Body - Ultra Compact */}
             <div className={`p-2.5 flex flex-col gap-2 ${viewMode === 'list' ? 'flex-1 justify-center' : 'flex-1'}`}>
                 <div className="min-w-0">
-                    <h3 className="text-[11px] font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase leading-tight">
+                    <h3 className="text-[11px] font-black text-gray-800 line-clamp-2 group-hover:text-primary-600 transition-colors uppercase leading-tight">
                         {product.formType === 'shop-listing' && product.items?.length > 0
                             ? (product.items[0].itemName || product.items[0].name || 'Item')
                             : product.name}

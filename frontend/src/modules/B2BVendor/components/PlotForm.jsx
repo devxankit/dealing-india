@@ -13,7 +13,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
     const [media, setMedia] = useState([]);
 
     // Logic to determine initial property type
-    const initialPropertyType = initialData?.propertyType || formType;
+    const initialPropertyType = initialData?.propertyType || (formType === "Row house / Villa" ? "Villa" : formType);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -86,7 +86,8 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
             },
             legal: {
                 loanAvailable: 'No',
-                reraApproved: 'No'
+                reraApproved: 'No',
+                reraNumber: ''
             }
         },
 
@@ -599,6 +600,19 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                             <span className="text-[10px] font-black uppercase">RERA Approved</span>
                                             <div className="w-32">{renderToggle('plotDetails.legal.reraApproved', formData.plotDetails.legal.reraApproved)}</div>
                                         </div>
+                                        {formData.plotDetails.legal.reraApproved === 'Yes' && (
+                                            <div className="space-y-2 pt-2">
+                                                <label className="text-[10px] font-black uppercase">RERA Number</label>
+                                                <input
+                                                    type="text"
+                                                    name="plotDetails.legal.reraNumber"
+                                                    value={formData.plotDetails.legal.reraNumber || ''}
+                                                    onChange={handleChange}
+                                                    className="w-full px-6 py-3 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none font-bold text-slate-700 text-xs"
+                                                    placeholder="Enter RERA Number"
+                                                />
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="text-xl font-black text-slate-900 uppercase pt-4">Location</div>

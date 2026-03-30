@@ -802,12 +802,13 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</div>
                                     <input
                                         type="number"
+                                        step="any"
                                         name="price"
                                         value={formData.price}
                                         onChange={handleChange}
                                         required
                                         className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                        placeholder="4500"
+                                        placeholder="4500.50"
                                     />
                                 </div>
                             </div>
@@ -889,10 +890,11 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                                     <span className="text-[8px] text-gray-400 font-bold">₹</span>
                                                     <input
                                                         type="number"
+                                                        step="any"
                                                         value={tier.price}
                                                         onChange={(e) => updateBulkTier(index, 'price', e.target.value)}
                                                         className="w-full bg-transparent border-none focus:ring-0 text-[11px] font-bold outline-none"
-                                                        placeholder="4200"
+                                                        placeholder="4200.00"
                                                     />
                                                 </div>
                                             </div>

@@ -253,6 +253,56 @@ export const getAddonHistory = async () => {
     }
 };
  
+/**
+ * Get vendor billing history
+ * @returns {Promise<Array>} List of billing transactions
+ */
+export const getBillingHistory = async () => {
+    try {
+        const response = await api.get('/vendor/subscription/billing-history');
+        if (response.success) {
+            return response.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error('Error fetching billing history:', error);
+        return [];
+    }
+};
+
+/**
+ * Download invoice PDF
+ * @param {String} invoiceId - Zoho Invoice ID
+ */
+export const downloadInvoice = async (invoiceId) => {
+    try {
+        // We use window.open for direct download if the API handles it
+        const url = `${api.defaults.baseURL}/vendor/subscription/invoice/${invoiceId}`;
+        const token = localStorage.getItem('b2b-vendor-token');
+        
+        // Fetch the blob to handle authentication and direct download
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Failed to download invoice');
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.setAttribute('download', `invoice-${invoiceId}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    } catch (error) {
+        console.error('Error downloading invoice:', error);
+        throw error;
+    }
+};
+
 export default {
     getPlans,
     getCurrentSubscription,
@@ -267,5 +317,7 @@ export default {
     initializeAddonPurchase,
     verifyAddonPayment,
     getAddonStatus,
-    getAddonHistory
+    getAddonHistory,
+    getBillingHistory,
+    downloadInvoice
 };
