@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiShoppingBag, FiMapPin, FiPhone, FiTruck, FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import { FiShoppingBag, FiMapPin, FiPhone, FiTruck, FiChevronDown, FiChevronRight, FiCheck } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
 import toast from '../../../shared/utils/toast';
@@ -164,6 +164,31 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                         <span className="text-gray-500 font-bold uppercase tracking-tighter">Mfg:</span>{' '}
                         {vendor.mfgOfWork || '—'}
                     </p>
+                </div>
+
+                {/* Vendor Status Row: GST / Email / Mobile */}
+                <div className="flex flex-wrap items-center gap-2 mt-0.5 px-1">
+                    {vendor.gstNumber && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-[7px] font-black text-gray-400 uppercase">GST:</span>
+                            <span className="text-[7px] font-black text-gray-700 uppercase tracking-tighter">{vendor.gstNumber}</span>
+                            <FiCheck className="text-green-600" size={8} />
+                        </div>
+                    )}
+                    {vendor.email && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-[7px] font-black text-gray-400 uppercase">EMAIL:</span>
+                            <span className="text-[7px] font-black text-gray-700 truncate max-w-[80px]">{vendor.email}</span>
+                            <FiCheck className="text-green-600" size={8} />
+                        </div>
+                    )}
+                    {vendor.phone && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-[7px] font-black text-gray-400 uppercase">MOBILE:</span>
+                            <span className="text-[7px] font-black text-gray-700 uppercase">{vendor.phone}</span>
+                            <FiCheck className="text-green-600" size={8} />
+                        </div>
+                    )}
                 </div>
 
                 {/* Action Row */}

@@ -662,12 +662,12 @@ export default function ReelFeed() {
         {/* Report Modal */}
         <AnimatePresence>
           {showReportModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm pointer-events-auto">
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm pointer-events-auto">
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="w-full max-w-sm bg-gray-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="w-full max-w-sm bg-gray-900 border border-white/10 rounded-3xl overflow-y-auto max-h-[85vh] shadow-2xl custom-scrollbar"
               >
                 <div className="p-6 border-b border-white/5 flex items-center justify-between">
                   <h3 className="text-xl font-bold text-white">Report Reel</h3>
@@ -715,6 +715,7 @@ export default function ReelFeed() {
                       <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                     ) : "Submit Report"}
                   </button>
+                  <div className="h-4" /> {/* Extra space at bottom */}
                 </div>
               </motion.div>
             </div>
@@ -722,7 +723,7 @@ export default function ReelFeed() {
         </AnimatePresence>
       </div>
 
-      <B2BBottomNav />
+      {!showReportModal && !showShareModal && <B2BBottomNav />}
     </div>
   );
 }

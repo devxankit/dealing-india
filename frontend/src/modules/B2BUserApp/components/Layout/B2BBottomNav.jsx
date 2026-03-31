@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiGrid, FiBriefcase, FiVideo } from 'react-icons/fi';
+import { FiHome, FiGrid, FiBriefcase, FiVideo, FiUser } from 'react-icons/fi';
 
 const B2BBottomNav = () => {
     const navItems = [
@@ -8,11 +8,12 @@ const B2BBottomNav = () => {
         { icon: FiVideo, label: 'Reels', path: '/b2b/reels' },
         { icon: FiGrid, label: 'Browse', path: '/b2b/catalog?open=categories' },
         { icon: FiBriefcase, label: 'Business', path: '/b2b/catalog?open=business' },
+        { icon: FiUser, label: 'Profile', path: '/b2b/profile' },
     ];
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 md:hidden pb-safe">
-            <div className="flex justify-around items-center h-14">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50 md:hidden pb-safe">
+            <div className="flex justify-around items-center h-16">
                 {navItems.map((item) => (
                     <NavLink
                         key={item.path}

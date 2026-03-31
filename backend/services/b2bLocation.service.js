@@ -432,7 +432,7 @@ export const getB2BListingLocations = async (options = {}) => {
       const cityVal = normalizeText(vendor.address?.city);
       const areaVal = normalizeText(vendor.address?.area);
       const marketVal = normalizeText(vendor.address?.market);
-      if (!cityVal || !areaVal || !marketVal) return;
+      if (!cityVal) return;
 
       const entry = { city: cityVal, area: areaVal, market: marketVal };
       if (!matchesSelectedLocation(entry, selectedCity, selectedArea, selectedMarket)) {
@@ -459,7 +459,7 @@ export const getB2BListingLocations = async (options = {}) => {
       const areaVal = normalizeText(property.location?.area) || normalizeText(vendor.address?.area);
       const marketVal = normalizeText(property.location?.market) || normalizeText(vendor.address?.market);
 
-      if (!cityVal || !areaVal || !marketVal) return;
+      if (!cityVal) return;
 
       const entry = { city: cityVal, area: areaVal, market: marketVal };
       if (!matchesSelectedLocation(entry, selectedCity, selectedArea, selectedMarket)) {

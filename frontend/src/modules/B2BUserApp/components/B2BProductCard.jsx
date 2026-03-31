@@ -201,45 +201,48 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                 <div className="mt-1 px-1">
                     {/* Mobile: text + right check, like desktop but compact */}
                     <div className="md:hidden flex flex-wrap items-center gap-2">
-                        <div className="flex items-center justify-between gap-1 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full whitespace-nowrap shrink-0">
-                            <span className="text-[8px] font-black text-gray-600 uppercase">GST</span>
-                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-200 text-green-700">
-                                <FiCheck size={8} />
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-1 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full whitespace-nowrap shrink-0">
-                            <span className="text-[8px] font-black text-gray-600 uppercase">Email</span>
-                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-200 text-green-700">
-                                <FiCheck size={8} />
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-1 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full whitespace-nowrap shrink-0">
-                            <span className="text-[8px] font-black text-gray-600 uppercase">Mobile</span>
-                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-200 text-green-700">
-                                <FiCheck size={8} />
-                            </span>
-                        </div>
+                        {vendor?.gstNumber && (
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 border border-green-100 rounded-full whitespace-nowrap shrink-0">
+                                <span className="text-[7px] font-black text-green-700 uppercase">GST: {vendor.gstNumber}</span>
+                                <FiCheck className="text-green-600" size={8} />
+                            </div>
+                        )}
+                        {vendor?.email && (
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-100 rounded-full whitespace-nowrap shrink-0">
+                                <span className="text-[7px] font-black text-blue-700 truncate max-w-[80px]">{vendor.email}</span>
+                                <FiCheck className="text-blue-600" size={8} />
+                            </div>
+                        )}
+                        {vendor?.phone && (
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-purple-50 border border-purple-100 rounded-full whitespace-nowrap shrink-0">
+                                <span className="text-[7px] font-black text-purple-700 uppercase">{vendor.phone}</span>
+                                <FiCheck className="text-purple-600" size={8} />
+                            </div>
+                        )}
                     </div>
                     {/* Desktop: text + check badges */}
                     <div className="hidden md:flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                            <span className="text-[8px] font-black text-gray-500 uppercase">GST</span>
-                            <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
-                                <FiCheck size={10} />
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <span className="text-[8px] font-black text-gray-500 uppercase">Email</span>
-                            <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
-                                <FiCheck size={10} />
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <span className="text-[8px] font-black text-gray-500 uppercase">Mobile</span>
-                            <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
-                                <FiCheck size={10} />
-                            </span>
-                        </div>
+                        {vendor?.gstNumber && (
+                            <div className="flex items-center gap-1">
+                                <span className="text-[8px] font-black text-gray-400 uppercase">GST:</span>
+                                <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">{vendor.gstNumber}</span>
+                                <FiCheck className="text-green-600" size={10} />
+                            </div>
+                        )}
+                        {vendor?.email && (
+                            <div className="flex items-center gap-1">
+                                <span className="text-[8px] font-black text-gray-400 uppercase">EMAIL:</span>
+                                <span className="text-[8px] font-black text-gray-700 truncate max-w-[120px]">{vendor.email}</span>
+                                <FiCheck className="text-green-600" size={10} />
+                            </div>
+                        )}
+                        {vendor?.phone && (
+                            <div className="flex items-center gap-1">
+                                <span className="text-[8px] font-black text-gray-400 uppercase">MOBILE:</span>
+                                <span className="text-[8px] font-black text-gray-700 uppercase">{vendor.phone}</span>
+                                <FiCheck className="text-green-600" size={10} />
+                            </div>
+                        )}
                     </div>
                 </div>
 

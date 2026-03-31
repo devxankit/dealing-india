@@ -137,6 +137,7 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
     // Prefer specific shopName or shopUnit.name over registration storeName
     const sellerName = property.shopName || property.shopUnit?.name || property.vendorId?.storeName || property.vendorId?.name || '';
     const sellerPhone = property.vendorId?.phone || '';
+    const vendor = property.vendorId;
 
     return (
         <motion.div
@@ -283,25 +284,28 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                 </div>
 
                 {/* Vendor Status Row: GST / Email / Mobile */}
-                <div className="flex items-center gap-3 mt-1 px-1">
-                    <div className="flex items-center gap-1">
-                        <span className="text-[8px] font-black text-gray-500 uppercase">GST</span>
-                        <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
-                            <FiCheck size={10} />
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <span className="text-[8px] font-black text-gray-500 uppercase">Email</span>
-                        <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
-                            <FiCheck size={10} />
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <span className="text-[8px] font-black text-gray-500 uppercase">Mobile</span>
-                        <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
-                            <FiCheck size={10} />
-                        </span>
-                    </div>
+                <div className="flex flex-wrap items-center gap-3 mt-1 px-1">
+                    {vendor?.gstNumber && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-[8px] font-black text-gray-400 uppercase">GST:</span>
+                            <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">{vendor.gstNumber}</span>
+                            <FiCheck className="text-green-600" size={10} />
+                        </div>
+                    )}
+                    {vendor?.email && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-[8px] font-black text-gray-400 uppercase">EMAIL:</span>
+                            <span className="text-[8px] font-black text-gray-700 truncate max-w-[100px]">{vendor.email}</span>
+                            <FiCheck className="text-green-600" size={10} />
+                        </div>
+                    )}
+                    {vendor?.phone && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-[8px] font-black text-gray-400 uppercase">MOBILE:</span>
+                            <span className="text-[8px] font-black text-gray-700 uppercase">{vendor.phone}</span>
+                            <FiCheck className="text-green-600" size={10} />
+                        </div>
+                    )}
                 </div>
 
                 {/* Action Buttons */}

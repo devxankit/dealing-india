@@ -127,7 +127,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
         <div className="flex-shrink-0">
             <header className={`${sticky !== false ? 'fixed top-0 left-0 right-0' : 'relative'} z-[1000] ${transparent ? 'bg-transparent border-none shadow-none' : 'bg-white border-b border-gray-100 shadow-sm'} flex-shrink-0 pt-safe`}>
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between gap-2 md:gap-4">
-                    <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+                    <div className="flex items-center gap-2 md:gap-4 min-w-0">
                         {showBack && (
                             <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                                 <FiArrowLeft className="text-lg md:text-xl text-gray-700" />
@@ -182,22 +182,26 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
 
                     {/* Mobile quick links beside logo */}
                     {!minimal && (
-                        <div className="flex md:hidden items-center gap-1 ml-1">
-                        <Link
-                            to="/b2b/catalog?itemType=lotslot"
-                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
-                        >
-                            <img src={lotSlotIcon} alt="Lot" className="h-7 w-auto object-contain" /> Lot / Slot
-                        </Link>
-                        <Link
-                            to="/b2b/real-estate"
-                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
-                        >
-                            <img src={realEstateIcon} alt="Real Estate" className="h-7 w-auto object-contain" /> Real Estate
-                        </Link>
+                        <div className="flex md:hidden items-center gap-1 ml-1 min-w-0 flex-shrink truncate">
+                        {(location.pathname !== '/b2b/catalog' || currentItemType !== 'lotslot') && (
+                            <Link
+                                to="/b2b/catalog?itemType=lotslot"
+                                className="px-1.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1 whitespace-nowrap"
+                            >
+                                <img src={lotSlotIcon} alt="Lot" className="h-5 w-auto object-contain" /> <span className="hidden xs:inline">Lot / Slot</span>
+                            </Link>
+                        )}
+                        {!location.pathname.includes('/real-estate') && (
+                            <Link
+                                to="/b2b/real-estate"
+                                className="px-1.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1 whitespace-nowrap"
+                            >
+                                <img src={realEstateIcon} alt="Real Estate" className="h-5 w-auto object-contain" /> <span className="hidden xs:inline">Real Estate</span>
+                            </Link>
+                        )}
                         <Link
                             to="/b2b-vendor/register"
-                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-black text-white"
+                            className="px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-wider bg-black text-white whitespace-nowrap"
                         >
                             Seller
                         </Link>
@@ -293,7 +297,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                     </div>
                 )}
 
-                <div className="flex items-center gap-2 md:gap-3">
+                <div className="hidden md:flex items-center gap-2 md:gap-3 flex-shrink-0">
                     {/* Become Seller */}
                     <Link
                         to="/b2b-vendor/register"
