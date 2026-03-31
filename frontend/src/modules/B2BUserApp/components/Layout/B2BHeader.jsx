@@ -148,7 +148,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                 ref={headerRef}
                 className={`${sticky !== false ? 'fixed top-0 left-0 right-0' : 'relative'} z-[1000] ${transparent ? 'bg-transparent border-none shadow-none' : 'bg-white border-b border-gray-100 shadow-sm'} flex-shrink-0 pt-safe`}
             >
-                <div className="max-w-[1920px] mx-auto px-4 md:px-8 h-[4.5rem] md:h-24 flex items-center justify-between gap-3 md:gap-8">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6 xl:px-8 h-[4.5rem] md:h-24 flex items-center justify-between gap-2 lg:gap-4 xl:gap-8">
                     <div className="flex items-center gap-3 md:gap-6 min-w-0">
                         <div className="flex items-center gap-2 md:gap-5">
                             {showBack && (
@@ -178,34 +178,34 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         </div>
                         
                         {/* Desktop (md+) Navigation links next to logo - more prominent */}
-                        <div className="hidden md:flex items-center gap-2 lg:gap-4 ml-2">
+                        <div className="hidden md:flex items-center gap-1 xl:gap-4 ml-2">
                             {customNav}
-                            <Link
-                                to="/b2b/real-estate"
-                                className={`px-4 py-3 rounded-2xl flex items-center gap-3 transition-all group whitespace-nowrap border-2 ${location.pathname.includes('/real-estate') ? 'border-primary-100 bg-primary-50/30' : 'border-transparent hover:bg-gray-50'}`}
-                            >
-                                <img src={realEstateIcon} alt="Rent" className="h-8 lg:h-10 w-auto object-contain" />
-                                <div className="flex flex-col">
-                                    <span className={`text-[10px] lg:text-xs font-black uppercase tracking-[0.15em] ${location.pathname.includes('/real-estate') ? 'text-primary-700' : 'text-gray-800'}`}>Real Estate</span>
-                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500">Rent / Sell / Buy</span>
-                                </div>
-                            </Link>
-                            <Link
-                                to="/b2b/catalog?itemType=lotslot"
-                                className={`px-4 py-3 rounded-2xl flex items-center gap-3 transition-all group whitespace-nowrap border-2 ${currentItemType === 'lotslot' ? 'border-primary-100 bg-primary-50/30' : 'border-transparent hover:bg-gray-50'}`}
-                            >
-                                <img src={lotSlotIcon} alt="Lot" className="h-8 lg:h-10 w-auto object-contain" />
-                                <div className="flex flex-col">
-                                    <span className={`text-[10px] lg:text-xs font-black uppercase tracking-[0.15em] ${currentItemType === 'lotslot' ? 'text-primary-700' : 'text-gray-800'}`}>Lot / Slot</span>
-                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500">Bulk Clearance</span>
-                                </div>
-                            </Link>
+                                <Link
+                                    to="/b2b/real-estate"
+                                    className={`px-3 xl:px-4 py-3 rounded-2xl flex items-center gap-2 xl:gap-3 transition-all group whitespace-nowrap border-2 ${location.pathname.includes('/real-estate') ? 'border-primary-100 bg-primary-50/30' : 'border-transparent hover:bg-gray-50'}`}
+                                >
+                                    <img src={realEstateIcon} alt="Rent" className="h-8 xl:h-10 w-auto object-contain" />
+                                    <div className="flex flex-col">
+                                        <span className={`text-[10px] xl:text-xs font-black uppercase tracking-[0.15em] ${location.pathname.includes('/real-estate') ? 'text-primary-700' : 'text-gray-800'}`}>Real Estate</span>
+                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500 hidden xl:block">Rent / Sell / Buy</span>
+                                    </div>
+                                </Link>
+                                <Link
+                                    to="/b2b/catalog?itemType=lotslot"
+                                    className={`px-3 xl:px-4 py-3 rounded-2xl flex items-center gap-2 xl:gap-3 transition-all group whitespace-nowrap border-2 ${currentItemType === 'lotslot' ? 'border-primary-100 bg-primary-50/30' : 'border-transparent hover:bg-gray-50'}`}
+                                >
+                                    <img src={lotSlotIcon} alt="Lot" className="h-8 xl:h-10 w-auto object-contain" />
+                                    <div className="flex flex-col">
+                                        <span className={`text-[10px] xl:text-xs font-black uppercase tracking-[0.15em] ${currentItemType === 'lotslot' ? 'text-primary-700' : 'text-gray-800'}`}>Lot / Slot</span>
+                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500 hidden xl:block">Bulk Clearance</span>
+                                    </div>
+                                </Link>
                         </div>
                     </div>
 
                     {/* Search - Growing to fill middle space */}
                     {!hideSearch && (
-                        <div className="hidden md:flex flex-1 max-w-2xl mx-4 lg:mx-8">
+                        <div className="hidden md:flex flex-1 min-w-[200px] max-w-2xl mx-2 xl:mx-8">
                             <form
                                 onSubmit={handleSearchSubmit}
                                 className="relative w-full group"
@@ -322,22 +322,23 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         </div>
 
                         {/* Desktop (md+) Profile & Extended Actions */}
-                        <div className="hidden md:flex items-center gap-3 lg:gap-5">
+                        <div className="hidden md:flex items-center gap-2 xl:gap-5">
                             <Link
                                 to="/b2b-vendor/register"
-                                className="hidden lg:flex bg-gray-900 text-white px-7 py-3.5 rounded-[1.2rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200"
+                                className="hidden lg:flex bg-gray-900 text-white px-4 xl:px-7 py-3 xl:py-3.5 rounded-xl xl:rounded-[1.2rem] font-black text-[10px] uppercase tracking-wider xl:tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 whitespace-nowrap"
                             >
-                                Become a Seller
+                                <span className="hidden xl:inline">Become a Seller</span>
+                                <span className="xl:hidden">Seller</span>
                             </Link>
 
-                            <div className="h-10 w-px bg-gray-100 hidden lg:block"></div>
+                            <div className="h-8 xl:h-10 w-px bg-gray-100 hidden lg:block"></div>
 
                             {isAuthenticated ? (
                                 <Link to="/b2b/profile" className="flex items-center gap-3 pr-2 pl-1.5 py-1.5 hover:bg-primary-50 rounded-2xl transition-all group border border-transparent hover:border-primary-100">
                                     <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center text-primary-600 border-2 border-primary-50 shadow-md group-hover:bg-primary-600 group-hover:text-white transition-all">
                                         <FiUser size={22} />
                                     </div>
-                                    <div className="hidden lg:flex flex-col">
+                                    <div className="hidden xl:flex flex-col">
                                         <span className="text-xs font-black text-gray-900 uppercase tracking-widest leading-none">Account</span>
                                         <span className="text-[9px] font-bold text-primary-500 uppercase tracking-tight">View Profile</span>
                                     </div>

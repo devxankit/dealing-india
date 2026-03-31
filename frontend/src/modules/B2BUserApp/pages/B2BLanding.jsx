@@ -799,7 +799,7 @@ const B2BLanding = () => {
                             <div className="flex items-center gap-2 lg:gap-4">
                                 <div className="relative" ref={businessTypeRef}>
                                     <button
-                                        onClick={() => setIsBusinessTypeDropdownOpen(!isBusinessTypeDropdownOpen)}
+                                        onClick={() => setIsMobileBusinessTypeOpen(true)}
                                         className="flex items-center gap-2 px-4 py-2 border border-primary-100 rounded-full text-xs font-black uppercase tracking-wider text-gray-700 hover:bg-primary-50 transition-all min-w-[140px] justify-between outline-none"
                                     >
                                         <div className="flex items-center gap-2">
@@ -832,7 +832,7 @@ const B2BLanding = () => {
                                         )}
                                     </AnimatePresence>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 xl:gap-2">
                                     <button
                                         onClick={() => {
                                             if (!isAuthenticated) {
@@ -842,31 +842,40 @@ const B2BLanding = () => {
                                             fetchLotProducts();
                                             setActivePopup('lots');
                                         }}
-                                        className="px-3 py-2 text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
+                                        className="px-3 xl:px-4 py-2 rounded-xl text-[10px] xl:text-xs font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1.5 xl:gap-2 hover:bg-gray-100 transition-all whitespace-nowrap"
                                     >
-                                        <img src={lotSlotIcon} alt="Lot" className="h-7 md:h-8 w-auto object-contain" /> Lot / Slot
+                                        <img src={lotSlotIcon} alt="Lot" className="h-6 xl:h-8 w-auto object-contain" />
+                                        <span className="hidden xl:inline">Lot / Slot</span>
+                                        <span className="xl:hidden">Lot Sale</span>
                                     </button>
                                     <button
                                         onClick={() => navigateWithAuth('/b2b/real-estate')}
-                                        className="px-3 py-2 text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
+                                        className="px-3 xl:px-4 py-2 rounded-xl text-[10px] xl:text-xs font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1.5 xl:gap-2 hover:bg-gray-100 transition-all whitespace-nowrap"
                                     >
-                                        <img src={realEstateIcon} alt="Real Estate" className="h-7 md:h-8 w-auto object-contain" /> Real Estate
+                                        <img src={realEstateIcon} alt="Real Estate" className="h-6 xl:h-8 w-auto object-contain" />
+                                        <span className="hidden xl:inline">Real Estate</span>
+                                        <span className="xl:hidden">Real Estate</span>
                                     </button>
                                     <button
                                         onClick={() => navigate('/b2b/reels')}
-                                        className="px-3 py-2 text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
+                                        className="px-3 xl:px-4 py-2 rounded-xl text-[10px] xl:text-xs font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1.5 xl:gap-2 hover:bg-gray-100 transition-all whitespace-nowrap"
                                     >
-                                        <FiVideo className="h-5 w-5" /> Reels
+                                        <div className="w-6 xl:h-8 flex items-center justify-center">
+                                            <FiVideo className="text-primary-600" size={16} />
+                                        </div>
+                                        <span className="hidden xl:inline">All Reels</span>
+                                        <span className="xl:hidden">Reels</span>
                                     </button>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => navigate('/b2b-vendor/register')}
-                                    className="bg-black text-white px-5 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-gray-800 transition-colors whitespace-nowrap"
+                            <div className="flex items-center gap-2 xl:gap-4">
+                                <Link
+                                    to="/b2b-vendor/register"
+                                    className="hidden lg:flex bg-gray-900 text-white px-4 xl:px-8 py-2 xl:py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider xl:tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 whitespace-nowrap"
                                 >
-                                    Become Seller
-                                </button>
+                                    <span className="hidden xl:inline">Become a Seller</span>
+                                    <span className="xl:hidden">Seller</span>
+                                </Link>
                                 <div className="h-6 w-px bg-gray-200" />
                                 {isAuthenticated ? (
                                     <button onClick={() => navigate('/b2b/profile')} className="flex items-center gap-2 hover:bg-gray-50 p-1.5 rounded-full transition-colors">
@@ -1182,12 +1191,6 @@ const B2BLanding = () => {
                             className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl p-4 max-h-[60vh] overflow-y-auto"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="flex items-center justify-between mb-2">
-                                <h4 className="text-sm font-black text-gray-800 uppercase">Select Business Type</h4>
-                                <button onClick={() => setIsMobileBusinessTypeOpen(false)} className="p-2 bg-gray-100 rounded-lg"><FiX /></button>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                {businessTypes.map(type => (
                                     <button
                                         key={type._id}
                                         onClick={() => { handleBusinessTypeClick(type); setIsMobileBusinessTypeOpen(false); }}
@@ -1451,21 +1454,23 @@ const B2BLanding = () => {
                 ) : (
                     <div className="relative group overflow-hidden">
                         <div className="flex gap-4 md:gap-6 py-3 px-4 md:px-8 animate-scroll hover:pause-scroll">
-                            {/* Render enough times for infinite loop effect even with small counts */}
-                            {([...Array(Math.ceil(12 / (vendorsWithShop.length || 1)))].fill(vendorsWithShop).flat()).map((vendor, idx, arr) => (
-                                <div
-                                    key={`${vendor._id}-${idx}`}
-                                    className="flex-shrink-0 w-[140px] md:w-[160px]"
-                                >
-                                    <B2BVendorCard
-                                        vendor={vendor}
-                                        viewMode="grid"
-                                        trackContactClick={trackContactClick}
-                                        compact={true}
-                                        requireAuthForActions={true}
-                                    />
-                                </div>
-                            ))}
+                            {/* Seamless loop logic: Ensure enough items to cover the screen twice */}
+                            {(vendorsWithShop.length > 0 ? (
+                                [...Array(Math.max(2, Math.ceil(24 / vendorsWithShop.length)))].flatMap((_, i) => vendorsWithShop).map((vendor, idx) => (
+                                    <div
+                                        key={`${vendor._id}-${idx}`}
+                                        className="flex-shrink-0 w-[140px] md:w-[160px]"
+                                    >
+                                        <B2BVendorCard
+                                            vendor={vendor}
+                                            viewMode="grid"
+                                            trackContactClick={trackContactClick}
+                                            compact={true}
+                                            requireAuthForActions={true}
+                                        />
+                                    </div>
+                                ))
+                            ) : null)}
                         </div>
                         <style>{`
                             @keyframes scroll {

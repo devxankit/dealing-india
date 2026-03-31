@@ -418,17 +418,17 @@ const B2BVendorStore = () => {
                             </div>
 
                             {/* Key Metrics Grid */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 pt-6 border-t border-gray-100/60 mt-6 w-full max-w-4xl">
+                            <div className="grid grid-cols-2 gap-4 md:gap-6 pt-6 border-t border-gray-100/60 mt-6 w-full max-w-4xl">
                                 {/* Active Catalog */}
                                 <div className="flex flex-col p-3 md:p-4 bg-gray-50/40 rounded-3xl border border-gray-100/50 hover:bg-white hover:shadow-xl hover:border-primary-100/50 transition-all group">
                                     <span className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2.5">Active Catalog</span>
-                                    <div className="flex items-center gap-2.5 md:gap-3">
-                                        <div className="w-8 h-8 md:w-11 md:h-11 bg-primary-600/10 rounded-2xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm group-hover:scale-110 transition-transform">
+                                    <div className="flex items-center gap-2.5 md:gap-3 overflow-hidden">
+                                        <div className="min-w-[2rem] md:min-w-[2.75rem] h-8 md:h-11 px-2 bg-primary-600/10 rounded-2xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm group-hover:scale-110 transition-transform flex-shrink-0">
                                             {products.length + properties.length}
                                         </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none">Units</span>
-                                            <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Listed</span>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none truncate">Units</span>
+                                            <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 truncate">Listed</span>
                                         </div>
                                     </div>
                                 </div>
@@ -436,13 +436,13 @@ const B2BVendorStore = () => {
                                 {/* Community */}
                                 <div className="flex flex-col p-3 md:p-4 bg-gray-50/40 rounded-3xl border border-gray-100/50 hover:bg-white hover:shadow-xl hover:border-primary-100/50 transition-all group">
                                     <span className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2.5">Community</span>
-                                    <div className="flex items-center gap-2.5 md:gap-3">
-                                        <div className="w-8 h-8 md:w-11 md:h-11 bg-primary-600/10 rounded-2xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm group-hover:scale-110 transition-transform">
+                                    <div className="flex items-center gap-2.5 md:gap-3 overflow-hidden">
+                                        <div className="min-w-[2rem] md:min-w-[2.75rem] h-8 md:h-11 px-2 bg-primary-600/10 rounded-2xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm group-hover:scale-110 transition-transform flex-shrink-0">
                                             {followerCount}
                                         </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none">Followers</span>
-                                            {isFollowing && <span className="text-[8px] md:text-[9px] font-black text-primary-600 uppercase tracking-widest mt-1 animate-pulse">You follow</span>}
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none truncate">Followers</span>
+                                            {isFollowing && <span className="text-[8px] md:text-[9px] font-black text-primary-600 uppercase tracking-widest mt-1 animate-pulse truncate">You follow</span>}
                                         </div>
                                     </div>
                                 </div>
@@ -451,13 +451,13 @@ const B2BVendorStore = () => {
                                 {shopListing?.minPrice && shopListing?.maxPrice && (
                                     <div className="flex flex-col p-3 md:p-4 bg-gray-50/40 rounded-3xl border border-gray-100/50 hover:bg-white hover:shadow-xl hover:border-primary-100/50 transition-all group">
                                         <span className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2.5">Price Range</span>
-                                        <div className="flex items-center gap-2.5 md:gap-3">
-                                            <div className="w-8 h-8 md:w-11 md:h-11 bg-primary-600/10 rounded-2xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm group-hover:scale-110 transition-transform">
+                                        <div className="flex items-center gap-2.5 md:gap-3 overflow-hidden">
+                                            <div className="min-w-[2rem] md:min-w-[2.75rem] h-8 md:h-11 px-2 bg-primary-600/10 rounded-2xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm group-hover:scale-110 transition-transform flex-shrink-0">
                                                 ₹
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none">₹{shopListing.minPrice} - ₹{shopListing.maxPrice}</span>
-                                                <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Starting from</span>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none truncate">₹{shopListing.minPrice} - ₹{shopListing.maxPrice}</span>
+                                                <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 truncate">Starting from</span>
                                             </div>
                                         </div>
                                     </div>
@@ -467,13 +467,13 @@ const B2BVendorStore = () => {
                                 {vendor.address?.city && (
                                     <div className="flex flex-col p-3 md:p-4 bg-gray-50/40 rounded-3xl border border-gray-100/50 hover:bg-white hover:shadow-xl hover:border-primary-100/50 transition-all group">
                                         <span className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2.5">Operating Zone</span>
-                                        <div className="flex items-center gap-2.5 md:gap-3">
-                                            <div className="w-8 h-8 md:w-11 md:h-11 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400 group-hover:scale-110 transition-transform">
+                                        <div className="flex items-center gap-2.5 md:gap-3 overflow-hidden">
+                                            <div className="w-8 h-8 md:w-11 md:h-11 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400 group-hover:scale-110 transition-transform flex-shrink-0">
                                                 <FiShield size={16} />
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none truncate max-w-[100px]">{vendor.address.city}</span>
-                                                <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 truncate max-w-[100px]">{vendor.address.state}</span>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[10px] md:text-sm font-black text-gray-900 uppercase tracking-tight leading-none truncate">{vendor.address.city}</span>
+                                                <span className="text-[8px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 truncate">{vendor.address.state}</span>
                                             </div>
                                         </div>
                                     </div>

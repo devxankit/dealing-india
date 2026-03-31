@@ -73,11 +73,11 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ y: -4, shadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}
             onClick={handleVendorClick}
-            className={`group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex ${viewMode === 'grid' ? (compact ? 'flex-col h-[350px] md:h-[260px]' : 'flex-col h-[400px] md:h-[320px]') : 'flex-row items-center gap-6 p-4 h-fit'}`}
+            className={`group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex ${viewMode === 'grid' ? (compact ? 'flex-col h-[440px] md:h-[360px]' : 'flex-col h-[500px] md:h-[420px]') : 'flex-row items-center gap-6 p-4 h-fit'}`}
         >
             {/* Image Container - Interactive Gallery matching Product Card */}
             <div
-                className={`relative ${viewMode === 'grid' ? (compact ? 'w-full aspect-[4/3] md:h-[50%]' : 'w-full aspect-[4/3] md:h-[55%]') : 'w-48 h-48 flex-shrink-0 rounded-xl'} overflow-hidden bg-gray-50 border-b border-gray-50 group/image`}
+                className={`relative ${viewMode === 'grid' ? 'w-full aspect-square' : 'w-48 h-48 flex-shrink-0 rounded-xl'} overflow-hidden bg-gray-50 border-b border-gray-50 group/image`}
             >
                 {/* Images */}
                 {allImages.length > 0 ? (
@@ -166,24 +166,24 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                     </p>
                 </div>
 
-                {/* Vendor Status Row: GST / Email / Mobile - Fixed height to prevent shifts */}
-                <div className="flex items-center gap-1 mt-0.5 px-0.5 overflow-x-auto no-scrollbar h-[20px]">
+                {/* Vendor Status Stack: GST / Email / Mobile */}
+                <div className="flex flex-col gap-1.5 mt-1 px-0.5">
                     {vendor.gstNumber && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-green-50 border border-green-100 rounded-md flex-shrink-0">
-                            <span className="text-[6px] font-black text-green-700 uppercase tracking-tighter">GST: {vendor.gstNumber}</span>
-                            <FiCheck className="text-green-600" size={6} />
+                        <div className="flex items-center justify-between px-2 py-1 bg-green-50/50 border border-green-100/50 rounded-lg">
+                            <span className="text-[8px] font-black text-green-700 uppercase tracking-tighter">GST: {vendor.gstNumber}</span>
+                            <FiCheck className="text-green-600" size={8} />
                         </div>
                     )}
                     {vendor.email && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-100 rounded-md flex-shrink-0">
-                            <span className="text-[6px] font-black text-blue-700 truncate max-w-[60px]">{vendor.email}</span>
-                            <FiCheck className="text-blue-600" size={6} />
+                        <div className="flex items-center justify-between px-2 py-1 bg-blue-50/50 border border-blue-100/50 rounded-lg">
+                            <span className="text-[8px] font-black text-blue-700 truncate max-w-[150px]">{vendor.email}</span>
+                            <FiCheck className="text-blue-600" size={8} />
                         </div>
                     )}
                     {vendor.phone && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-50 border border-purple-100 rounded-md flex-shrink-0">
-                            <span className="text-[6px] font-black text-purple-700 uppercase tracking-tighter">MOB: {vendor.phone}</span>
-                            <FiCheck className="text-purple-600" size={6} />
+                        <div className="flex items-center justify-between px-2 py-1 bg-purple-50/50 border border-purple-100/50 rounded-lg">
+                            <span className="text-[8px] font-black text-purple-700 uppercase tracking-tighter">MOB: {vendor.phone}</span>
+                            <FiCheck className="text-purple-600" size={8} />
                         </div>
                     )}
                 </div>

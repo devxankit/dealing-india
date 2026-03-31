@@ -2126,7 +2126,7 @@ const ProductCatalog = () => {
         onClick={() =>
           setIsBusinessTypeDropdownOpen(!isBusinessTypeDropdownOpen)
         }
-        className={`px-3 py-2 text-xs md:text-sm font-black transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest rounded-lg ${selectedBusinessType ? "bg-primary-50 text-primary-600" : "text-gray-700 hover:text-primary-600 hover:bg-primary-50"}`}>
+        className={`px-2 xl:px-3 py-2 text-[10px] xl:text-sm font-black transition-all flex items-center gap-1.5 xl:gap-2 whitespace-nowrap uppercase tracking-widest rounded-lg ${selectedBusinessType ? "bg-primary-50 text-primary-600" : "text-gray-700 hover:text-primary-600 hover:bg-primary-50"}`}>
         <FiBriefcase size={16} />
         {selectedBusinessType || "Business Type"}
         <FiChevronDown

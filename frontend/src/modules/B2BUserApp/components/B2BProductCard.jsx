@@ -78,7 +78,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                 if (redirectToLoginIfRequired()) return;
                 navigate(`/b2b/product/${product._id}`);
             }}
-            className={`group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex ${viewMode === 'grid' ? 'flex-col h-[420px] md:h-[400px]' : 'flex-row items-center gap-6 p-4 h-fit'}`}
+            className={`group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex ${viewMode === 'grid' ? 'flex-col h-auto md:h-[400px]' : 'flex-row items-center gap-6 p-4 h-fit'}`}
         >
             {/* Image Container - Interactive Gallery */}
             <div
@@ -87,7 +87,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                 {/* Images */}
                 {allImages.length > 0 ? (
                     allImages.map((img, idx) => (
-                        <div 
+                        <div
                             key={idx}
                             className={`absolute inset-0 w-full h-full bg-slate-50 flex items-center justify-center p-1 transition-opacity duration-300 ${activeImageIndex === idx ? 'opacity-100' : 'opacity-0'}`}
                         >
@@ -195,24 +195,24 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                     )}
                 </div>
 
-                {/* Vendor Status Row: GST / Email / Mobile - Fixed height to prevent shifts */}
-                <div className="flex items-center gap-1 mt-1 px-0.5 overflow-x-auto no-scrollbar h-[20px]">
+                {/* Vendor Status Stack: GST / Email / Mobile */}
+                <div className="flex flex-col gap-1.5 mt-1 px-0.5">
                     {vendor?.gstNumber && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-green-50 border border-green-100 rounded-md shrink-0">
-                            <span className="text-[6px] font-black text-green-700 uppercase tracking-tighter">GST: {vendor.gstNumber}</span>
-                            <FiCheck className="text-green-600" size={6} />
+                        <div className="flex items-center justify-between px-2 py-0.5 bg-green-50/50 border border-green-100/50 rounded-md">
+                            <span className="text-[7px] font-black text-green-700 uppercase tracking-tighter">GST: {vendor.gstNumber}</span>
+                            <FiCheck className="text-green-600" size={8} />
                         </div>
                     )}
                     {vendor?.email && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-100 rounded-md shrink-0">
-                            <span className="text-[6px] font-black text-blue-700 truncate max-w-[60px]">{vendor.email}</span>
-                            <FiCheck className="text-blue-600" size={6} />
+                        <div className="flex items-center justify-between px-2 py-0.5 bg-blue-50/50 border border-blue-100/50 rounded-md">
+                            <span className="text-[7px] font-black text-blue-700 truncate max-w-[120px]">{vendor.email}</span>
+                            <FiCheck className="text-blue-600" size={8} />
                         </div>
                     )}
                     {vendor?.phone && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-50 border border-purple-100 rounded-md shrink-0">
-                            <span className="text-[6px] font-black text-purple-700 uppercase tracking-tighter">MOB: {vendor.phone}</span>
-                            <FiCheck className="text-purple-600" size={6} />
+                        <div className="flex items-center justify-between px-2 py-0.5 bg-purple-50/50 border border-purple-100/50 rounded-md">
+                            <span className="text-[7px] font-black text-purple-700 uppercase tracking-tighter">MOB: {vendor.phone}</span>
+                            <FiCheck className="text-purple-600" size={8} />
                         </div>
                     )}
                 </div>
@@ -264,21 +264,21 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                 <FiPhone size={11} />
                                 <span className="hidden md:inline">Call</span>
                             </a>
-                    <button
-                        onClick={(e) => {
-                            if (redirectToLoginIfRequired(e)) return;
-                            e.stopPropagation();
-                            const mapTarget = product.shopUnit?.mapUrl
-                                ? { mapUrl: product.shopUnit.mapUrl }
-                                : (product.shopUnit || vendor);
-                            const mapsUrl = getGoogleMapsUrl(mapTarget);
-                            if (mapsUrl) {
-                                if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'map');
-                                window.open(mapsUrl, '_blank');
-                            } else {
-                                toast.error('Location details not provided');
-                            }
-                        }}
+                            <button
+                                onClick={(e) => {
+                                    if (redirectToLoginIfRequired(e)) return;
+                                    e.stopPropagation();
+                                    const mapTarget = product.shopUnit?.mapUrl
+                                        ? { mapUrl: product.shopUnit.mapUrl }
+                                        : (product.shopUnit || vendor);
+                                    const mapsUrl = getGoogleMapsUrl(mapTarget);
+                                    if (mapsUrl) {
+                                        if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'map');
+                                        window.open(mapsUrl, '_blank');
+                                    } else {
+                                        toast.error('Location details not provided');
+                                    }
+                                }}
                                 className="flex-1 min-w-[30%] py-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-600 hover:text-white transition-all border border-orange-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
                                 title="Shop Location"
                             >
