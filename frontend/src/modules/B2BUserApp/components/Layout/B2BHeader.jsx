@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout, FiHome } from 'react-icons/fi';
+import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout, FiHome, FiVideo } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { appLogo } from '../../../../data/logos';
 import lotSlotIcon from '../../../../assets/icon/WhatsApp Image 2026-02-28 at 2.14.53 PM.jpeg';
@@ -178,26 +178,39 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         </div>
                         
                         {/* Desktop (md+) Navigation links next to logo - more prominent */}
-                        <div className="hidden md:flex items-center gap-1 xl:gap-4 ml-2">
+                        <div className="hidden md:flex items-center gap-1 xl:gap-2 ml-2">
                             {customNav}
                                 <Link
-                                    to="/b2b/real-estate"
-                                    className={`px-3 xl:px-4 py-3 rounded-2xl flex items-center gap-2 xl:gap-3 transition-all group whitespace-nowrap border-2 ${location.pathname.includes('/real-estate') ? 'border-primary-100 bg-primary-50/30' : 'border-transparent hover:bg-gray-50'}`}
+                                    to="/b2b/reels"
+                                    className={`px-3 xl:px-4 py-2 rounded-xl flex items-center gap-2 xl:gap-3 transition-all group whitespace-nowrap border ${location.pathname.includes('/reels') ? 'border-primary-200 bg-primary-50/50' : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100'}`}
                                 >
-                                    <img src={realEstateIcon} alt="Rent" className="h-8 xl:h-10 w-auto object-contain" />
+                                    <div className="flex items-center justify-center text-primary-600">
+                                        <FiVideo size={18} />
+                                    </div>
                                     <div className="flex flex-col">
-                                        <span className={`text-[10px] xl:text-xs font-black uppercase tracking-[0.15em] ${location.pathname.includes('/real-estate') ? 'text-primary-700' : 'text-gray-800'}`}>Real Estate</span>
-                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500 hidden xl:block">Rent / Sell / Buy</span>
+                                        <span className={`text-[9px] xl:text-[10px] font-black uppercase tracking-[0.1em] ${location.pathname.includes('/reels') ? 'text-primary-700' : 'text-gray-800'}`}>All Reels</span>
+                                        <span className="text-[7px] xl:text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500 hidden xl:block">Short Videos</span>
+                                    </div>
+                                </Link>
+                                <div className="w-px h-8 bg-gray-100 mx-1 hidden lg:block"></div>
+                                <Link
+                                    to="/b2b/real-estate"
+                                    className={`px-3 xl:px-4 py-2 rounded-xl flex items-center gap-2 xl:gap-3 transition-all group whitespace-nowrap border ${location.pathname.includes('/real-estate') ? 'border-primary-200 bg-primary-50/50' : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100'}`}
+                                >
+                                    <img src={realEstateIcon} alt="Rent" className="h-6 xl:h-8 w-auto object-contain" />
+                                    <div className="flex flex-col">
+                                        <span className={`text-[9px] xl:text-[10px] font-black uppercase tracking-[0.1em] ${location.pathname.includes('/real-estate') ? 'text-primary-700' : 'text-gray-800'}`}>Real Estate</span>
+                                        <span className="text-[7px] xl:text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500 hidden xl:block">Rent / Sell / Buy</span>
                                     </div>
                                 </Link>
                                 <Link
                                     to="/b2b/catalog?itemType=lotslot"
-                                    className={`px-3 xl:px-4 py-3 rounded-2xl flex items-center gap-2 xl:gap-3 transition-all group whitespace-nowrap border-2 ${currentItemType === 'lotslot' ? 'border-primary-100 bg-primary-50/30' : 'border-transparent hover:bg-gray-50'}`}
+                                    className={`px-3 xl:px-4 py-2 rounded-xl flex items-center gap-2 xl:gap-3 transition-all group whitespace-nowrap border ${currentItemType === 'lotslot' ? 'border-primary-200 bg-primary-50/50' : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100'}`}
                                 >
-                                    <img src={lotSlotIcon} alt="Lot" className="h-8 xl:h-10 w-auto object-contain" />
+                                    <img src={lotSlotIcon} alt="Lot" className="h-6 xl:h-8 w-auto object-contain" />
                                     <div className="flex flex-col">
-                                        <span className={`text-[10px] xl:text-xs font-black uppercase tracking-[0.15em] ${currentItemType === 'lotslot' ? 'text-primary-700' : 'text-gray-800'}`}>Lot / Slot</span>
-                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500 hidden xl:block">Bulk Clearance</span>
+                                        <span className={`text-[9px] xl:text-[10px] font-black uppercase tracking-[0.1em] ${currentItemType === 'lotslot' ? 'text-primary-700' : 'text-gray-800'}`}>Lot / Slot</span>
+                                        <span className="text-[7px] xl:text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500 hidden xl:block">Bulk Clearance</span>
                                     </div>
                                 </Link>
                         </div>
@@ -286,18 +299,19 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                 <div className="flex items-center gap-1 sm:gap-1.5">
                                     <Link
                                         to="/b2b/catalog?itemType=lotslot"
-                                        className="px-2 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1"
+                                        className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 whitespace-nowrap border transition-all ${currentItemType === 'lotslot' ? 'bg-primary-600 text-white border-primary-600 shadow-md' : 'bg-gray-50 text-gray-700 border-gray-100'}`}
                                     >
                                         <img src={lotSlotIcon} alt="Lot" className="h-5 w-auto object-contain" />
-                                        <span className="hidden xs:inline">Lot / Slot</span>
+                                        <span className="xs:inline">Lot / Slot</span>
                                     </Link>
                                     <Link
                                         to="/b2b/real-estate"
-                                        className="px-2 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1"
+                                        className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 whitespace-nowrap border transition-all ${location.pathname.includes('/real-estate') ? 'bg-primary-600 text-white border-primary-600 shadow-md' : 'bg-gray-50 text-gray-700 border-gray-100'}`}
                                     >
-                                        <img src={realEstateIcon} alt="Rent" className="h-5 w-auto object-contain" />
-                                        <span className="hidden xs:inline">Real Estate</span>
+                                        <img src={realEstateIcon} alt="Real Estate" className="h-5 w-auto object-contain" />
+                                        <span className="xs:inline">Real Estate</span>
                                     </Link>
+
                                 </div>
                             )}
                             
@@ -339,14 +353,14 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                         <FiUser size={22} />
                                     </div>
                                     <div className="hidden xl:flex flex-col">
-                                        <span className="text-xs font-black text-gray-900 uppercase tracking-widest leading-none">Account</span>
-                                        <span className="text-[9px] font-bold text-primary-500 uppercase tracking-tight">View Profile</span>
+                                        <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest leading-none">Account</span>
+                                        <span className="text-[8px] font-bold text-primary-500 uppercase tracking-tight">View Profile</span>
                                     </div>
                                 </Link>
                             ) : (
                                 <Link
                                     to="/b2b/login"
-                                    className="flex items-center gap-3 px-7 py-3.5 bg-primary-600 text-white rounded-[1.2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-primary-700 transition-all shadow-xl shadow-primary-100 hover:-translate-y-0.5 active:translate-y-0"
+                                    className="flex items-center gap-3 px-6 py-3 bg-primary-600 text-white rounded-[1.1rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-primary-700 transition-all shadow-xl shadow-primary-100 hover:-translate-y-0.5 active:translate-y-0"
                                 >
                                     Login / Join
                                 </Link>

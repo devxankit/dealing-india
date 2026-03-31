@@ -159,7 +159,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
             {/* Content Body - Ultra Compact */}
             <div className={`p-2.5 flex flex-col gap-2 ${viewMode === 'list' ? 'flex-1 justify-center' : 'flex-1'}`}>
                 <div className="h-[50px] md:h-[60px] flex flex-col justify-center">
-                    <h3 className="text-[11px] font-black text-gray-800 line-clamp-2 group-hover:text-primary-600 transition-colors uppercase leading-tight">
+                    <h3 className="text-[12px] font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase leading-tight">
                         {product.formType === 'shop-listing' && product.items?.length > 0
                             ? (product.items[0].itemName || product.items[0].name || 'Item')
                             : product.name}
@@ -184,7 +184,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                 const vendorUrl = itemType ? `/b2b/vendor/${vendorIdStr}?itemType=${itemType}` : `/b2b/vendor/${vendorIdStr}`;
                                 navigate(vendorUrl);
                             }}
-                            className="text-[7px] font-black text-primary-400 hover:text-primary-600 truncate max-w-[60px] uppercase cursor-pointer transition-colors select-none block"
+                            className="text-[8px] font-black text-primary-500 hover:text-primary-700 truncate max-w-[80px] uppercase cursor-pointer transition-colors select-none block"
                         >
                             {shopDisplayName}
                         </div>
@@ -195,26 +195,33 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                     )}
                 </div>
 
-                {/* Vendor Status Stack: GST / Email / Mobile */}
-                <div className="flex flex-col gap-1.5 mt-1 px-0.5">
+                {/* Vendor Status Badges - Matching New Image Style */}
+                <div className="flex flex-wrap items-center gap-2 mt-0.5 px-0.5 min-h-[30px]">
                     {vendor?.gstNumber && (
-                        <div className="flex items-center justify-between px-2 py-0.5 bg-green-50/50 border border-green-100/50 rounded-md">
-                            <span className="text-[7px] font-black text-green-700 uppercase tracking-tighter">GST: {vendor.gstNumber}</span>
-                            <FiCheck className="text-green-600" size={8} />
-                        </div>
-                    )}
-                    {vendor?.email && (
-                        <div className="flex items-center justify-between px-2 py-0.5 bg-blue-50/50 border border-blue-100/50 rounded-md">
-                            <span className="text-[7px] font-black text-blue-700 truncate max-w-[120px]">{vendor.email}</span>
-                            <FiCheck className="text-blue-600" size={8} />
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50/80 border border-green-100/50 rounded-full">
+                            <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">GST</span>
+                            <div className="w-3.5 h-3.5 bg-green-500/10 flex items-center justify-center rounded-full">
+                                <FiCheck className="text-green-600" size={10} />
+                            </div>
                         </div>
                     )}
                     {vendor?.phone && (
-                        <div className="flex items-center justify-between px-2 py-0.5 bg-purple-50/50 border border-purple-100/50 rounded-md">
-                            <span className="text-[7px] font-black text-purple-700 uppercase tracking-tighter">MOB: {vendor.phone}</span>
-                            <FiCheck className="text-purple-600" size={8} />
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50/80 border border-green-100/50 rounded-full">
+                            <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">MOBILE</span>
+                            <div className="w-3.5 h-3.5 bg-green-500/10 flex items-center justify-center rounded-full">
+                                <FiCheck className="text-green-600" size={10} />
+                            </div>
                         </div>
                     )}
+                    {vendor?.email && (
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50/80 border border-green-100/50 rounded-full">
+                            <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">EMAIL</span>
+                            <div className="w-3.5 h-3.5 bg-green-500/10 flex items-center justify-center rounded-full">
+                                <FiCheck className="text-green-600" size={10} />
+                            </div>
+                        </div>
+                    )}
+
                 </div>
 
                 <AnimatePresence>
@@ -245,11 +252,10 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                     e.stopPropagation();
                                     if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'whatsapp');
                                 }}
-                                className="flex-1 min-w-[30%] py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                className="flex-1 h-10 md:h-11 bg-green-50 text-[#25D366] rounded-xl hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center shadow-sm"
                                 title="WhatsApp"
                             >
-                                <FaWhatsapp size={11} />
-                                <span className="hidden md:inline">WhatsApp</span>
+                                <FaWhatsapp size={16} />
                             </a>
                             <a
                                 href={`tel:${vendor.phone}`}
@@ -258,11 +264,10 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                     e.stopPropagation();
                                     if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'call');
                                 }}
-                                className="flex-1 min-w-[30%] py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                className="flex-1 h-10 md:h-11 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center shadow-sm"
                                 title="Call Vendor"
                             >
-                                <FiPhone size={11} />
-                                <span className="hidden md:inline">Call</span>
+                                <FiPhone size={16} />
                             </a>
                             <button
                                 onClick={(e) => {
@@ -279,11 +284,10 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                         toast.error('Location details not provided');
                                     }
                                 }}
-                                className="flex-1 min-w-[30%] py-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-600 hover:text-white transition-all border border-orange-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                className="flex-1 h-10 md:h-11 bg-orange-50 text-orange-600 rounded-xl hover:bg-orange-600 hover:text-white transition-all border border-orange-100 flex items-center justify-center shadow-sm"
                                 title="Shop Location"
                             >
-                                <FiMapPin size={11} />
-                                <span className="hidden md:inline">Map</span>
+                                <FiMapPin size={16} />
                             </button>
                         </>
                     ) : (

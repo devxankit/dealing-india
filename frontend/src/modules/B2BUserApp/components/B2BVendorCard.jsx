@@ -73,7 +73,7 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ y: -4, shadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}
             onClick={handleVendorClick}
-            className={`group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex ${viewMode === 'grid' ? (compact ? 'flex-col h-[440px] md:h-[360px]' : 'flex-col h-[500px] md:h-[420px]') : 'flex-row items-center gap-6 p-4 h-fit'}`}
+            className={`group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex ${viewMode === 'grid' ? (compact ? 'flex-col h-[290px] md:h-[270px]' : 'flex-col h-[420px] md:h-[380px]') : 'flex-row items-center gap-6 p-4 h-fit'}`}
         >
             {/* Image Container - Interactive Gallery matching Product Card */}
             <div
@@ -166,36 +166,14 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                     </p>
                 </div>
 
-                {/* Vendor Status Stack: GST / Email / Mobile */}
-                <div className="flex flex-col gap-1.5 mt-1 px-0.5">
-                    {vendor.gstNumber && (
-                        <div className="flex items-center justify-between px-2 py-1 bg-green-50/50 border border-green-100/50 rounded-lg">
-                            <span className="text-[8px] font-black text-green-700 uppercase tracking-tighter">GST: {vendor.gstNumber}</span>
-                            <FiCheck className="text-green-600" size={8} />
-                        </div>
-                    )}
-                    {vendor.email && (
-                        <div className="flex items-center justify-between px-2 py-1 bg-blue-50/50 border border-blue-100/50 rounded-lg">
-                            <span className="text-[8px] font-black text-blue-700 truncate max-w-[150px]">{vendor.email}</span>
-                            <FiCheck className="text-blue-600" size={8} />
-                        </div>
-                    )}
-                    {vendor.phone && (
-                        <div className="flex items-center justify-between px-2 py-1 bg-purple-50/50 border border-purple-100/50 rounded-lg">
-                            <span className="text-[8px] font-black text-purple-700 uppercase tracking-tighter">MOB: {vendor.phone}</span>
-                            <FiCheck className="text-purple-600" size={8} />
-                        </div>
-                    )}
-                </div>
-
                 {/* Action Row */}
-                <div className="flex items-center justify-between gap-2 bg-gray-50/50 p-1.5 rounded-lg border border-gray-50">
+                <div className="flex items-center justify-between gap-2 bg-gray-50/50 p-1.5 rounded-lg border border-gray-50 mt-1">
                     <div className="flex items-center gap-1 text-[8px] font-black text-gray-500 uppercase">
                         <FiTruck className="text-primary-500" size={10} />
                         <span>{vendor.totalProducts || 0} {isRealEstate || itemType === 'realestate' ? 'Properties' : 'Products'}</span>
                     </div>
-                    <div className="text-[7px] font-black text-primary-400 uppercase tracking-widest flex items-center gap-0.5">
-                        Visit {vendorLabel} <FiChevronRight size={8} />
+                    <div className="text-[7px] font-black text-primary-400 uppercase tracking-widest flex items-center gap-0.5 group-hover:text-primary-600 transition-colors">
+                        VISIT STORE <FiChevronRight size={8} />
                     </div>
                 </div>
 

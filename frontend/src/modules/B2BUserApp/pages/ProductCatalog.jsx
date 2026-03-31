@@ -457,6 +457,7 @@ const ProductCatalog = () => {
                       .map((sub) => (
                         <label
                           key={sub}
+                          data-prevent-category-collapse
                           className="flex items-center gap-3 cursor-pointer group">
                           <div className="relative">
                             <input
@@ -659,6 +660,7 @@ const ProductCatalog = () => {
                           .map((option) => (
                             <label
                               key={option}
+                              data-prevent-category-collapse
                               className="flex items-center gap-3 cursor-pointer group">
                               <div className="relative">
                                 <input
@@ -1701,63 +1703,7 @@ const ProductCatalog = () => {
     setSearchParams(newParams, { replace: true });
   };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    if (!expandedCategory) return;
-
-    const handleClickOutside = (event) => {
-      // Check if click is inside any category dropdown container
-      let clickedInside = false;
-      Object.values(categoryDropdownRefs.current).forEach((ref) => {
-        if (ref && ref.contains(event.target)) {
-          clickedInside = true;
-        }
-      });
-
-      // Also check if click is on the category button itself (to allow toggle)
-      const categoryButtons = document.querySelectorAll(
-        "[data-category-button]",
-      );
-      categoryButtons.forEach((btn) => {
-        if (btn.contains(event.target)) {
-          clickedInside = true;
-        }
-      });
-
-      // CRITICAL: Check if click is on subcategory buttons - don't close card when clicking subcategories
-      // Find the expanded category card and check if click is inside it
-      const expandedCard = document.querySelector(
-        "[data-expanded-category-card]",
-      );
-      if (expandedCard && expandedCard.contains(event.target)) {
-        clickedInside = true;
-      }
-
-      // Also check if click is on any subcategory button specifically
-      const subcategoryButtons = document.querySelectorAll(
-        "[data-subcategory-button]",
-      );
-      subcategoryButtons.forEach((btn) => {
-        if (btn.contains(event.target) || btn === event.target) {
-          clickedInside = true;
-        }
-      });
-
-      if (!clickedInside) {
-        setExpandedCategory(null);
-      }
-    };
-
-    // Add event listener after a delay to avoid immediate closure
-    const timeoutId = setTimeout(() => {
-      document.addEventListener("mousedown", handleClickOutside);
-    }, 100);
-
-    return () => {
-      clearTimeout(timeoutId);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [expandedCategory]);
+  // Re-evaluating expandedCategory persistence: The card will now stay open until explicitly closed by the user or when the category is reset, ensuring a stable exploring experience.
 
   const getCurrentSubcategories = () => {
     if (selectedCategory === "All" || !expandedCategory) return [];
@@ -2126,7 +2072,7 @@ const ProductCatalog = () => {
         onClick={() =>
           setIsBusinessTypeDropdownOpen(!isBusinessTypeDropdownOpen)
         }
-        className={`px-2 xl:px-3 py-2 text-[10px] xl:text-sm font-black transition-all flex items-center gap-1.5 xl:gap-2 whitespace-nowrap uppercase tracking-widest rounded-lg ${selectedBusinessType ? "bg-primary-50 text-primary-600" : "text-gray-700 hover:text-primary-600 hover:bg-primary-50"}`}>
+        className={`px-2 xl:px-3 py-2 text-[9px] xl:text-[11px] font-black transition-all flex items-center gap-1.5 xl:gap-2 whitespace-nowrap uppercase tracking-widest border rounded-xl ${selectedBusinessType ? "bg-primary-50 text-primary-600 border-primary-200" : "text-gray-700 hover:text-primary-600 hover:bg-white border-gray-100"}`}>
         <FiBriefcase size={16} />
         {selectedBusinessType || "Business Type"}
         <FiChevronDown
@@ -2619,6 +2565,7 @@ const ProductCatalog = () => {
                   <div className="flex flex-wrap gap-3 relative z-10">
                     <button
                       data-subcategory-button
+                      data-prevent-category-collapse
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSubcategoryClick(null, expandedCategory);
@@ -2637,6 +2584,7 @@ const ProductCatalog = () => {
                         <button
                           key={idx}
                           data-subcategory-button
+                          data-prevent-category-collapse
                           onClick={(e) => {
                             e.stopPropagation();
                             handleSubcategoryClick(sub, expandedCategory);
@@ -2902,6 +2850,7 @@ const ProductCatalog = () => {
                       <div className="flex flex-wrap items-center gap-3">
                         <button
                           type="button"
+                          data-prevent-category-collapse
                           onClick={() => setCatalogTab("products")}
                           className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border transition-all ${catalogTab === "products"
                             ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-200"
@@ -2913,6 +2862,7 @@ const ProductCatalog = () => {
                         </button>
                         <button
                           type="button"
+                          data-prevent-category-collapse
                           onClick={() => setCatalogTab("reels")}
                           className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border transition-all ${catalogTab === "reels"
                             ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-200"

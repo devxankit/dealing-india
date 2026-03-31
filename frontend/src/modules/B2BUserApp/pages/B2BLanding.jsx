@@ -1191,6 +1191,12 @@ const B2BLanding = () => {
                             className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl p-4 max-h-[60vh] overflow-y-auto"
                             onClick={(e) => e.stopPropagation()}
                         >
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-black text-gray-800 uppercase">Select Business Type</h4>
+                                <button onClick={() => setIsMobileBusinessTypeOpen(false)} className="p-2 bg-gray-100 rounded-lg"><FiX /></button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {businessTypes.map(type => (
                                     <button
                                         key={type._id}
                                         onClick={() => { handleBusinessTypeClick(type); setIsMobileBusinessTypeOpen(false); }}

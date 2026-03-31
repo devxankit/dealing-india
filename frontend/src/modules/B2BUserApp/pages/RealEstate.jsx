@@ -481,6 +481,42 @@ const RealEstate = () => {
                 </AnimatePresence>
             </div>
 
+            {/* Business Type Filter */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <button
+                    onClick={() => toggleSection('businessType')}
+                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Business Category</h3>
+                    <FiChevronDown className={`text-gray-400 transition-transform ${openSections.businessType ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                    {openSections.businessType && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="p-4 space-y-2">
+                                {['All', 'Developer', 'Broker'].map((type) => (
+                                    <button
+                                        key={type}
+                                        onClick={() => setSelectedBusinessType(type)}
+                                        className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${selectedBusinessType === type
+                                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-100'
+                                            : 'text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        {type === 'All' ? 'All Providers' : type}
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
             {/* BHK Filter - Only for Flats */}
             {selectedPropertyType === 'Flat' && (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -556,42 +592,6 @@ const RealEstate = () => {
                     </AnimatePresence>
                 </div>
             )}
-
-            {/* Business Type Filter */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <button
-                    onClick={() => toggleSection('businessType')}
-                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Business Category</h3>
-                    <FiChevronDown className={`text-gray-400 transition-transform ${openSections.businessType ? 'rotate-180' : ''}`} />
-                </button>
-                <AnimatePresence>
-                    {openSections.businessType && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                        >
-                            <div className="p-4 space-y-2">
-                                {['All', 'Developer', 'Broker'].map((type) => (
-                                    <button
-                                        key={type}
-                                        onClick={() => setSelectedBusinessType(type)}
-                                        className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${selectedBusinessType === type
-                                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-100'
-                                            : 'text-gray-500 hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        {type === 'All' ? 'All Providers' : type}
-                                    </button>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
 
             {/* City Filter */}
             {showCity && (

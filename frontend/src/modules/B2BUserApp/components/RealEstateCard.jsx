@@ -283,24 +283,30 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                     </div>
                 </div>
 
-                {/* Vendor Status Row: GST / Email / Mobile - Fixed height to prevent shifts */}
-                <div className="flex items-center gap-1 mt-2 px-0.5 overflow-x-auto no-scrollbar h-[20px]">
+                {/* Vendor Status Badges - Pill Style Matching Image 1 */}
+                <div className="flex flex-wrap items-center gap-2 mt-2 px-0.5">
                     {vendor?.gstNumber && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-green-50 border border-green-100 rounded-md shrink-0">
-                            <span className="text-[6px] font-black text-green-700 uppercase tracking-tighter">GST: {vendor.gstNumber}</span>
-                            <FiCheck className="text-green-600" size={6} />
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-full shadow-sm">
+                            <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">GST</span>
+                            <div className="w-3.5 h-3.5 bg-green-500 flex items-center justify-center rounded-full">
+                                <FiCheck className="text-white" size={9} />
+                            </div>
                         </div>
                     )}
                     {vendor?.email && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-100 rounded-md shrink-0">
-                            <span className="text-[6px] font-black text-blue-700 truncate max-w-[60px]">{vendor.email}</span>
-                            <FiCheck className="text-blue-600" size={6} />
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-full shadow-sm">
+                            <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">EMAIL</span>
+                            <div className="w-3.5 h-3.5 bg-green-500 flex items-center justify-center rounded-full">
+                                <FiCheck className="text-white" size={9} />
+                            </div>
                         </div>
                     )}
                     {vendor?.phone && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-50 border border-purple-100 rounded-md shrink-0">
-                            <span className="text-[6px] font-black text-purple-700 uppercase tracking-tighter">MOB: {vendor.phone}</span>
-                            <FiCheck className="text-purple-600" size={6} />
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-full shadow-sm">
+                            <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">MOBILE</span>
+                            <div className="w-3.5 h-3.5 bg-green-500 flex items-center justify-center rounded-full">
+                                <FiCheck className="text-white" size={9} />
+                            </div>
                         </div>
                     )}
                 </div>
@@ -328,10 +334,10 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                             e.stopPropagation();
                             trackContactClick(property.vendorId?._id, 'whatsapp');
                         }}
-                        className="flex-1 py-2 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[10px] uppercase tracking-wider"
+                        className="flex-1 h-10 md:h-11 bg-green-50 text-[#25D366] rounded-xl hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center shadow-sm"
+                        title="WhatsApp"
                     >
-                        <FaWhatsapp size={12} />
-                        <span>WhatsApp</span>
+                        <FaWhatsapp size={16} />
                     </a>
                     <a
                         href={`tel:+91${sellerPhone}`}
@@ -340,10 +346,10 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                             e.stopPropagation();
                             trackContactClick(property.vendorId?._id, 'call');
                         }}
-                        className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[10px] uppercase tracking-wider"
+                        className="flex-1 h-10 md:h-11 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center shadow-sm"
+                        title="Call"
                     >
-                        <FiPhone size={12} />
-                        <span>Call</span>
+                        <FiPhone size={16} />
                     </a>
                     <button
                         onClick={(e) => {
@@ -355,10 +361,10 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                                 window.open(mapsUrl, '_blank');
                             }
                         }}
-                        className="flex-1 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-600 hover:text-white transition-all border border-orange-100 flex items-center justify-center gap-1.5 font-black text-[10px] uppercase tracking-wider"
+                        className="flex-1 h-10 md:h-11 bg-orange-50 text-orange-600 rounded-xl hover:bg-orange-600 hover:text-white transition-all border border-orange-100 flex items-center justify-center shadow-sm"
+                        title="Map"
                     >
-                        <FiMapPin size={12} />
-                        <span>Map</span>
+                        <FiMapPin size={16} />
                     </button>
                 </div>
             </div>
