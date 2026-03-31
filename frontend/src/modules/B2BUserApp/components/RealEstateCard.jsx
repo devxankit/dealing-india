@@ -149,7 +149,7 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                 if (redirectToLoginIfRequired()) return;
                 navigate(`/b2b/real-estate/property/${property._id}`);
             }}
-            className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-full"
+            className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-[480px] md:h-[450px]"
         >
             {/* Image Container with Slider */}
             <div className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50 group/image">
@@ -283,27 +283,24 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                     </div>
                 </div>
 
-                {/* Vendor Status Row: GST / Email / Mobile */}
-                <div className="flex flex-wrap items-center gap-3 mt-1 px-1">
+                {/* Vendor Status Row: GST / Email / Mobile - Fixed height to prevent shifts */}
+                <div className="flex items-center gap-1 mt-2 px-0.5 overflow-x-auto no-scrollbar h-[20px]">
                     {vendor?.gstNumber && (
-                        <div className="flex items-center gap-1">
-                            <span className="text-[8px] font-black text-gray-400 uppercase">GST:</span>
-                            <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">{vendor.gstNumber}</span>
-                            <FiCheck className="text-green-600" size={10} />
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-green-50 border border-green-100 rounded-md shrink-0">
+                            <span className="text-[6px] font-black text-green-700 uppercase tracking-tighter">GST: {vendor.gstNumber}</span>
+                            <FiCheck className="text-green-600" size={6} />
                         </div>
                     )}
                     {vendor?.email && (
-                        <div className="flex items-center gap-1">
-                            <span className="text-[8px] font-black text-gray-400 uppercase">EMAIL:</span>
-                            <span className="text-[8px] font-black text-gray-700 truncate max-w-[100px]">{vendor.email}</span>
-                            <FiCheck className="text-green-600" size={10} />
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-100 rounded-md shrink-0">
+                            <span className="text-[6px] font-black text-blue-700 truncate max-w-[60px]">{vendor.email}</span>
+                            <FiCheck className="text-blue-600" size={6} />
                         </div>
                     )}
                     {vendor?.phone && (
-                        <div className="flex items-center gap-1">
-                            <span className="text-[8px] font-black text-gray-400 uppercase">MOBILE:</span>
-                            <span className="text-[8px] font-black text-gray-700 uppercase">{vendor.phone}</span>
-                            <FiCheck className="text-green-600" size={10} />
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-50 border border-purple-100 rounded-md shrink-0">
+                            <span className="text-[6px] font-black text-purple-700 uppercase tracking-tighter">MOB: {vendor.phone}</span>
+                            <FiCheck className="text-purple-600" size={6} />
                         </div>
                     )}
                 </div>

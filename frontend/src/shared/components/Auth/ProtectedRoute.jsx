@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isHydrated } = useAuthStore();
   const location = useLocation();
   const [isDesktop, setIsDesktop] = useState(false);
 
@@ -24,30 +24,37 @@ const ProtectedRoute = ({ children }) => {
     };
   }, []);
 
+  // Wait for hydration before making any redirect decisions
+  if (!isHydrated) {
+    return null;
+  }
+
   if (!isAuthenticated) {
-    // If accessing /app/* route on desktop view, redirect to desktop login
     const isAppRoute = location.pathname.startsWith('/app');
+    const isB2BRoute = location.pathname.startsWith('/b2b');
+
+    console.warn(`[ProtectedRoute] User not authenticated. Accessing ${location.pathname}. Redirecting...`);
 
     if (isAppRoute && isDesktop) {
-      // Redirect to desktop login page when accessing /app/* routes on desktop
+      console.log('[ProtectedRoute] Redirecting to /login (Desktop App)');
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
     if (isAppRoute) {
-      // Redirect to mobile app login for /app/* routes on mobile
+      console.log('[ProtectedRoute] Redirecting to /app/login (Mobile App)');
       return <Navigate to="/app/login" state={{ from: location }} replace />;
     }
 
-    const isB2BRoute = location.pathname.startsWith('/b2b');
     if (isB2BRoute) {
-      // Redirect to B2B login for /b2b/* routes
+      console.log('[ProtectedRoute] Redirecting to /b2b/login (B2B App)');
       return <Navigate to="/b2b/login" state={{ from: location }} replace />;
     }
 
-    // Default redirect to desktop login
+    console.log('[ProtectedRoute] Redirecting to /login (Default)');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  console.log(`[ProtectedRoute] Authorized access to ${location.pathname}`);
   return children;
 };
 

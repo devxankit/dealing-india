@@ -2217,7 +2217,7 @@ const ProductCatalog = () => {
       />
 
       {/* Mobile: Search bar sticks under white header */}
-      <div className="md:hidden sticky top-[calc(4rem+env(safe-area-inset-top))] z-40 px-4 py-3 bg-white border-b border-gray-50">
+      <div className="md:hidden sticky top-[calc(4.5rem+env(safe-area-inset-top))] z-40 px-4 py-3 bg-white border-b border-gray-50">
         <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 py-1 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
           <FiSearch className="text-gray-400 mr-2" size={16} />
           <input

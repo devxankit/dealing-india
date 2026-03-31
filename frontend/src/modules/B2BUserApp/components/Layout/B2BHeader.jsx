@@ -19,6 +19,8 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+    const [headerHeight, setHeaderHeight] = useState(0);
+    const headerRef = React.useRef(null);
 
     // Sync local state when prop changes
     useEffect(() => {
@@ -26,6 +28,23 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
             setLocalSearchQuery(propSearchQuery);
         }
     }, [propSearchQuery]);
+
+    // Calculate header height
+    useEffect(() => {
+        const updateHeight = () => {
+            if (headerRef.current) {
+                setHeaderHeight(headerRef.current.offsetHeight);
+            }
+        };
+        updateHeight();
+        const resizeObserver = new ResizeObserver(updateHeight);
+        if (headerRef.current) resizeObserver.observe(headerRef.current);
+        window.addEventListener('resize', updateHeight);
+        return () => {
+            resizeObserver.disconnect();
+            window.removeEventListener('resize', updateHeight);
+        };
+    }, []);
 
     // Create debounced search function
     const debouncedFetchSuggestions = React.useMemo(
@@ -125,211 +144,218 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
 
     return (
         <div className="flex-shrink-0">
-            <header className={`${sticky !== false ? 'fixed top-0 left-0 right-0' : 'relative'} z-[1000] ${transparent ? 'bg-transparent border-none shadow-none' : 'bg-white border-b border-gray-100 shadow-sm'} flex-shrink-0 pt-safe`}>
-                <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between gap-2 md:gap-4">
-                    <div className="flex items-center gap-2 md:gap-4 min-w-0">
-                        {showBack && (
-                            <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                                <FiArrowLeft className="text-lg md:text-xl text-gray-700" />
-                            </button>
-                        )}
-                        {(title === "Business Dashboard" ||
-                            title === "Real Estate Hub" ||
-                            title === "Real Estate Developers" ||
-                            title === "Developer Properties" ||
-                            title === "Verified Brokers" ||
-                            title === "Become a Seller" ||
-                            location.pathname.includes('/real-estate/property/')) && (
-                                <Link to="/b2b/catalog" className="flex-shrink-0">
-                                    <img
-                                        src={appLogo.src}
-                                        alt="Dealing India"
-                                        className="h-10 md:h-14 w-auto object-contain"
-                                    />
-                                </Link>
+            <header 
+                ref={headerRef}
+                className={`${sticky !== false ? 'fixed top-0 left-0 right-0' : 'relative'} z-[1000] ${transparent ? 'bg-transparent border-none shadow-none' : 'bg-white border-b border-gray-100 shadow-sm'} flex-shrink-0 pt-safe`}
+            >
+                <div className="max-w-[1920px] mx-auto px-4 md:px-8 h-[4.5rem] md:h-24 flex items-center justify-between gap-3 md:gap-8">
+                    <div className="flex items-center gap-3 md:gap-6 min-w-0">
+                        <div className="flex items-center gap-2 md:gap-5">
+                            {showBack && (
+                                <button onClick={() => navigate(-1)} className="p-2.5 hover:bg-gray-100 rounded-full transition-colors shrink-0">
+                                    <FiArrowLeft className="text-xl md:text-2xl text-gray-700" />
+                                </button>
                             )}
-
-                    {title === "Bulk Marketplace" ||
-                        title === "My Business Account" ||
-                        title === "Company Profile" ||
-                        title === "Personal Profile" ||
-                        title === "Support & Help" ||
-                        title === "Notifications" ? (
-                        <Link
-                            to={location.pathname === '/b2b/catalog' ? '/b2b/landing' : '/b2b/catalog'}
-                            className="flex items-center gap-2"
-                        >
-                            <img
-                                src={appLogo.src}
-                                alt="Dealing India"
-                                className="h-12 md:h-24 w-auto object-contain"
-                            />
-                        </Link>
-                    ) : (
-                        // Don't show text title for pages that already show logo
-                        title !== "Business Dashboard" &&
-                        title !== "Real Estate Hub" &&
-                        title !== "Real Estate Developers" &&
-                        title !== "Developer Properties" &&
-                        title !== "Verified Brokers" &&
-                        title !== "Become a Seller" &&
-                        !location.pathname.includes('/real-estate/property/') && (
-                            <h1 className="text-sm md:text-xl font-black text-gray-900 uppercase tracking-tight">
-                                {title}
-                            </h1>
-                        )
-                    )}
-
-                    {/* Mobile quick links beside logo */}
-                    {!minimal && (
-                        <div className="flex md:hidden items-center gap-1 ml-1 min-w-0 flex-shrink truncate">
-                        {(location.pathname !== '/b2b/catalog' || currentItemType !== 'lotslot') && (
-                            <Link
-                                to="/b2b/catalog?itemType=lotslot"
-                                className="px-1.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1 whitespace-nowrap"
+                            
+                            {/* Unified Logo link */}
+                            <Link 
+                                to={location.pathname.includes('/b2b/catalog') ? "/b2b/landing" : "/b2b/catalog"} 
+                                className="flex-shrink-0 hover:opacity-80 transition-opacity"
                             >
-                                <img src={lotSlotIcon} alt="Lot" className="h-5 w-auto object-contain" /> <span className="hidden xs:inline">Lot / Slot</span>
+                                <img
+                                    src={appLogo.src}
+                                    alt="Dealing India"
+                                    className="h-10 md:h-16 w-auto object-contain"
+                                />
                             </Link>
-                        )}
-                        {!location.pathname.includes('/real-estate') && (
+
+                            {/* Mobile Title (only if logo is small/missing or explicitly requested) */}
+                            {title !== "Bulk Marketplace" && !location.pathname.includes('/b2b/catalog') && (
+                                <h1 className="hidden sm:block md:hidden text-lg font-black text-gray-900 truncate uppercase tracking-tighter leading-none ml-2">
+                                    {title}
+                                </h1>
+                            )}
+                        </div>
+                        
+                        {/* Desktop (md+) Navigation links next to logo - more prominent */}
+                        <div className="hidden md:flex items-center gap-2 lg:gap-4 ml-2">
+                            {customNav}
                             <Link
                                 to="/b2b/real-estate"
-                                className="px-1.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1 whitespace-nowrap"
+                                className={`px-4 py-3 rounded-2xl flex items-center gap-3 transition-all group whitespace-nowrap border-2 ${location.pathname.includes('/real-estate') ? 'border-primary-100 bg-primary-50/30' : 'border-transparent hover:bg-gray-50'}`}
                             >
-                                <img src={realEstateIcon} alt="Real Estate" className="h-5 w-auto object-contain" /> <span className="hidden xs:inline">Real Estate</span>
+                                <img src={realEstateIcon} alt="Rent" className="h-8 lg:h-10 w-auto object-contain" />
+                                <div className="flex flex-col">
+                                    <span className={`text-[10px] lg:text-xs font-black uppercase tracking-[0.15em] ${location.pathname.includes('/real-estate') ? 'text-primary-700' : 'text-gray-800'}`}>Real Estate</span>
+                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500">Rent / Sell / Buy</span>
+                                </div>
                             </Link>
-                        )}
-                        <Link
-                            to="/b2b-vendor/register"
-                            className="px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-wider bg-black text-white whitespace-nowrap"
-                        >
-                            Seller
-                        </Link>
+                            <Link
+                                to="/b2b/catalog?itemType=lotslot"
+                                className={`px-4 py-3 rounded-2xl flex items-center gap-3 transition-all group whitespace-nowrap border-2 ${currentItemType === 'lotslot' ? 'border-primary-100 bg-primary-50/30' : 'border-transparent hover:bg-gray-50'}`}
+                            >
+                                <img src={lotSlotIcon} alt="Lot" className="h-8 lg:h-10 w-auto object-contain" />
+                                <div className="flex flex-col">
+                                    <span className={`text-[10px] lg:text-xs font-black uppercase tracking-[0.15em] ${currentItemType === 'lotslot' ? 'text-primary-700' : 'text-gray-800'}`}>Lot / Slot</span>
+                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500">Bulk Clearance</span>
+                                </div>
+                            </Link>
+                        </div>
                     </div>
+
+                    {/* Search - Growing to fill middle space */}
+                    {!hideSearch && (
+                        <div className="hidden md:flex flex-1 max-w-2xl mx-4 lg:mx-8">
+                            <form
+                                onSubmit={handleSearchSubmit}
+                                className="relative w-full group"
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                            >
+                                <div className="absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    <FiSearch className="text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder={searchPlaceholder}
+                                    value={localSearchQuery}
+                                    onChange={handleSearchChange}
+                                    onFocus={() => localSearchQuery.trim() && setShowSuggestions(true)}
+                                    className="w-full pl-14 pr-6 py-3.5 bg-gray-50 border-2 border-transparent rounded-[1.2rem] focus:border-primary-500 focus:bg-white focus:ring-4 focus:ring-primary-50 transition-all font-bold text-sm tracking-tight shadow-sm uppercase placeholder:text-gray-400"
+                                />
+
+                                <AnimatePresence>
+                                    {showSuggestions && (suggestions.length > 0 || isSearching) && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 15 }}
+                                            className="absolute top-[calc(100%+0.5rem)] left-0 right-0 bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 overflow-hidden z-50 py-3"
+                                        >
+                                            {isSearching && suggestions.length === 0 ? (
+                                                <div className="px-6 py-4 text-xs font-black text-gray-500 flex items-center gap-3 uppercase tracking-widest">
+                                                    <div className="w-4 h-4 border-2 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>
+                                                    Discovering Results...
+                                                </div>
+                                            ) : (
+                                                <div className="max-h-[60vh] overflow-y-auto no-scrollbar">
+                                                    {suggestions.map((suggestion, index) => {
+                                                        const isStore = suggestion.type === 'store' && suggestion.vendorId;
+                                                        const vendorLinkUrl = suggestion.isRealEstate
+                                                            ? `/b2b/real-estate?vendorId=${suggestion.vendorId}`
+                                                            : (currentItemType
+                                                                ? `/b2b/vendor/${suggestion.vendorId}?itemType=${currentItemType}`
+                                                                : `/b2b/vendor/${suggestion.vendorId}`);
+                                                        const Wrapper = isStore ? Link : 'button';
+                                                        const wrapperProps = isStore
+                                                            ? { to: vendorLinkUrl, onClick: (e) => e.stopPropagation() }
+                                                            : { type: 'button', onMouseDown: (e) => { e.preventDefault(); handleSuggestionClick(suggestion); } };
+                                                        return (
+                                                            <Wrapper
+                                                                key={index}
+                                                                {...wrapperProps}
+                                                                className="w-full px-6 py-3.5 hover:bg-primary-50 flex items-center gap-4 text-left transition-all group no-underline border-b border-gray-50 last:border-0"
+                                                            >
+                                                                {(suggestion.type === 'product' || suggestion.type === 'store') && suggestion.image ? (
+                                                                    <div className="w-10 h-10 rounded-xl overflow-hidden bg-white border border-gray-100 flex-shrink-0 shadow-sm">
+                                                                        <img src={suggestion.image} alt={suggestion.text} className="w-full h-full object-cover" />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 text-gray-400 flex-shrink-0 border border-gray-100 group-hover:bg-white group-hover:text-primary-600">
+                                                                        {suggestion.type === 'property' || suggestion.isRealEstate ? <FiHome size={16} /> : <FiSearch size={16} />}
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-[11px] font-black text-gray-900 truncate uppercase tracking-tight group-hover:text-primary-600">{suggestion.text}</p>
+                                                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-[0.2em]">{suggestion.context}</p>
+                                                                </div>
+                                                            </Wrapper>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </form>
+                        </div>
                     )}
 
-                    {/* Desktop Extra Links Next to Logo */}
-                    {/* Desktop Extra Links Next to Logo */}
-                    <div className="hidden xl:flex items-center gap-2 ml-2 md:ml-4">
-                        {customNav}
-                        <Link
-                            to="/b2b/real-estate"
-                            className="px-3 py-2 text-xs md:text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
-                        >
-                            <img src={realEstateIcon} alt="Real Estate" className="h-7 md:h-10 w-auto object-contain" /> Real Estate
-                        </Link>
-                        <Link
-                            to="/b2b/catalog?itemType=lotslot"
-                            className="px-3 py-2 text-xs md:text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
-                        >
-                            <img src={lotSlotIcon} alt="Lot" className="h-7 md:h-10 w-auto object-contain" /> Lot / Slot
-                        </Link>
-                    </div>
-                </div>
-
-                {!hideSearch && (
-                    <div className="flex-1 max-w-xl hidden md:block">
-                        <form
-                            onSubmit={handleSearchSubmit}
-                            className="relative"
-                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                            onFocus={() => localSearchQuery.trim() && setShowSuggestions(true)}
-                        >
-                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder={searchPlaceholder}
-                                value={localSearchQuery}
-                                onChange={handleSearchChange}
-                                className="w-full pl-12 pr-4 py-2 bg-gray-50 border-none rounded-full focus:ring-2 focus:ring-primary-500 transition-all text-sm font-medium"
-                            />
-
-                            <AnimatePresence>
-                                {showSuggestions && (suggestions.length > 0 || isSearching) && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                                        className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 py-2"
+                    {/* Right Side Actions: Profile, Seller, Mobile Burger */}
+                    <div className="flex items-center gap-2 md:gap-4 shrink-0">
+                        {/* Mobile view quick links (condensed) */}
+                        <div className="flex md:hidden items-center gap-1 sm:gap-2">
+                            {!minimal && (
+                                <div className="flex items-center gap-1 sm:gap-1.5">
+                                    <Link
+                                        to="/b2b/catalog?itemType=lotslot"
+                                        className="px-2 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1"
                                     >
-                                        {isSearching && suggestions.length === 0 ? (
-                                            <div className="px-4 py-3 text-sm text-gray-500 flex items-center gap-2">
-                                                <div className="w-4 h-4 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
-                                                Searching...
-                                            </div>
-                                        ) : (
-                                            suggestions.map((suggestion, index) => {
-                                                const isStore = suggestion.type === 'store' && suggestion.vendorId;
-                                                const vendorLinkUrl = suggestion.isRealEstate
-                                                    ? `/b2b/real-estate?vendorId=${suggestion.vendorId}`
-                                                    : (currentItemType
-                                                        ? `/b2b/vendor/${suggestion.vendorId}?itemType=${currentItemType}`
-                                                        : `/b2b/vendor/${suggestion.vendorId}`);
-                                                const Wrapper = isStore ? Link : 'button';
-                                                const wrapperProps = isStore
-                                                    ? { to: vendorLinkUrl, onClick: (e) => e.stopPropagation(), onMouseDown: (e) => e.stopPropagation() }
-                                                    : { type: 'button', onMouseDown: (e) => { e.preventDefault(); handleSuggestionClick(suggestion); } };
-                                                return (
-                                                    <Wrapper
-                                                        key={index}
-                                                        {...wrapperProps}
-                                                        className="w-full px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 text-left transition-colors group no-underline text-inherit"
-                                                    >
-                                                        {(suggestion.type === 'product' || suggestion.type === 'store') && suggestion.image ? (
-                                                            <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 border border-gray-50 flex-shrink-0">
-                                                                <img src={suggestion.image} alt={suggestion.text} className="w-full h-full object-cover" />
-                                                            </div>
-                                                        ) : (
-                                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary-50 text-primary-600 flex-shrink-0">
-                                                                {suggestion.type === 'property' || suggestion.isRealEstate ? <FiHome className="text-sm" /> : <FiSearch className="text-sm" />}
-                                                            </div>
-                                                        )}
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-bold text-gray-800 truncate">{suggestion.text}</p>
-                                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{suggestion.context}</p>
-                                                        </div>
-                                                    </Wrapper>
-                                                );
-                                            })
-                                        )}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </form>
+                                        <img src={lotSlotIcon} alt="Lot" className="h-5 w-auto object-contain" />
+                                        <span className="hidden xs:inline">Lot / Slot</span>
+                                    </Link>
+                                    <Link
+                                        to="/b2b/real-estate"
+                                        className="px-2 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1"
+                                    >
+                                        <img src={realEstateIcon} alt="Rent" className="h-5 w-auto object-contain" />
+                                        <span className="hidden xs:inline">Real Estate</span>
+                                    </Link>
+                                </div>
+                            )}
+                            
+                            {/* Become Seller (Prominent on small screens too) */}
+                            <Link
+                                to="/b2b-vendor/register"
+                                className="px-3 py-1.5 bg-black text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-gray-800 transition-colors whitespace-nowrap"
+                            >
+                                Seller
+                            </Link>
+                            
+
+
+
+
+
+
+
+
+
+
+                        </div>
+
+                        {/* Desktop (md+) Profile & Extended Actions */}
+                        <div className="hidden md:flex items-center gap-3 lg:gap-5">
+                            <Link
+                                to="/b2b-vendor/register"
+                                className="hidden lg:flex bg-gray-900 text-white px-7 py-3.5 rounded-[1.2rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200"
+                            >
+                                Become a Seller
+                            </Link>
+
+                            <div className="h-10 w-px bg-gray-100 hidden lg:block"></div>
+
+                            {isAuthenticated ? (
+                                <Link to="/b2b/profile" className="flex items-center gap-3 pr-2 pl-1.5 py-1.5 hover:bg-primary-50 rounded-2xl transition-all group border border-transparent hover:border-primary-100">
+                                    <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center text-primary-600 border-2 border-primary-50 shadow-md group-hover:bg-primary-600 group-hover:text-white transition-all">
+                                        <FiUser size={22} />
+                                    </div>
+                                    <div className="hidden lg:flex flex-col">
+                                        <span className="text-xs font-black text-gray-900 uppercase tracking-widest leading-none">Account</span>
+                                        <span className="text-[9px] font-bold text-primary-500 uppercase tracking-tight">View Profile</span>
+                                    </div>
+                                </Link>
+                            ) : (
+                                <Link
+                                    to="/b2b/login"
+                                    className="flex items-center gap-3 px-7 py-3.5 bg-primary-600 text-white rounded-[1.2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-primary-700 transition-all shadow-xl shadow-primary-100 hover:-translate-y-0.5 active:translate-y-0"
+                                >
+                                    Login / Join
+                                </Link>
+                            )}
+                        </div>
                     </div>
-                )}
-
-                <div className="hidden md:flex items-center gap-2 md:gap-3 flex-shrink-0">
-                    {/* Become Seller */}
-                    <Link
-                        to="/b2b-vendor/register"
-                        className="hidden lg:flex bg-black text-white px-5 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-gray-800 transition-colors whitespace-nowrap"
-                    >
-                        Become Seller
-                    </Link>
-
-                    {/* Desktop Divider */}
-                    <div className="h-6 w-px bg-gray-200 hidden lg:block mx-1"></div>
-
-                    {/* Profile / Login */}
-                    {isAuthenticated ? (
-                        <Link to="/b2b/profile" className="flex items-center gap-2 hover:bg-gray-50 p-1 md:p-1.5 rounded-full transition-colors">
-                            <div className="w-8 h-8 md:w-9 md:h-9 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 border border-primary-100 shadow-sm">
-                                <FiUser size={16} className="md:size-[18px]" />
-                            </div>
-                            <span className="text-xs font-black text-gray-700 hidden md:block uppercase tracking-wider">Profile</span>
-                        </Link>
-                    ) : (
-                        <Link
-                            to="/b2b/login"
-                            className="flex items-center gap-2 bg-primary-600 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-primary-700 transition-colors shadow-lg shadow-primary-100"
-                        >
-                            Login
-                        </Link>
-                    )}
-                </div>
                 </div>
             </header>
             {sticky !== false && !transparent && (
-                <div className="h-16 md:h-20 pt-safe" />
+                <div style={{ height: headerHeight }} className="flex-none" />
             )}
         </div>
     );

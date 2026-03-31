@@ -78,7 +78,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                 if (redirectToLoginIfRequired()) return;
                 navigate(`/b2b/product/${product._id}`);
             }}
-            className={`group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex ${viewMode === 'grid' ? 'flex-col h-full' : 'flex-row items-center gap-6 p-4 h-fit'}`}
+            className={`group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex ${viewMode === 'grid' ? 'flex-col h-[420px] md:h-[400px]' : 'flex-row items-center gap-6 p-4 h-fit'}`}
         >
             {/* Image Container - Interactive Gallery */}
             <div
@@ -158,18 +158,16 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
 
             {/* Content Body - Ultra Compact */}
             <div className={`p-2.5 flex flex-col gap-2 ${viewMode === 'list' ? 'flex-1 justify-center' : 'flex-1'}`}>
-                <div className="min-w-0">
+                <div className="h-[50px] md:h-[60px] flex flex-col justify-center">
                     <h3 className="text-[11px] font-black text-gray-800 line-clamp-2 group-hover:text-primary-600 transition-colors uppercase leading-tight">
                         {product.formType === 'shop-listing' && product.items?.length > 0
                             ? (product.items[0].itemName || product.items[0].name || 'Item')
                             : product.name}
                     </h3>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
-                            <span className="text-gray-500">Mfg:</span>{' '}
-                            {vendor?.mfgOfWork ? vendor.mfgOfWork : '—'}
-                        </p>
-                    </div>
+                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate mt-0.5">
+                        <span className="text-gray-500">Mfg:</span>{' '}
+                        {vendor?.mfgOfWork ? vendor.mfgOfWork : '—'}
+                    </p>
                 </div>
 
                 {/* Info Row: Unit and Vendor (no min order on catalog cards) */}
@@ -197,53 +195,26 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                     )}
                 </div>
 
-                {/* Vendor Status Row: GST / Email / Mobile */}
-                <div className="mt-1 px-1">
-                    {/* Mobile: text + right check, like desktop but compact */}
-                    <div className="md:hidden flex flex-wrap items-center gap-2">
-                        {vendor?.gstNumber && (
-                            <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 border border-green-100 rounded-full whitespace-nowrap shrink-0">
-                                <span className="text-[7px] font-black text-green-700 uppercase">GST: {vendor.gstNumber}</span>
-                                <FiCheck className="text-green-600" size={8} />
-                            </div>
-                        )}
-                        {vendor?.email && (
-                            <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-100 rounded-full whitespace-nowrap shrink-0">
-                                <span className="text-[7px] font-black text-blue-700 truncate max-w-[80px]">{vendor.email}</span>
-                                <FiCheck className="text-blue-600" size={8} />
-                            </div>
-                        )}
-                        {vendor?.phone && (
-                            <div className="flex items-center gap-1 px-2 py-0.5 bg-purple-50 border border-purple-100 rounded-full whitespace-nowrap shrink-0">
-                                <span className="text-[7px] font-black text-purple-700 uppercase">{vendor.phone}</span>
-                                <FiCheck className="text-purple-600" size={8} />
-                            </div>
-                        )}
-                    </div>
-                    {/* Desktop: text + check badges */}
-                    <div className="hidden md:flex items-center gap-3">
-                        {vendor?.gstNumber && (
-                            <div className="flex items-center gap-1">
-                                <span className="text-[8px] font-black text-gray-400 uppercase">GST:</span>
-                                <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">{vendor.gstNumber}</span>
-                                <FiCheck className="text-green-600" size={10} />
-                            </div>
-                        )}
-                        {vendor?.email && (
-                            <div className="flex items-center gap-1">
-                                <span className="text-[8px] font-black text-gray-400 uppercase">EMAIL:</span>
-                                <span className="text-[8px] font-black text-gray-700 truncate max-w-[120px]">{vendor.email}</span>
-                                <FiCheck className="text-green-600" size={10} />
-                            </div>
-                        )}
-                        {vendor?.phone && (
-                            <div className="flex items-center gap-1">
-                                <span className="text-[8px] font-black text-gray-400 uppercase">MOBILE:</span>
-                                <span className="text-[8px] font-black text-gray-700 uppercase">{vendor.phone}</span>
-                                <FiCheck className="text-green-600" size={10} />
-                            </div>
-                        )}
-                    </div>
+                {/* Vendor Status Row: GST / Email / Mobile - Fixed height to prevent shifts */}
+                <div className="flex items-center gap-1 mt-1 px-0.5 overflow-x-auto no-scrollbar h-[20px]">
+                    {vendor?.gstNumber && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-green-50 border border-green-100 rounded-md shrink-0">
+                            <span className="text-[6px] font-black text-green-700 uppercase tracking-tighter">GST: {vendor.gstNumber}</span>
+                            <FiCheck className="text-green-600" size={6} />
+                        </div>
+                    )}
+                    {vendor?.email && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-100 rounded-md shrink-0">
+                            <span className="text-[6px] font-black text-blue-700 truncate max-w-[60px]">{vendor.email}</span>
+                            <FiCheck className="text-blue-600" size={6} />
+                        </div>
+                    )}
+                    {vendor?.phone && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-50 border border-purple-100 rounded-md shrink-0">
+                            <span className="text-[6px] font-black text-purple-700 uppercase tracking-tighter">MOB: {vendor.phone}</span>
+                            <FiCheck className="text-purple-600" size={6} />
+                        </div>
+                    )}
                 </div>
 
                 <AnimatePresence>

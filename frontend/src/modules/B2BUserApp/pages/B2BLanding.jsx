@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiSearch, FiX, FiChevronDown, FiGrid, FiShoppingBag,
@@ -84,7 +84,7 @@ const B2BLanding = () => {
     const businessTypeRef = useRef(null);
     const headerRef = useRef(null);
     const toolbarRef = useRef(null);
-    const [headerHeight, setHeaderHeight] = useState(120); // Default fallback
+    const [headerHeight, setHeaderHeight] = useState(72); // Default fallback: 4.5rem = 72px
 
     const [citySearchQuery, setCitySearchQuery] = useState('');
 
@@ -138,12 +138,7 @@ const B2BLanding = () => {
             const toolbar = toolbarRef.current;
 
             if (header) {
-                let height = header.offsetHeight;
-                // On mobile, if toolbar exists and is fixed, add its height
-                if (window.innerWidth < 768 && toolbar) {
-                    height += toolbar.offsetHeight;
-                }
-                setHeaderHeight(height);
+                setHeaderHeight(header.offsetHeight);
             }
         };
 
@@ -448,7 +443,7 @@ const B2BLanding = () => {
     const SubCategoryPopup = () => (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
+            className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
             onClick={closePopup}
         >
             <motion.div
@@ -491,7 +486,7 @@ const B2BLanding = () => {
     const GenericHeaderPopup = ({ title, data }) => (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
+            className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
             onClick={closePopup}
         >
             <motion.div
@@ -568,7 +563,7 @@ const B2BLanding = () => {
     const PropertiesPopup = ({ title, onViewAll }) => (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
+            className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
             onClick={closePopup}
         >
             <motion.div
@@ -624,7 +619,7 @@ const B2BLanding = () => {
     const ProductPopup = ({ title, onViewAll, itemType }) => (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
+            className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
             onClick={closePopup}
         >
             <motion.div
@@ -697,7 +692,7 @@ const B2BLanding = () => {
         return (
             <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
+                className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
                 onClick={closePopup}
             >
                 <motion.div
@@ -795,7 +790,9 @@ const B2BLanding = () => {
                     <div className="hidden md:grid md:grid-cols-[auto_1fr] md:items-center md:gap-4 md:py-1">
                         {/* Logo - spans both rows */}
                         <div className="row-span-2 flex items-center pr-4 border-r border-gray-100">
-                            <img src={appLogo.src} alt="Dealing India" className="h-24 w-auto object-contain" />
+                            <Link to="/b2b/catalog" className="hover:opacity-80 transition-opacity">
+                                <img src={appLogo.src} alt="Dealing India" className="h-24 w-auto object-contain" />
+                            </Link>
                         </div>
                         {/* Row 1: Nav (Business Type, Lot, Real Estate, Become Seller, Profile) */}
                         <div className="flex items-center gap-2 lg:gap-4 justify-between py-1">
@@ -1064,13 +1061,15 @@ const B2BLanding = () => {
                     </div>
 
                     {/* Mobile: header row */}
-                    <div className="md:hidden h-12 flex items-center gap-2 justify-between">
-                        <div className="flex items-center gap-2 flex-1">
+                    <div className="md:hidden h-[4.5rem] flex items-center gap-2 justify-between">
+                        <div className="flex items-center justify-between gap-2 flex-1 min-w-0">
                             <div className="flex-shrink-0">
-                                <img src={appLogo.src} alt="Dealing India" className="h-10 w-auto object-contain" />
+                                <Link to="/b2b/catalog" className="hover:opacity-80 transition-opacity">
+                                    <img src={appLogo.src} alt="Dealing India" className="h-10 md:h-12 w-auto object-contain" />
+                                </Link>
                             </div>
                             {/* Mobile quick links beside logo */}
-                            <div className="flex items-center gap-1 ml-1">
+                            <div className="flex items-center gap-1.5 ml-2 min-w-0 flex-shrink truncate">
                                 <button
                                     onClick={() => {
                                         if (!isAuthenticated) {
@@ -1080,19 +1079,19 @@ const B2BLanding = () => {
                                         fetchLotProducts();
                                         setActivePopup('lots');
                                     }}
-                                    className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
+                                    className="px-2 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1 whitespace-nowrap"
                                 >
-                                    <img src={lotSlotIcon} alt="Lot" className="h-7 w-auto object-contain" /> Lot / Slot
+                                    <img src={lotSlotIcon} alt="Lot" className="h-5 w-auto object-contain" /> <span className="hidden xs:inline">Lot / Slot</span>
                                 </button>
                                 <button
                                     onClick={() => navigateWithAuth('/b2b/real-estate')}
-                                    className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
+                                    className="px-2 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1 whitespace-nowrap"
                                 >
-                                    <img src={realEstateIcon} alt="Real Estate" className="h-7 w-auto object-contain" /> Real Estate
+                                    <img src={realEstateIcon} alt="Real Estate" className="h-5 w-auto object-contain" /> <span className="hidden xs:inline">Real Estate</span>
                                 </button>
                                 <button
                                     onClick={() => navigate('/b2b-vendor/register')}
-                                    className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-black text-white"
+                                    className="px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-black text-white whitespace-nowrap"
                                 >
                                     Seller
                                 </button>
@@ -1210,7 +1209,7 @@ const B2BLanding = () => {
             <div style={{ height: `${headerHeight}px` }} className="flex-none"></div>
 
             {/* --- TOOLBAR (mobile only; web has it in header) --- */}
-            <section ref={toolbarRef} className="md:hidden fixed top-[calc(3.3rem+env(safe-area-inset-top))] left-0 right-0 z-[90] bg-white border-b border-gray-100 shadow-sm flex-none">
+            <section ref={toolbarRef} className="md:hidden sticky top-[calc(4.75rem+env(safe-area-inset-top,0px))] left-0 right-0 z-[90] bg-white border-b border-gray-100 shadow-sm flex-none">
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-1 md:py-1.5 flex flex-col md:flex-row items-stretch md:items-center gap-2">
 
                     <div className="flex gap-2 w-full md:w-auto">
@@ -1414,7 +1413,7 @@ const B2BLanding = () => {
 
 
             {/* --- BANNER SECTION --- */}
-            <section className="w-full bg-white pt-2 pb-2 mt-4 md:mt-0">
+            <section className="w-full bg-white pt-2 pb-2 mt-2 md:mt-0">
                 <div className="max-w-[1920px] mx-auto px-2 md:px-4">
                     <div className="rounded-[1rem] md:rounded-[1.4rem] overflow-hidden border border-gray-50">
                         <B2BBanner />
