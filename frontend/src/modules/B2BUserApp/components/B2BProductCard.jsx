@@ -196,7 +196,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                 </div>
 
                 {/* Vendor Status Badges - Matching New Image Style */}
-                <div className="flex flex-wrap items-center gap-2 mt-0.5 px-0.5 min-h-[30px]">
+                {/* <div className="flex flex-wrap items-center gap-2 mt-0.5 px-0.5 min-h-[30px]">
                     {vendor?.gstNumber && (
                         <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50/80 border border-green-100/50 rounded-full">
                             <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">GST</span>
@@ -222,8 +222,51 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                         </div>
                     )}
 
+                </div> */}
+                <div className="mt-1 px-1">
+                    {/* Mobile: text + right check, like desktop but compact */}
+                    <div className="md:hidden flex flex-wrap items-center gap-2">
+                        <div className="flex items-center justify-between gap-1 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full whitespace-nowrap shrink-0">
+                            <span className="text-[8px] font-black text-gray-600 uppercase">GST</span>
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-200 text-green-700">
+                                <FiCheck size={8} />
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-1 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full whitespace-nowrap shrink-0">
+                            <span className="text-[8px] font-black text-gray-600 uppercase">Email</span>
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-200 text-green-700">
+                                <FiCheck size={8} />
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-1 px-2 py-0.5 bg-gray-50 border border-gray-100 rounded-full whitespace-nowrap shrink-0">
+                            <span className="text-[8px] font-black text-gray-600 uppercase">Mobile</span>
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-green-200 text-green-700">
+                                <FiCheck size={8} />
+                            </span>
+                        </div>
+                    </div>
+                    {/* Desktop: text + check badges */}
+                    <div className="hidden md:flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                            <span className="text-[8px] font-black text-gray-500 uppercase">GST</span>
+                            <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
+                                <FiCheck size={10} />
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[8px] font-black text-gray-500 uppercase">Email</span>
+                            <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
+                                <FiCheck size={10} />
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[8px] font-black text-gray-500 uppercase">Mobile</span>
+                            <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
+                                <FiCheck size={10} />
+                            </span>
+                        </div>
+                    </div>
                 </div>
-
                 <AnimatePresence>
                 </AnimatePresence>
 

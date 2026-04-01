@@ -58,11 +58,14 @@ export default function ReelModeration() {
   const [replacingId, setReplacingId] = useState(null);
   const [playingSongId, setPlayingSongId] = useState(null);
 
+  const [reelTypeFilter, setReelTypeFilter] = useState('link'); // link, upload
+
   const fetchReels = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page, limit: 12 });
       if (statusFilter) params.set('status', statusFilter);
+      if (reelTypeFilter) params.set('reelType', reelTypeFilter);
       const res = await api.get(`/admin/reels?${params}`);
       if (res.success) {
         setReels(res.data.reels || []);
@@ -78,7 +81,7 @@ export default function ReelModeration() {
 
   useEffect(() => {
     fetchReels();
-  }, [statusFilter, page]);
+  }, [statusFilter, reelTypeFilter, page]);
 
   // Lightweight auto-refresh so new reels and status changes appear without a full page reload
   useEffect(() => {
@@ -86,7 +89,7 @@ export default function ReelModeration() {
       fetchReels();
     }, 30000); // 30 seconds
     return () => clearInterval(interval);
-  }, [statusFilter, page]);
+  }, [statusFilter, reelTypeFilter, page]);
 
   const handleApprove = async (reel) => {
     setActionLoading(reel._id);
@@ -145,6 +148,7 @@ export default function ReelModeration() {
       toast.success('Reel deleted');
       setPreviewReel(null);
       setShowRejectModal(null);
+      fetchReels();
     } finally {
       setActionLoading(null);
     }
@@ -217,6 +221,32 @@ export default function ReelModeration() {
         </button>
       </div>
 
+      {/* Primary Video Source Tabs */}
+      <div className="flex p-1 bg-gray-100 rounded-2xl w-fit mb-6 gap-1 border border-gray-200">
+        <button
+          onClick={() => { setReelTypeFilter('link'); setPage(1); }}
+          className={`flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-sm transition-all ${
+            reelTypeFilter === 'link' 
+              ? 'bg-white text-primary-600 shadow-sm' 
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <FiPlay size={16} />
+          Video Links
+        </button>
+        <button
+          onClick={() => { setReelTypeFilter('upload'); setPage(1); }}
+          className={`flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-sm transition-all ${
+            reelTypeFilter === 'upload' 
+              ? 'bg-white text-primary-600 shadow-sm' 
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <FiVideo size={16} />
+          Uploaded Videos
+        </button>
+      </div>
+
       <div className="flex flex-wrap gap-2 mb-6">
         {STATUS_TABS.map((tab) => (
           <button
@@ -225,7 +255,7 @@ export default function ReelModeration() {
             onClick={() => { setStatusFilter(tab.key); setPage(1); }}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${statusFilter === tab.key
               ? 'bg-primary-600 text-white shadow-lg shadow-primary-100'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              : 'bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 shadow-sm'
               }`}
           >
             {tab.label}

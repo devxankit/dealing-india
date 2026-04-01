@@ -29,6 +29,15 @@ import { useB2BLocationStore } from "../../../shared/store/b2bLocationStore";
 
 const ProductCatalog = () => {
   const navigate = useNavigate();
+
+  const getReelYoutubeId = (reel) => {
+    if (!reel) return null;
+    if (reel.youtubeVideoId) return reel.youtubeVideoId;
+    const url = (reel.videoUrl || "").toString();
+    if (!url) return null;
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|embed\/|shorts\/))([^&?\/ ]{11})/i);
+    return match ? match[1] : null;
+  };
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuthStore();
   const [products, setProducts] = useState([]);
@@ -126,6 +135,7 @@ const ProductCatalog = () => {
   const [selectedArea, setSelectedArea] = useState(null);
   const [selectedMarket, setSelectedMarket] = useState(null);
   const [availableMarkets, setAvailableMarkets] = useState([]);
+  const [categorySearchQuery, setCategorySearchQuery] = useState("");
   const [subcategorySearchQuery, setSubcategorySearchQuery] = useState("");
   const [isMainCategoryDropdownOpen, setIsMainCategoryDropdownOpen] =
     useState(false);
@@ -365,6 +375,18 @@ const ProductCatalog = () => {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
+                  <div className="p-3 border-b border-gray-50">
+                    <div className="relative">
+                      <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                      <input
+                        type="text"
+                        placeholder="Search categories or varieties..."
+                        className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                        value={categorySearchQuery}
+                        onChange={(e) => setCategorySearchQuery(e.target.value)}
+                      />
+                    </div>
+                  </div>
                   <div className="p-4 space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
                     <button
                       onClick={() => {
@@ -377,23 +399,34 @@ const ProductCatalog = () => {
                     >
                       ALL CATEGORIES
                     </button>
-                    {categories.filter(cat => cat.name !== "All").map((cat) => (
-                      <button
-                        key={cat.id || cat.name}
-                        onClick={() => {
-                          handleCategoryClick(cat.name);
-                          setIsMainCategoryDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${selectedCategory === cat.name ? "bg-primary-50 text-primary-600" : "text-gray-700 hover:bg-gray-50"}`}
-                      >
-                        <span>{cat.name.toUpperCase()}</span>
-                        {cat.subcategories?.length > 0 && (
-                          <span className="text-[9px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-400">
-                            {cat.subcategories.length}
-                          </span>
-                        )}
-                      </button>
-                    ))}
+                    {categories
+                      .filter(cat => {
+                        if (cat.name === "All") return false;
+                        const q = categorySearchQuery.toLowerCase();
+                        if (!q) return true;
+                        const matchCat = cat.name.toLowerCase().includes(q);
+                        const matchSub = (cat.subcategories || []).some(sub => 
+                          (typeof sub === "string" ? sub : sub?.name || "").toLowerCase().includes(q)
+                        );
+                        return matchCat || matchSub;
+                      })
+                      .map((cat) => (
+                        <button
+                          key={cat.id || cat.name}
+                          onClick={() => {
+                            handleCategoryClick(cat.name);
+                            setIsMainCategoryDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${selectedCategory === cat.name ? "bg-primary-50 text-primary-600" : "text-gray-700 hover:bg-gray-50"}`}
+                        >
+                          <span>{cat.name.toUpperCase()}</span>
+                          {cat.subcategories?.length > 0 && (
+                            <span className="text-[9px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-400">
+                              {cat.subcategories.length}
+                            </span>
+                          )}
+                        </button>
+                      ))}
                   </div>
                 </motion.div>
               )}
@@ -2278,7 +2311,17 @@ const ProductCatalog = () => {
                 Close
               </button>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1 space-y-2">
+            <div className="relative mb-3">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+              <input
+                type="text"
+                placeholder="Search categories..."
+                className="w-full pl-8 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                value={categorySearchQuery}
+                onChange={(e) => setCategorySearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="max-h-[55vh] overflow-y-auto custom-scrollbar pr-1 space-y-2">
               <button
                 className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${selectedCategory === "All" ? "bg-primary-50 text-primary-600" : "bg-gray-50 text-gray-700"}`}
                 onClick={() => {
@@ -2290,7 +2333,16 @@ const ProductCatalog = () => {
                 ALL
               </button>
               {categories
-                .filter((c) => c.name !== "All")
+                .filter((cat) => {
+                  if (cat.name === "All") return false;
+                  const q = categorySearchQuery.toLowerCase();
+                  if (!q) return true;
+                  const matchCat = cat.name.toLowerCase().includes(q);
+                  const matchSub = (cat.subcategories || []).some(sub => 
+                    (typeof sub === "string" ? sub : sub?.name || "").toLowerCase().includes(q)
+                  );
+                  return matchCat || matchSub;
+                })
                 .map((cat) => (
                   <div
                     key={cat.name}
@@ -2305,20 +2357,26 @@ const ProductCatalog = () => {
                         className={`text-gray-400 transition-transform ${expandedCategory === cat.name ? "rotate-90" : ""}`}
                       />
                     </button>
-                    {expandedCategory === cat.name &&
+                    {(expandedCategory === cat.name || (categorySearchQuery.trim() !== "" && (cat.subcategories || []).some(sub => (typeof sub === "string" ? sub : sub?.name || "").toLowerCase().includes(categorySearchQuery.toLowerCase())))) &&
                       cat.subcategories?.length > 0 && (
                         <div className="px-3 pb-3 pt-1 grid grid-cols-2 gap-2">
-                          {cat.subcategories.map((sub) => (
-                            <button
-                              key={sub}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${selectedSubcategory === sub ? "bg-primary-600 text-white border-primary-600" : "bg-white text-gray-700 border-gray-200"}`}
-                              onClick={() => {
-                                handleSubcategoryClick(sub, cat.name);
-                                setIsMainCategoryDropdownOpen(false);
-                              }}>
-                              {sub}
-                            </button>
-                          ))}
+                          {cat.subcategories
+                            .filter(sub => {
+                              const q = categorySearchQuery.trim().toLowerCase();
+                              if (!q) return true;
+                              return (typeof sub === "string" ? sub : sub?.name || "").toLowerCase().includes(q);
+                            })
+                            .map((sub) => (
+                              <button
+                                key={typeof sub === "string" ? sub : sub?.name}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${selectedSubcategory === (typeof sub === "string" ? sub : sub?.name) ? "bg-primary-600 text-white border-primary-600" : "bg-white text-gray-700 border-gray-200"}`}
+                                onClick={() => {
+                                  handleSubcategoryClick(typeof sub === "string" ? sub : sub?.name, cat.name);
+                                  setIsMainCategoryDropdownOpen(false);
+                                }}>
+                                {typeof sub === "string" ? sub : sub?.name}
+                              </button>
+                            ))}
                         </div>
                       )}
                   </div>
@@ -2890,44 +2948,71 @@ const ProductCatalog = () => {
                         </div>
                       ) : reels.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                          {reels.map((reel) => (
-                            <button
-                              key={reel._id}
-                              type="button"
-                              onClick={() => navigate(`/b2b/reels/${reel._id}`)}
-                              className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col text-left transition-transform hover:scale-105"
-                            >
-                              <div className="relative pb-[140%] bg-gray-900">
-                                {(reel.thumbnailUrl || reel.youtubeVideoId) && (
-                                  <img
-                                    src={
-                                      reel.thumbnailUrl ||
-                                      `https://img.youtube.com/vi/${reel.youtubeVideoId}/hqdefault.jpg`
-                                    }
-                                    alt={reel.title}
-                                    className="absolute inset-0 w-full h-full object-cover"
-                                  />
-                                )}
-                                {!reel.thumbnailUrl && !reel.youtubeVideoId && (
-                                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs">
-                                    Reel
-                                  </div>
-                                )}
-                              </div>
-                              <div className="p-2">
-                                <div className="flex items-center justify-between gap-1">
-                                  <p className="text-[10px] font-black text-gray-900 truncate uppercase tracking-tight">
-                                    {reel.title}
-                                  </p>
-                                  {reel.price > 0 && (
-                                    <span className="shrink-0 text-[10px] font-black text-primary-600">
-                                      ₹{reel.price}
-                                    </span>
+                          {reels.map((reel) => {
+                            const ytId = getReelYoutubeId(reel);
+                            return (
+                              <button
+                                key={reel._id}
+                                type="button"
+                                onClick={() => navigate(`/b2b/reels/${reel._id}`)}
+                                className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col text-left transition-transform hover:scale-105"
+                              >
+                                <div className="relative pb-[140%] bg-gray-900 group/reel">
+                                  {reel.thumbnailUrl || ytId ? (
+                                    <img
+                                      src={
+                                        reel.thumbnailUrl ||
+                                        `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
+                                      }
+                                      alt={reel.title}
+                                      className="absolute inset-0 w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 bg-gray-800">
+                                      <FiVideo size={32} className="mb-2 opacity-20" />
+                                      <span className="text-[10px] font-black uppercase tracking-widest opacity-30">Reel</span>
+                                      {reel.videoUrl && (
+                                        <video
+                                          src={reel.videoUrl}
+                                          className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover/reel:opacity-100 transition-opacity"
+                                          muted
+                                          playsInline
+                                          onMouseOver={(e) => e.target.play()}
+                                          onMouseOut={(e) => { e.target.pause(); e.target.currentTime = 0; }}
+                                        />
+                                      )}
+                                    </div>
+                                  )}
+                                  {ytId && (
+                                    <div className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-lg shadow-lg z-10 scale-90 group-hover/reel:scale-100 transition-transform">
+                                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.377.505 9.377.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                                      </svg>
+                                    </div>
                                   )}
                                 </div>
-                              </div>
-                            </button>
-                          ))}
+                                <div className="p-2.5">
+                                  <div className="flex items-center justify-between gap-1.5 overflow-hidden">
+                                    <p className="text-[10px] font-black text-gray-900 truncate uppercase tracking-tight">
+                                      {reel.title}
+                                    </p>
+                                    <div className="flex flex-col items-end shrink-0">
+                                      {reel.price > 0 && (
+                                        <span className="text-[10px] font-black text-primary-600 leading-none">
+                                          ₹{reel.price}
+                                        </span>
+                                      )}
+                                      {reel.minimum && (
+                                        <span className="text-[8px] font-bold text-gray-400 mt-0.5 leading-none">
+                                          Min: {reel.minimum}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
                       ) : (
                         <div className="text-center py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-100 shadow-inner">
@@ -3062,60 +3147,6 @@ const ProductCatalog = () => {
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-6 custom-scrollbar pb-32">
-                {/* Mobile: Browse Categories block on top */}
-                <div className="mb-6 lg:hidden">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500">
-                      Browse Categories
-                    </h4>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                      {selectedCategory}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    <button
-                      className={`w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-wider ${selectedCategory === "All" ? "text-primary-600" : "text-gray-700"}`}
-                      onClick={() => {
-                        setSelectedCategory("All");
-                        setSelectedSubcategory(null);
-                        setExpandedCategory(null);
-                      }}>
-                      <span>All</span>
-                      <FiChevronRight className="text-gray-400" />
-                    </button>
-                    {categories
-                      .filter((c) => c.name !== "All")
-                      .map((cat) => (
-                        <div
-                          key={cat.name}
-                          className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-                          <button
-                            className={`w-full flex items-center justify-between px-4 py-3 text-[10px] font-black uppercase tracking-wider ${expandedCategory === cat.name ? "bg-primary-50 text-primary-600" : "text-gray-700"}`}
-                            onClick={() => handleCategoryClick(cat.name)}>
-                            <span>{cat.name}</span>
-                            <FiChevronRight
-                              className={`text-gray-400 transition-transform ${expandedCategory === cat.name ? "rotate-90" : ""}`}
-                            />
-                          </button>
-                          {expandedCategory === cat.name &&
-                            cat.subcategories?.length > 0 && (
-                              <div className="px-3 pb-3 pt-1 grid grid-cols-2 gap-2">
-                                {cat.subcategories.map((sub) => (
-                                  <button
-                                    key={sub}
-                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${selectedSubcategory === sub ? "bg-primary-600 text-white border-primary-600" : "bg-white text-gray-700 border-gray-200"}`}
-                                    onClick={() => {
-                                      handleSubcategoryClick(sub, cat.name);
-                                    }}>
-                                    {sub}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                        </div>
-                      ))}
-                  </div>
-                </div>
                 {renderFilters()}
               </div>
               <div className="p-6 border-t border-gray-100 bg-white sticky bottom-0">

@@ -185,12 +185,14 @@ export const getMyReels = asyncHandler(async (req, res) => {
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
   const skip = (page - 1) * limit;
 
+  const { reelType } = req.query;
   const query = { 
     uploaderId,
     $nor: [ 
         { reelType: 'link', externalLinkType: 'youtube', isYouTubeLinkValid: false } 
     ]
   };
+  if (reelType) query.reelType = reelType;
 
   const [reels, total] = await Promise.all([
     Reel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
@@ -209,13 +211,14 @@ export const getMyReels = asyncHandler(async (req, res) => {
  * GET /api/admin/reels
  */
 export const adminListReels = asyncHandler(async (req, res) => {
-  const { status, categoryName, page = 1, limit = 20 } = req.query;
+  const { status, categoryName, reelType, page = 1, limit = 20 } = req.query;
   const filter = {
     $nor: [ 
         { reelType: 'link', externalLinkType: 'youtube', isYouTubeLinkValid: false } 
     ]
   };
   if (status) filter.status = status;
+  if (reelType) filter.reelType = reelType;
   if (categoryName) filter.categoryName = new RegExp(categoryName, 'i');
   const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(50, Math.max(1, parseInt(limit)));
   const limitNum = Math.min(50, Math.max(1, parseInt(limit)));

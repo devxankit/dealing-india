@@ -477,25 +477,25 @@ export const getB2BSearchSuggestions = async (query, vendorFilterId) => {
     const suggestions = [];
 
     const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const startRegex = { $regex: "^" + escapedQuery, $options: 'i' };
+    const searchRegex = { $regex: escapedQuery, $options: 'i' };
 
-    // Removed exclusion of Real Estate types to support global search for all vendors
-    const [products, lotSlots, vendors, shopUnits, properties] = await Promise.all([
+    // Fetch from all integrated collections with higher limits to ensure varied matching
+    const [products, lotSlots, vendors, shopUnits, properties, b2bCategories] = await Promise.all([
         Product.find({
-            name: startRegex,
+            name: searchRegex,
             isActive: true
-        }).limit(5).select('name image vendorId formType'),
+        }).limit(100).select('name image vendorId formType'),
         LotSlot.find({
-            name: startRegex,
+            name: searchRegex,
             isActive: true
-        }).limit(5).select('name image vendorId'),
+        }).limit(100).select('name image vendorId'),
         Vendor.find({
-            storeName: startRegex,
+            storeName: searchRegex,
             status: 'approved',
             isActive: true
-        }).limit(5).select('storeName storeLogo address businessType'),
-        ShopUnit.find({ name: startRegex })
-            .limit(5)
+        }).limit(30).select('storeName storeLogo address businessType'),
+        ShopUnit.find({ name: searchRegex })
+            .limit(20)
             .populate({
                 path: 'vendorId',
                 match: {
@@ -505,12 +505,49 @@ export const getB2BSearchSuggestions = async (query, vendorFilterId) => {
                 select: 'storeName storeLogo address status isActive businessType'
             })
             .lean(),
-        // Added Property search
         mongoose.model('Property').find({
-            title: startRegex,
+            title: searchRegex,
             isActive: true
-        }).limit(5).select('title media images location vendorId listingType').lean()
+        }).limit(20).select('title media images location vendorId listingType').lean(),
+        B2BCategory.find({
+            $or: [
+                { name: searchRegex },
+                { 'subcategories.name': searchRegex }
+            ],
+            isActive: { $ne: false }
+        }).limit(10).lean()
     ]);
+
+    // Categories & Subcategories first (High Context)
+    b2bCategories.forEach(cat => {
+        // Direct category match
+        if (cat.name?.toLowerCase().includes(query.toLowerCase())) {
+            const isDup = suggestions.some(s => s.text?.toLowerCase() === cat.name?.toLowerCase() && s.type === 'category');
+            if (!isDup) {
+                suggestions.push({
+                    text: cat.name,
+                    context: 'In Categories',
+                    type: 'category',
+                    image: null
+                });
+            }
+        }
+        // Subcategory matches
+        (cat.subcategories || []).forEach(sub => {
+            if (sub.name?.toLowerCase().includes(query.toLowerCase())) {
+                const isDup = suggestions.some(s => s.text?.toLowerCase() === sub.name?.toLowerCase());
+                if (!isDup) {
+                    suggestions.push({
+                        text: sub.name,
+                        context: `In ${cat.name}`,
+                        type: 'subcategory',
+                        categoryId: cat._id.toString(),
+                        image: null
+                    });
+                }
+            }
+        });
+    });
 
     // Products - dedup by name (case-insensitive)
     products.forEach(p => {
@@ -633,15 +670,34 @@ export const getB2BSearchSuggestions = async (query, vendorFilterId) => {
         const bText = (b.text || '').toLowerCase();
         const q = (query || '').toLowerCase();
 
+        // Exact Match (Score 100)
+        const aExact = aText === q;
+        const bExact = bText === q;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+
+        // Starts with (Score 50)
         const aStarts = aText.startsWith(q);
         const bStarts = bText.startsWith(q);
-
         if (aStarts && !bStarts) return -1;
         if (!aStarts && bStarts) return 1;
 
-        // If both start or neither start, maintain original order or sort alphabetically
+        // Word boundary match (Score 25)
+        const boundaryRegex = new RegExp(`\\b${escapedQuery}`, 'i');
+        const aBoundary = boundaryRegex.test(aText);
+        const bBoundary = boundaryRegex.test(bText);
+        if (aBoundary && !bBoundary) return -1;
+        if (!aBoundary && bBoundary) return 1;
+
+        // Ends with (Score 15) - Very useful for finding variations like "Fancy Saree" when searching for "Saree"
+        const aEnds = aText.endsWith(q);
+        const bEnds = bText.endsWith(q);
+        if (aEnds && !bEnds) return -1;
+        if (!aEnds && bEnds) return 1;
+
+        // Fallback: Alphabetical
         return aText.localeCompare(bText);
-    }).slice(0, 20);
+    }).slice(0, 30);
 
     return finalSuggestions;
 };

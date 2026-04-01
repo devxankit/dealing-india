@@ -157,7 +157,17 @@ export default function ReelFeed() {
     hasAppliedInitialReelRef.current = false;
     isShowingGeneralFeed.current = false;
     fetchFeed(1, false, null, activeCategory);
-  }, [activeCategory, reelIdFromUrl, fetchFeed]);
+  }, [activeCategory, fetchFeed]);
+
+  // Update URL as user scrolls to keep current reel reflected in the address bar
+  useEffect(() => {
+    if (reels.length > 0 && reels[currentIndex]?._id) {
+      const currentId = reels[currentIndex]._id;
+      if (currentId !== reelIdFromUrl) {
+        navigate(`/b2b/reels/${currentId}`, { replace: true });
+      }
+    }
+  }, [currentIndex, reels, navigate, reelIdFromUrl]);
 
   /* When opened via shared link /b2b/reels/:reelId – show that reel */
   useEffect(() => {

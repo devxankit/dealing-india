@@ -285,30 +285,30 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
 
                 {/* Vendor Status Badges - Pill Style Matching Image 1 */}
                 <div className="flex flex-wrap items-center gap-2 mt-2 px-0.5">
-                    {vendor?.gstNumber && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-full shadow-sm">
-                            <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">GST</span>
-                            <div className="w-3.5 h-3.5 bg-green-500 flex items-center justify-center rounded-full">
-                                <FiCheck className="text-white" size={9} />
-                            </div>
+
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-full shadow-sm">
+                        <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">GST</span>
+                        <div className="w-3.5 h-3.5 bg-green-500 flex items-center justify-center rounded-full">
+                            <FiCheck className="text-white" size={9} />
                         </div>
-                    )}
-                    {vendor?.email && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-full shadow-sm">
-                            <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">EMAIL</span>
-                            <div className="w-3.5 h-3.5 bg-green-500 flex items-center justify-center rounded-full">
-                                <FiCheck className="text-white" size={9} />
-                            </div>
+                    </div>
+
+
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-full shadow-sm">
+                        <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">EMAIL</span>
+                        <div className="w-3.5 h-3.5 bg-green-500 flex items-center justify-center rounded-full">
+                            <FiCheck className="text-white" size={9} />
                         </div>
-                    )}
-                    {vendor?.phone && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-full shadow-sm">
-                            <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">MOBILE</span>
-                            <div className="w-3.5 h-3.5 bg-green-500 flex items-center justify-center rounded-full">
-                                <FiCheck className="text-white" size={9} />
-                            </div>
+                    </div>
+
+
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-full shadow-sm">
+                        <span className="text-[8px] font-black text-gray-700 uppercase tracking-tighter">MOBILE</span>
+                        <div className="w-3.5 h-3.5 bg-green-500 flex items-center justify-center rounded-full">
+                            <FiCheck className="text-white" size={9} />
                         </div>
-                    )}
+                    </div>
+
                 </div>
 
                 {/* Action Buttons */}
