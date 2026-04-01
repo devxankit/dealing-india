@@ -2,7 +2,6 @@ import { useState, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import B2BVendorSidebar from './B2BVendorSidebar';
 import B2BVendorHeader from './B2BVendorHeader';
-import B2BVendorBottomNav from './B2BVendorBottomNav';
 import useAdminHeaderHeight from '../../../Admin/hooks/useAdminHeaderHeight';
 import { useVendorSettings } from '../../hooks/useVendorSettings';
 import { Navigate } from 'react-router-dom';
@@ -74,8 +73,7 @@ const B2BVendorLayout = () => {
                     </div>
                 </main>
 
-                {/* Mobile Bottom Nav */}
-                <B2BVendorBottomNav />
+                {/* Mobile Bottom Nav - Removed as per request */}
             </div>
         </div>
     );

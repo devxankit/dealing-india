@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiArrowLeft, FiPlus, FiTrash2, FiMapPin, FiMaximize, FiHome, FiImage } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import B2BHeader from '../../B2BUserApp/components/Layout/B2BHeader';
-import B2BBottomNav from '../../B2BUserApp/components/Layout/B2BBottomNav';
 import toast from 'react-hot-toast';
 
 const PropertyUpload = () => {
@@ -191,7 +190,6 @@ const PropertyUpload = () => {
                 </div>
             </main>
 
-            <B2BBottomNav />
         </div>
     );
 };
