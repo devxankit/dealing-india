@@ -276,10 +276,15 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                             e.stopPropagation();
                             if (property.vendorId?._id) navigate(`/b2b/vendor/${property.vendorId._id}`);
                         }}
-                        className="flex items-center gap-1.5 text-[9px] font-black text-gray-500 hover:text-primary-600 cursor-pointer uppercase overflow-hidden"
+                        className="flex flex-col items-end gap-0.5 min-w-0 cursor-pointer group/vendor"
                     >
-                        <FiHome className="text-primary-500 flex-shrink-0" size={12} />
-                        <span className="truncate">{sellerName}</span>
+                        <div className="flex items-center gap-1 text-[9px] font-black text-primary-600 group-hover/vendor:text-primary-700 uppercase transition-colors select-none text-right leading-[1.1]">
+                            <FiHome className="text-primary-500 flex-shrink-0" size={10} />
+                            {sellerName}
+                        </div>
+                        <span className="px-1 py-0.5 bg-primary-600 text-white rounded text-[6px] font-black uppercase tracking-tighter shadow-sm">
+                            Visit
+                        </span>
                     </div>
                 </div>
 

@@ -55,6 +55,8 @@ export default function ReelModeration() {
   const [musicLoading, setMusicLoading] = useState(false);
   const [replacingId, setReplacingId] = useState(null);
   const [playingSongId, setPlayingSongId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isBulkApproving, setIsBulkApproving] = useState(false);
 
   const [reelTypeFilter, setReelTypeFilter] = useState('link'); // link, upload
 
@@ -79,6 +81,7 @@ export default function ReelModeration() {
 
   useEffect(() => {
     fetchReels();
+    setSelectedIds([]); // Reset selection on filter/page change
   }, [statusFilter, reelTypeFilter, page]);
 
   // Lightweight auto-refresh so new reels and status changes appear without a full page reload
@@ -136,6 +139,43 @@ export default function ReelModeration() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.length === 0) {
+      toast.error('Please select at least one reel');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to approve ${selectedIds.length} reels in bulk?`)) return;
+
+    setIsBulkApproving(true);
+    try {
+      const res = await api.post('/admin/reels/bulk-approve', { ids: selectedIds });
+      if (res.success) {
+        toast.success(`Successfully processed bulk approval. Approved: ${res.data.approved}, Failed: ${res.data.failed}`);
+        setSelectedIds([]);
+        fetchReels();
+      }
+    } catch (err) {
+      toast.error(err.message || 'Bulk approval failed');
+    } finally {
+      setIsBulkApproving(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === reels.filter(r => r.status === 'pending').length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(reels.filter(r => r.status === 'pending').map(r => r._id));
+    }
+  };
+
+  const toggleSelectReel = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
   };
 
   const handleDelete = async (reel) => {
@@ -208,16 +248,52 @@ export default function ReelModeration() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">Review and approve short videos before they go live.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => fetchReels()}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-        >
-          <FiRefreshCw className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          {statusFilter === 'pending' && reels.some(r => r.status === 'pending') && (
+            <button
+              type="button"
+              onClick={handleBulkApprove}
+              disabled={isBulkApproving || selectedIds.length === 0}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 shadow-lg shadow-emerald-100 font-bold"
+            >
+              {isBulkApproving ? (
+                <FiRefreshCw className="animate-spin" />
+              ) : (
+                <FiCheck />
+              )}
+              Bulk Approve {selectedIds.length > 0 && `(${selectedIds.length})`}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => fetchReels()}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <FiRefreshCw className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {statusFilter === 'pending' && reels.some(r => r.status === 'pending') && (
+        <div className="flex items-center gap-2 mb-4 bg-primary-50 p-3 rounded-2xl border border-primary-100">
+          <input
+            type="checkbox"
+            id="selectAll"
+            checked={selectedIds.length > 0 && selectedIds.length === reels.filter(r => r.status === 'pending').length}
+            onChange={toggleSelectAll}
+            className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <label htmlFor="selectAll" className="text-sm font-bold text-primary-900 cursor-pointer select-none">
+            {selectedIds.length === reels.filter(r => r.status === 'pending').length ? 'Deselect All' : 'Select All Pending Reels on this Page'}
+          </label>
+          <span className="ml-auto text-xs font-medium text-primary-600 bg-white px-2 py-1 rounded-full border border-primary-100">
+            {selectedIds.length} items selected
+          </span>
+        </div>
+      )}
 
       {/* Primary Video Source Tabs */}
       <div className="flex p-1 bg-gray-100 rounded-2xl w-fit mb-6 gap-1 border border-gray-200">
@@ -285,6 +361,19 @@ export default function ReelModeration() {
                 className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
                 <div className="aspect-[9/16] max-h-[400px] bg-gray-900 relative group overflow-hidden">
+                  {reel.status === 'pending' && (
+                    <div className="absolute top-3 left-3 z-20">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(reel._id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleSelectReel(reel._id);
+                        }}
+                        className="w-6 h-6 rounded-lg border-2 border-white/50 bg-black/30 text-primary-600 focus:ring-primary-500 cursor-pointer backdrop-blur-sm transition-all checked:scale-110"
+                      />
+                    </div>
+                  )}
                   {getReelYoutubeId(reel) ? (
                     <img
                       src={`https://img.youtube.com/vi/${getReelYoutubeId(reel)}/hqdefault.jpg`}

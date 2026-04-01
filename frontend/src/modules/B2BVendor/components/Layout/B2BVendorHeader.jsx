@@ -90,7 +90,8 @@ const B2BVendorHeader = ({ onMenuClick }) => {
     const isDashboard = location.pathname === "/b2b-vendor/dashboard";
 
     return (
-        <header className="bg-white border-b border-gray-200 fixed top-0 left-0 lg:left-64 right-0 z-40">
+        <header className="bg-white border-b border-gray-200 fixed top-0 left-0 lg:left-64 right-0 z-40"
+                style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
             <div className="flex items-center justify-between px-4 lg:px-6 py-4 gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-0 overflow-hidden">
                     <Button onClick={onMenuClick} variant="icon" className="lg:hidden text-gray-700 flex-shrink-0" icon={FiMenu} />

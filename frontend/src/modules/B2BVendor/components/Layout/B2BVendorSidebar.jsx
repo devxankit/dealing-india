@@ -236,7 +236,8 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     };
 
     const sidebarContent = (
-        <div className="h-full flex flex-col bg-slate-800 shadow-xl overflow-hidden text-left">
+        <div className="h-full flex flex-col bg-slate-800 shadow-xl overflow-hidden text-left"
+             style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
             <div className="p-4 border-b border-slate-700 bg-slate-900 overflow-hidden">
                 <div className="flex items-center justify-between gap-3 min-w-0">
                     <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden text-left">
@@ -252,6 +253,13 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                             </p>
                         </div>
                     </div>
+                    {/* Add Close Button for Mobile Accessibility */}
+                    <button
+                        onClick={onClose}
+                        className="lg:hidden p-2 text-gray-400 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors"
+                    >
+                        <FiX className="text-xl" />
+                    </button>
                 </div>
             </div>
             <nav className="flex-1 overflow-y-auto p-3 pb-32 scrollbar-admin">

@@ -171,8 +171,8 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                 </div>
 
                 {/* Info Row: Unit and Vendor (no min order on catalog cards) */}
-                <div className="flex items-center justify-between gap-2 bg-gray-50/50 p-1.5 rounded-lg border border-gray-50">
-                    <div className="flex items-center gap-1 text-[8px] font-black text-gray-500 uppercase">
+                <div className="flex items-center justify-between gap-1 bg-gray-50/50 p-1.5 rounded-lg border border-gray-50 min-h-[42px]">
+                    <div className="flex items-center gap-1 text-[8px] font-black text-gray-500 uppercase whitespace-nowrap">
                         <FiTruck className="text-primary-500" size={10} />
                         <span>{moqValue ? `MOQ ${moqValue} ${unitDisplay}` : unitDisplay}</span>
                     </div>
@@ -184,12 +184,17 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                 const vendorUrl = itemType ? `/b2b/vendor/${vendorIdStr}?itemType=${itemType}` : `/b2b/vendor/${vendorIdStr}`;
                                 navigate(vendorUrl);
                             }}
-                            className="text-[8px] font-black text-primary-500 hover:text-primary-700 truncate max-w-[80px] uppercase cursor-pointer transition-colors select-none block"
+                            className="flex flex-col items-end gap-0.5 min-w-0 cursor-pointer group/vendor"
                         >
-                            {shopDisplayName}
+                            <div className="text-[9px] font-black text-primary-600 group-hover/vendor:text-primary-700 uppercase transition-colors select-none text-right leading-[1.1]">
+                                {shopDisplayName}
+                            </div>
+                            <span className="px-1 py-0.5 bg-primary-600 text-white rounded text-[6px] font-black uppercase tracking-tighter shadow-sm">
+                                Visit Store
+                            </span>
                         </div>
                     ) : (
-                        <span className="text-[7px] font-black text-gray-400 truncate max-w-[60px] uppercase">
+                        <span className="text-[8px] font-black text-gray-400 text-right uppercase leading-tight">
                             {shopDisplayName}
                         </span>
                     )}

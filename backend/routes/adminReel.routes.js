@@ -4,6 +4,7 @@ import { authorize } from '../middleware/role.middleware.js';
 import {
   adminListReels,
   adminGetReel,
+  adminBulkApproveReels,
   adminApproveReel,
   adminRetryYouTubeUpload,
   adminRejectReel,
@@ -20,6 +21,7 @@ router.use(authorize('admin', 'superadmin'));
 
 router.get('/', asyncHandler(adminListReels));
 router.get('/:id', asyncHandler(adminGetReel));
+router.post('/bulk-approve', asyncHandler(adminBulkApproveReels));
 router.post('/:id/approve', asyncHandler(adminApproveReel));
 router.post('/:id/retry-youtube', asyncHandler(adminRetryYouTubeUpload));
 router.post('/:id/reject', asyncHandler(adminRejectReel));

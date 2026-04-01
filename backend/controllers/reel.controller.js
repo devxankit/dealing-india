@@ -340,6 +340,108 @@ export const adminApproveReel = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Admin: Bulk approve reels
+ * POST /api/admin/reels/bulk-approve
+ * Body: { ids: string[] }
+ */
+export const adminBulkApproveReels = asyncHandler(async (req, res) => {
+  const { ids } = req.body;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ success: false, message: 'Reel IDs are required' });
+  }
+
+  const results = {
+    total: ids.length,
+    approved: 0,
+    failed: 0,
+    errors: []
+  };
+
+  const adminId = req.user.adminId || req.user.id;
+  const io = req.app.get('io');
+
+  // Loop through each ID and process
+  for (const id of ids) {
+    try {
+      const reel = await Reel.findById(id);
+      if (!reel) {
+        results.failed++;
+        results.errors.push({ id, message: 'Reel not found' });
+        continue;
+      }
+      if (reel.status !== 'pending') {
+        results.failed++;
+        results.errors.push({ id, message: `Reel is already ${reel.status}` });
+        continue;
+      }
+
+      let youtubeVideoId = null;
+      let youtubePlaylistId = null;
+      let youtubeUploadFailed = false;
+      let youtubeUploadError = null;
+
+      try {
+        if (reel.reelType === 'link') {
+           // Skip YouTube upload for external links
+        } else {
+          // Proactively freeze dynamic URLs if needed
+          if (reel.videoUrl?.includes('cloudinary.com') && (reel.videoUrl.includes('/e_mute/') || reel.videoUrl.includes('/ac_none/') || reel.videoUrl.includes('l_video:') || reel.videoUrl.includes('l_audio:'))) {
+            try {
+              const processedResult = await uploadUrlToCloudinary(reel.videoUrl, 'reels/processed', { resource_type: 'video' });
+              reel.videoUrl = processedResult.secure_url;
+              reel.videoPublicId = processedResult.public_id;
+            } catch (err) {
+              console.error(`[Admin Bulk Approve] Failed to freeze dynamic URL for ${id}:`, err.message);
+            }
+          }
+          const result = await publishReelToYouTube(reel);
+          youtubeVideoId = result?.youtubeVideoId || null;
+          youtubePlaylistId = result?.youtubePlaylistId || null;
+        }
+      } catch (err) {
+        youtubeUploadFailed = true;
+        youtubeUploadError = err.message || 'YouTube upload failed';
+      }
+
+      reel.status = 'approved';
+      reel.approvedAt = new Date();
+      reel.approvedBy = adminId;
+      reel.youtubeVideoId = youtubeVideoId;
+      reel.youtubePlaylistId = youtubePlaylistId;
+      reel.youtubeUploadFailed = youtubeUploadFailed;
+      reel.youtubeUploadError = youtubeUploadError;
+      await reel.save();
+
+      // Notify uploader
+      try {
+        await notificationService.createNotification({
+          recipientId: reel.uploaderId,
+          recipientType: reel.uploaderType,
+          type: 'reel_status',
+          title: 'Reel Approved',
+          message: `Your reel "${reel.title}" has been approved and is now live!`,
+          actionUrl: '/b2b-vendor/reels',
+          metadata: { reelId: reel._id }
+        }, io);
+      } catch (notifErr) {
+        // Notification failure shouldn't fail the approval
+      }
+
+      results.approved++;
+    } catch (err) {
+      results.failed++;
+      results.errors.push({ id, message: err.message });
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Bulk processing complete. Approved: ${results.approved}, Failed: ${results.failed}`,
+    data: results
+  });
+});
+
+/**
  * Admin: retry YouTube upload for an approved reel (no status change)
  * POST /api/admin/reels/:id/retry-youtube
  */

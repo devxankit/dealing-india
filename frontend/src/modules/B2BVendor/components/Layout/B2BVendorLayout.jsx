@@ -2,6 +2,7 @@ import { useState, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import B2BVendorSidebar from './B2BVendorSidebar';
 import B2BVendorHeader from './B2BVendorHeader';
+import B2BVendorBottomNav from './B2BVendorBottomNav';
 import useAdminHeaderHeight from '../../../Admin/hooks/useAdminHeaderHeight';
 import { useVendorSettings } from '../../hooks/useVendorSettings';
 import { Navigate } from 'react-router-dom';
@@ -59,9 +60,10 @@ const B2BVendorLayout = () => {
                     className={`flex-1 p-3 sm:p-4 lg:p-6 ${isChatPage ? 'overflow-hidden' : 'overflow-y-auto'} overflow-x-hidden lg:pb-6 lg:pt-24 scrollbar-admin w-full min-w-0`}
                     style={{
                         paddingTop: `${Math.max(topPadding, 80)}px`,
+                        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
                     }}
                 >
-                    <div className={`w-full max-w-full overflow-x-hidden min-w-0 ${isChatPage ? 'h-full' : ''}`}>
+                    <div className={`w-full max-w-full overflow-x-hidden min-w-0 pb-20 lg:pb-0 ${isChatPage ? 'h-full' : ''}`}>
                         <Suspense fallback={
                             <div className="flex items-center justify-center h-full min-h-[400px]">
                                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
@@ -71,6 +73,9 @@ const B2BVendorLayout = () => {
                         </Suspense>
                     </div>
                 </main>
+
+                {/* Mobile Bottom Nav */}
+                <B2BVendorBottomNav />
             </div>
         </div>
     );
