@@ -8,15 +8,68 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
 import { useB2BLocationStore } from '../../../shared/store/b2bLocationStore';
-import { FiFilter, FiSearch, FiX, FiCheck, FiMapPin, FiChevronDown, FiBriefcase, FiDollarSign, FiHome, FiTrendingUp } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiVideo, FiGrid, FiX, FiCheck, FiMapPin, FiChevronDown, FiBriefcase, FiDollarSign, FiHome, FiTrendingUp } from 'react-icons/fi';
 
 const RealEstate = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+    const [selectedPropertyType, setSelectedPropertyType] = useState(searchParams.get('propertyType') || 'All');
     const [properties, setProperties] = useState([]);
     const [matchingVendors, setMatchingVendors] = useState([]);
-    const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+    const [reels, setReels] = useState([]);
+    const [reelsLoading, setReelsLoading] = useState(false);
+    const [catalogTab, setCatalogTab] = useState('properties');
+
+    const getReelYoutubeId = (reel) => {
+        if (!reel) return null;
+        if (reel.youtubeVideoId) return reel.youtubeVideoId;
+        const url = (reel.videoUrl || "").toString();
+        if (!url) return null;
+        const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?[^&]*&v=|embed\/|shorts\/|live\/))([a-zA-Z0-9_-]{11})/i);
+        return match ? match[1] : null;
+    };
+
+    const fetchReels = async () => {
+        setReelsLoading(true);
+        try {
+            const params = {
+                limit: 20,
+                propertyOnly: 'true'
+            };
+            
+            // Map selectedPropertyType to category search for reels
+            // Map selectedPropertyType to category search for reels to match UploadReel.jsx keys
+            if (selectedPropertyType !== 'All') {
+                if (selectedPropertyType === 'Villa / Row House') {
+                    params.category = 'Villa/Row House';
+                } else if (selectedPropertyType === 'Commercial') {
+                    params.category = 'Commercial Property';
+                } else {
+                    params.category = selectedPropertyType;
+                }
+            } else if (searchQuery) {
+                params.category = searchQuery;
+            }
+
+            const response = await api.get('/reels/feed', { params });
+            if (response?.success) {
+                setReels(response.data.reels || []);
+            }
+        } catch (error) {
+            console.error('[Fetch Reels Error]:', error);
+        } finally {
+            setReelsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            fetchReels();
+        }, 600);
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery, selectedPropertyType]);
     const [selectedCity, setSelectedCity] = useState('All Cities');
     const [selectedBusinessType, setSelectedBusinessType] = useState(() => {
         const t = (searchParams.get('type') || '').toLowerCase();
@@ -32,7 +85,6 @@ const RealEstate = () => {
     const [selectedPriceUnit, setSelectedPriceUnit] = useState('All');
     const [selectedAreaUnit, setSelectedAreaUnit] = useState('All');
     const [selectedListingType, setSelectedListingType] = useState('All');
-    const [selectedPropertyType, setSelectedPropertyType] = useState(searchParams.get('propertyType') || 'All');
     const [selectedFlatType, setSelectedFlatType] = useState(searchParams.get('flatType') || 'All');
     const [selectedFloors, setSelectedFloors] = useState(searchParams.get('floors') || 'All');
 
@@ -462,7 +514,7 @@ const RealEstate = () => {
                             className="overflow-hidden"
                         >
                             <div className="p-4 space-y-2">
-                                {['All', 'Flat', 'Row house / Villa', 'Commercial'].map((type) => (
+                                {['All', 'Flat', 'Villa / Row House', 'Commercial'].map((type) => (
 
                                     <button
                                         key={type}
@@ -1238,6 +1290,27 @@ const RealEstate = () => {
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-3">
+                                    <button
+                                        onClick={() => setCatalogTab('properties')}
+                                        className={`px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${catalogTab === 'properties'
+                                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-100'
+                                            : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        <FiGrid size={14} />
+                                        Properties
+                                    </button>
+                                    <button
+                                        onClick={() => setCatalogTab('reels')}
+                                        className={`px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${catalogTab === 'reels'
+                                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-100'
+                                            : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        <FiVideo size={14} />
+                                        Reels
+                                        {reels.length > 0 && <span className="ml-1 opacity-60">({reels.length})</span>}
+                                    </button>
                                     <AnimatePresence>
                                         {selectedBusinessType !== 'All' && (
                                             <motion.span
@@ -1330,8 +1403,70 @@ const RealEstate = () => {
                             </div>
                         </div>
 
-                        {loading ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {/* Integrated Hub Display: Select between Properties and Reels */}
+                        {catalogTab === 'reels' ? (
+                            reelsLoading ? (
+                                <div className="flex flex-col items-center justify-center py-20 grayscale opacity-40">
+                                    <div className="w-12 h-12 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>
+                                    <p className="text-[10px] font-black mt-6 uppercase tracking-[0.2em] text-gray-500">Retrieving Video Library...</p>
+                                </div>
+                            ) : reels.length > 0 ? (
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-20">
+                                    {reels.map((reel) => {
+                                        const ytId = getReelYoutubeId(reel);
+                                        return (
+                                            <motion.button
+                                                key={reel._id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                whileInView={{ opacity: 1, y: 0 }}
+                                                viewport={{ once: true }}
+                                                onClick={() => navigate(`/b2b/reels/${reel._id}`)}
+                                                className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 flex flex-col text-left transition-all hover:scale-[1.02] hover:shadow-xl group"
+                                            >
+                                                <div className="relative aspect-[9/16] bg-gray-900">
+                                                    {reel.thumbnailUrl || ytId ? (
+                                                        <img
+                                                            src={reel.thumbnailUrl || `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
+                                                            alt={reel.title}
+                                                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                                        />
+                                                    ) : (
+                                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-700">
+                                                            <FiVideo size={32} className="mb-2 opacity-20" />
+                                                            <span className="text-[10px] font-black uppercase tracking-widest opacity-30">Real Estate Reel</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    <div className="absolute bottom-4 left-4 right-4 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
+                                                        <p className="text-[10px] font-black text-white uppercase truncate tracking-wider">{reel.title}</p>
+                                                        <p className="text-[8px] font-bold text-white/60 uppercase tracking-tighter mt-1">Click to Watch</p>
+                                                    </div>
+                                                </div>
+                                                <div className="p-4 flex items-center justify-between gap-2 overflow-hidden bg-white">
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] font-black text-gray-900 truncate uppercase tracking-tight">{reel.title}</p>
+                                                        <p className="text-[8px] font-bold text-gray-400 mt-1 uppercase truncate">{reel.uploaderName}</p>
+                                                    </div>
+                                                    <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors flex-shrink-0">
+                                                        <FiVideo size={14} />
+                                                    </div>
+                                                </div>
+                                            </motion.button>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-20 grayscale border-2 border-dashed border-gray-100 rounded-[3rem] bg-white mx-4">
+                                    <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+                                        <FiVideo size={32} className="text-gray-200" />
+                                    </div>
+                                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-2">No Visual Tours Yet</h3>
+                                    <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest text-center px-8">Currently mapping reels for this property segment.</p>
+                                </div>
+                            )
+                        ) : (
+                            loading ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                                 {[1, 2, 3, 4, 5, 6].map(i => (
                                     <div key={i} className="bg-white rounded-[2rem] h-[480px] shadow-sm animate-pulse flex flex-col overflow-hidden border border-gray-100">
                                         <div className="aspect-square bg-gray-50"></div>
@@ -1394,7 +1529,7 @@ const RealEstate = () => {
                                 <p className="text-gray-400 font-medium max-w-xs mx-auto mt-2 uppercase text-[10px] tracking-widest">No properties match your current filters in {selectedCity}</p>
                                 <button onClick={handleClearFilters} className="mt-6 px-8 py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all">Reset All Filters</button>
                             </div>
-                        )}
+                        ))}
                     </div>
                 </div>
             </main>

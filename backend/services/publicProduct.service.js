@@ -682,22 +682,28 @@ export const getB2BSearchSuggestions = async (query, vendorFilterId) => {
         if (aStarts && !bStarts) return -1;
         if (!aStarts && bStarts) return 1;
 
-        // Word boundary match (Score 25)
+        // Word boundary match (Score 30)
         const boundaryRegex = new RegExp(`\\b${escapedQuery}`, 'i');
         const aBoundary = boundaryRegex.test(aText);
         const bBoundary = boundaryRegex.test(bText);
         if (aBoundary && !bBoundary) return -1;
         if (!aBoundary && bBoundary) return 1;
 
-        // Ends with (Score 15) - Very useful for finding variations like "Fancy Saree" when searching for "Saree"
+        // Ends with (Score 20)
         const aEnds = aText.endsWith(q);
         const bEnds = bText.endsWith(q);
         if (aEnds && !bEnds) return -1;
         if (!aEnds && bEnds) return 1;
 
+        // Contains match (Score 10) - Ensures things like "Designer Fancy Saree" show up for "Fancy"
+        const aContains = aText.includes(q);
+        const bContains = bText.includes(q);
+        if (aContains && !bContains) return -1;
+        if (!aContains && bContains) return 1;
+
         // Fallback: Alphabetical
         return aText.localeCompare(bText);
-    }).slice(0, 30);
+    }).slice(0, 60);
 
     return finalSuggestions;
 };

@@ -171,8 +171,7 @@ export default function ReelFeed() {
 
   /* When opened via shared link /b2b/reels/:reelId – show that reel */
   useEffect(() => {
-    if (loading || !reelIdFromUrl) return;
-    if (hasAppliedInitialReelRef.current) return;
+    if (loading || !reelIdFromUrl || hasAppliedInitialReelRef.current) return;
 
     const idx = reels.findIndex((r) => r._id === reelIdFromUrl);
     if (idx >= 0) {
@@ -181,19 +180,20 @@ export default function ReelFeed() {
       return;
     }
 
+    // If not found in current batch, fetch and prepend it
     hasAppliedInitialReelRef.current = true;
     api
       .get(`/reels/${reelIdFromUrl}`)
       .then((res) => {
         if (res.success && res.data?.reel) {
           const single = res.data.reel;
-          setReels((prev) =>
-            prev.some((r) => r._id === single._id) ? prev : [single, ...prev]
+          setReels((prev) => 
+            prev.some(r => r._id === single._id) ? prev : [single, ...prev]
           );
           setCurrentIndex(0);
         }
       })
-      .catch(() => toast.error("Reel not found"));
+      .catch((err) => console.error("Error fetching shared reel:", err));
   }, [loading, reelIdFromUrl, reels]);
 
   const loadMore = useCallback(() => {

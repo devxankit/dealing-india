@@ -790,7 +790,7 @@ const B2BLanding = () => {
                     <div className="hidden md:grid md:grid-cols-[auto_1fr] md:items-center md:gap-4 md:py-1">
                         {/* Logo - spans both rows */}
                         <div className="row-span-2 flex items-center pr-4 border-r border-gray-100">
-                            <Link to="/b2b/catalog" className="hover:opacity-80 transition-opacity">
+                            <Link to={!isAuthenticated ? "/b2b/login" : (window.location.pathname.includes('/b2b/catalog') ? "/b2b/landing" : "/b2b/catalog")} className="hover:opacity-80 transition-opacity">
                                 <img src={appLogo.src} alt="Dealing India" className="h-24 w-auto object-contain" />
                             </Link>
                         </div>
@@ -1073,7 +1073,7 @@ const B2BLanding = () => {
                     <div className="md:hidden h-[4.5rem] flex items-center gap-2 justify-between">
                         <div className="flex items-center justify-between gap-2 flex-1 min-w-0">
                             <div className="flex-shrink-0">
-                                <Link to="/b2b/catalog" className="hover:opacity-80 transition-opacity">
+                                <Link to={!isAuthenticated ? "/b2b/login" : (window.location.pathname.includes('/b2b/catalog') ? "/b2b/landing" : "/b2b/catalog")} className="hover:opacity-80 transition-opacity">
                                     <img src={appLogo.src} alt="Dealing India" className="h-10 md:h-12 w-auto object-contain" />
                                 </Link>
                             </div>

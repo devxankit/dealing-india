@@ -159,8 +159,14 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             
                             {/* Unified Logo link */}
                             <Link 
-                                to={location.pathname.includes('/b2b/catalog') ? "/b2b/landing" : "/b2b/catalog"} 
+                                to={!isAuthenticated ? "/b2b/login" : (location.pathname.includes('/b2b/catalog') ? "/b2b/landing" : "/b2b/catalog")} 
                                 className="flex-shrink-0 hover:opacity-80 transition-opacity"
+                                onClick={(e) => {
+                                    if (!isAuthenticated) {
+                                        // Extra safety redirect
+                                        navigate('/b2b/login');
+                                    }
+                                }}
                             >
                                 <img
                                     src={appLogo.src}

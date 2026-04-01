@@ -63,12 +63,10 @@ const B2BVendorStore = () => {
     const getReelYoutubeId = (reel) => {
         if (!reel) return null;
         if (reel.youtubeVideoId) return reel.youtubeVideoId;
-        if (reel.reelType === 'link' && reel.externalLinkType === 'youtube') {
-            const url = reel.videoUrl;
-            const match = url?.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|embed\/|shorts\/))([^&?\/ ]{11})/);
-            return match ? match[1] : null;
-        }
-        return null;
+        const url = (reel.videoUrl || "").toString();
+        if (!url) return null;
+        const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?[^&]*&v=|embed\/|shorts\/|live\/))([a-zA-Z0-9_-]{11})/i);
+        return match ? match[1] : null;
     };
 
     useEffect(() => {
@@ -835,7 +833,7 @@ const B2BVendorStore = () => {
                                     onClick={() => navigate(`/b2b/reels/${reel._id}`)}
                                     className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col text-left transition-transform hover:scale-105"
                                 >
-                                    <div className="relative pb-[140%] bg-gray-900">
+                                    <div className="relative aspect-[9/16] bg-gray-900">
                                         {(
                                             reel.thumbnailUrl ||
                                             (getReelYoutubeId(reel) && `https://img.youtube.com/vi/${getReelYoutubeId(reel)}/hqdefault.jpg`)

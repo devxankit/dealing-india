@@ -35,7 +35,7 @@ const ProductCatalog = () => {
     if (reel.youtubeVideoId) return reel.youtubeVideoId;
     const url = (reel.videoUrl || "").toString();
     if (!url) return null;
-    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|embed\/|shorts\/))([^&?\/ ]{11})/i);
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?[^&]*&v=|embed\/|shorts\/|live\/))([a-zA-Z0-9_-]{11})/i);
     return match ? match[1] : null;
   };
   const [searchParams, setSearchParams] = useSearchParams();
@@ -315,6 +315,10 @@ const ProductCatalog = () => {
     setOpenFilters((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
+  const toggleMainCategory = () => {
+    setOpenFilters((prev) => ({ ...prev, mainCategory: !prev.mainCategory }));
+  };
+
   // Track vendor contact clicks (call or whatsapp)
   const trackContactClick = async (vendorId, clickType) => {
     try {
@@ -356,7 +360,7 @@ const ProductCatalog = () => {
         {(!isBigTextilePlayer || selectedItemType === "lotslot") && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden" ref={mainCategoryDropdownRef}>
             <button
-              onClick={() => setIsMainCategoryDropdownOpen(!isMainCategoryDropdownOpen)}
+              onClick={toggleMainCategory}
               className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center gap-3">
@@ -365,10 +369,10 @@ const ProductCatalog = () => {
                   {selectedCategory === "All" ? "Browse Categories" : selectedCategory}
                 </h3>
               </div>
-              <FiChevronDown className={`text-gray-400 transition-transform ${isMainCategoryDropdownOpen ? "rotate-180" : ""}`} />
+              <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.mainCategory ? "rotate-180" : ""}`} />
             </button>
             <AnimatePresence>
-              {isMainCategoryDropdownOpen && (
+              {openFilters.mainCategory && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
@@ -2620,42 +2624,61 @@ const ProductCatalog = () => {
                     </button>
                   </div>
 
-                  <div className="flex flex-wrap gap-3 relative z-10">
-                    <button
-                      data-subcategory-button
-                      data-prevent-category-collapse
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSubcategoryClick(null, expandedCategory);
-                      }}
-                      className={`px-6 py-3 rounded-xl text-sm font-extrabold transition-all ${!selectedSubcategory &&
-                        selectedCategory === expandedCategory
-                        ? "bg-primary-600 text-white shadow-lg shadow-primary-200"
-                        : "bg-white text-gray-600 border border-gray-100 hover:border-primary-100 hover:bg-white hover:shadow-md"
-                        }`}>
-                      All {expandedCategory}
-                    </button>
+                    <div className="flex flex-wrap gap-3 relative z-10">
+                      <button
+                        data-subcategory-button
+                        data-prevent-category-collapse
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSubcategoryClick(null, expandedCategory);
+                        }}
+                        className={`px-6 py-3 rounded-xl text-sm font-extrabold transition-all border ${!selectedSubcategory &&
+                          selectedCategory === expandedCategory
+                          ? "bg-primary-600 text-white shadow-lg shadow-primary-200 border-primary-600"
+                          : "bg-white text-gray-600 border-gray-100 hover:border-primary-100 hover:bg-white hover:shadow-md"
+                          }`}>
+                        All {expandedCategory}
+                      </button>
 
-                    {categories
-                      .find((c) => c.name === expandedCategory)
-                      ?.subcategories.map((sub, idx) => (
-                        <button
-                          key={idx}
-                          data-subcategory-button
-                          data-prevent-category-collapse
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSubcategoryClick(sub, expandedCategory);
-                          }}
-                          className={`px-6 py-3 rounded-xl text-sm font-extrabold transition-all ${selectedSubcategory === sub &&
-                            selectedCategory === expandedCategory
-                            ? "bg-primary-600 text-white shadow-lg shadow-primary-200"
-                            : "bg-white text-gray-600 border border-gray-100 hover:border-primary-100 hover:bg-white hover:shadow-md"
-                            }`}>
-                          {sub}
-                        </button>
-                      ))}
-                  </div>
+                      <div className="w-full mb-2">
+                        <div className="relative max-w-md">
+                          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                          <input
+                            type="text"
+                            placeholder={`Search in ${expandedCategory}...`}
+                            className="w-full pl-10 pr-4 py-2.5 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none transition-all shadow-sm"
+                            value={subcategorySearchQuery}
+                            onChange={(e) => setSubcategorySearchQuery(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      </div>
+
+                      {categories
+                        .find((c) => c.name === expandedCategory)
+                        ?.subcategories
+                        .filter(sub => {
+                          if (!subcategorySearchQuery) return true;
+                          return (typeof sub === 'string' ? sub : sub?.name || '').toLowerCase().includes(subcategorySearchQuery.toLowerCase());
+                        })
+                        .map((sub, idx) => (
+                          <button
+                            key={idx}
+                            data-subcategory-button
+                            data-prevent-category-collapse
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSubcategoryClick(sub, expandedCategory);
+                            }}
+                            className={`px-6 py-3 rounded-xl text-sm font-extrabold transition-all border ${selectedSubcategory === sub &&
+                              selectedCategory === expandedCategory
+                              ? "bg-primary-600 text-white shadow-lg shadow-primary-200 border-primary-600"
+                              : "bg-white text-gray-600 border-gray-100 hover:border-primary-100 hover:bg-white hover:shadow-md"
+                              }`}>
+                            {sub}
+                          </button>
+                        ))}
+                    </div>
                 </div>
               </motion.div>
             )}
@@ -2957,7 +2980,7 @@ const ProductCatalog = () => {
                                 onClick={() => navigate(`/b2b/reels/${reel._id}`)}
                                 className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col text-left transition-transform hover:scale-105"
                               >
-                                <div className="relative pb-[140%] bg-gray-900 group/reel">
+                                <div className="relative aspect-[9/16] bg-gray-900 group/reel">
                                   {reel.thumbnailUrl || ytId ? (
                                     <img
                                       src={

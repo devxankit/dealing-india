@@ -633,8 +633,10 @@ function isMongoId(id) {
 export const getFeed = asyncHandler(async (req, res) => {
   const playlistId = process.env.YOUTUBE_REELS_PLAYLIST_ID;
 
-  if (playlistId) {
-    // Reels from YouTube only – no DB storage
+  const isFiltering = req.query.propertyOnly || req.query.productOnly || req.query.category || req.query.vendorId || req.query.search;
+  
+  if (playlistId && !isFiltering) {
+    // Reels from YouTube only – no DB storage, global general feed
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
     const pageToken = req.query.pageToken || null;
     let result;
@@ -678,6 +680,8 @@ export const getFeed = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
   const categoryName = req.query.category;
   const vendorIdFilter = req.query.vendorId || null;
+  const propertyOnly = req.query.propertyOnly === 'true';
+  const productOnly = req.query.productOnly === 'true';
 
   // Feed source: Only reels that have successfully reached YouTube OR are link-based reels
   const filter = {
@@ -695,6 +699,23 @@ export const getFeed = asyncHandler(async (req, res) => {
       }
     ]
   };
+
+  const propertyCategories = ['Flat', 'Villa/Row House', 'Commercial Property', 'Villa / Row House', 'Commercial'];
+  const excludeCategoryKeywords = [/saree/i, /textile/i, /garment/i, /jewellery/i, /product/i, /bulk saree/i, /designer saree/i];
+
+  if (propertyOnly) {
+    filter.$and.push({
+      $or: [
+        { categoryName: { $in: propertyCategories.map(c => new RegExp(`^${c}$`, 'i')) } },
+        { propertyId: { $ne: null } }
+      ]
+    });
+    // Strict exclusion of known non-property content families to handle test/junk data
+    filter.$and.push({ categoryName: { $nin: excludeCategoryKeywords } });
+  } else if (productOnly) {
+    filter.$and.push({ propertyId: null });
+    filter.$and.push({ categoryName: { $nin: propertyCategories.map(c => new RegExp(`^${c}$`, 'i')) } });
+  }
    // Note: We don't check 'status' here because if it's on YouTube, it's implicitly approved/live.
   if (categoryName) filter.categoryName = new RegExp(categoryName, 'i');
   if (vendorIdFilter) {
