@@ -172,7 +172,8 @@ export default function ReelFeed() {
     if (reels.length > 0 && reels[currentIndex]?._id) {
       const currentId = reels[currentIndex]._id;
       if (currentId !== reelIdFromUrl) {
-        navigate(`/b2b/reels/${currentId}`, { replace: true });
+        const search = searchParams.toString();
+        navigate(`/b2b/reels/${currentId}${search ? `?${search}` : ""}`, { replace: true });
       }
     }
   }, [currentIndex, reels, navigate, reelIdFromUrl]);

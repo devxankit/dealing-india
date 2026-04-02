@@ -73,18 +73,27 @@ export const getPublicProducts = async (filters) => {
                 // Try to resolve category ID to name, or use as string
                 const cat = await B2BCategory.findById(categoryId);
                 const catName = cat ? cat.name : categoryId;
-                const escapedCatName = String(catName).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                query.category = { $regex: new RegExp(`^\\s*${escapedCatName}\\s*$`, 'i') };
+                
+                // Allow flexible whitespace around slashes in category name regex
+                const flexibleName = String(catName).trim()
+                    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                    .replace(/\//g, '\\s*/\\s*');
+                
+                query.category = { $regex: new RegExp(`^\\s*${flexibleName}\\s*$`, 'i') };
             } catch (e) {
-                const escapedId = String(categoryId).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                query.category = { $regex: new RegExp(`^\\s*${escapedId}\\s*$`, 'i') };
+                const flexibleId = String(categoryId).trim()
+                    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                    .replace(/\//g, '\\s*/\\s*');
+                query.category = { $regex: new RegExp(`^\\s*${flexibleId}\\s*$`, 'i') };
             }
         }
 
         // Subcategory
         if (subcategoryId) {
-            const escapedSub = String(subcategoryId).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            query.subcategory = { $regex: new RegExp(`^\\s*${escapedSub}\\s*$`, 'i') };
+            const flexibleSub = String(subcategoryId).trim()
+                .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                .replace(/\//g, '\\s*/\\s*');
+            query.subcategory = { $regex: new RegExp(`^\\s*${flexibleSub}\\s*$`, 'i') };
         }
 
         // Brand

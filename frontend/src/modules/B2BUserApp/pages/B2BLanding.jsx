@@ -982,8 +982,8 @@ const B2BLanding = () => {
                                                     {[
                                                         "MILL / PROCESSING",
                                                         "YARN",
-                                                        "GRAY MARKET / GRAY BROKER",
-                                                        "WEAVERS / KNITTER",
+                                                        "GRAY MARKET / BROKER",
+                                                        "WEAVER & KNITTER",
                                                         "GRAY MARKET / WEAVER & KNITTER"
                                                     ].map((label, i) => {
                                                         // Find the actual category object from rootCategories
@@ -991,10 +991,18 @@ const B2BLanding = () => {
                                                             const catName = (c.name || "").toLowerCase().trim();
                                                             const searchLabel = label.toLowerCase().trim();
                                                             
-                                                            // Match exactly or check if one contains the other (e.g. "MILL/ PROCESSING" matches "MILL / PROCESSING")
-                                                            return catName === searchLabel || 
-                                                                   catName.includes(searchLabel.split(" / ")[0].toLowerCase()) ||
-                                                                   searchLabel.includes(catName.split("/")[0].toLowerCase().trim());
+                                                            // Split label by ' / ' to get individual parts
+                                                            const parts = searchLabel.split(" / ").map(p => p.trim());
+                                                            
+                                                            // Match exactly or check if catName contains all parts
+                                                            if (catName === searchLabel) return true;
+                                                            
+                                                            if (parts.length > 1) {
+                                                                // For composite labels, ensure all parts are present in the right order or at least more specifically
+                                                                return parts.every(p => catName.includes(p));
+                                                            }
+                                                            
+                                                            return catName.includes(searchLabel);
                                                         });
 
                                                         if (!targetCat) return null;
@@ -1328,12 +1336,17 @@ const B2BLanding = () => {
                                     >
                                         <h4 className="font-black text-gray-400 mb-4 text-[9px] uppercase tracking-[0.2em]">Quick Business Filters</h4>
                                         <div className="space-y-1">
-                                            {['Mill', 'Yarn', 'Gray', 'Weaver'].map((label, i) => {
-                                                // Find the actual full business type name from the database list
-                                                const matchingType = businessTypes.find(t =>
-                                                    t.name.toLowerCase().includes(label.toLowerCase())
-                                                );
-                                                const filterValue = matchingType ? matchingType.name : label;
+                                            {['Mill', 'Yarn', 'Gray Market / Broker', 'Weaver & Knitter'].map((label, i) => {
+                                                const targetCat = rootCategories.find(c => {
+                                                    const catName = (c.name || "").toLowerCase().trim();
+                                                    const searchLabel = label.toLowerCase().trim();
+                                                    const parts = searchLabel.split(" / ").map(p => p.trim());
+                                                    if (catName === searchLabel) return true;
+                                                    if (parts.length > 1) return parts.every(p => catName.includes(p));
+                                                    return catName.includes(searchLabel);
+                                                });
+
+                                                if (!targetCat) return null;
 
                                                 return (
                                                     <div
@@ -1341,11 +1354,10 @@ const B2BLanding = () => {
                                                         className="flex items-center justify-between cursor-pointer group hover:bg-primary-50 p-3 rounded-xl transition-all border border-transparent hover:border-primary-100"
                                                         onClick={() => {
                                                             setIsPriceFilterOpen(false);
-                                                            const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
-                                                            navigateWithAuth(`/b2b/catalog?businessType=${encodeURIComponent(filterValue)}${cityParam}`);
+                                                            handleCategoryClick(targetCat);
                                                         }}
                                                     >
-                                                        <span className="font-black text-[11px] md:text-sm text-gray-600 group-hover:text-primary-600 uppercase tracking-wider">{filterValue}</span>
+                                                        <span className="font-black text-[11px] md:text-sm text-gray-600 group-hover:text-primary-600 uppercase tracking-wider">{label}</span>
                                                         <FiArrowRight className="opacity-0 group-hover:opacity-100 transition-all text-primary-600" />
                                                     </div>
                                                 );

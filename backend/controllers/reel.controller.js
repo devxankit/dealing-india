@@ -164,6 +164,20 @@ export const uploadReel = asyncHandler(async (req, res) => {
     }
   }
 
+  // 🔹 Notify Admins about new reel waiting for moderation
+  try {
+    const io = req.app.get('io');
+    await notificationService.sendBulkNotification({
+      type: 'reel_moderation',
+      title: 'New Reel Submitted',
+      message: `${uploaderName} uploaded a new reel: "${title.slice(0, 30)}${title.length > 30 ? '...' : ''}". Review pending.`,
+      actionUrl: '/admin/reels?status=pending',
+      metadata: { reelId: reel._id, uploaderName, reelType }
+    }, 'admins', [], io);
+  } catch (adminNotifErr) {
+    console.error('[Reel Upload] Admin notification failed:', adminNotifErr.message);
+  }
+
   res.status(201).json({
     success: true,
     message: 'Reel submitted for moderation',

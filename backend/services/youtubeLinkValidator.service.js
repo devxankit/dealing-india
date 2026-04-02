@@ -15,12 +15,14 @@ export async function validateYouTubeLinkReels(io = null) {
   }
 
   try {
-    // Find all approved reels that are YouTube links
+    // Find all approved reels that have a YouTube Video ID (both links and uploads)
     const reels = await Reel.find({
       status: 'approved',
-      reelType: 'link',
-      externalLinkType: 'youtube'
-    }).select('_id videoUrl youtubeVideoId isYouTubeLinkValid youtubeLinkStatus').lean();
+      $or: [
+        { reelType: 'link', externalLinkType: 'youtube' },
+        { youtubeVideoId: { $ne: null, $ne: '' } }
+      ]
+    }).select('_id videoUrl youtubeVideoId title isYouTubeLinkValid youtubeLinkStatus').lean();
 
     if (reels.length === 0) {
       console.log('[YouTubeLinkValidator] No YouTube link reels found to validate.');

@@ -386,7 +386,7 @@ export default function ReelModeration() {
                 layout
                 className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
-                <div className="aspect-[9/16] max-h-[400px] bg-gray-900 relative group overflow-hidden">
+                <div className="w-full h-[400px] bg-gray-900 relative group overflow-hidden">
                   {reel.status === 'pending' && (
                     <div className="absolute top-3 left-3 z-20">
                       <input

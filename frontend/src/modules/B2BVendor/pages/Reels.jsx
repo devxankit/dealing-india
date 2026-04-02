@@ -182,7 +182,7 @@ export default function Reels() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {reels.map((reel) => (
               <div key={reel._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
-                <div className="aspect-[9/16] bg-gray-900 relative">
+                <div className="w-full h-[400px] bg-gray-900 relative overflow-hidden group">
                   {getReelYoutubeId(reel) ? (
                     <img
                       src={`https://img.youtube.com/vi/${getReelYoutubeId(reel)}/hqdefault.jpg`}
