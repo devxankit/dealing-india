@@ -14,7 +14,7 @@ import { getWhatsAppUserDetailsSuffix } from "../../../shared/utils/helpers";
 export default function ReelFeed() {
   const navigate = useNavigate();
   const { reelId: reelIdFromUrl } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
 
   const [reels, setReels] = useState([]);
@@ -42,6 +42,14 @@ export default function ReelFeed() {
     }, 400);
     return () => clearTimeout(timer);
   }, [categorySearch]);
+
+  // Handle URL category changes
+  useEffect(() => {
+    const cat = searchParams.get("category") || "";
+    if (cat !== activeCategory) {
+      setActiveCategory(cat);
+    }
+  }, [searchParams, activeCategory]);
 
   const viewedRef = useRef(new Set());
   const wheelLockRef = useRef(false);
@@ -592,7 +600,11 @@ export default function ReelFeed() {
 
                     <div className="flex-1 overflow-y-auto no-scrollbar py-2">
                       <button
-                        onClick={() => { setActiveCategory(""); setShowCategoryDropdown(false); setCategorySearch(""); }}
+                        onClick={() => {
+                          navigate("/b2b/reels");
+                          setShowCategoryDropdown(false);
+                          setCategorySearch("");
+                        }}
                         className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
                           activeCategory === "" ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
                         }`}
@@ -603,7 +615,11 @@ export default function ReelFeed() {
                         playlistCategories.map((name) => (
                           <button
                             key={name}
-                            onClick={() => { setActiveCategory(name); setShowCategoryDropdown(false); setCategorySearch(""); }}
+                            onClick={() => {
+                              navigate(`/b2b/reels?category=${encodeURIComponent(name)}`);
+                              setShowCategoryDropdown(false);
+                              setCategorySearch("");
+                            }}
                             className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
                               activeCategory === name ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
                             }`}

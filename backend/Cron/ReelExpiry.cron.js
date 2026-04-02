@@ -32,9 +32,9 @@ export function stopReelExpiryCron() {
  * Periodically validates YouTube link reels.
  * Runs every 8 hours.
  */
-export function startYouTubeLinkValidationCron() {
+export function startYouTubeLinkValidationCron(io = null) {
   if (validationTask) return;
-  validationTask = cron.schedule('0 */8 * * *', validateYouTubeLinkReels, { scheduled: true });
+  validationTask = cron.schedule('0 */8 * * *', () => validateYouTubeLinkReels(io), { scheduled: true });
   console.log('✅ YouTube link validation cron started (Every 8 hours)');
 }
 

@@ -1,4 +1,4 @@
-﻿// server.js - Updated at 2026-03-05 11:08
+// server.js - Updated at 2026-03-05 11:08
 import express from "express";
 import http from "http";
 import cors from "cors";
@@ -435,12 +435,17 @@ const startServer = async () => {
     // Connect to Redis
     await connectRedis();
 
+    // Setup Socket.io
+    const io = setupSocketIO(httpServer, corsOrigins);
+    // Make io instance available to routes/controllers
+    app.set("io", io);
+
     // Start background cron jobs after database connection is ready
     B2BSubscriptionExpiryCron.start();
     syncVendorViewsCron.start();
     bannerBookingCron();
     startReelExpiryCron();
-    startYouTubeLinkValidationCron();
+    startYouTubeLinkValidationCron(io);
     console.log("âœ… Background Cron Jobs initialized");
 
     // Drop problematic OTP index if it exists
@@ -497,12 +502,6 @@ const startServer = async () => {
         console.log("Note: TTL index creation:", ttlIndexError.message);
       }
     }
-
-    // Setup Socket.io
-    const io = setupSocketIO(httpServer, corsOrigins);
-    // Make io instance available to routes/controllers
-    app.set("io", io);
-    // console.log('âœ… Socket.io initialized');
 
     // Start server after database connection
     httpServer

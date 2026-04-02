@@ -87,6 +87,7 @@ const B2BLanding = () => {
     const [headerHeight, setHeaderHeight] = useState(72); // Default fallback: 4.5rem = 72px
 
     const [citySearchQuery, setCitySearchQuery] = useState('');
+    const [categorySearchQuery, setCategorySearchQuery] = useState('');
 
     // Store hooks
     const { states: availableStates, initialize: fetchLocations, isLoading: locationsLoading } = useB2BLocationStore();
@@ -191,6 +192,15 @@ const B2BLanding = () => {
         // B2B categories from the new store don't have parentId, they are all roots
         return categories;
     }, [categories]);
+
+    // Derived State: Filtered Categories for dropdown search
+    const filteredCategories = useMemo(() => {
+        if (!categorySearchQuery.trim()) return rootCategories;
+        const q = categorySearchQuery.toLowerCase().trim();
+        return rootCategories.filter(cat => 
+            (cat.name || '').toLowerCase().includes(q)
+        );
+    }, [rootCategories, categorySearchQuery]);
 
     // Derived State: Subcategories of selected root
     const activeSubcategories = useMemo(() => {
@@ -899,7 +909,10 @@ const B2BLanding = () => {
                             <div className="flex gap-5 flex-wrap ">
                                 <div className="relative" ref={categoryRef}>
                                     <button
-                                        onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                                        onClick={() => {
+                                            setIsCategoryDropdownOpen(!isCategoryDropdownOpen);
+                                            if (!isCategoryDropdownOpen) setCategorySearchQuery('');
+                                        }}
                                         className="flex items-center justify-between gap-2 px-4 md:px-5 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-black text-gray-800 transition-colors uppercase tracking-wider"
                                     >
                                         <div className="flex items-center gap-2">
@@ -911,17 +924,41 @@ const B2BLanding = () => {
                                         {isCategoryDropdownOpen && (
                                             <motion.div
                                                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                                                className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 max-h-[70vh] overflow-y-auto"
+                                                className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50"
                                             >
-                                                {rootCategories.map(cat => (
-                                                    <button
-                                                        key={cat.id}
-                                                        onClick={() => handleCategoryClick(cat)}
-                                                        className="w-full text-left px-5 py-3 hover:bg-primary-50 text-[11px] font-black text-gray-700 border-b border-gray-50 last:border-0 uppercase tracking-wider"
-                                                    >
-                                                        {cat.name}
-                                                    </button>
-                                                ))}
+                                                <div className="p-3 border-b border-gray-50 bg-white">
+                                                    <div className="relative">
+                                                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                                                        <input
+                                                            autoFocus
+                                                            type="text"
+                                                            placeholder="Search categories..."
+                                                            className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-xl text-[10px] font-bold focus:ring-1 focus:ring-primary-600 outline-none uppercase tracking-wider"
+                                                            value={categorySearchQuery}
+                                                            onChange={(e) => setCategorySearchQuery(e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                                                    {filteredCategories.map(cat => (
+                                                        <button
+                                                            key={cat.id}
+                                                            onClick={() => {
+                                                                handleCategoryClick(cat);
+                                                                setCategorySearchQuery('');
+                                                            }}
+                                                            className="w-full text-left px-5 py-3 hover:bg-primary-50 text-[11px] font-black text-gray-700 border-b border-gray-50 last:border-0 uppercase tracking-wider"
+                                                        >
+                                                            {cat.name}
+                                                        </button>
+                                                    ))}
+                                                    {filteredCategories.length === 0 && (
+                                                        <div className="px-4 py-6 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                                                            No categories found
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
@@ -942,20 +979,36 @@ const B2BLanding = () => {
                                             >
                                                 <h4 className="font-black text-gray-400 mb-4 text-[9px] uppercase tracking-[0.2em]">Quick Business Filters</h4>
                                                 <div className="space-y-1">
-                                                    {['Mill', 'Yarn', 'Gray', 'Weaver'].map((label, i) => {
-                                                        const matchingType = businessTypes.find(t => t.name.toLowerCase().includes(label.toLowerCase()));
-                                                        const filterValue = matchingType ? matchingType.name : label;
+                                                    {[
+                                                        "MILL / PROCESSING",
+                                                        "YARN",
+                                                        "GRAY MARKET / GRAY BROKER",
+                                                        "WEAVERS / KNITTER",
+                                                        "GRAY MARKET / WEAVER & KNITTER"
+                                                    ].map((label, i) => {
+                                                        // Find the actual category object from rootCategories
+                                                        const targetCat = rootCategories.find(c => {
+                                                            const catName = (c.name || "").toLowerCase().trim();
+                                                            const searchLabel = label.toLowerCase().trim();
+                                                            
+                                                            // Match exactly or check if one contains the other (e.g. "MILL/ PROCESSING" matches "MILL / PROCESSING")
+                                                            return catName === searchLabel || 
+                                                                   catName.includes(searchLabel.split(" / ")[0].toLowerCase()) ||
+                                                                   searchLabel.includes(catName.split("/")[0].toLowerCase().trim());
+                                                        });
+
+                                                        if (!targetCat) return null;
+
                                                         return (
                                                             <div
                                                                 key={i}
                                                                 className="flex items-center justify-between cursor-pointer group hover:bg-primary-50 p-3 rounded-xl transition-all border border-transparent hover:border-primary-100"
                                                                 onClick={() => {
                                                                     setIsPriceFilterOpen(false);
-                                                                    const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
-                                                                    navigateWithAuth(`/b2b/catalog?businessType=${encodeURIComponent(filterValue)}${cityParam}`);
+                                                                    handleCategoryClick(targetCat);
                                                                 }}
                                                             >
-                                                                <span className="font-black text-[11px] md:text-sm text-gray-600 group-hover:text-primary-600 uppercase tracking-wider">{filterValue}</span>
+                                                                <span className="font-black text-[11px] md:text-sm text-gray-600 group-hover:text-primary-600 uppercase tracking-wider">{label}</span>
                                                                 <FiArrowRight className="opacity-0 group-hover:opacity-100 transition-all text-primary-600" />
                                                             </div>
                                                         );

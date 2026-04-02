@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 import {
   FiVideo,
   FiCheck,
@@ -57,8 +58,10 @@ export default function ReelModeration() {
   const [playingSongId, setPlayingSongId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [isBulkApproving, setIsBulkApproving] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [reelTypeFilter, setReelTypeFilter] = useState('link'); // link, upload
+  const [onlyBroken, setOnlyBroken] = useState(searchParams.get('onlyBroken') === 'true');
 
   const fetchReels = async () => {
     setLoading(true);
@@ -66,6 +69,7 @@ export default function ReelModeration() {
       const params = new URLSearchParams({ page, limit: 12 });
       if (statusFilter) params.set('status', statusFilter);
       if (reelTypeFilter) params.set('reelType', reelTypeFilter);
+      if (onlyBroken) params.set('onlyBroken', 'true');
       const res = await api.get(`/admin/reels?${params}`);
       if (res.success) {
         setReels(res.data.reels || []);
@@ -82,7 +86,7 @@ export default function ReelModeration() {
   useEffect(() => {
     fetchReels();
     setSelectedIds([]); // Reset selection on filter/page change
-  }, [statusFilter, reelTypeFilter, page]);
+  }, [statusFilter, reelTypeFilter, onlyBroken, page]);
 
   // Lightweight auto-refresh so new reels and status changes appear without a full page reload
   useEffect(() => {
@@ -90,7 +94,7 @@ export default function ReelModeration() {
       fetchReels();
     }, 30000); // 30 seconds
     return () => clearInterval(interval);
-  }, [statusFilter, reelTypeFilter, page]);
+  }, [statusFilter, reelTypeFilter, onlyBroken, page]);
 
   const handleApprove = async (reel) => {
     setActionLoading(reel._id);
@@ -319,6 +323,28 @@ export default function ReelModeration() {
           <FiVideo size={16} />
           Uploaded Videos
         </button>
+        {reelTypeFilter === 'link' && (
+          <button
+            onClick={() => {
+              const newValue = !onlyBroken;
+              setOnlyBroken(newValue);
+              setPage(1);
+              setSearchParams(prev => {
+                if (newValue) prev.set('onlyBroken', 'true');
+                else prev.delete('onlyBroken');
+                return prev;
+              });
+            }}
+            className={`flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-sm transition-all ${
+              onlyBroken 
+                ? 'bg-red-500 text-white shadow-lg shadow-red-100' 
+                : 'bg-white text-red-500 hover:bg-red-50 border border-red-100'
+            }`}
+          >
+            <FiAlertCircle size={16} />
+            Broken Links
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
@@ -462,8 +488,12 @@ export default function ReelModeration() {
                       {normalizeStatus(reel.status)}
                     </span>
                     {reel.reelType === 'link' && (
-                      <span className="ml-1 text-[9px] font-black px-1.5 py-0.5 rounded bg-blue-600 text-white uppercase tracking-widest">
-                        Link
+                      <span className={`ml-1 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${
+                        reel.isYouTubeLinkValid === false 
+                          ? 'bg-red-100 text-red-700 border border-red-200' 
+                          : 'bg-blue-600 text-white'
+                      }`}>
+                        {reel.isYouTubeLinkValid === false ? 'Broken Link' : 'Link'}
                       </span>
                     )}
                   </div>

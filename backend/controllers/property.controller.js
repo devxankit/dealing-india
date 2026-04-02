@@ -612,11 +612,10 @@ export const getAllProperties = asyncHandler(async (req, res) => {
 
     if (propertyType && propertyType !== 'All') {
         const normalizedType = String(propertyType).trim().toLowerCase();
-        if (normalizedType === 'villa') {
+        if (normalizedType === 'villa' || normalizedType === 'villa / row house' || normalizedType === 'villa/row house') {
             queryConditions.push({
                 $or: [
-                    { propertyType: { $regex: '^Villa$', $options: 'i' } },
-                    { propertyType: { $regex: '^Plot$', $options: 'i' } },
+                    { propertyType: { $regex: '^(Villa|Row House|Plot)$', $options: 'i' } },
                     { 'plotDetails.plotArea': { $gt: 0 } },
                     { 'plotDetails.builtUpArea': { $gt: 0 } }
                 ]
@@ -625,8 +624,6 @@ export const getAllProperties = asyncHandler(async (req, res) => {
             queryConditions.push({
                 $or: [
                     { propertyType: { $regex: '^Flat$', $options: 'i' } },
-                    { 'flatDetails.builtUpArea': { $gt: 0 } },
-                    { 'flatDetails.carpetArea': { $gt: 0 } },
                     { 'flatDetails.flatType': { $exists: true, $ne: '' } }
                 ]
             });
@@ -651,13 +648,13 @@ export const getAllProperties = asyncHandler(async (req, res) => {
 
 
 
-    // NEW: Broaden vendor matching - only check approved vendors for public feed
-    const approvedVendors = await Vendor.find({ 
-        status: 'approved',
-        isActive: true 
+    // Broaden vendor matching - check all active B2B vendors
+    const activeVendors = await Vendor.find({ 
+        isActive: true,
+        vendorType: 'b2b'
     }).select('_id').lean();
-    const approvedVendorIds = approvedVendors.map(v => v._id);
-    queryConditions.push({ vendorId: { $in: approvedVendorIds } });
+    const activeVendorIds = activeVendors.map(v => v._id);
+    queryConditions.push({ vendorId: { $in: activeVendorIds } });
 
     // Handle Location Filters (City, Area, Market) - Match property location OR vendor location
     if (city && city !== 'All Cities') {

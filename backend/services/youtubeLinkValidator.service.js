@@ -1,11 +1,13 @@
 import axios from 'axios';
 import Reel from '../models/Reel.model.js';
+import notificationService from './notification.service.js';
 
 /**
  * Validates YouTube video availability via Data API v3.
  * Requires YOUTUBE_API_KEY (Server Key) in .env.
+ * @param {Object} io - Socket.io instance for real-time notifications
  */
-export async function validateYouTubeLinkReels() {
+export async function validateYouTubeLinkReels(io = null) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
     console.warn('[YouTubeLinkValidator] Skipping validation: YOUTUBE_API_KEY not configured.');
@@ -26,6 +28,8 @@ export async function validateYouTubeLinkReels() {
     }
 
     console.log(`[YouTubeLinkValidator] Starting validation for ${reels.length} reels...`);
+
+    const invalidReelsForNotification = [];
 
     // Helper to extract YouTube video ID if missing or incorrect
     const extractVideoId = (url) => {
@@ -86,6 +90,9 @@ export async function validateYouTubeLinkReels() {
               { _id: reel._id },
               { $set: { youtubeLinkStatus: newStatus, isYouTubeLinkValid: isValid } }
             ));
+            if (!isValid) {
+              invalidReelsForNotification.push({ id: reel._id, title: reel.title, reason: newStatus });
+            }
           }
         }
 
@@ -98,6 +105,7 @@ export async function validateYouTubeLinkReels() {
                 { _id: reel._id },
                 { $set: { youtubeLinkStatus: 'deleted', isYouTubeLinkValid: false } }
               ));
+              invalidReelsForNotification.push({ id: reel._id, title: reel.title, reason: 'deleted' });
             }
           }
         }
@@ -115,6 +123,22 @@ export async function validateYouTubeLinkReels() {
       // Small delay between batches to respect quotas
       if (i + batchSize < reels.length) {
         await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    // Send notification to admins if any reels became invalid
+    if (invalidReelsForNotification.length > 0) {
+      try {
+        const count = invalidReelsForNotification.length;
+        await notificationService.sendBulkNotification({
+          type: 'reel_status',
+          title: 'Invalid YouTube Link Reels Detected',
+          message: `${count} reel${count > 1 ? 's are' : ' is'} no longer available on YouTube. Please review and manage in Admin Panel.`,
+          actionUrl: `/admin/reels?onlyBroken=true`,
+          metadata: { invalidReelsCount: count }
+        }, 'admins', [], io);
+      } catch (notifErr) {
+        console.error('[YouTubeLinkValidator] Admin notification failed:', notifErr.message);
       }
     }
 

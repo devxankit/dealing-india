@@ -55,7 +55,10 @@ const RealEstate = () => {
 
             const response = await api.get('/reels/feed', { params });
             if (response?.success) {
-                setReels(response.data.reels || []);
+                // Filter to only property reels — exclude any reel that has a productId (product reel)
+                const allReels = response.data.reels || [];
+                const propertyReels = allReels.filter(r => r.propertyId || !r.productId);
+                setReels(propertyReels);
             }
         } catch (error) {
             console.error('[Fetch Reels Error]:', error);
@@ -145,9 +148,9 @@ const RealEstate = () => {
                 city: selectedCity === 'All Cities' ? '' : selectedCity,
                 area: selectedArea === 'All Areas' ? '' : selectedArea,
                 market: selectedMarket === 'All Markets' ? '' : selectedMarket,
-                propertyType: (selectedPropertyType === 'Row house / Villa' ? 'Villa' : (selectedPropertyType === 'All' ? '' : selectedPropertyType)),
+                propertyType: (selectedPropertyType === 'Villa / Row House' ? 'Villa' : (selectedPropertyType === 'All' ? '' : selectedPropertyType)),
                 flatType: (selectedPropertyType === 'Flat' && selectedFlatType !== 'All') ? selectedFlatType : '',
-                floors: (selectedPropertyType === 'Row house / Villa' && selectedFloors !== 'All') ? selectedFloors : '',
+                floors: (selectedPropertyType === 'Villa / Row House' && selectedFloors !== 'All') ? selectedFloors : '',
                 minPrice: appliedPrice.min,
                 maxPrice: appliedPrice.max,
                 minSize: appliedSize.min,
@@ -165,7 +168,7 @@ const RealEstate = () => {
                 // Fallback client-side filter for mixed legacy data (Plot used for Villa).
                 if (selectedPropertyType !== 'All') {
                     let selected = selectedPropertyType.toLowerCase();
-                    if (selected === 'row house / villa') selected = 'villa';
+                    if (selected === 'villa / row house') selected = 'villa';
                     const normalizedSelectedFlatType = String(selectedFlatType || 'All').replace(/\s+/g, '').toUpperCase();
 
                     nextProperties = nextProperties.filter((property) => {
@@ -176,17 +179,12 @@ const RealEstate = () => {
                             : [];
 
                         // Priority 1: Explicit Match
-                        if (selected === 'villa' && (type === 'villa' || type === 'plot')) {
+                        if (selected === 'villa' && (type === 'villa' || type === 'plot' || type === 'row house')) {
                             if (selectedFloors === 'All') return true;
                             return String(property?.plotDetails?.floors || '').toLowerCase() === selectedFloors.toLowerCase();
                         }
                         if (selected === 'flat') {
-                            const isFlatProperty =
-                                type === 'flat' ||
-                                property?.flatDetails?.builtUpArea > 0 ||
-                                property?.flatDetails?.carpetArea > 0 ||
-                                !!property?.flatDetails?.flatType ||
-                                (Array.isArray(property?.flatVariants) && property.flatVariants.length > 0);
+                            const isFlatProperty = type === 'flat';
                             if (!isFlatProperty) return false;
                             if (normalizedSelectedFlatType === 'ALL') return true;
                             return propertyFlatType === normalizedSelectedFlatType || variantTypes.includes(normalizedSelectedFlatType);
@@ -1299,6 +1297,7 @@ const RealEstate = () => {
                                     >
                                         <FiGrid size={14} />
                                         Properties
+                                        {properties.length > 0 && <span className="ml-1 opacity-60">({properties.length})</span>}
                                     </button>
                                     <button
                                         onClick={() => setCatalogTab('reels')}

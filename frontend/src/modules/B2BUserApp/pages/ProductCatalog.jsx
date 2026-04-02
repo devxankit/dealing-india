@@ -221,7 +221,7 @@ const ProductCatalog = () => {
         if (res.success && res.data?.reels) {
           const list = res.data.reels || [];
           setReels(list);
-          if (list.length > 0) setCatalogTab("reels");
+
         } else {
           setReels([]);
         }
