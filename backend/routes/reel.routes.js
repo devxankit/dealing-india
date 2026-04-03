@@ -16,7 +16,8 @@ import {
   deleteMyReel,
   replaceSong,
   getReelSharePage,
-  reportReel
+  reportReel,
+  getDailyUploadStatus
 } from '../controllers/reel.controller.js';
 import { checkReelUpload } from '../middleware/subscriptionRestriction.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
@@ -31,6 +32,7 @@ router.post(
   uploadVideo.single('video'),
   asyncHandler(uploadReel)
 );
+router.get('/daily-status', authenticate, authorize('vendor', 'user'), asyncHandler(getDailyUploadStatus));
 router.get('/my', authenticate, authorize('vendor', 'user'), asyncHandler(getMyReels));
 
 router.get('/feed', optionalAuthenticate, asyncHandler(getFeed));

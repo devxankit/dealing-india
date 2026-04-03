@@ -19,6 +19,8 @@ export default function UploadReel() {
   const { categories: allCategories, initialize: fetchB2BCategories } = useB2BCategoryStore();
   const { status, canUploadReel } = useSubscriptionStore();
   const [loading, setLoading] = useState(false);
+  const [canUploadDaily, setCanUploadDaily] = useState(true);
+  const [dailyStatusLoading, setDailyStatusLoading] = useState(true);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -51,6 +53,25 @@ export default function UploadReel() {
   useEffect(() => {
     fetchB2BCategories();
   }, [fetchB2BCategories]);
+
+  useEffect(() => {
+    const checkDailyStatus = async () => {
+      try {
+        const res = await api.get("/reels/daily-status");
+        if (res.success) {
+          setCanUploadDaily(res.data.canUpload);
+          if (!res.data.canUpload) {
+            setSubmissionType("link");
+          }
+        }
+      } catch (err) {
+        console.error("Daily status check failed:", err);
+      } finally {
+        setDailyStatusLoading(false);
+      }
+    };
+    checkDailyStatus();
+  }, []);
 
   // Build the flat list of unique subcategory names across all B2B categories
   // and append extra playlist categories for properties.
@@ -194,24 +215,41 @@ export default function UploadReel() {
       <QuotaBanner action="reels" />
 
       {submissionType === 'file' ? (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-8 shadow-sm">
-          <p className="text-blue-900 font-bold mb-2">Hello vendor !</p>
-          <p className="text-blue-800 text-sm mb-4">When uploading a reel of your products on dealingindia, note:</p>
-          <ul className="space-y-3 text-sm text-blue-800">
-            <li className="flex items-center gap-2">
-              <span className="text-lg">✅</span>
-              <span>Use only the original video and your voice.</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-lg">❌</span>
-              <span>Videos with any kind of film songs or celebrity voices will not be accepted.</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-lg">⚠️</span>
-              <span>Due to copyright rules, such videos will be deleted immediately by the admin.</span>
-            </li>
-          </ul>
-        </div>
+        <>
+          {!canUploadDaily && !dailyStatusLoading && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8 shadow-sm flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center flex-shrink-0 text-2xl">
+                📢
+              </div>
+              <div>
+                <p className="text-amber-900 font-bold mb-1">Daily Limit Reached!</p>
+                <p className="text-amber-800 text-sm leading-relaxed">
+                  Hello vendor! You have already uploaded 1 reel using "File Upload" today. 
+                  <strong> You can still upload more reels by using YouTube Links </strong> below, 
+                  or wait until tomorrow to upload another file directly.
+                </p>
+              </div>
+            </div>
+          )}
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-8 shadow-sm">
+            <p className="text-blue-900 font-bold mb-2">Hello vendor !</p>
+            <p className="text-blue-800 text-sm mb-4">When uploading a reel of your products on dealingindia, note:</p>
+            <ul className="space-y-3 text-sm text-blue-800">
+              <li className="flex items-center gap-2">
+                <span className="text-lg">✅</span>
+                <span>Use only the original video and your voice.</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-lg">❌</span>
+                <span>Videos with any kind of film songs or celebrity voices will not be accepted.</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-lg">⚠️</span>
+                <span>Due to copyright rules, such videos will be deleted immediately by the admin.</span>
+              </li>
+            </ul>
+          </div>
+        </>
       ) : (
         <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 mb-8 shadow-sm">
           <p className="text-indigo-900 font-bold mb-4 flex items-center gap-2">
@@ -252,12 +290,15 @@ export default function UploadReel() {
         <div className="flex bg-gray-100 p-1 rounded-2xl mb-6">
           <button
             type="button"
-            onClick={() => setSubmissionType('file')}
+            disabled={!canUploadDaily}
+            onClick={() => setSubmissionType("file")}
             className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
-              submissionType === 'file' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
+              submissionType === "file"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            } ${!canUploadDaily ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            Upload File
+            Upload File {!canUploadDaily && "(1/day reached)"}
           </button>
           <button
             type="button"
@@ -312,7 +353,7 @@ export default function UploadReel() {
                 type="url"
                 placeholder="Paste YouTube or Direct Video URL (e.g. https://youtu.be/...)"
                 className="w-full px-4 py-4 pr-12 border border-gray-100 rounded-2xl focus:ring-1 focus:ring-primary-500 bg-white shadow-sm"
-                value={videoLink}
+                value={videoLink || ''}
                 onChange={(e) => setVideoLink(e.target.value)}
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 text-primary-500">
@@ -334,7 +375,7 @@ export default function UploadReel() {
                 type="text"
                 placeholder="Product name or short catchy title"
                 className="w-full px-4 py-2 border border-gray-100 rounded-xl focus:ring-1 focus:ring-primary-500"
-                value={form.title}
+                value={form.title || ''}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 maxLength={MAX_TITLE}
               />
@@ -352,7 +393,7 @@ export default function UploadReel() {
                   step="any"
                   placeholder="e.g. 599.50"
                   className="w-full pl-8 pr-4 py-2 border border-gray-100 rounded-xl focus:ring-1 focus:ring-primary-500"
-                  value={form.price}
+                  value={form.price || ''}
                   onChange={(e) => setForm({ ...form, price: e.target.value })}
                   min="0"
                 />
@@ -367,7 +408,7 @@ export default function UploadReel() {
                 type="text"
                 placeholder="e.g. 50 Pcs or 10 kg"
                 className="w-full px-4 py-2 border border-gray-100 rounded-xl focus:ring-1 focus:ring-primary-500"
-                value={form.minimum}
+                value={form.minimum || ''}
                 onChange={(e) => setForm({ ...form, minimum: e.target.value })}
               />
             </div>
@@ -380,7 +421,7 @@ export default function UploadReel() {
                 placeholder="Briefly describe what this video is about..."
                 className="w-full px-4 py-2 border border-gray-100 rounded-xl focus:ring-1 focus:ring-primary-500"
                 rows={3}
-                value={form.description}
+                value={form.description || ''}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 maxLength={MAX_DESC}
               />
@@ -422,7 +463,7 @@ export default function UploadReel() {
                       type="text"
                       className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
                       placeholder="Type to search category..."
-                      value={categorySearchQuery}
+                      value={categorySearchQuery || ''}
                       onChange={(e) => setCategorySearchQuery(e.target.value)}
                     />
                      {categorySearchQuery && (

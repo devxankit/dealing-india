@@ -98,6 +98,21 @@ export const uploadReel = asyncHandler(async (req, res) => {
   let reelType = 'upload';
   let externalLinkType = 'cloudinary';
 
+  // 🔹 Daily Limit for File Uploads (Vendor only)
+  if (!videoLink && uploaderType === 'vendor') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const count = await Reel.countDocuments({
+      uploaderId,
+      uploaderType: 'vendor',
+      reelType: 'upload',
+      createdAt: { $gte: today }
+    });
+    if (count >= 1) {
+      return res.status(403).json({ success: false, message: 'Only 1 reel upload allowed per day. Please use YouTube links or try again tomorrow.' });
+    }
+  }
+
   if (videoLink) {
     // Basic validation
     try { new URL(videoLink); } catch (e) {
@@ -111,7 +126,7 @@ export const uploadReel = asyncHandler(async (req, res) => {
     // Handle File Upload
     const result = await uploadToCloudinary(req.file.buffer, 'reels', {
       resource_type: 'video',
-      timeout: 120000,
+      timeout: 300000, // Increased to 300s (5 min) for large video/image upload
       eager_async: true,
     });
     if (!result?.secure_url) {
@@ -1473,4 +1488,28 @@ export const adminResolveReelReport = asyncHandler(async (req, res) => {
         message: action === 'delete' ? 'Reel deleted and report resolved' : 'Report dismissed',
         data: { report }
     });
+});
+
+/**
+ * Get daily upload status for vendor
+ * GET /api/reels/daily-status
+ */
+export const getDailyUploadStatus = asyncHandler(async (req, res) => {
+  const uploaderId = req.user.vendorId || req.user.id;
+  const uploaderType = req.user.role === 'vendor' ? 'vendor' : 'user';
+
+  if (uploaderType !== 'vendor') {
+    return res.status(200).json({ success: true, data: { canUpload: true, count: 0 } });
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const count = await Reel.countDocuments({
+    uploaderId,
+    uploaderType: 'vendor',
+    reelType: 'upload',
+    createdAt: { $gte: today }
+  });
+
+  res.status(200).json({ success: true, data: { canUpload: count < 1, count } });
 });

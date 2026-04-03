@@ -28,6 +28,7 @@ const notificationSchema = new mongoose.Schema(
         'secure_deal_request',
         'secure_deal_status',
         'reel_status',
+        'reel_moderation',
       ],
     },
     title: {

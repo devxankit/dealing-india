@@ -835,6 +835,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                         <option value="sqft">Square Feet (sqft)</option>
                                         <option value="sqm">Square Meter (sqm)</option>
                                         <option value="Container">Container</option>
+                                        <option value="Night">Night</option>
                                     </select>
                                 </div>
                             </div>

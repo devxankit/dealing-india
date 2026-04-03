@@ -856,6 +856,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         <option value="sheet">Sheet</option>
                                         <option value="sqft">Square Feet (sqft)</option>
                                         <option value="sqm">Square Meter (sqm)</option>
+                                        <option value="Night">Night</option>
                                     </select>
                                 </div>
                             </div>
