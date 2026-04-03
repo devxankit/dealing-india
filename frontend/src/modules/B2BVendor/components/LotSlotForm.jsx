@@ -492,7 +492,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                                     >
                                                         <option value="">Select {f.label}</option>
                                                         {(f.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                        <option value="__OTHER__">Other (specify)</option>
+                                                        <option value="__OTHER__">ADD</option>
                                                     </select>
                                                     {dynamicValues[f.label] === '__OTHER__' && (
                                                         <input

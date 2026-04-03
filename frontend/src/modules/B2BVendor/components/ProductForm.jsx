@@ -510,7 +510,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                             >
                                                 <option value="">Select {f.label}</option>
                                                 {(f.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                <option value="__OTHER__">Other (specify)</option>
+                                                <option value="__OTHER__">ADD</option>
                                             </select>
                                             {(dynamicValues[f.label] === '__OTHER__') && (
                                                 <input
@@ -554,7 +554,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                                                     setDynamicValues(p => ({ ...p, [f.label]: newVals }));
                                                                 }}
                                                             />
-                                                            <span className="text-xs font-bold select-none truncate">{opt}</span>
+                                                            <span className="text-xs font-bold select-none whitespace-normal break-words">{opt}</span>
                                                         </label>
                                                     );
                                                 })}

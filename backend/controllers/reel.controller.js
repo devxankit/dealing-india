@@ -822,7 +822,7 @@ export const getFeed = asyncHandler(async (req, res) => {
     ]
   };
 
-  const propertyCategories = ['Flat', 'Villa/Row House', 'Commercial Property', 'Villa / Row House', 'Commercial'];
+  const propertyCategories = ['Flat properties', 'Villa / Row house properties', 'Commercial properties'];
   const excludeCategoryKeywords = [/saree/i, /textile/i, /garment/i, /jewellery/i, /product/i, /bulk saree/i, /designer saree/i];
 
   if (propertyOnly) {

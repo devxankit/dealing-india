@@ -42,10 +42,12 @@ const RealEstate = () => {
             // Map selectedPropertyType to category search for reels
             // Map selectedPropertyType to category search for reels to match UploadReel.jsx keys
             if (selectedPropertyType !== 'All') {
-                if (selectedPropertyType === 'Villa / Row House') {
-                    params.category = 'Villa/Row House';
-                } else if (selectedPropertyType === 'Commercial') {
-                    params.category = 'Commercial Property';
+                if (selectedPropertyType.includes('Villa')) {
+                    params.category = 'Villa / Row house properties';
+                } else if (selectedPropertyType.includes('Commercial')) {
+                    params.category = 'Commercial properties';
+                } else if (selectedPropertyType.includes('Flat')) {
+                    params.category = 'Flat properties';
                 } else {
                     params.category = selectedPropertyType;
                 }
@@ -148,9 +150,9 @@ const RealEstate = () => {
                 city: selectedCity === 'All Cities' ? '' : selectedCity,
                 area: selectedArea === 'All Areas' ? '' : selectedArea,
                 market: selectedMarket === 'All Markets' ? '' : selectedMarket,
-                propertyType: (selectedPropertyType === 'Villa / Row House' ? 'Villa' : (selectedPropertyType === 'All' ? '' : selectedPropertyType)),
-                flatType: (selectedPropertyType === 'Flat' && selectedFlatType !== 'All') ? selectedFlatType : '',
-                floors: (selectedPropertyType === 'Villa / Row House' && selectedFloors !== 'All') ? selectedFloors : '',
+                propertyType: (selectedPropertyType.includes('Villa') ? 'Villa' : (selectedPropertyType.includes('Flat') ? 'Flat' : (selectedPropertyType.includes('Commercial') ? 'Commercial' : (selectedPropertyType === 'All' ? '' : selectedPropertyType)))),
+                flatType: (selectedPropertyType.includes('Flat') && selectedFlatType !== 'All') ? selectedFlatType : '',
+                floors: (selectedPropertyType.includes('Villa') && selectedFloors !== 'All') ? selectedFloors : '',
                 minPrice: appliedPrice.min,
                 maxPrice: appliedPrice.max,
                 minSize: appliedSize.min,
@@ -168,7 +170,8 @@ const RealEstate = () => {
                 // Fallback client-side filter for mixed legacy data (Plot used for Villa).
                 if (selectedPropertyType !== 'All') {
                     let selected = selectedPropertyType.toLowerCase();
-                    if (selected === 'villa / row house') selected = 'villa';
+                    if (selected.includes('villa')) selected = 'villa';
+                    if (selected.includes('flat')) selected = 'flat';
                     const normalizedSelectedFlatType = String(selectedFlatType || 'All').replace(/\s+/g, '').toUpperCase();
 
                     nextProperties = nextProperties.filter((property) => {
@@ -512,7 +515,7 @@ const RealEstate = () => {
                             className="overflow-hidden"
                         >
                             <div className="p-4 space-y-2">
-                                {['All', 'Flat', 'Villa / Row House', 'Commercial'].map((type) => (
+                                {['All', 'Flat properties', 'Villa / Row house properties', 'Commercial properties'].map((type) => (
 
                                     <button
                                         key={type}
@@ -568,7 +571,7 @@ const RealEstate = () => {
             </div>
 
             {/* BHK Filter - Only for Flats */}
-            {selectedPropertyType === 'Flat' && (
+            {selectedPropertyType.includes('Flat') && (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <button
                         onClick={() => toggleSection('flatType')}
@@ -605,8 +608,7 @@ const RealEstate = () => {
                 </div>
             )}
 
-            {/* Floors Filter - Only for Row house / Villa */}
-            {selectedPropertyType === 'Row house / Villa' && (
+            {selectedPropertyType.includes('Villa') && (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <button
                         onClick={() => toggleSection('floors')}

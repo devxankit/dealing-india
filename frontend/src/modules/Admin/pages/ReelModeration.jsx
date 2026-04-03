@@ -58,6 +58,7 @@ export default function ReelModeration() {
   const [playingSongId, setPlayingSongId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [isBulkApproving, setIsBulkApproving] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [reelTypeFilter, setReelTypeFilter] = useState('link'); // link, upload
@@ -145,24 +146,30 @@ export default function ReelModeration() {
     }
   };
 
-  const handleBulkApprove = async () => {
+  const handleBulkApprove = () => {
     if (selectedIds.length === 0) {
-      toast.error('Please select at least one reel');
+      toast.error("Please select at least one reel");
       return;
     }
+    setShowBulkConfirm(true);
+  };
 
-    if (!window.confirm(`Are you sure you want to approve ${selectedIds.length} reels in bulk?`)) return;
-
+  const executeBulkApprove = async () => {
+    setShowBulkConfirm(false);
     setIsBulkApproving(true);
     try {
-      const res = await api.post('/admin/reels/bulk-approve', { ids: selectedIds });
+      const res = await api.post("/admin/reels/bulk-approve", {
+        ids: selectedIds,
+      });
       if (res.success) {
-        toast.success(`Successfully processed bulk approval. Approved: ${res.data.approved}, Failed: ${res.data.failed}`);
+        toast.success(
+          `Successfully processed bulk approval. Approved: ${res.data.approved}, Failed: ${res.data.failed}`
+        );
         setSelectedIds([]);
         fetchReels();
       }
     } catch (err) {
-      toast.error(err.message || 'Bulk approval failed');
+      toast.error(err.message || "Bulk approval failed");
     } finally {
       setIsBulkApproving(false);
     }
@@ -977,6 +984,59 @@ export default function ReelModeration() {
               </div>
             </motion.div>
           </div >
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Approval Confirmation Modal */}
+      <AnimatePresence>
+        {showBulkConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4"
+            onClick={() => setShowBulkConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+                <FiVideo className="text-2xl text-emerald-600" />
+              </div>
+              <div className="text-center mb-8">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Bulk Approval
+                </h3>
+                <p className="text-sm text-gray-500 mt-2">
+                  Are you sure you want to approve{" "}
+                  <span className="font-bold text-emerald-600">
+                    {selectedIds.length}
+                  </span>{" "}
+                  reels at once? This will publish them to YouTube and make them live.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={executeBulkApprove}
+                  className="flex-1 py-3.5 rounded-2xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 flex items-center justify-center transition-all active:scale-95"
+                >
+                  Yes, Approve All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkConfirm(false)}
+                  className="flex-1 py-3.5 rounded-2xl bg-gray-100 text-gray-700 font-bold text-sm hover:bg-gray-200 transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
