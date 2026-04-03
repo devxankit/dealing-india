@@ -65,11 +65,11 @@ export default function ReelFeed() {
 
       const currentCat = forceCategory !== null ? forceCategory : activeCategory;
       const params = new URLSearchParams({ limit: "10" });
-      
+
       if (currentCat && !isShowingGeneralFeed.current) {
         params.set("category", currentCat);
       }
-      
+
       if (pageToken) params.set("pageToken", pageToken);
       else params.set("page", String(pageNum));
 
@@ -86,7 +86,14 @@ export default function ReelFeed() {
           setReels((prev) => (newReels.length ? [...prev, ...newReels] : prev));
         } else {
           setReels(newReels);
-          setCurrentIndex(0);
+          // If reelIdFromUrl is in the new batch, jump to it immediately
+          const foundIdx = reelIdFromUrl ? newReels.findIndex(r => r._id === reelIdFromUrl) : -1;
+          if (foundIdx >= 0) {
+            setCurrentIndex(foundIdx);
+            hasAppliedInitialReelRef.current = true;
+          } else {
+            setCurrentIndex(0);
+          }
           setNextPageToken(null);
         }
 
@@ -130,7 +137,7 @@ export default function ReelFeed() {
       setLoading(false);
       loadingMoreRef.current = false;
     }
-  }, [activeCategory]);
+  }, [activeCategory, reelIdFromUrl]);
 
   const playlistCategories = useMemo(() => {
     const subs = allCategories.flatMap((cat) => cat.subcategories || []);
@@ -169,18 +176,27 @@ export default function ReelFeed() {
 
   // Update URL as user scrolls to keep current reel reflected in the address bar
   useEffect(() => {
+    // Only update URL if we've successfully settled on the initial shared reel (if any)
+    if (reelIdFromUrl && !hasAppliedInitialReelRef.current) return;
+
     if (reels.length > 0 && reels[currentIndex]?._id) {
       const currentId = reels[currentIndex]._id;
       if (currentId !== reelIdFromUrl) {
         const search = searchParams.toString();
+        // Use replace: true so that we don't pollute the history stack with every scroll
         navigate(`/b2b/reels/${currentId}${search ? `?${search}` : ""}`, { replace: true });
       }
     }
-  }, [currentIndex, reels, navigate, reelIdFromUrl]);
+  }, [currentIndex, reels, navigate, reelIdFromUrl, searchParams]);
 
   /* When opened via shared link /b2b/reels/:reelId – show that reel */
   useEffect(() => {
-    if (loading || !reelIdFromUrl || hasAppliedInitialReelRef.current) return;
+    if (loading || hasAppliedInitialReelRef.current) return;
+
+    if (!reelIdFromUrl) {
+      hasAppliedInitialReelRef.current = true;
+      return;
+    }
 
     const idx = reels.findIndex((r) => r._id === reelIdFromUrl);
     if (idx >= 0) {
@@ -196,7 +212,7 @@ export default function ReelFeed() {
       .then((res) => {
         if (res.success && res.data?.reel) {
           const single = res.data.reel;
-          setReels((prev) => 
+          setReels((prev) =>
             prev.some(r => r._id === single._id) ? prev : [single, ...prev]
           );
           setCurrentIndex(0);
@@ -236,7 +252,7 @@ export default function ReelFeed() {
   const handleWheel = useCallback(
     (e) => {
       if (wheelLockRef.current) return;
-      
+
       const { hasNext: canNext, hasPrev: canPrev, hasMore: moreAvailable } = stateRef.current;
 
       if (e.deltaY > 0) {
@@ -466,12 +482,13 @@ export default function ReelFeed() {
                     className="w-full h-full object-cover"
                     autoPlay
                     loop
+                    preload="auto"
                     playsInline
                     muted={isMuted}
                     crossOrigin="anonymous"
                   />
                 )}
-                
+
                 {/* Interaction blocker/event catcher for iframes */}
                 <div className="absolute inset-0 z-10" />
               </div>
@@ -500,7 +517,7 @@ export default function ReelFeed() {
                   {currentReel.vendorId && (
                     <button
                       type="button"
-                      onClick={() => navigate(`/b2b/vendor/${currentReel.vendorId}`)}
+                      onClick={() => navigate(`/b2b/vendor/${currentReel.vendorId}`, { state: { fromReel: true } })}
                       className="shrink-0 px-3 py-1.5 rounded-full bg-white/90 text-gray-900 text-xs font-semibold hover:bg-white"
                     >
                       Visit Store
@@ -606,9 +623,8 @@ export default function ReelFeed() {
                           setShowCategoryDropdown(false);
                           setCategorySearch("");
                         }}
-                        className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                          activeCategory === "" ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
-                        }`}
+                        className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${activeCategory === "" ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
+                          }`}
                       >
                         All Reels
                       </button>
@@ -621,9 +637,8 @@ export default function ReelFeed() {
                               setShowCategoryDropdown(false);
                               setCategorySearch("");
                             }}
-                            className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${
-                              activeCategory === name ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
-                            }`}
+                            className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${activeCategory === name ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
+                              }`}
                           >
                             {name}
                           </button>
@@ -702,20 +717,19 @@ export default function ReelFeed() {
                     <FiX className="text-2xl" />
                   </button>
                 </div>
-                
+
                 <div className="p-6 space-y-4">
                   <p className="text-sm text-gray-400 mb-2">Why are you reporting this reel?</p>
-                  
+
                   <div className="grid grid-cols-1 gap-2">
                     {["Spam", "Inappropriate", "Harassment", "False Info", "IP Violation", "Other"].map((reason) => (
                       <button
                         key={reason}
                         onClick={() => setReportReason(reason)}
-                        className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-semibold ${
-                          reportReason === reason 
-                            ? "bg-primary-500/10 border-primary-500 text-primary-500" 
+                        className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-semibold ${reportReason === reason
+                            ? "bg-primary-500/10 border-primary-500 text-primary-500"
                             : "bg-white/5 border-white/5 text-white hover:bg-white/10"
-                        }`}
+                          }`}
                       >
                         {reason}
                       </button>

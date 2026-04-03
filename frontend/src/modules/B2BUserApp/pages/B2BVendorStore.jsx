@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
     FiArrowLeft,
     FiShoppingBag,
@@ -31,8 +31,10 @@ import toast from "react-hot-toast";
 const B2BVendorStore = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user, isAuthenticated } = useAuthStore();
     const [searchParams] = useSearchParams();
+    const fromReel = location.state?.fromReel;
     const itemType = searchParams.get('itemType') || 'product';
     const [vendor, setVendor] = useState(null);
     const [products, setProducts] = useState([]);
@@ -343,7 +345,7 @@ const B2BVendorStore = () => {
                     className="flex items-center gap-2 text-gray-400 hover:text-primary-600 transition-colors mb-6 md:mb-10 font-bold text-[10px] md:text-xs uppercase tracking-[0.2em]"
                 >
                     <FiArrowLeft className="text-sm md:text-base" />
-                    Back to Selection
+                    {fromReel ? "Back to Reel" : "Back to Catalog"}
                 </button>
 
                 {/* Vendor Premium Profile Card */}
