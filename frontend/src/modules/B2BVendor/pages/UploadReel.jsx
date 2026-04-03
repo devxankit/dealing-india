@@ -86,7 +86,7 @@ export default function UploadReel() {
       .filter(cat => !cat.subcategories || cat.subcategories.length === 0)
       .map(cat => cat.name);
 
-    const extra = ['Flat properties', 'Villa / Row house properties', 'Commercial properties'];
+    const extra = ['Flat Properties', 'Villa / Row house Properties', 'Commercial Properties'];
     const merged = [...subNames, ...catNames, ...extra];
 
     const unique = Array.from(

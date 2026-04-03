@@ -145,7 +145,7 @@ export default function ReelFeed() {
       .map((s) => (typeof s === "string" ? s : s?.name))
       .filter(Boolean);
 
-    const extra = ["Flat", "Villa/Row House", "Commercial Property"];
+    const extra = ["Flat Properties", "Villa / Row house Properties", "Commercial Properties"];
     const merged = [...names, ...extra];
 
     const unique = Array.from(

@@ -837,7 +837,7 @@ export const getFeed = asyncHandler(async (req, res) => {
     ]
   };
 
-  const propertyCategories = ['Flat properties', 'Villa / Row house properties', 'Commercial properties'];
+  const propertyCategories = ['Flat Properties', 'Villa / Row house Properties', 'Commercial Properties'];
   const excludeCategoryKeywords = [/saree/i, /textile/i, /garment/i, /jewellery/i, /product/i, /bulk saree/i, /designer saree/i];
 
   if (propertyOnly) {

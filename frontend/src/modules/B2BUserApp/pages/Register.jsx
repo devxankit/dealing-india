@@ -16,14 +16,9 @@ const B2BUserRegister = () => {
         name: '',
         email: '',
         phone: '',
-        companyName: '',
-        gstNumber: '',
         password: '',
         address: {
-            fullAddress: '',
-            pincode: '',
             city: '',
-            state: '',
         }
     });
     const referralCode = new URLSearchParams(location.search).get('ref') || '';
@@ -51,13 +46,8 @@ const B2BUserRegister = () => {
                 phone: formData.phone,
                 password: formData.password,
                 businessInfo: {
-                    companyName: formData.companyName,
-                    gstNumber: formData.gstNumber,
                     address: {
-                        fullAddress: formData.address.fullAddress,
-                        pincode: formData.address.pincode,
                         city: formData.address.city,
-                        state: formData.address.state
                     }
                 },
                 userType: 'b2b'
@@ -72,10 +62,6 @@ const B2BUserRegister = () => {
                 payload.businessInfo,
                 referralCode
             );
-
-            // Note: Currently the register action in authStore doesn't handle businessInfo.
-            // I should update the authStore's register action to accept an optional data object or handle additional fields.
-            // But for now, I'll update the store's register action to be more flexible.
 
             if (result.success) {
                 toast.success('Registration successful! Please verify your email.');
@@ -121,7 +107,7 @@ const B2BUserRegister = () => {
                 )}
 
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Personal Info */}
+                    {/* Contact Information */}
                     <div className="md:col-span-2">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-primary-600 mb-2 px-1">Contact Information</h3>
                     </div>
@@ -197,58 +183,7 @@ const B2BUserRegister = () => {
                         </div>
                     </div>
 
-                    {/* Business Info */}
-                    <div className="md:col-span-2 pt-2">
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-primary-600 mb-2 px-1">Business Details</h3>
-                    </div>
-
-                    <div className="md:col-span-2 space-y-1.5">
-                        <label className="text-xs font-bold text-gray-700 ml-1">Company / Store Name</label>
-                        <div className="relative group">
-                            <FiBriefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
-                            <input
-                                type="text"
-                                name="companyName"
-                                value={formData.companyName}
-                                onChange={handleChange}
-                                placeholder="ABC Enterprises (Optional)"
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-700 ml-1">GST (Optional)</label>
-                        <div className="relative group">
-                            <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
-                            <input
-                                type="text"
-                                name="gstNumber"
-                                value={formData.gstNumber}
-                                onChange={handleChange}
-                                placeholder="22AAAAA0000A1Z5"
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium uppercase text-sm"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="md:col-span-2 space-y-1.5">
-                        <label className="text-xs font-bold text-gray-700 ml-1">Full Address</label>
-                        <div className="relative group">
-                            <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
-                            <input
-                                type="text"
-                                name="address.fullAddress"
-                                required
-                                value={formData.address.fullAddress}
-                                onChange={handleChange}
-                                placeholder="Shop No. 123, Main Market Road"
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-1.5">
+                    <div className="md:col-span-2 space-y-1.5 pt-2">
                         <label className="text-xs font-bold text-gray-700 ml-1">City</label>
                         <div className="relative group">
                             <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
@@ -259,23 +194,6 @@ const B2BUserRegister = () => {
                                 value={formData.address.city}
                                 onChange={handleChange}
                                 placeholder="Surat"
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-700 ml-1">Pincode</label>
-                        <div className="relative group">
-                            <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
-                            <input
-                                type="text"
-                                name="address.pincode"
-                                required
-                                maxLength={6}
-                                value={formData.address.pincode}
-                                onChange={handleChange}
-                                placeholder="395006"
                                 className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                             />
                         </div>

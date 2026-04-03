@@ -28,13 +28,13 @@ export const registerUser = async (userData) => {
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-        throw new Error('User with this email already exists');
+        const error = new Error('User with this email already exists');
+        error.status = 400;
+        throw error;
     }
 
     // Hash password (uses util with 10 rounds for performance)
     const hashedPassword = await hashPassword(password);
-
-    // Save to Temporary Registration instead of main User collection
     await TemporaryRegistration.findOneAndUpdate(
         { email, registrationType: 'user' },
         {

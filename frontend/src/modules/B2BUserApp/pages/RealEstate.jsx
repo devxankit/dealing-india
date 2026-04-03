@@ -43,11 +43,11 @@ const RealEstate = () => {
             // Map selectedPropertyType to category search for reels to match UploadReel.jsx keys
             if (selectedPropertyType !== 'All') {
                 if (selectedPropertyType.includes('Villa')) {
-                    params.category = 'Villa / Row house properties';
+                    params.category = 'Villa / Row house Properties';
                 } else if (selectedPropertyType.includes('Commercial')) {
-                    params.category = 'Commercial properties';
+                    params.category = 'Commercial Properties';
                 } else if (selectedPropertyType.includes('Flat')) {
-                    params.category = 'Flat properties';
+                    params.category = 'Flat Properties';
                 } else {
                     params.category = selectedPropertyType;
                 }
@@ -515,7 +515,7 @@ const RealEstate = () => {
                             className="overflow-hidden"
                         >
                             <div className="p-4 space-y-2">
-                                {['All', 'Flat properties', 'Villa / Row house properties', 'Commercial properties'].map((type) => (
+                                {['All', 'Flat Properties', 'Villa / Row house Properties', 'Commercial Properties'].map((type) => (
 
                                     <button
                                         key={type}

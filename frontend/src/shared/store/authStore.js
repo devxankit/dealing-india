@@ -13,6 +13,70 @@ export const useAuthStore = create(
       userType: 'b2b',
       isHydrated: false,
 
+      // Register action
+      register: async (name, email, password, phone, userType = 'b2b', businessInfo = null, referralCode = '') => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/user/register', {
+            name,
+            email,
+            password,
+            phone,
+            userType,
+            businessInfo,
+            referralCode
+          });
+
+          if (response.success) {
+            set({ isLoading: false });
+            return { success: true, message: response.message };
+          } else {
+            throw new Error(response.message || 'Registration failed');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          let errorMessage = error?.message;
+          if (!errorMessage && error?.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          throw new Error(errorMessage || 'Registration failed');
+        }
+      },
+
+      // Update Profile action
+      updateProfile: async (updateData) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.put('/auth/user/profile', updateData);
+          if (response.success && response.data) {
+            const { user } = response.data;
+            const userData = {
+              id: user._id || user.id,
+              _id: user._id,
+              name: user.name,
+              email: user.email,
+              phone: user.phone || '',
+              avatar: user.avatar || null,
+              isEmailVerified: user.isEmailVerified || false,
+              role: user.role || 'user',
+              currentMarketplace: user.currentMarketplace || 'b2b',
+              businessInfo: user.businessInfo || null,
+            };
+            set({ user: userData, isLoading: false });
+            return { success: true, user: userData };
+          } else {
+            throw new Error(response.message || 'Profile update failed');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          let errorMessage = error?.message;
+          if (!errorMessage && error?.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          throw new Error(errorMessage || 'Profile update failed');
+        }
+      },
+
       // Login action
       login: async (identifier, password, rememberMe = false, userType = 'b2b') => {
         console.log('[AuthStore] Login attempt for:', identifier);
@@ -69,6 +133,101 @@ export const useAuthStore = create(
             errorMessage = 'Invalid email/phone or password. Please check your credentials and try again.';
           }
           throw new Error(errorMessage);
+        }
+      },
+
+      // Verify Email action
+      verifyEmail: async (email, otp) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/user/verify-email', { email, otp });
+          if (response.success && response.data) {
+            const { user, token } = response.data;
+            const userData = {
+               id: user._id || user.id,
+               _id: user._id,
+               name: user.name,
+               email: user.email,
+               phone: user.phone || '',
+               avatar: user.avatar || null,
+               isEmailVerified: user.isEmailVerified || false,
+               role: user.role || 'user',
+               currentMarketplace: user.currentMarketplace || 'b2b',
+               businessInfo: user.businessInfo || null,
+            };
+
+            set({
+              user: userData,
+              token: token,
+              isAuthenticated: true,
+              isLoading: false,
+              userType: user.currentMarketplace || 'b2b',
+              isHydrated: true
+            });
+
+            localStorage.setItem('token', token);
+            return { success: true, user: userData };
+          } else {
+            throw new Error(response.message || 'Verification failed');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          let errorMessage = error?.message;
+          if (!errorMessage && error?.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          throw new Error(errorMessage || 'Verification failed');
+        }
+      },
+
+      // Resend OTP action
+      resendOTP: async (email) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/user/resend-otp', { email });
+          set({ isLoading: false });
+          return { success: true, message: response.message };
+        } catch (error) {
+          set({ isLoading: false });
+          let errorMessage = error?.message;
+          if (!errorMessage && error?.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          throw new Error(errorMessage || 'Failed to resend OTP');
+        }
+      },
+
+      // Forgot Password action
+      forgotPassword: async (email) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/user/forgot-password', { email });
+          set({ isLoading: false });
+          return { success: true, message: response.message };
+        } catch (error) {
+          set({ isLoading: false });
+          let errorMessage = error?.message;
+          if (!errorMessage && error?.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          throw new Error(errorMessage || 'Failed to process request');
+        }
+      },
+
+      // Reset Password action
+      resetPassword: async (email, otp, newPassword) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/user/reset-password', { email, otp, newPassword });
+          set({ isLoading: false });
+          return { success: true, message: response.message };
+        } catch (error) {
+          set({ isLoading: false });
+          let errorMessage = error?.message;
+          if (!errorMessage && error?.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          throw new Error(errorMessage || 'Failed to reset password');
         }
       },
 
