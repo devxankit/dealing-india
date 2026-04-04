@@ -369,7 +369,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-xl font-black text-gray-900">Recent Payment History</h3>
             <button 
-              onClick={() => navigate('/admin/settings/transactions')}
+              onClick={() => navigate('/admin/transactions')}
               className="text-primary-600 hover:text-primary-700 font-bold text-sm transition-colors"
             >
               View All Transactions
@@ -399,16 +399,19 @@ const Dashboard = () => {
                       <td className="py-5 px-4">
                         <span className="font-black text-gray-900">₹{payment.amount?.toLocaleString()}</span>
                       </td>
-                      <td className="py-5 px-4 text-sm text-gray-500 font-medium capitalize">{payment.method}</td>
+                      <td className="py-5 px-4 text-sm text-gray-500 font-medium capitalize">
+                        <span className={`px-2 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide ${
+                          payment.type === 'subscription' ? 'bg-indigo-50 text-indigo-600' :
+                          payment.type === 'banner'       ? 'bg-amber-50 text-amber-600' :
+                          'bg-rose-50 text-rose-600'
+                        }`}>{payment.type}</span>
+                      </td>
                       <td className="py-5 px-4 text-sm text-gray-500 font-medium">
                         {new Date(payment.date).toLocaleDateString()}
                       </td>
                       <td className="py-5 px-4 text-right">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                          payment.status === 'completed' ? 'bg-green-50 text-green-600' : 
-                          payment.status === 'pending' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
-                        }`}>
-                          {payment.status}
+                        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-green-50 text-green-600">
+                          Paid
                         </span>
                       </td>
                     </tr>

@@ -8,6 +8,7 @@ import Transaction from '../models/Transaction.model.js';
 import B2BCategory from '../models/B2BCategory.model.js';
 import VendorSubscription from '../models/VendorSubscription.model.js';
 import LotSlot from '../models/LotSlot.model.js';
+import VendorAddon from '../models/VendorAddon.model.js';
 
 /**
  * Get Admin Dashboard Summary
@@ -123,23 +124,25 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         views: l.count
     }));
 
-    // Real revenue calculation (from Transactions + Subscriptions)
-    const transactionRevenue = revenueResult[0]?.total || 0;
-    
-    // Calculate Subscription Revenue from Audit Logs
-    const subscriptionRevenueResult = await VendorSubscription.aggregate([
-        { $unwind: '$auditLogs' },
-        {
-            $match: {
-                'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
-                'auditLogs.details.status': 'completed'
-            }
-        },
-        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' } } }
+    // Real revenue: sum totalAmount from paid subscriptions + banner bookings + addons
+    const [subRevenueResult, bannerRevenueResult, addonRevenueResult] = await Promise.all([
+      VendorSubscription.aggregate([
+        { $match: { status: { $in: ['active', 'expired'] }, totalAmount: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]),
+      BannerBooking.aggregate([
+        { $match: { paymentStatus: 'paid' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      VendorAddon.aggregate([
+        { $match: { status: { $ne: 'failed' }, totalAmount: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ])
     ]);
-    const totalSubscriptionRevenue = subscriptionRevenueResult[0]?.total || 0;
 
-    const totalRevenue = transactionRevenue + totalSubscriptionRevenue;
+    const totalRevenue = (subRevenueResult[0]?.total || 0) +
+                         (bannerRevenueResult[0]?.total || 0) +
+                         (addonRevenueResult[0]?.total || 0);
 
     // Dynamic Revenue Data (Last 6 Months) from VendorSubscription Audit Logs
     const sixMonthsAgo = new Date();
@@ -186,41 +189,63 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         });
     }
 
-    // Combined Payment History (Transactions + Subscriptions)
-    const [recentTransactions, recentSubs] = await Promise.all([
-        Transaction.find({ status: 'completed' })
-            .sort({ createdAt: -1 })
-            .limit(10)
-            .populate('customerId', 'name email phone')
-            .lean(),
-        VendorSubscription.find({ 'auditLogs.action': 'subscription_payment' })
-            .sort({ updatedAt: -1 })
-            .limit(10)
-            .populate('vendorId', 'name email phone')
+    // Combined Payment History — subscriptions + banners + addons, payment status only
+    const [recentSubs, recentBanners, recentAddons] = await Promise.all([
+        VendorSubscription.find({ status: { $in: ['active', 'expired'] }, totalAmount: { $gt: 0 } })
+            .sort({ lastPaymentDate: -1, createdAt: -1 })
+            .limit(8)
+            .populate('vendorId', 'name storeName email')
             .populate('planId', 'name')
+            .lean(),
+        BannerBooking.find({ paymentStatus: 'paid' })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .populate('vendorId', 'name storeName email')
+            .lean(),
+        VendorAddon.find({ status: { $ne: 'failed' }, totalAmount: { $gt: 0 } })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .populate('vendorId', 'name storeName email')
+            .populate('addonPlanId', 'name')
             .lean()
     ]);
 
     const combinedHistory = [
-        ...recentTransactions.map(t => ({
-            id: t._id,
-            amount: t.amount,
-            type: 'Order/Banner',
-            method: t.method,
-            date: t.transactionDate || t.createdAt,
-            status: t.status,
-            user: t.customerId?.name || 'N/A',
-            userEmail: t.customerId?.email
-        })),
         ...recentSubs.map(s => ({
             id: s._id,
-            amount: s.auditLogs.find(l => l.action === 'subscription_payment')?.details?.amount || 0,
-            type: `Subscription (${s.planId?.name || 'Plan'})`,
-            method: s.paymentMethod,
-            date: s.updatedAt,
-            status: s.status,
-            user: s.vendorId?.name || 'Vendor',
-            userEmail: s.vendorId?.email
+            amount: s.totalAmount || 0,
+            type: 'subscription',
+            label: `Subscription — ${s.planId?.name || 'Plan'}`,
+            method: s.paymentMethod || 'Razorpay',
+            date: s.lastPaymentDate || s.createdAt,
+            status: 'completed',   // payment was made, subscription may expire later
+            user: s.vendorId?.storeName || s.vendorId?.name || 'Vendor',
+            userEmail: s.vendorId?.email,
+            zohoInvoiceId: s.zohoInvoiceId
+        })),
+        ...recentBanners.map(b => ({
+            id: b._id,
+            amount: b.amount || 0,
+            type: 'banner',
+            label: `Banner — ${b.title || b.bannerType?.toUpperCase() || 'Booking'}`,
+            method: b.paymentMethod || 'Razorpay',
+            date: b.createdAt,
+            status: 'completed',
+            user: b.vendorId?.storeName || b.vendorId?.name || 'Vendor',
+            userEmail: b.vendorId?.email,
+            zohoInvoiceId: b.zohoInvoiceId
+        })),
+        ...recentAddons.map(a => ({
+            id: a._id,
+            amount: a.totalAmount || 0,
+            type: 'addon',
+            label: `Add-on — ${a.addonPlanId?.name || a.featureType || 'Pack'}`,
+            method: a.paymentMethod || 'Razorpay',
+            date: a.purchaseDate || a.createdAt,
+            status: 'completed',
+            user: a.vendorId?.storeName || a.vendorId?.name || 'Vendor',
+            userEmail: a.vendorId?.email,
+            zohoInvoiceId: a.zohoInvoiceId
         }))
     ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 15);
 

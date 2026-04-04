@@ -27,6 +27,7 @@ import {
   FiVideo,
   FiMusic,
   FiAlertTriangle,
+  FiDollarSign,
 } from "react-icons/fi";
 import { useAdminAuthStore } from "../../store/adminStore";
 import adminMenu from "../../config/adminMenu.json";
@@ -35,6 +36,7 @@ import api from "../../../../shared/utils/api";
 // Icon mapping for menu items
 const iconMap = {
   Dashboard: FiHome,
+  Transactions: FiDollarSign,
   Customers: FiUsers,
   Vendors: FiUsers,
   Manage: FiGrid,

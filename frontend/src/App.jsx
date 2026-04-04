@@ -121,6 +121,9 @@ const AdminReelReports = lazyWithRetry(
 const RouteWrapper = lazyWithRetry(
   () => import("./shared/components/RouteWrapper"),
 );
+const AdminTransactions = lazyWithRetry(
+  () => import("./modules/Admin/pages/Transactions"),
+);
 const ProtectedRoute = lazyWithRetry(
   () => import("./shared/components/Auth/ProtectedRoute"),
 );
@@ -414,6 +417,7 @@ const AppRoutes = () => {
           <Route path="reel-reports" element={<AdminReelReports />} />
           <Route path="music-library" element={<AdminMusicLibrary />} />
           <Route path="support-settings" element={<SupportSettings />} />
+          <Route path="transactions" element={<AdminTransactions />} />
         </Route>
 
         {/* B2B User App Routes */}

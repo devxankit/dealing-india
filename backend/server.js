@@ -90,6 +90,7 @@ import bannerBookingCron from "./Cron/BannerBooking.cron.js";
 import { startReelExpiryCron, startYouTubeLinkValidationCron } from "./Cron/ReelExpiry.cron.js";
 import musicRoutes from "./routes/music.routes.js";
 import vendorFollowRoutes from "./routes/vendorFollow.routes.js";
+import adminTransactionsRoutes from "./routes/adminTransactions.routes.js";
 
 // (Cron initializations moved inside startServer to avoid database buffering timeouts)
 
@@ -363,6 +364,7 @@ app.use("/api/admin/default-banners", adminDefaultBannerRoutes);
 app.use("/api/public/banners", publicBannerRoutes);
 app.use("/api/admin/analytics", adminAnalyticsRoutes);
 app.use("/api/admin/reports", adminDashboardRoutes);
+app.use("/api/admin/transactions", adminTransactionsRoutes);
 app.use("/api/admin/notifications", adminNotificationRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 
