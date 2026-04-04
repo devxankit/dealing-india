@@ -252,9 +252,9 @@ class VendorAddonService {
       const addonDoc = await VendorAddon.findById(addonId).populate('addonPlanId').populate('vendorId');
       if (!addonDoc) return;
 
-      // Avoid duplicate processing
-      if (addonDoc.zohoInvoiceId) {
-        console.log('[AddonPay][Zoho] Success notification already processed for', addonId.toString());
+      // Avoid duplicate processing if email already sent
+      if (addonDoc.emailNotification?.successSent) {
+        console.log('[AddonPay][Zoho] Success notification already sent for addon', addonId.toString());
         return;
       }
 
@@ -279,10 +279,10 @@ class VendorAddonService {
         email: v.email,
         phone: v.phone,
         gstNumber: v.gstNumber,
-        zohoContactId: v.zohoContactId
+        zohoContactId: v.zohoContactId || addonDoc.zohoContactId
       };
 
-      // 1. Zoho Contact
+      // 1. Zoho Contact (Ensure ID exists)
       let contactId = vendorInfo.zohoContactId;
       console.log(`[AddonPay][Zoho] Syncing contact for vendor: ${vendorInfo.email}, Existing ID: ${contactId || 'None'}`);
       
@@ -308,46 +308,55 @@ class VendorAddonService {
         }
       }
 
-      // 2. Zoho Invoice & Payment
+      // 2. Zoho Invoice & Payment (Ensure invoice exists or create it)
       let invoice = null;
       let invoicePdfBuffer = null;
+      let existingInvoiceId = addonDoc.zohoInvoiceId;
+
       if (contactId) {
         try {
-          const invoiceRef = `ADDON-${addonId.toString()}`;
-          invoice = await zohoBooksService.createSubscriptionInvoice({
-            contactId,
-            planName,
-            amount,
-            currency: 'INR',
-            referenceNumber: invoiceRef,
-            vendorGstNumber: vendorInfo.gstNumber,
-            baseAmount: basePrice,
-            gstAmount: gstAmount,
-            discount: discount
-          });
-          
-          if (invoice.id) {
-            await zohoBooksService.markInvoiceAsSent(invoice.id);
+          if (!existingInvoiceId) {
+            const invoiceRef = `ADDON-${addonId.toString()}`;
+            invoice = await zohoBooksService.createSubscriptionInvoice({
+              contactId,
+              planName,
+              amount,
+              currency: 'INR',
+              referenceNumber: invoiceRef,
+              vendorGstNumber: vendorInfo.gstNumber,
+              baseAmount: basePrice,
+              gstAmount: gstAmount,
+              discount: discount
+            });
+            
+            if (invoice?.id) {
+              existingInvoiceId = invoice.id;
+              await zohoBooksService.markInvoiceAsSent(invoice.id);
+              
+              // Record payment immediately if invoice just created
+              await zohoBooksService.recordInvoicePayment({
+                contactId, 
+                invoiceId: invoice.id, 
+                amount, 
+                paymentDate: new Date(), 
+                razorpayPaymentId
+              });
+            }
           }
-          
-          const paymentResult = await zohoBooksService.recordInvoicePayment({
-            contactId, 
-            invoiceId: invoice.id, 
-            amount, 
-            paymentDate: new Date(), 
-            razorpayPaymentId
-          });
 
-          if (invoice.id) {
-            invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(invoice.id);
+          // Download PDF if we have an invoice ID (either existing or just created)
+          if (existingInvoiceId) {
+            invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(existingInvoiceId);
+            
+            const updateObj = {
+              zohoContactId: contactId,
+              zohoInvoiceId: existingInvoiceId,
+              zohoInvoiceStatus: invoice?.status || addonDoc.zohoInvoiceStatus,
+              zohoInvoicePdfUrl: invoice?.pdfUrl || addonDoc.zohoInvoicePdfUrl
+            };
+            
+            await VendorAddon.findByIdAndUpdate(addonId, updateObj);
           }
-          
-          await VendorAddon.findByIdAndUpdate(addonId, {
-            zohoInvoiceId: invoice?.id,
-            zohoInvoiceStatus: invoice?.status,
-            zohoInvoicePdfUrl: invoice?.pdfUrl,
-            zohoPaymentId: paymentResult?.id
-          });
         } catch (e) { 
           console.error('[AddonPay][Zoho] Invoice/Payment phase failed:', e.message); 
           await VendorAddon.findByIdAndUpdate(addonId, {
@@ -369,7 +378,8 @@ class VendorAddonService {
         referenceId: `ADDON-${addonId}`, 
         paymentMethod: 'razorpay',
         vendor: vendorInfo, 
-        invoicePdfBuffer
+        invoicePdfBuffer,
+        invoiceFileName: `addon-invoice-${existingInvoiceId || addonId}.pdf`
       };
 
       if (vendorEmail) {
@@ -389,6 +399,11 @@ class VendorAddonService {
           });
         });
       }
+
+      // Finalize notification status
+      await VendorAddon.findByIdAndUpdate(addonId, {
+        emailNotification: { successSent: true, lastSentAt: new Date() }
+      });
 
     } catch (err) {
       console.error('[AddonPay][Critical] Integration helper failed:', err);

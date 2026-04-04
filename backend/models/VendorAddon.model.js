@@ -16,7 +16,7 @@ const vendorAddonSchema = new mongoose.Schema(
     featureType: {
       type: String,
       required: [true, 'Feature type is required'],
-      enum: ['reels', 'products', 'lot_slot'],
+      enum: ['reels', 'products', 'lot_slot', 'property'],
       index: true,
     },
     totalQuantity: {
@@ -89,6 +89,11 @@ const vendorAddonSchema = new mongoose.Schema(
     },
     zohoPaymentId: {
       type: String,
+    },
+    emailNotification: {
+      successSent: { type: Boolean, default: false },
+      cancelSent: { type: Boolean, default: false },
+      lastSentAt: { type: Date },
     },
     accountingErrors: [
       {

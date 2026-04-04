@@ -227,8 +227,8 @@ export const sendPaymentSuccessEmail = async ({
   invoiceFileName = 'invoice.pdf',
 }) => {
   const dateStr = paymentDate ? new Date(paymentDate).toLocaleString() : new Date().toLocaleString();
-  const displayTitle = title || planName || (paymentFor === 'banner_booking' ? 'Banner Booking' : 'Subscription');
-  const paymentLabel = paymentFor === 'banner_booking' ? 'Banner Booking' : 'Subscription';
+  const displayTitle = title || planName || (paymentFor === 'banner_booking' ? 'Banner Booking' : (paymentFor === 'addon_purchase' ? 'Add-on Purchase' : 'Subscription'));
+  const paymentLabel = paymentFor === 'banner_booking' ? 'Banner Booking' : (paymentFor === 'addon_purchase' ? 'Add-on Purchase' : 'Subscription');
   const subject = `Payment Successful - ${displayTitle} (${amount} ${currency})`;
 
   const logoAttachment = getInlineLogoAttachment();

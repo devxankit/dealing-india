@@ -68,22 +68,17 @@ const vendorSubscriptionSchema = new mongoose.Schema(
       type: String,
     },
     // Payment Breakdown for GST compliance
-    basePrice: {
-      type: Number,
-      default: 0,
-    },
-    gstAmount: {
-      type: Number,
-      default: 0,
-    },
-    totalAmount: {
-      type: Number,
-      default: 0,
-    },
-    discount: {
-      type: Number,
-      default: 0,
-    },
+    basePrice: { type: Number, default: 0 },     // Net base after credit/discount
+    gstAmount: { type: Number, default: 0 },
+    totalAmount: { type: Number, default: 0 },   // totalAmount = basePrice + gstAmount
+    discount: { type: Number, default: 0 },      // Regular plan discount (not upgrade credit)
+    // Upgrade-specific audit fields
+    oldPlanPrice: { type: Number, default: 0 },  // Full price of old plan
+    newPlanPrice: { type: Number, default: 0 },  // Full price of new plan
+    usedDays: { type: Number, default: 0 },
+    remainingDays: { type: Number, default: 0 },
+    unusedCredit: { type: Number, default: 0 },  // Credit from old plan (perDayCost * remainingDays)
+    paidAmount: { type: Number, default: 0 },    // Actual amount charged via Razorpay
     // Zoho Books integration fields
     zohoContactId: {
       type: String,

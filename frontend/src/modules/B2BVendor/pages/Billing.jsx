@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     FiCreditCard, FiDownload, FiInfo, FiRefreshCw, 
-    FiPackage, FiPlusCircle, FiGrid, FiClock,
+    FiPackage, FiPlusCircle, FiGrid, FiClock, FiImage,
     FiCheckCircle, FiXCircle, FiArrowRight
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -173,15 +173,27 @@ const Billing = () => {
                                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm transition-transform group-hover:scale-110 ${
                                                         item.type === 'subscription_payment' 
                                                             ? 'bg-primary-100 text-primary-600' 
+                                                            : item.type === 'banner_booking'
+                                                            ? 'bg-amber-100 text-amber-600'
                                                             : 'bg-indigo-100 text-indigo-600'
                                                     }`}>
-                                                        {item.type === 'subscription_payment' ? <FiPackage /> : <FiPlusCircle />}
+                                                        {item.type === 'subscription_payment' 
+                                                            ? <FiPackage /> 
+                                                            : item.type === 'banner_booking'
+                                                            ? <FiImage />
+                                                            : <FiPlusCircle />}
                                                     </div>
                                                     <div>
                                                         <p className="font-black text-gray-900 text-sm leading-tight">{item.planName}</p>
                                                         <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-tighter">
                                                             Ref: {item.transactionCode}
                                                         </p>
+                                                        {item.type === 'banner_booking' && item.startDate && (
+                                                            <p className="text-[10px] text-amber-500 font-bold mt-0.5">
+                                                                {new Date(item.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                {item.endDate && item.endDate !== item.startDate ? ` – ${new Date(item.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </td>

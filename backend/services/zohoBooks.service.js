@@ -104,10 +104,23 @@ async function findContactByEmail(email) {
   return exactMatch || null;
 }
 
+// All GST-related fields that may be rejected by some Zoho organisations
+const GST_FIELDS = ['gst_no', 'gst_treatment', 'is_taxable', 'place_of_contact', 'place_of_supply'];
+
+function stripGstFields(obj) {
+  GST_FIELDS.forEach(f => delete obj[f]);
+  return obj;
+}
+
+function isGstError(msg = '') {
+  return msg.includes('Invalid Element') && GST_FIELDS.some(f => msg.includes(f));
+}
+
 async function createContact({ name, companyName, email, phone, gstNumber }) {
   const contact = {
     contact_name: companyName || name || email || 'Customer',
     company_name: companyName || undefined,
+    contact_type: 'customer',
     email: email || undefined,
     contact_persons: [{
       first_name: name || email || 'Customer',
@@ -116,22 +129,41 @@ async function createContact({ name, companyName, email, phone, gstNumber }) {
       is_primary_contact: true,
     }],
   };
-  
+
   if (phone) contact.phone = phone;
 
   const isIndianOrg = getZohoConfig().ZOHO_BOOKS_BASE.includes('.zohoapis.in');
-  if (isIndianOrg) {
-    if (gstNumber) {
-      contact.gst_no = gstNumber;
-      contact.gst_treatment = 'business_gst';
-    } else {
-      // For types where GST is optional, it should be treated as consumer or unregistered business
-      contact.gst_treatment = 'consumer'; 
-    }
+  if (isIndianOrg && gstNumber) {
+    contact.gst_no = gstNumber;
+    contact.gst_treatment = 'business_gst';
+    const stateCode = gstNumber.substring(0, 2);
+    const stateMap = {
+      '01': 'JK', '02': 'HP', '03': 'PB', '04': 'CH', '05': 'UK', '06': 'HR', '07': 'DL', '08': 'RJ', '09': 'UP',
+      '10': 'BR', '11': 'SK', '12': 'AR', '13': 'NL', '14': 'MN', '15': 'MZ', '16': 'TR', '17': 'ML', '18': 'AS',
+      '19': 'WB', '20': 'JH', '21': 'OR', '22': 'CT', '23': 'MP', '24': 'GJ', '25': 'DD', '26': 'DN', '27': 'MH',
+      '29': 'KA', '30': 'GA', '31': 'LD', '32': 'KL', '33': 'TN', '34': 'PY', '35': 'AN', '36': 'TG', '37': 'AD',
+      '38': 'LA'
+    };
+    contact.place_of_contact = stateMap[stateCode] || 'GJ';
   }
+  // Note: we intentionally omit gst_treatment:'consumer' and is_taxable because
+  // those fields are also rejected by non-GST-enabled Zoho organisations.
 
-  const data = await zohoRequest('POST', '/contacts', { data: contact });
-  return data?.contact || null;
+  console.log(`[Zoho] Creating contact: ${contact.contact_name}`);
+  try {
+    const data = await zohoRequest('POST', '/contacts', { data: contact });
+    return data?.contact || null;
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || err.message || '';
+    if (isGstError(errorMsg)) {
+      // Strip ALL GST fields at once and retry — avoids repeated one-field-at-a-time failures
+      console.warn(`[Zoho] GST field error: "${errorMsg}". Stripping all GST fields and retrying.`);
+      stripGstFields(contact);
+      const data = await zohoRequest('POST', '/contacts', { data: contact });
+      return data?.contact || null;
+    }
+    throw err;
+  }
 }
 
 export async function ensureZohoContactForVendor(vendor) {
@@ -175,20 +207,61 @@ export async function createSubscriptionInvoice({
   vendorGstNumber,
   baseAmount,
   gstAmount,
-  discount
+  discount,
+  // Upgrade-specific fields
+  newPlanFullPrice,   // Full price of the new plan (e.g. 9999)
+  creditFromOldPlan,  // Credit deducted from old plan remaining value (e.g. 4999)
+  isUpgrade = false
 }) {
   const dateStr = new Date().toISOString().slice(0, 10);
   
   const lineItems = [];
-  if (baseAmount !== undefined && baseAmount !== null && gstAmount !== undefined && gstAmount !== null) {
-    // 1. Base Plan Price
+
+  if (isUpgrade && newPlanFullPrice !== undefined && creditFromOldPlan !== undefined) {
+    // === UPGRADE INVOICE BREAKDOWN ===
+    // Line 1: Full new plan price
+    lineItems.push({
+      description: `${planName || 'Subscription'} (New Plan - Full Price)`,
+      rate: newPlanFullPrice,
+      quantity: 1,
+    });
+
+    // Line 2: Credit from existing plan (shown as deduction)
+    if (creditFromOldPlan > 0) {
+      lineItems.push({
+        description: 'Credit from Existing Plan (Unused Days)',
+        rate: -creditFromOldPlan,
+        quantity: 1,
+      });
+    }
+
+    // Line 3: Additional discount if any (discount field passed in)
+    if (discount && discount > 0) {
+      lineItems.push({
+        description: 'Additional Discount',
+        rate: -discount,
+        quantity: 1,
+      });
+    }
+
+    // Line 4: GST on net amount
+    if (gstAmount !== undefined && gstAmount !== null && gstAmount > 0) {
+      lineItems.push({
+        description: 'GST (18%)',
+        rate: gstAmount,
+        quantity: 1,
+      });
+    }
+  } else if (baseAmount !== undefined && baseAmount !== null && gstAmount !== undefined && gstAmount !== null) {
+    // === REGULAR SUBSCRIPTION / ADD-ON INVOICE BREAKDOWN ===
+    // Line 1: Base Plan Price
     lineItems.push({
       description: planName || 'Subscription',
       rate: baseAmount,
       quantity: 1,
     });
 
-    // 2. Discount (if any)
+    // Line 2: Discount (if any)
     if (discount && discount > 0) {
       lineItems.push({
         description: 'Discount Applied',
@@ -197,12 +270,14 @@ export async function createSubscriptionInvoice({
       });
     }
 
-    // 3. GST
-    lineItems.push({
-      description: 'GST (Tax)',
-      rate: gstAmount,
-      quantity: 1,
-    });
+    // Line 3: GST
+    if (gstAmount > 0) {
+      lineItems.push({
+        description: 'GST (Tax)',
+        rate: gstAmount,
+        quantity: 1,
+      });
+    }
   } else {
     // Fallback to total amount single line
     lineItems.push({
@@ -219,14 +294,45 @@ export async function createSubscriptionInvoice({
     reference_number: referenceNumber,
     line_items: lineItems,
     currency_code: currency,
-    gst_no: vendorGstNumber || undefined,
-    gst_treatment: vendorGstNumber ? 'business_gst' : 'consumer',
+    notes: notes || 'Thank you for your business.',
   };
 
-  if (!invoice.gst_no) delete invoice.gst_no;
+  const isIndianOrg = getZohoConfig().ZOHO_BOOKS_BASE.includes('.zohoapis.in');
+  if (isIndianOrg) {
+    if (vendorGstNumber) {
+      invoice.gst_no = vendorGstNumber;
+      invoice.gst_treatment = 'business_gst';
+      
+      const stateCode = vendorGstNumber.substring(0, 2);
+      const stateMap = {
+        '01': 'JK', '02': 'HP', '03': 'PB', '04': 'CH', '05': 'UK', '06': 'HR', '07': 'DL', '08': 'RJ', '09': 'UP',
+        '10': 'BR', '11': 'SK', '12': 'AR', '13': 'NL', '14': 'MN', '15': 'MZ', '16': 'TR', '17': 'ML', '18': 'AS',
+        '19': 'WB', '20': 'JH', '21': 'OR', '22': 'CT', '23': 'MP', '24': 'GJ', '25': 'DD', '26': 'DN', '27': 'MH',
+        '29': 'KA', '30': 'GA', '31': 'LD', '32': 'KL', '33': 'TN', '34': 'PY', '35': 'AN', '36': 'TG', '37': 'AD',
+        '38': 'LA'
+      };
+      invoice.place_of_supply = stateMap[stateCode] || 'GJ';
+    } else {
+      invoice.gst_treatment = 'consumer';
+    }
+  }
 
   console.log(`[Zoho] Creating invoice for contact: ${contactId}, Amount: ${amount}`);
-  const data = await zohoRequest('POST', '/invoices', { data: invoice });
+  let data;
+  try {
+    data = await zohoRequest('POST', '/invoices', { data: invoice });
+  } catch (err) {
+    const errorMsg = err.response?.data?.message || err.message || '';
+    if (isGstError(errorMsg)) {
+      // Strip ALL GST fields at once — one-by-one removal causes a chain of errors
+      console.warn(`[Zoho] GST field error on invoice: "${errorMsg}". Stripping all GST fields and retrying.`);
+      stripGstFields(invoice);
+      data = await zohoRequest('POST', '/invoices', { data: invoice });
+    } else {
+      throw err;
+    }
+  }
+
   const inv = data?.invoice;
   if (!inv) {
     console.error('[Zoho] Invoice creation returned no invoice data');
@@ -309,5 +415,6 @@ export default {
   createSubscriptionInvoice,
   recordInvoicePayment,
   downloadInvoicePdf,
+  markInvoiceAsSent,
   getInvoicesForContact,
 };

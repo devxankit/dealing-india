@@ -87,6 +87,14 @@ const bannerBookingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    baseAmount: {
+      type: Number,
+      default: 0,
+    },
+    gstAmount: {
+      type: Number,
+      default: 0,
+    },
     durationHours: {
       type: Number,
       required: true,

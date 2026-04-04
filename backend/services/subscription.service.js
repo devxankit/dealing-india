@@ -481,9 +481,55 @@ class SubscriptionService {
     }
   }
 
+  /**
+   * Calculates upgrade proration breakdown.
+   * Uses the exact formula:
+   *   usedDays   = floor((now - startDate) / ms_per_day)
+   *   remaining  = max(totalDays - usedDays, 0)
+   *   credit     = (oldPlanPrice / totalDays) * remaining
+   *   netBase    = max(newPlanPrice - credit, 0)   ← GST applied here
+   */
+  _calcUpgradeBreakdown(currentSub, newPlan) {
+    const now = new Date();
+    const startDate = new Date(currentSub.startDate);
+    const endDate = new Date(currentSub.endDate);
+
+    const totalDays = Math.max(
+      1,
+      Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
+    );
+    const usedDays = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
+    const remainingDays = Math.max(totalDays - usedDays, 0);
+
+    const oldPlanPrice = currentSub.planId?.price || 0;
+    const newPlanPrice = newPlan.price || 0;
+    const perDayCost = oldPlanPrice / totalDays;
+    const unusedCredit = Math.round(perDayCost * remainingDays);
+    const netBase = Math.max(newPlanPrice - unusedCredit, 0); // GST applies to this
+
+    const gstPercentage = newPlan.gst || 18;
+    const gstAmount = Math.round(netBase * (gstPercentage / 100));
+    const finalAmount = Math.round(netBase + gstAmount);
+
+    return {
+      oldPlanPrice,
+      newPlanPrice,
+      totalDays,
+      usedDays,
+      remainingDays,
+      perDayCost,
+      unusedCredit,
+      netBase,       // base amount after credit
+      gstPercentage,
+      gstAmount,
+      finalAmount,   // total to charge via Razorpay
+    };
+  }
+
   async initializeB2BUpgrade(vendorId, newPlanId) {
     try {
-      const currentSub = await VendorSubscription.findOne({ vendorId, status: 'active' }).populate('planId');
+      const currentSub = await VendorSubscription.findOne({ vendorId, status: 'active' })
+        .populate('planId');
       if (!currentSub) throw new Error('No active subscription found to upgrade');
 
       const newPlan = await B2BSubscriptionPlan.findById(newPlanId);
@@ -498,51 +544,47 @@ class SubscriptionService {
         if (n.includes('basic')) return 1;
         return 0;
       };
-
-      if (getRank(newPlan.name) <= getRank(currentSub.planId.name)) {
+      if (getRank(newPlan.name) <= getRank(currentSub.planId?.name)) {
         throw new Error('Downgrade not allowed. You can change plan after expiry.');
       }
 
-      const today = new Date();
-      const currentEndDate = new Date(currentSub.endDate);
-      const currentStartDate = new Date(currentSub.startDate);
-      const totalDays = Math.max(1, Math.ceil((currentEndDate - currentStartDate) / (1000 * 60 * 60 * 24)));
-      const remainingDays = Math.max(0, Math.ceil((currentEndDate - today) / (1000 * 60 * 60 * 24)));
-      const credit = ((currentSub.planId.price || 0) / totalDays) * remainingDays;
-      let finalBaseAmount = newPlan.price - credit;
-      if (finalBaseAmount < 0) finalBaseAmount = 0;
-
-      const gstPercentage = newPlan.gst || 18;
-      const gstAmount = Math.round(finalBaseAmount * (gstPercentage / 100));
-      const finalTotalAmount = Math.round(finalBaseAmount + gstAmount);
+      const b = this._calcUpgradeBreakdown(currentSub, newPlan);
 
       const upgradeCode = `UPG-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       const razorpayOrder = await razorpayService.createOrder(
-        finalTotalAmount,
+        b.finalAmount,
         'INR',
         upgradeCode,
-        { 
-          vendorId: vendorId.toString(), 
-          newPlanId: newPlanId.toString(), 
-          currentSubId: currentSub._id.toString(), 
-          basePrice: Math.round(finalBaseAmount).toString(),
-          gstAmount: gstAmount.toString(),
-          totalAmount: finalTotalAmount.toString(),
-          type: 'subscription_upgrade', 
-          isB2B: 'true' 
+        {
+          vendorId: vendorId.toString(),
+          newPlanId: newPlanId.toString(),
+          currentSubId: currentSub._id.toString(),
+          oldPlanPrice: b.oldPlanPrice.toString(),
+          newPlanPrice: b.newPlanPrice.toString(),
+          unusedCredit: b.unusedCredit.toString(),
+          netBase: b.netBase.toString(),
+          gstAmount: b.gstAmount.toString(),
+          totalAmount: b.finalAmount.toString(),
+          usedDays: b.usedDays.toString(),
+          remainingDays: b.remainingDays.toString(),
+          type: 'subscription_upgrade',
+          isB2B: 'true'
         }
       );
 
       return {
         success: true,
-        currentPlan: currentSub.planId.name,
+        currentPlan: currentSub.planId?.name,
         newPlan: newPlan.name,
-        remainingDays,
-        credit: Math.round(credit),
-        newPlanPrice: newPlan.price,
-        baseAmount: Math.round(finalBaseAmount),
-        gstAmount: gstAmount,
-        finalAmount: finalTotalAmount,
+        // Proration breakdown for UI display
+        oldPlanPrice: b.oldPlanPrice,
+        newPlanPrice: b.newPlanPrice,
+        usedDays: b.usedDays,
+        remainingDays: b.remainingDays,
+        unusedCredit: b.unusedCredit,  // credit deducted from new plan price
+        netBase: b.netBase,            // new plan price after credit
+        gstAmount: b.gstAmount,        // GST on netBase only
+        finalAmount: b.finalAmount,    // Razorpay charges this
         razorpay: razorpayOrder,
         razorpayKeyId: process.env.RAZORPAY_KEY_ID
       };
@@ -560,9 +602,15 @@ class SubscriptionService {
       const isValid = razorpayService.verifyPayment(razorpayOrderId, razorpayPaymentId, razorpaySignature);
       if (!isValid) throw new Error('Payment verification failed');
 
-      const currentSub = await VendorSubscription.findOne({ vendorId, status: 'active' }).session(session);
+      // MUST populate planId to get price for credit calculation
+      const currentSub = await VendorSubscription.findOne({ vendorId, status: 'active' })
+        .populate('planId')
+        .session(session);
       const newPlan = await B2BSubscriptionPlan.findById(newPlanId).session(session);
       if (!newPlan) throw new Error('New plan not found');
+
+      // Recalculate using the same exact proration formula
+      const b = this._calcUpgradeBreakdown(currentSub, newPlan);
 
       if (currentSub) {
         currentSub.status = 'expired';
@@ -580,21 +628,6 @@ class SubscriptionService {
       if (durationMonths === 3) billingCycle = 'quarterly';
       if (durationMonths === 1) billingCycle = 'monthly';
 
-      // Calculate GST breakdown for the upgrade
-      const today = new Date();
-      const currentEndDate = currentSub ? new Date(currentSub.endDate) : new Date();
-      const currentStartDate = currentSub ? new Date(currentSub.startDate) : new Date();
-      const totalDays = Math.max(1, Math.ceil((currentEndDate - currentStartDate) / (1000 * 60 * 60 * 24)));
-      const remainingDays = Math.max(0, Math.ceil((currentEndDate - today) / (1000 * 60 * 60 * 24)));
-      const credit = currentSub ? ((currentSub.planId.price || 0) / totalDays) * remainingDays : 0;
-      let finalBaseAmount = newPlan.price - credit;
-      if (finalBaseAmount < 0) finalBaseAmount = 0;
-
-      // Apply the new plan's specific GST for the upgrade
-      const gstPercentage = newPlan.gst || 18;
-      const gstAmount = Math.round(finalBaseAmount * (gstPercentage / 100));
-      const finalTotalAmount = Math.round(finalBaseAmount + gstAmount);
-
       const [newSub] = await VendorSubscription.create([{
         vendorId,
         planId: newPlanId,
@@ -608,21 +641,35 @@ class SubscriptionService {
         razorpaySignature,
         lastPaymentDate: startDate,
         nextBillingDate: endDate,
-        basePrice: Math.round(finalBaseAmount),
-        discount: Math.round(credit), // In upgrades, credited amount acts as a discount
-        gstAmount: gstAmount,
-        totalAmount: finalTotalAmount,
+        // Payment breakdown
+        basePrice: b.netBase,          // net base after credit deduction
+        gstAmount: b.gstAmount,
+        totalAmount: b.finalAmount,
+        paidAmount: b.finalAmount,
+        // Upgrade audit fields
+        oldPlanPrice: b.oldPlanPrice,
+        newPlanPrice: b.newPlanPrice,
+        usedDays: b.usedDays,
+        remainingDays: b.remainingDays,
+        unusedCredit: b.unusedCredit,  // credit from old plan, stored explicitly
+        discount: 0,                   // no separate plan discount for upgrades
         usage: { lastResetDate: startDate },
         auditLogs: [{
           action: 'subscription_upgrade',
           timestamp: new Date(),
-          details: { 
-            fromPlan: currentSub ? currentSub.planId : null, 
-            toPlan: newPlanId, 
-            razorpayPaymentId, 
-            basePrice: Math.round(finalBaseAmount),
-            gstAmount: gstAmount,
-            totalAmount: finalTotalAmount
+          details: {
+            fromPlan: currentSub?.planId?.name || 'Unknown',
+            toPlan: newPlan.name,
+            oldPlanPrice: b.oldPlanPrice,
+            newPlanPrice: b.newPlanPrice,
+            usedDays: b.usedDays,
+            remainingDays: b.remainingDays,
+            unusedCredit: b.unusedCredit,
+            netBase: b.netBase,
+            gstAmount: b.gstAmount,
+            finalAmount: b.finalAmount,
+            razorpayPaymentId,
+            razorpayOrderId
           }
         }]
       }], { session });
@@ -873,9 +920,13 @@ class SubscriptionService {
   }
 
   async getVendorBillingHistory(vendorId) {
-    const [subs, addons] = await Promise.all([
+    const [subs, addons, bannerBookings] = await Promise.all([
       VendorSubscription.find({ vendorId }).populate('planId').sort({ createdAt: -1 }).lean(),
-      (await import('../models/VendorAddon.model.js')).default.find({ vendorId }).populate('addonPlanId').sort({ createdAt: -1 }).lean()
+      (await import('../models/VendorAddon.model.js')).default.find({ vendorId }).populate('addonPlanId').sort({ createdAt: -1 }).lean(),
+      (await import('../models/BannerBooking.model.js')).default
+        .find({ vendorId, paymentStatus: 'paid' })
+        .sort({ createdAt: -1 })
+        .lean()
     ]);
 
     const history = [];
@@ -910,6 +961,24 @@ class SubscriptionService {
       });
     }
 
+    // Process Banner Bookings
+    for (const booking of bannerBookings) {
+      history.push({
+        id: booking._id.toString(),
+        transactionCode: booking.referenceId || booking.razorpayOrderId || `BANNER-${booking._id}`,
+        amount: booking.amount || 0,
+        type: 'banner_booking',
+        status: booking.paymentStatus === 'paid' ? 'completed' : booking.paymentStatus,
+        date: booking.createdAt,
+        planName: booking.title ? `Banner: ${booking.title}` : 'Banner Booking',
+        zohoInvoiceId: booking.zohoInvoiceId,
+        // Extra info useful for display
+        bannerType: booking.bannerType,
+        startDate: booking.startDate,
+        endDate: booking.endDate
+      });
+    }
+
     // Sort combined history by date descending
     return history.sort((a, b) => new Date(b.date) - new Date(a.date));
   }
@@ -933,9 +1002,13 @@ class SubscriptionService {
       const amount = Number(customAmount || subscriptionDoc.totalAmount || planDoc?.price || 0);
       const planName = planDoc?.name || 'Subscription Plan';
       const razorpayPaymentId = subscriptionDoc.razorpayPaymentId;
-      const basePrice = Number(subscriptionDoc.basePrice || 0);
+      const basePrice = Number(subscriptionDoc.basePrice || 0);  // net base after credit
       const gstAmount = Number(subscriptionDoc.gstAmount || 0);
-      const discount = Number(subscriptionDoc.discount || 0);
+      const discount = Number(subscriptionDoc.discount || 0);    // regular discount (non-upgrade)
+      // Upgrade-specific: read stored fields
+      const unusedCredit = Number(subscriptionDoc.unusedCredit || 0);
+      const newPlanFullPrice = Number(subscriptionDoc.newPlanPrice || 0);
+      const isUpgrade = subscriptionDoc.auditLogs?.some(log => log.action === 'subscription_upgrade') || unusedCredit > 0;
 
       // Construct vendor info, handling both registered and pending vendors
       let vendorInfo = {};
@@ -993,35 +1066,86 @@ class SubscriptionService {
         }
       }
 
-      // 2. Zoho Invoice & Payment
+      // 2. Zoho Invoice & Payment (Ensure invoice exists or create it)
       let invoice = null;
       let invoicePdfBuffer = null;
+      let existingInvoiceId = subscriptionDoc.zohoInvoiceId;
+
       if (contactId) {
         try {
-          const invoiceRef = `SUB-${subscriptionId.toString()}`;
-          invoice = await zohoBooksService.createSubscriptionInvoice({
-            contactId,
-            planName,
-            amount,
-            currency: 'INR',
-            referenceNumber: invoiceRef,
-            vendorGstNumber: vendorInfo.gstNumber,
-            baseAmount: basePrice,
-            gstAmount: gstAmount,
-            discount: discount
-          });
+          if (!existingInvoiceId) {
+            const invoiceRef = `SUB-${subscriptionId.toString()}`;
 
-          // Mark as sent so it's not a draft (required for PDF and some states)
-          if (invoice.id) {
-            await zohoBooksService.markInvoiceAsSent(invoice.id);
+            // Build notes for invoice
+            const upgradeAuditLog = isUpgrade
+              ? subscriptionDoc.auditLogs.find(l => l.action === 'subscription_upgrade')
+              : null;
+            const invoiceNotes = isUpgrade
+              ? [
+                  `Plan Upgrade Invoice`,
+                  `New Plan: ${planName} (Full Price: ₹${newPlanFullPrice})`,
+                  `Credit from Previous Plan (${subscriptionDoc.remainingDays || 0} unused days): -₹${unusedCredit}`,
+                  `Net Base (After Credit): ₹${basePrice}`,
+                  `GST (18% on Net Base): ₹${gstAmount}`,
+                  `Total Charged (Razorpay): ₹${amount}`,
+                  razorpayPaymentId ? `Transaction ID: ${razorpayPaymentId}` : '',
+                  `Previous Plan: ${upgradeAuditLog?.details?.fromPlan || 'N/A'}`,
+                ].filter(Boolean).join('\n')
+              : [
+                  `Subscription Payment`,
+                  `Plan: ${planName}`,
+                  `Base Amount: ₹${basePrice}`,
+                  discount > 0 ? `Discount: -₹${discount}` : '',
+                  `GST (18%): ₹${gstAmount}`,
+                  `Total Paid: ₹${amount}`,
+                  razorpayPaymentId ? `Transaction ID: ${razorpayPaymentId}` : '',
+                ].filter(Boolean).join('\n');
+
+            invoice = await zohoBooksService.createSubscriptionInvoice({
+              contactId,
+              planName,
+              amount,
+              currency: 'INR',
+              referenceNumber: invoiceRef,
+              notes: invoiceNotes,
+              vendorGstNumber: vendorInfo.gstNumber,
+              baseAmount: basePrice,          // net base after credit
+              gstAmount: gstAmount,           // GST on net base only
+              discount: isUpgrade ? 0 : discount,
+              // Upgrade-specific fields — sourced from DB, not inferred
+              isUpgrade,
+              newPlanFullPrice: isUpgrade ? newPlanFullPrice : null,
+              creditFromOldPlan: isUpgrade ? unusedCredit : 0,
+            });
+
+            // Mark as sent so it's not a draft (required for PDF and some states)
+            if (invoice?.id) {
+              existingInvoiceId = invoice.id;
+              await zohoBooksService.markInvoiceAsSent(invoice.id);
+              
+              // Record payment immediately if invoice just created
+              await zohoBooksService.recordInvoicePayment({
+                contactId, 
+                invoiceId: invoice.id, 
+                amount, 
+                paymentDate: new Date(), 
+                razorpayPaymentId
+              });
+            }
           }
 
-          await zohoBooksService.recordInvoicePayment({
-            contactId, invoiceId: invoice.id, amount, paymentDate: new Date(), razorpayPaymentId
-          });
-
-          if (invoice.id) {
-            invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(invoice.id);
+          // Download PDF if we have an ID
+          if (existingInvoiceId) {
+            invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(existingInvoiceId);
+            
+            // Sync IDs if they were just obtained or updated
+            const updateObj = {
+              zohoContactId: contactId,
+              zohoInvoiceId: existingInvoiceId,
+              zohoInvoiceStatus: invoice?.status || subscriptionDoc.zohoInvoiceStatus,
+              zohoInvoicePdfUrl: invoice?.pdfUrl || subscriptionDoc.zohoInvoicePdfUrl
+            };
+            await VendorSubscription.findByIdAndUpdate(subscriptionId, updateObj);
           }
         } catch (e) { 
           console.error('[SubPay][Zoho] Invoice/Payment phase failed:', e.message); 

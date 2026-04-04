@@ -196,6 +196,11 @@ const __dirname = dirname(__filename);
 app.use("/upload", express.static(join(__dirname, "upload")));
 
 // Health check route
+
+// Integration Audit Dashboard (Added for Zoho Debugging)
+app.get("/admin/integration-audit", (req, res) => {
+  res.sendFile(require('path').join(process.cwd(), "public", "integration-audit.html"));
+});
 app.get("/api/health", (req, res) => {
   const dbStatus = mongoose.connection.readyState;
   const states = {

@@ -160,28 +160,32 @@ const B2BVendorSubscription = () => {
             toast.loading('Calculating upgrade price...', { id: 'upgrade-init' });
 
             const response = await subscriptionService.initializeUpgrade(planId);
-            const { 
-                finalAmount, 
-                credit, 
-                remainingDays, 
-                baseAmount, 
-                gstAmount, 
-                newPlanPrice 
+            const {
+                finalAmount,
+                unusedCredit,
+                remainingDays,
+                usedDays,
+                netBase,
+                gstAmount,
+                newPlanPrice,
+                oldPlanPrice,
             } = response;
-            
-            const gstPercentage = plan.gst || 18;
-            
+
             setPayModalData({
                 id: planId,
                 name: plan.name,
-                originalPrice: newPlanPrice || plan.price,
-                basePrice: baseAmount, // This is the net base after credit
-                gstAmount: gstAmount,
-                totalAmount: finalAmount,
-                credit: credit,
-                remainingDays: remainingDays,
-                gstPercentage: gstPercentage,
                 type: 'upgrade',
+                // Proration fields
+                oldPlanPrice: oldPlanPrice || 0,
+                newPlanPrice: newPlanPrice || plan.price,
+                unusedCredit: unusedCredit || 0,
+                remainingDays: remainingDays || 0,
+                usedDays: usedDays || 0,
+                // Final amounts
+                basePrice: netBase || 0,          // net base (after credit)
+                gstAmount: gstAmount || 0,
+                totalAmount: finalAmount || 0,
+                gstPercentage: plan.gst || 18,
                 upgradeDetails: response
             });
             setShowPayModal(true);
@@ -1176,40 +1180,73 @@ const B2BVendorSubscription = () => {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-4 pt-4 border-t border-gray-200/60">
-                                        <div className="flex justify-between text-gray-600 font-medium">
-                                            <span>Base Price</span>
-                                            <span>₹{(payModalData.originalPrice || payModalData.basePrice || 0).toLocaleString('en-IN')}</span>
-                                        </div>
-                                        {payModalData.discount > 0 && (
-                                            <div className="flex justify-between text-rose-600 font-bold bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-100/50">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span>Special Discount</span>
+                                    <div className="space-y-3 pt-4 border-t border-gray-200/60">
+                                        {payModalData.type === 'upgrade' ? (
+                                            // === UPGRADE BREAKDOWN ===
+                                            <>
+                                                {/* Full new plan price */}
+                                                <div className="flex justify-between text-gray-600 font-medium">
+                                                    <span>{payModalData.name} (Full Price)</span>
+                                                    <span>₹{(payModalData.newPlanPrice || 0).toLocaleString('en-IN')}</span>
                                                 </div>
-                                                <span>- ₹{payModalData.discount.toLocaleString('en-IN')}</span>
-                                            </div>
-                                        )}
-                                        {payModalData.type === 'upgrade' && payModalData.credit > 0 && (
-                                            <div className="flex justify-between text-emerald-600 font-bold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100/50">
-                                                <div className="flex items-center gap-1.5">
-                                                    <FiCheckCircle size={14} />
-                                                    <span>Upgrade Credit</span>
-                                                </div>
-                                                <span>- ₹{payModalData.credit.toLocaleString('en-IN')}</span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between text-gray-600 font-medium">
-                                            <div className="flex items-center gap-2">
-                                                <span>GST ({payModalData.gstPercentage || 18}%)</span>
-                                                <div className="group relative">
-                                                    <FiInfo size={14} className="text-gray-400" />
-                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center">
-                                                        Goods and Services Tax as per Government regulations
+
+                                                {/* Credit from old plan */}
+                                                {payModalData.unusedCredit > 0 && (
+                                                    <div className="flex justify-between font-bold bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-100/50 text-emerald-700">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <FiCheckCircle size={14} />
+                                                            <div>
+                                                                <span>Credit from Current Plan</span>
+                                                                <p className="text-[10px] font-normal text-emerald-600">{payModalData.remainingDays} unused days</p>
+                                                            </div>
+                                                        </div>
+                                                        <span>- ₹{payModalData.unusedCredit.toLocaleString('en-IN')}</span>
                                                     </div>
+                                                )}
+
+                                                {/* Divider + Net base */}
+                                                <div className="flex justify-between text-gray-700 font-semibold bg-gray-100 px-3 py-2 rounded-xl">
+                                                    <span>Net Base (After Credit)</span>
+                                                    <span>₹{(payModalData.basePrice || 0).toLocaleString('en-IN')}</span>
                                                 </div>
-                                            </div>
-                                            <span>+ ₹{(payModalData.gstAmount || 0).toLocaleString('en-IN')}</span>
-                                        </div>
+
+                                                {/* GST on net base only */}
+                                                <div className="flex justify-between text-gray-600 font-medium">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>GST ({payModalData.gstPercentage || 18}% on Net Base)</span>
+                                                    </div>
+                                                    <span>+ ₹{(payModalData.gstAmount || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            // === REGULAR SUBSCRIPTION / ADDON BREAKDOWN ===
+                                            <>
+                                                <div className="flex justify-between text-gray-600 font-medium">
+                                                    <span>Base Price</span>
+                                                    <span>₹{(payModalData.basePrice || payModalData.originalPrice || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                                {payModalData.discount > 0 && (
+                                                    <div className="flex justify-between text-rose-600 font-bold bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-100/50">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span>Special Discount</span>
+                                                        </div>
+                                                        <span>- ₹{payModalData.discount.toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between text-gray-600 font-medium">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>GST ({payModalData.gstPercentage || 18}%)</span>
+                                                        <div className="group relative">
+                                                            <FiInfo size={14} className="text-gray-400" />
+                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center">
+                                                                Goods and Services Tax as per Government regulations
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <span>+ ₹{(payModalData.gstAmount || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 

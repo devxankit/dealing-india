@@ -373,9 +373,9 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
                     vendorId: vendorId.toString(),
                     bannerType: 'b2b',
                     type: 'banner_booking',
-                    baseAmount,
-                    gstAmount,
-                    totalAmount: amount
+                    baseAmount: booking.baseAmount,
+                    gstAmount: booking.gstAmount,
+                    amount: booking.amount
                 }
             );
 
@@ -394,9 +394,9 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
             const vendor = await Vendor.findById(vendorId).select('businessName storeName');
             await notificationService.sendBulkNotification({
                 type: 'banner_booking',
-                    baseAmount,
-                    gstAmount,
-                    totalAmount: amount,
+                    amount: booking.amount,
+                    baseAmount: booking.baseAmount,
+                    gstAmount: booking.gstAmount,
                 title: 'Vendor Banner Booking (Wallet Paid)',
                 message: `Vendor has booked a banner using wallet funds.`,
                 actionUrl: `/admin/b2b-vendors/banner-bookings`,
@@ -540,127 +540,142 @@ export const confirmPayment = asyncHandler(async (req, res) => {
         await Vendor.findByIdAndUpdate(vendorDoc._id, { zohoContactId: contactId });
         booking.zohoContactId = contactId;
 
-        // 2. Create invoice
-        const invoiceRef = booking.referenceId || `BANNER-${booking._id.toString()}`;
-        const vendorInfo = {
-            name: vendorDoc.businessName || vendorDoc.storeName || vendorDoc.name || 'Vendor',
-            email: vendorDoc.email,
-            phone: vendorDoc.phone,
-        };
-        const invoiceNotes = [
-            'Payment For: Banner Booking',
-            `Title/Plan: ${booking.title || 'Banner Booking'}`,
-            `Amount: ${amount} INR`,
-            `Transaction ID: ${razorpayPaymentId || 'N/A'}`,
-            `Reference ID: ${booking.referenceId || booking._id.toString()}`,
-            `Vendor: ${vendorInfo.name}`,
-            `Email: ${vendorInfo.email || 'N/A'}`,
-            `Phone: ${vendorInfo.phone || 'N/A'}`,
-        ].join('\n');
-        const invoice = await zohoBooksService.createSubscriptionInvoice({
-            contactId,
-            planName: booking.title || 'Banner Booking',
-            amount,
-            currency: 'INR',
-            referenceNumber: invoiceRef,
-            notes: invoiceNotes,
-            vendorGstNumber: vendorDoc.gstNumber,
-            baseAmount: booking.baseAmount,
-            gstAmount: booking.gstAmount
-        });
-        console.log('[BannerPay][Zoho] Invoice created', invoice);
-
-        if (invoice.id) {
-            await zohoBooksService.markInvoiceAsSent(invoice.id);
-        }
-
-        // 3. Record payment
-        const payment = await zohoBooksService.recordInvoicePayment({
-            contactId,
-            invoiceId: invoice.id,
-            amount,
-            paymentDate: new Date(),
-            razorpayPaymentId,
-            paymentMode: booking.paymentMethod || 'razorpay',
-        });
-        console.log('[BannerPay][Zoho] Payment recorded', payment);
-
-        // 4. Try to download invoice PDF
+        // 2. Create invoice (check if already exists)
+        let invoice = null;
         let invoicePdfBuffer = null;
-        if (invoice.id) {
-            invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(invoice.id);
-        }
+        let existingInvoiceId = booking.zohoInvoiceId;
 
-        // 5. Send payment success emails (vendor + admin)
-        const paymentDate = new Date();
-        const vendorEmail = vendorDoc.email;
-        const adminEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+        if (contactId) {
+            try {
+                if (!existingInvoiceId) {
+                    const invoiceRef = booking.referenceId || `BANNER-${booking._id.toString()}`;
+                    const vendorInfo = {
+                        name: vendorDoc.businessName || vendorDoc.storeName || vendorDoc.name || 'Vendor',
+                        email: vendorDoc.email,
+                        phone: vendorDoc.phone,
+                    };
+                    const invoiceNotes = [
+                        'Payment For: Banner Booking',
+                        `Title/Plan: ${booking.title || 'Banner Booking'}`,
+                        `Amount: ${amount} INR`,
+                        `Transaction ID: ${razorpayPaymentId || 'N/A'}`,
+                        `Reference ID: ${booking.referenceId || booking._id.toString()}`,
+                        `Vendor: ${vendorInfo.name}`,
+                        `Email: ${vendorInfo.email || 'N/A'}`,
+                        `Phone: ${vendorInfo.phone || 'N/A'}`,
+                    ].join('\n');
+                    
+                    invoice = await zohoBooksService.createSubscriptionInvoice({
+                        contactId,
+                        planName: booking.title || 'Banner Booking',
+                        amount,
+                        currency: 'INR',
+                        referenceNumber: invoiceRef,
+                        notes: invoiceNotes,
+                        vendorGstNumber: vendorDoc.gstNumber,
+                        baseAmount: booking.baseAmount,
+                        gstAmount: booking.gstAmount
+                    });
+                    
+                    if (invoice?.id) {
+                        existingInvoiceId = invoice.id;
+                        await zohoBooksService.markInvoiceAsSent(invoice.id);
+                        
+                        // 3. Record payment
+                        await zohoBooksService.recordInvoicePayment({
+                            contactId,
+                            invoiceId: invoice.id,
+                            amount,
+                            paymentDate: new Date(),
+                            razorpayPaymentId,
+                            paymentMode: booking.paymentMethod || 'razorpay',
+                        });
+                    }
+                }
 
-        if (vendorEmail) {
-            console.log('[BannerPay][Email] Sending success email to vendor', vendorEmail);
-            await sendPaymentSuccessEmail({
-                to: vendorEmail,
-                amount,
-                planName: booking.title || 'Banner Booking',
-                title: booking.title || 'Banner Booking',
-                paymentFor: 'banner_booking',
-                paymentDate,
-                transactionId: razorpayPaymentId,
-                referenceId: booking.referenceId || booking._id.toString(),
-                paymentMethod: booking.paymentMethod || 'razorpay',
-                vendor: vendorInfo,
-                invoicePdfBuffer,
-                invoiceFileName: `banner-${invoice.id || booking.referenceId}.pdf`,
-            });
-        }
-        if (adminEmail) {
-            console.log('[BannerPay][Email] Sending success email to admin', adminEmail);
-            await sendPaymentSuccessEmail({
-                to: adminEmail,
-                amount,
-                planName: booking.title || 'Banner Booking',
-                title: booking.title || 'Banner Booking',
-                paymentFor: 'banner_booking',
-                paymentDate,
-                transactionId: razorpayPaymentId,
-                referenceId: booking.referenceId || booking._id.toString(),
-                paymentMethod: booking.paymentMethod || 'razorpay',
-                vendor: vendorInfo,
-                invoicePdfBuffer,
-                invoiceFileName: `banner-${invoice.id || booking.referenceId}.pdf`,
-            });
-        }
+                // Download PDF if we have an ID
+                if (existingInvoiceId) {
+                    invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(existingInvoiceId);
+                }
 
-        booking.zohoContactId = contactId;
-        booking.zohoInvoiceId = invoice.id;
-        booking.zohoInvoiceStatus = invoice.status;
-        booking.zohoInvoicePdfUrl = invoice.pdfUrl;
-        booking.zohoPaymentId = payment.id || null;
-        booking.emailNotification = {
-            ...(booking.emailNotification || {}),
-            successSent: true,
-            lastSentAt: new Date(),
-        };
-        await booking.save();
-    } catch (accountingErr) {
-        console.error('Zoho/email integration failed for banner booking:', accountingErr);
-        await BannerBooking.findByIdAndUpdate(booking._id, {
-            $push: {
-                accountingErrors: {
-                    at: 'banner_zoho_or_email',
-                    message: accountingErr.message,
-                },
-            },
-        });
-    }
+                // 5. Send payment success emails (vendor + admin)
+                const paymentDate = new Date();
+                const vendorEmail = vendorDoc.email;
+                const adminEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+                const vendorInfo = {
+                    name: vendorDoc.businessName || vendorDoc.storeName || vendorDoc.name || 'Vendor',
+                    email: vendorDoc.email,
+                    phone: vendorDoc.phone,
+                };
+
+                if (vendorEmail && !booking.emailNotification?.successSent) {
+                    console.log('[BannerPay][Email] Sending success email to vendor', vendorEmail);
+                    await sendPaymentSuccessEmail({
+                        to: vendorEmail,
+                        amount,
+                        planName: booking.title || 'Banner Booking',
+                        title: booking.title || 'Banner Booking',
+                        paymentFor: 'banner_booking',
+                        paymentDate,
+                        transactionId: razorpayPaymentId,
+                        referenceId: booking.referenceId || booking._id.toString(),
+                        paymentMethod: booking.paymentMethod || 'razorpay',
+                        vendor: vendorInfo,
+                        invoicePdfBuffer,
+                        invoiceFileName: `banner-${existingInvoiceId || booking.referenceId}.pdf`,
+                    });
+                }
+                if (adminEmail && !booking.emailNotification?.successSent) {
+                    console.log('[BannerPay][Email] Sending success email to admin', adminEmail);
+                    await sendPaymentSuccessEmail({
+                        to: adminEmail,
+                        amount,
+                        planName: booking.title || 'Banner Booking',
+                        title: booking.title || 'Banner Booking',
+                        paymentFor: 'banner_booking',
+                        paymentDate,
+                        transactionId: razorpayPaymentId,
+                        referenceId: booking.referenceId || booking._id.toString(),
+                        paymentMethod: booking.paymentMethod || 'razorpay',
+                        vendor: vendorInfo,
+                        invoicePdfBuffer,
+                        invoiceFileName: `banner-${existingInvoiceId || booking.referenceId}.pdf`,
+                    });
+                }
+
+                booking.zohoContactId = contactId;
+                if (invoice) {
+                    booking.zohoInvoiceId = invoice.id;
+                    booking.zohoInvoiceStatus = invoice.status;
+                    booking.zohoInvoicePdfUrl = invoice.pdfUrl;
+                }
+                
+                booking.emailNotification = {
+                    ...(booking.emailNotification || {}),
+                    successSent: true,
+                    lastSentAt: new Date(),
+                };
+                await booking.save();
+            } catch (accountingErr) {
+                console.error('Zoho/email integration failed for banner booking:', accountingErr);
+                await BannerBooking.findByIdAndUpdate(booking._id, {
+                    $push: {
+                        accountingErrors: {
+                            at: 'banner_zoho_or_email',
+                            message: accountingErr.message,
+                        },
+                    },
+                });
+            }
+        }
     // Notify admins about banner booking
     try {
         const vendor = await Vendor.findById(vendorId).select('businessName storeName');
         await notificationService.sendBulkNotification({
             type: 'banner_booking',
-                    baseAmount,
-                    gstAmount,
-                    totalAmount: amount,
+                    baseAmount: booking.baseAmount,
+                    gstAmount: booking.gstAmount,
+                    amount: booking.amount,
             title: 'Vendor Banner Booking',
             message: 'Vendor has booked a banner.',
             actionUrl: `/admin/b2b-vendors/banner-bookings`,
@@ -678,11 +693,14 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 
     console.log('✅ [confirmPayment] Payment confirmed for booking:', booking._id);
 
-    res.status(200).json({
-        success: true,
-        message: 'Payment confirmed successfully. Awaiting admin approval.',
-        data: booking
-    });
+            res.status(200).json({
+            success: true,
+            message: 'Payment confirmed successfully. Awaiting admin approval.',
+            data: booking
+        });
+    } catch (integrationErr) {
+        console.error('[BannerPay][Critical] Zoho/Email integration helper failed:', integrationErr.message);
+    }
 });
 
 export const cancelBooking = asyncHandler(async (req, res) => {
@@ -1074,9 +1092,9 @@ export const approveBannerBooking = asyncHandler(async (req, res) => {
             recipientId: booking.vendorId,
             recipientType: 'vendor',
             type: 'banner_booking',
-                    baseAmount,
-                    gstAmount,
-                    totalAmount: amount,
+                    baseAmount: booking.baseAmount,
+                    gstAmount: booking.gstAmount,
+                    amount: booking.amount,
             title: 'Banner Booking Approved!',
             message: 'Your banner booking has been approved and is now active.',
             actionUrl: '/vendor/banners',
@@ -1153,9 +1171,9 @@ export const rejectBannerBooking = asyncHandler(async (req, res) => {
             recipientId: booking.vendorId,
             recipientType: 'vendor',
             type: 'banner_booking',
-                    baseAmount,
-                    gstAmount,
-                    totalAmount: amount,
+                    baseAmount: booking.baseAmount,
+                    gstAmount: booking.gstAmount,
+                    amount: booking.amount,
             title: 'Banner Booking Rejected',
             message: `Your banner booking was rejected. ${reason ? `Reason: ${reason}` : ''} ${booking.paymentStatus === 'refunded' ? 'Your payment has been refunded to your wallet.' : ''}`,
             actionUrl: '/vendor/banners',
