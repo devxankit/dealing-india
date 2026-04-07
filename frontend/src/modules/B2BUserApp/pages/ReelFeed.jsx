@@ -34,6 +34,9 @@ export default function ReelFeed() {
   const [reportComment, setReportComment] = useState("");
   const [isReporting, setIsReporting] = useState(false);
   const isShowingGeneralFeed = useRef(false);
+  const [isBuffering, setIsBuffering] = useState(true);
+  const [initialMetadata, setInitialMetadata] = useState(null);
+  const [metadataLoading, setMetadataLoading] = useState(false);
 
   // Debounce category search
   useEffect(() => {
@@ -138,6 +141,20 @@ export default function ReelFeed() {
       loadingMoreRef.current = false;
     }
   }, [activeCategory, reelIdFromUrl]);
+
+  // Priority fetch for deep-linked reel metadata to show thumbnail immediately
+  useEffect(() => {
+    if (reelIdFromUrl && !reels.some(r => r._id === reelIdFromUrl)) {
+      setMetadataLoading(true);
+      api.get(`/reels/${reelIdFromUrl}`)
+        .then(res => {
+          if (res.success && res.data?.reel) {
+            setInitialMetadata(res.data.reel);
+          }
+        })
+        .finally(() => setMetadataLoading(false));
+    }
+  }, [reelIdFromUrl, reels.length === 0]); // Only if we don't have it yet
 
   const playlistCategories = useMemo(() => {
     const subs = allCategories.flatMap((cat) => cat.subcategories || []);
@@ -439,13 +456,10 @@ export default function ReelFeed() {
     }
   };
 
-  if (loading && reels.length === 0) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  // Smooth Loading Render Strategy:
+  // Instead of early return, we render the full layout. 
+  // If we have no reels yet, the AnimatePresence will simply be empty or show a placeholder.
+  const showInitialLoader = loading && reels.length === 0 && !initialMetadata;
 
   return (
     <div
@@ -453,71 +467,106 @@ export default function ReelFeed() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {showInitialLoader && (
+        <div className="absolute inset-0 z-[100] bg-black flex flex-col items-center justify-center gap-4 text-center p-6">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 border-4 border-primary-500/20 rounded-full" />
+            <div className="absolute inset-0 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+          <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px] animate-pulse">Initializing Feed</p>
+        </div>
+      )}
+
       {/* Background Video Layer - Starts below status bar */}
       <div className="absolute inset-x-0 bottom-0 top-[env(safe-area-inset-top)] z-0 bg-black">
-        <AnimatePresence mode="wait">
-          {currentReel && (
+        <AnimatePresence>
+          {(currentReel || initialMetadata) && (
             <motion.div
-              key={currentReel._id}
+              key={currentReel?._id || "initial"}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.2 }}
               className="absolute inset-0"
             >
               <div className="h-full w-full flex items-center justify-center bg-black relative">
-                {getReelYoutubeId(currentReel) ? (
-                  <div className="w-full h-full pointer-events-none">
+                {/* Immediate Feedback Thumbnail layer - stays visible until video is ready */}
+                <div className={`absolute inset-0 z-20 transition-opacity duration-500 ${(isBuffering || loading) ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                  <img
+                    src={getReelYoutubeId(currentReel || initialMetadata) 
+                      ? `https://img.youtube.com/vi/${getReelYoutubeId(currentReel || initialMetadata)}/maxresdefault.jpg` 
+                      : ((currentReel || initialMetadata)?.thumbnailUrl || "/placeholder-reel.jpg")
+                    }
+                    className="w-full h-full object-cover blur-sm brightness-50"
+                    alt=""
+                  />
+                  {(isBuffering || loading) && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                {getReelYoutubeId(currentReel || initialMetadata) ? (
+                  <div className="w-full h-full pointer-events-none relative z-10 bg-transparent">
                     <iframe
-                      title={currentReel.title}
-                      src={`https://www.youtube.com/embed/${getReelYoutubeId(currentReel)}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${getReelYoutubeId(currentReel)}&rel=0&modestbranding=1&controls=0&disablekb=1&enablejsapi=1&iv_load_policy=3&showinfo=0`}
+                      title={(currentReel || initialMetadata)?.title}
+                      onLoad={() => {
+                        // YouTube doesn't give a 'playing' event via HTML, so we delay the hide
+                        setTimeout(() => setIsBuffering(false), 800);
+                      }}
+                      src={`https://www.youtube.com/embed/${getReelYoutubeId(currentReel || initialMetadata)}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${getReelYoutubeId(currentReel || initialMetadata)}&rel=0&modestbranding=1&controls=0&disablekb=1&enablejsapi=1&iv_load_policy=3&showinfo=0`}
                       className="w-full h-full scale-[1.3] md:scale-[1.05]"
                       allow="autoplay; encrypted-media; picture-in-picture"
                       allowFullScreen
                     />
                   </div>
-                ) : (
+                ) : (currentReel || initialMetadata)?.videoUrl && (
                   <video
-                    src={currentReel.videoUrl}
-                    className="w-full h-full object-cover"
+                    src={(currentReel || initialMetadata).videoUrl}
+                    poster={(currentReel || initialMetadata).thumbnailUrl}
+                    className="w-full h-full object-cover relative z-10"
                     autoPlay
                     loop
                     preload="auto"
                     playsInline
                     muted={isMuted}
                     crossOrigin="anonymous"
+                    onPlaying={() => setIsBuffering(false)}
+                    onWaiting={() => setIsBuffering(true)}
+                    onLoadStart={() => setIsBuffering(true)}
                   />
                 )}
 
                 {/* Interaction blocker/event catcher for iframes */}
-                <div className="absolute inset-0 z-10" />
+                <div className="absolute inset-0 z-[15]" />
               </div>
 
               {/* OVERLAYS INSIDE MOTION DIV */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 pb-[calc(110px+env(safe-area-inset-bottom))] bg-gradient-to-t from-black/80 z-20">
+              <div className="absolute bottom-0 left-0 right-0 p-4 pb-[calc(110px+env(safe-area-inset-bottom))] bg-gradient-to-t from-black/80 z-20 transition-opacity duration-300" style={{ opacity: (currentReel || initialMetadata) ? 1 : 0 }}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-white font-semibold truncate max-w-[70%]">{currentReel.title}</p>
-                      {currentReel.price > 0 && (
+                      <p className="text-white font-semibold truncate max-w-[70%]">{(currentReel || initialMetadata)?.title}</p>
+                      {(currentReel || initialMetadata)?.price > 0 && (
                         <span className="px-2 py-0.5 rounded-lg bg-primary-500 text-white text-[10px] font-bold whitespace-nowrap shadow-sm">
-                          ₹{currentReel.price}
+                          ₹{(currentReel || initialMetadata).price}
                         </span>
                       )}
-                      {currentReel.minimum && (
+                      {(currentReel || initialMetadata)?.minimum && (
                         <span className="px-2 py-0.5 rounded-lg bg-white/20 backdrop-blur-md text-white text-[10px] font-bold whitespace-nowrap border border-white/20 shadow-sm">
-                          Min: {currentReel.minimum}
+                          Min: {(currentReel || initialMetadata).minimum}
                         </span>
                       )}
                     </div>
                     <p className="text-gray-300 text-sm truncate">
-                      {currentReel.uploaderName} • {currentReel.viewCount ?? 0} views
+                      {(currentReel || initialMetadata)?.uploaderName} • {(currentReel || initialMetadata)?.viewCount ?? 0} views
                     </p>
                   </div>
-                  {currentReel.vendorId && (
+                  {(currentReel || initialMetadata)?.vendorId && (
                     <button
                       type="button"
-                      onClick={() => navigate(`/b2b/vendor/${currentReel.vendorId}`, { state: { fromReel: true } })}
+                      onClick={() => navigate(`/b2b/vendor/${(currentReel || initialMetadata).vendorId}`, { state: { fromReel: true } })}
                       className="shrink-0 px-3 py-1.5 rounded-full bg-white/90 text-gray-900 text-xs font-semibold hover:bg-white"
                     >
                       Visit Store
@@ -526,17 +575,17 @@ export default function ReelFeed() {
                 </div>
               </div>
 
-              <div className="absolute right-3 bottom-[calc(170px+env(safe-area-inset-bottom))] flex flex-col gap-6 z-30">
+              <div className="absolute right-3 bottom-[calc(170px+env(safe-area-inset-bottom))] flex flex-col gap-6 z-30 transition-opacity duration-300" style={{ opacity: (currentReel || initialMetadata) ? 1 : 0 }}>
                 <button
-                  onClick={() => toggleLike(currentReel)}
+                  onClick={() => (currentReel || initialMetadata) && toggleLike(currentReel || initialMetadata)}
                   className="flex flex-col items-center text-white"
                 >
-                  <FiHeart className={`text-3xl ${currentReel.userLiked ? "text-red-500 fill-red-500" : ""}`} />
-                  <span className="text-xs">{currentReel.likeCount ?? 0}</span>
+                  <FiHeart className={`text-3xl ${(currentReel || initialMetadata)?.userLiked ? "text-red-500 fill-red-500" : ""}`} />
+                  <span className="text-xs">{(currentReel || initialMetadata)?.likeCount ?? 0}</span>
                 </button>
                 <div className="flex flex-col items-center text-white">
                   <FiEye className="text-3xl" />
-                  <span className="text-xs">{currentReel.viewCount ?? 0}</span>
+                  <span className="text-xs">{(currentReel || initialMetadata)?.viewCount ?? 0}</span>
                 </div>
                 <button
                   onClick={openShareModal}
@@ -563,7 +612,7 @@ export default function ReelFeed() {
                   <FiFlag className="text-3xl" />
                   <span className="text-xs">Report</span>
                 </button>
-                {currentReel.vendorPhone && (
+                {(currentReel || initialMetadata)?.vendorPhone && (
                   <button onClick={handleWhatsApp} className="flex flex-col items-center text-[#25D366]">
                     <FaWhatsapp className="text-3xl" />
                   </button>
@@ -727,8 +776,8 @@ export default function ReelFeed() {
                         key={reason}
                         onClick={() => setReportReason(reason)}
                         className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-semibold ${reportReason === reason
-                            ? "bg-primary-500/10 border-primary-500 text-primary-500"
-                            : "bg-white/5 border-white/5 text-white hover:bg-white/10"
+                          ? "bg-primary-500/10 border-primary-500 text-primary-500"
+                          : "bg-white/5 border-white/5 text-white hover:bg-white/10"
                           }`}
                       >
                         {reason}

@@ -867,7 +867,7 @@ const B2BLanding = () => {
                                         <span className="xl:hidden">Real Estate</span>
                                     </button>
                                     <button
-                                        onClick={() => navigate('/b2b/reels')}
+                                        onClick={() => navigateWithAuth('/b2b/reels')}
                                         className="px-3 xl:px-4 py-2 rounded-xl text-[10px] xl:text-xs font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1.5 xl:gap-2 hover:bg-gray-100 transition-all whitespace-nowrap"
                                     >
                                         <div className="w-6 xl:h-8 flex items-center justify-center">
@@ -888,7 +888,7 @@ const B2BLanding = () => {
                                 </Link>
                                 <div className="h-6 w-px bg-gray-200" />
                                 {isAuthenticated ? (
-                                    <button onClick={() => navigate('/b2b/profile')} className="flex items-center gap-2 hover:bg-gray-50 p-1.5 rounded-full transition-colors">
+                                    <button onClick={() => navigateWithAuth('/b2b/profile')} className="flex items-center gap-2 hover:bg-gray-50 p-1.5 rounded-full transition-colors">
                                         <div className="w-8 h-8 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 border border-primary-100 shadow-sm">
                                             <FiUser size={16} className="size-[18px]" />
                                         </div>

@@ -142,6 +142,13 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
         }
     };
 
+    const handleNavClick = (e, path) => {
+        if (!isAuthenticated) {
+            e.preventDefault();
+            navigate('/b2b/login', { state: { from: { pathname: path } } });
+        }
+    };
+
     return (
         <div className="flex-shrink-0">
             <header 
@@ -188,6 +195,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             {customNav}
                                 <Link
                                     to="/b2b/reels"
+                                    onClick={(e) => handleNavClick(e, '/b2b/reels')}
                                     className={`px-3 xl:px-4 py-2 rounded-xl flex items-center gap-2 xl:gap-3 transition-all group whitespace-nowrap border ${location.pathname.includes('/reels') ? 'border-primary-200 bg-primary-50/50' : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100'}`}
                                 >
                                     <div className="flex items-center justify-center text-primary-600">
@@ -201,6 +209,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                 <div className="w-px h-8 bg-gray-100 mx-1 hidden lg:block"></div>
                                 <Link
                                     to="/b2b/real-estate"
+                                    onClick={(e) => handleNavClick(e, '/b2b/real-estate')}
                                     className={`px-3 xl:px-4 py-2 rounded-xl flex items-center gap-2 xl:gap-3 transition-all group whitespace-nowrap border ${location.pathname.includes('/real-estate') ? 'border-primary-200 bg-primary-50/50' : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100'}`}
                                 >
                                     <img src={realEstateIcon} alt="Rent" className="h-6 xl:h-8 w-auto object-contain" />
@@ -211,6 +220,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                 </Link>
                                 <Link
                                     to="/b2b/catalog?itemType=lotslot"
+                                    onClick={(e) => handleNavClick(e, '/b2b/catalog?itemType=lotslot')}
                                     className={`px-3 xl:px-4 py-2 rounded-xl flex items-center gap-2 xl:gap-3 transition-all group whitespace-nowrap border ${currentItemType === 'lotslot' ? 'border-primary-200 bg-primary-50/50' : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100'}`}
                                 >
                                     <img src={lotSlotIcon} alt="Lot" className="h-6 xl:h-8 w-auto object-contain" />
@@ -305,6 +315,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                 <div className="flex items-center gap-1 sm:gap-1.5">
                                     <Link
                                         to="/b2b/catalog?itemType=lotslot"
+                                        onClick={(e) => handleNavClick(e, '/b2b/catalog?itemType=lotslot')}
                                         className={`px-2 py-1.5 rounded-lg text-[8px] sm:text-[10px] font-black uppercase tracking-wider flex items-center gap-1 whitespace-nowrap border transition-all ${currentItemType === 'lotslot' ? 'bg-primary-600 text-white border-primary-600 shadow-md' : 'bg-gray-50 text-gray-700 border-gray-100'}`}
                                     >
                                         <img src={lotSlotIcon} alt="Lot" className="h-4 sm:h-5 w-auto object-contain" />
@@ -312,6 +323,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                     </Link>
                                     <Link
                                         to="/b2b/real-estate"
+                                        onClick={(e) => handleNavClick(e, '/b2b/real-estate')}
                                         className={`px-2 py-1.5 rounded-lg text-[8px] sm:text-[10px] font-black uppercase tracking-wider flex items-center gap-1 whitespace-nowrap border transition-all ${location.pathname.includes('/real-estate') ? 'bg-primary-600 text-white border-primary-600 shadow-md' : 'bg-gray-50 text-gray-700 border-gray-100'}`}
                                     >
                                         <img src={realEstateIcon} alt="Real Estate" className="h-4 sm:h-5 w-auto object-contain" />

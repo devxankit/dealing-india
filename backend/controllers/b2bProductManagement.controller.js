@@ -44,6 +44,8 @@ export const getB2BProducts = async (req, res, next) => {
     const {
       search = '',
       status = 'all',
+      category = '',
+      subcategory = '',
       page = 1,
       limit = 10,
       sortBy = 'createdAt',
@@ -91,6 +93,16 @@ export const getB2BProducts = async (req, res, next) => {
 
     // Use $in with ObjectIds for proper MongoDB query
     query.vendorId = { $in: b2bVendorIds };
+
+    // Category filter
+    if (category) {
+      query.category = category;
+    }
+
+    // Subcategory filter
+    if (subcategory) {
+      query.subcategory = subcategory;
+    }
 
     // Search filter
     if (search) {
@@ -152,9 +164,12 @@ export const getB2BProducts = async (req, res, next) => {
 
     // Sanitize product images and format for admin
     const formattedProducts = products.map(product => {
-      // Extract category from attributes
-      const categoryAttr = product.attributes?.find(attr => attr.name === 'category');
-      const category = categoryAttr?.value || '';
+      // Direct access from product model fields with fallback to attributes for legacy products
+      const categoryAttr = product.attributes?.find(attr => attr.name === 'category' || attr.attributeName === 'category');
+      const category = product.category || categoryAttr?.value || '';
+
+      const subcategoryAttr = product.attributes?.find(attr => attr.name === 'subcategory' || attr.attributeName === 'subcategory');
+      const subcategory = product.subcategory || subcategoryAttr?.value || '';
 
       // Extract MOQ
       const moq = product.minimumOrderQuantity || 0;
@@ -173,6 +188,7 @@ export const getB2BProducts = async (req, res, next) => {
         price,
         moq,
         category,
+        subcategory,
         status: productStatus,
         isVisible: product.isVisible,
         image: sanitizeImageUrl(product.image),

@@ -432,11 +432,39 @@ const AppRoutes = () => {
 
         <Route path="/b2b" element={<Navigate to="/b2b/landing" replace />} />
         <Route path="/b2b/landing" element={<B2BLanding />} />
-        <Route path="/b2b/reels" element={<ReelFeed />} />
-        <Route path="/b2b/reels/:reelId" element={<ReelFeed />} />
-        <Route path="/b2b/catalog" element={<B2BProductCatalog />} />
+        <Route
+          path="/b2b/reels"
+          element={
+            <ProtectedRoute>
+              <ReelFeed />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/b2b/reels/:reelId"
+          element={
+            <ProtectedRoute>
+              <ReelFeed />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/b2b/catalog"
+          element={
+            <ProtectedRoute>
+              <B2BProductCatalog />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/b2b/real-estate">
-          <Route index element={<RealEstate />} />
+          <Route
+            index
+            element={
+              <ProtectedRoute>
+                <RealEstate />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="developers"
             element={<Navigate to="/b2b/real-estate" replace />}
@@ -509,8 +537,22 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route path="/b2b/product/:id" element={<B2BProductDetail />} />
-        <Route path="/b2b/vendor/:id" element={<B2BVendorStore />} />
+        <Route
+          path="/b2b/product/:id"
+          element={
+            <ProtectedRoute>
+              <B2BProductDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/b2b/vendor/:id"
+          element={
+            <ProtectedRoute>
+              <B2BVendorStore />
+            </ProtectedRoute>
+          }
+        />
 
         {/* B2B Vendor Routes */}
         <Route path="/b2b-vendor/login" element={<B2BVendorLogin />} />
