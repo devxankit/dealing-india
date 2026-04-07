@@ -240,20 +240,25 @@ export const getMyReels = asyncHandler(async (req, res) => {
  * GET /api/admin/reels
  */
 export const adminListReels = asyncHandler(async (req, res) => {
-  const { status, categoryName, reelType, onlyBroken, page = 1, limit = 20 } = req.query;
+  const { status, categoryName, categoryId, reelType, onlyBroken, search, page = 1, limit = 20 } = req.query;
   const filter = {};
   
   if (onlyBroken === 'true') {
     filter.isYouTubeLinkValid = false;
-  } else if (!status && !reelType && !categoryName) {
-    // If no specific filters, still show everything for admins, but by default 
-    // maybe we excludes the broken links ONLY if requested or just let them see everything?
-    // Actually, admins SHOULD see everything so they can manage it.
   }
 
   if (status) filter.status = status;
   if (reelType) filter.reelType = reelType;
+  if (categoryId) filter.categoryId = categoryId;
   if (categoryName) filter.categoryName = new RegExp(categoryName, 'i');
+
+  if (search) {
+    filter.$or = [
+      { title: new RegExp(search, 'i') },
+      { description: new RegExp(search, 'i') },
+      { uploaderName: new RegExp(search, 'i') }
+    ];
+  }
 
   const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(50, Math.max(1, parseInt(limit)));
   const limitNum = Math.min(50, Math.max(1, parseInt(limit)));

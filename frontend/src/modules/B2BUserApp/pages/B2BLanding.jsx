@@ -197,7 +197,7 @@ const B2BLanding = () => {
     const filteredCategories = useMemo(() => {
         if (!categorySearchQuery.trim()) return rootCategories;
         const q = categorySearchQuery.toLowerCase().trim();
-        return rootCategories.filter(cat => 
+        return rootCategories.filter(cat =>
             (cat.name || '').toLowerCase().includes(q)
         );
     }, [rootCategories, categorySearchQuery]);
@@ -983,25 +983,25 @@ const B2BLanding = () => {
                                                         "MILL / PROCESSING",
                                                         "YARN",
                                                         "GRAY MARKET / BROKER",
-                                                        "WEAVER & KNITTER",
+
                                                         "GRAY MARKET / WEAVER & KNITTER"
                                                     ].map((label, i) => {
                                                         // Find the actual category object from rootCategories
                                                         const targetCat = rootCategories.find(c => {
                                                             const catName = (c.name || "").toLowerCase().trim();
                                                             const searchLabel = label.toLowerCase().trim();
-                                                            
+
                                                             // Split label by ' / ' to get individual parts
                                                             const parts = searchLabel.split(" / ").map(p => p.trim());
-                                                            
+
                                                             // Match exactly or check if catName contains all parts
                                                             if (catName === searchLabel) return true;
-                                                            
+
                                                             if (parts.length > 1) {
                                                                 // For composite labels, ensure all parts are present in the right order or at least more specifically
                                                                 return parts.every(p => catName.includes(p));
                                                             }
-                                                            
+
                                                             return catName.includes(searchLabel);
                                                         });
 

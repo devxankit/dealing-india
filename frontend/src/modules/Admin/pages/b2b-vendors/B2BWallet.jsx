@@ -90,7 +90,7 @@ const B2BWallet = () => {
               {loading ? (
                 <span className="text-gray-300">Loading...</span>
               ) : (
-                formatPrice(revenueStats.totalRevenue || 0)
+                formatPrice(revenueStats.totalCollections || 0)
               )}
             </span>
             <span className="text-sm font-bold text-blue-600">INR</span>

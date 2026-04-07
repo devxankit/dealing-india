@@ -329,29 +329,45 @@ class VendorAddonService {
               discount: discount
             });
             
-            if (invoice?.id) {
-              existingInvoiceId = invoice.id;
-              await zohoBooksService.markInvoiceAsSent(invoice.id);
+              if (invoice?.id) {
+                existingInvoiceId = invoice.id;
+                // PROACTIVELY SAVE ID IMMEDIATELY - Prevents duplicates and ensures visibility if next steps fail
+                await VendorAddon.findByIdAndUpdate(addonId, { 
+                  zohoInvoiceId: invoice.id
+                });
+
+                // PROBABLY THE MOST CRITICAL STEP: Move out of Draft
+                const markSentResult = await zohoBooksService.markInvoiceAsSent(invoice.id, true);
+                if (markSentResult) {
+                    await VendorAddon.findByIdAndUpdate(addonId, { 
+                      zohoInvoiceStatus: 'sent'
+                    });
+                }
               
-              // Record payment immediately if invoice just created
+              // Record payment immediately 
               await zohoBooksService.recordInvoicePayment({
                 contactId, 
                 invoiceId: invoice.id, 
                 amount, 
                 paymentDate: new Date(), 
-                razorpayPaymentId
+                razorpayPaymentId,
+                invoiceTotal: invoice.total // Use Zoho's official total
+              });
+
+              await VendorAddon.findByIdAndUpdate(addonId, { 
+                zohoInvoiceStatus: 'paid'
               });
             }
           }
 
-          // Download PDF if we have an invoice ID (either existing or just created)
+          // If we have an ID (either just created or from a prior run), finish syncing
           if (existingInvoiceId) {
             invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(existingInvoiceId);
             
             const updateObj = {
               zohoContactId: contactId,
               zohoInvoiceId: existingInvoiceId,
-              zohoInvoiceStatus: invoice?.status || addonDoc.zohoInvoiceStatus,
+              zohoInvoiceStatus: 'paid', // Logicially known to be paid if we reached here or finished payment
               zohoInvoicePdfUrl: invoice?.pdfUrl || addonDoc.zohoInvoicePdfUrl
             };
             

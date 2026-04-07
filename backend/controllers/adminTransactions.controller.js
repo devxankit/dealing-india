@@ -2,6 +2,7 @@ import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import VendorSubscription from '../models/VendorSubscription.model.js';
 import BannerBooking from '../models/BannerBooking.model.js';
 import VendorAddon from '../models/VendorAddon.model.js';
+import Vendor from '../models/Vendor.model.js';
 
 /**
  * GET /api/admin/transactions
@@ -12,21 +13,41 @@ import VendorAddon from '../models/VendorAddon.model.js';
  *   limit = 20 (default)
  */
 export const getAllTransactions = asyncHandler(async (req, res) => {
-  const { type = 'all', page = 1, limit = 30 } = req.query;
+  const { type = 'all', page = 1, limit = 30, businessType } = req.query;
   const skip = (Number(page) - 1) * Number(limit);
+
+  // ── Build Filter based on businessType ─────────────────────
+  let vendorMatch = {};
+  let vendorIds = [];
+  if (businessType && businessType !== 'All Business Types') {
+    const matchingVendors = await Vendor.find({ businessType }).select('_id').lean();
+    vendorIds = matchingVendors.map(v => v._id);
+    vendorMatch = { vendorId: { $in: vendorIds } };
+  }
 
   // ── Revenue Totals ─────────────────────────────────────────
   const [subRev, bannerRev, addonRev] = await Promise.all([
     VendorSubscription.aggregate([
-      { $match: { status: { $in: ['active', 'expired'] }, totalAmount: { $gt: 0 } } },
+      { $match: { 
+        status: { $in: ['active', 'expired'] }, 
+        totalAmount: { $gt: 0 },
+        ...(vendorIds.length > 0 || businessType && businessType !== 'All Business Types' ? vendorMatch : {})
+      } },
       { $group: { _id: null, total: { $sum: '$totalAmount' }, count: { $sum: 1 } } }
     ]),
     BannerBooking.aggregate([
-      { $match: { paymentStatus: 'paid' } },
+      { $match: { 
+        paymentStatus: 'paid',
+        ...(vendorIds.length > 0 || businessType && businessType !== 'All Business Types' ? vendorMatch : {})
+      } },
       { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
     ]),
     VendorAddon.aggregate([
-      { $match: { status: { $ne: 'failed' }, totalAmount: { $gt: 0 } } },
+      { $match: { 
+        status: { $ne: 'failed' }, 
+        totalAmount: { $gt: 0 },
+        ...(vendorIds.length > 0 || businessType && businessType !== 'All Business Types' ? vendorMatch : {})
+      } },
       { $group: { _id: null, total: { $sum: '$totalAmount' }, count: { $sum: 1 } } }
     ])
   ]);
@@ -42,7 +63,11 @@ export const getAllTransactions = asyncHandler(async (req, res) => {
   let transactions = [];
 
   const fetchSubs = async () => {
-    const docs = await VendorSubscription.find({ status: { $in: ['active', 'expired'] }, totalAmount: { $gt: 0 } })
+    const query = { status: { $in: ['active', 'expired'] }, totalAmount: { $gt: 0 } };
+    if (vendorIds.length > 0 || businessType && businessType !== 'All Business Types') {
+      query.vendorId = { $in: vendorIds };
+    }
+    const docs = await VendorSubscription.find(query)
       .sort({ lastPaymentDate: -1, createdAt: -1 })
       .populate('vendorId', 'name storeName email phone gstNumber')
       .populate('planId', 'name duration price')
@@ -72,7 +97,11 @@ export const getAllTransactions = asyncHandler(async (req, res) => {
   };
 
   const fetchBanners = async () => {
-    const docs = await BannerBooking.find({ paymentStatus: 'paid' })
+    const query = { paymentStatus: 'paid' };
+    if (vendorIds.length > 0 || businessType && businessType !== 'All Business Types') {
+      query.vendorId = { $in: vendorIds };
+    }
+    const docs = await BannerBooking.find(query)
       .sort({ createdAt: -1 })
       .populate('vendorId', 'name storeName email phone gstNumber')
       .lean();
@@ -101,7 +130,11 @@ export const getAllTransactions = asyncHandler(async (req, res) => {
   };
 
   const fetchAddons = async () => {
-    const docs = await VendorAddon.find({ status: { $ne: 'failed' }, totalAmount: { $gt: 0 } })
+    const query = { status: { $ne: 'failed' }, totalAmount: { $gt: 0 } };
+    if (vendorIds.length > 0 || businessType && businessType !== 'All Business Types') {
+      query.vendorId = { $in: vendorIds };
+    }
+    const docs = await VendorAddon.find(query)
       .sort({ createdAt: -1 })
       .populate('vendorId', 'name storeName email phone gstNumber')
       .populate('addonPlanId', 'name price quantity featureType')

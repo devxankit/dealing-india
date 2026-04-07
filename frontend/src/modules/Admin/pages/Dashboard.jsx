@@ -57,7 +57,7 @@ const Dashboard = () => {
 
           setDashboardData({
             summary: [
-              { label: 'Total Revenue', value: apiData.totalRevenue || 0, trend: '+24%', trendType: 'up', icon: 'FiTrendingUp', color: 'emerald', prefix: '₹' },
+              { label: 'Total Revenue', value: apiData.totalRevenue || 0, trend: '+24%', trendType: 'up', icon: 'FiTrendingUp', color: 'emerald', prefix: '₹', link: '/admin/transactions' },
               { label: 'Total Users', value: apiData.totalCustomers || 0, trend: '+15%', trendType: 'up', icon: 'FiUserPlus', color: 'indigo', link: '/admin/users' },
               { label: 'Total Vendors', value: apiData.totalVendors, trend: '+12%', trendType: 'up', icon: 'FiUsers', color: 'blue', link: '/admin/b2b-vendors/manage' },
               { label: 'Active Vendors', value: apiData.activeVendors, trend: '+5%', trendType: 'up', icon: 'FiUserCheck', color: 'green', link: '/admin/b2b-vendors/manage' },
@@ -334,28 +334,28 @@ const Dashboard = () => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revenueData || []}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
                   tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }}
                   dy={10}
                 />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
                   tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }}
                   tickFormatter={(value) => `₹${value.toLocaleString()}`}
                 />
-                <Tooltip 
+                <Tooltip
                   cursor={{ fill: '#F9FAFB' }}
                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']}
                 />
-                <Bar 
-                  dataKey="revenue" 
-                  fill="#10B981" 
-                  radius={[8, 8, 0, 0]} 
+                <Bar
+                  dataKey="revenue"
+                  fill="#10B981"
+                  radius={[8, 8, 0, 0]}
                   barSize={40}
                   animationBegin={200}
                 />
@@ -368,7 +368,7 @@ const Dashboard = () => {
         <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-gray-100 col-span-full">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-xl font-black text-gray-900">Recent Payment History</h3>
-            <button 
+            <button
               onClick={() => navigate('/admin/transactions')}
               className="text-primary-600 hover:text-primary-700 font-bold text-sm transition-colors"
             >
@@ -400,11 +400,10 @@ const Dashboard = () => {
                         <span className="font-black text-gray-900">₹{payment.amount?.toLocaleString()}</span>
                       </td>
                       <td className="py-5 px-4 text-sm text-gray-500 font-medium capitalize">
-                        <span className={`px-2 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide ${
-                          payment.type === 'subscription' ? 'bg-indigo-50 text-indigo-600' :
-                          payment.type === 'banner'       ? 'bg-amber-50 text-amber-600' :
-                          'bg-rose-50 text-rose-600'
-                        }`}>{payment.type}</span>
+                        <span className={`px-2 py-1 rounded-xl text-[10px] font-black uppercase tracking-wide ${payment.type === 'subscription' ? 'bg-indigo-50 text-indigo-600' :
+                            payment.type === 'banner' ? 'bg-amber-50 text-amber-600' :
+                              'bg-rose-50 text-rose-600'
+                          }`}>{payment.type}</span>
                       </td>
                       <td className="py-5 px-4 text-sm text-gray-500 font-medium">
                         {new Date(payment.date).toLocaleDateString()}

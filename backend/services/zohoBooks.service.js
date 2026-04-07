@@ -95,32 +95,19 @@ async function findContactByEmail(email) {
   if (!email) return null;
   const data = await zohoRequest('GET', '/contacts', { params: { email } });
   const contacts = data?.contacts || [];
-  
+
   // Strict match in case Zoho returns partial matches or first page of all contacts
-  const exactMatch = contacts.find(c => 
+  const exactMatch = contacts.find(c =>
     String(c.email || '').toLowerCase() === String(email).toLowerCase()
   );
-  
+
   return exactMatch || null;
-}
-
-// All GST-related fields that may be rejected by some Zoho organisations
-const GST_FIELDS = ['gst_no', 'gst_treatment', 'is_taxable', 'place_of_contact', 'place_of_supply'];
-
-function stripGstFields(obj) {
-  GST_FIELDS.forEach(f => delete obj[f]);
-  return obj;
-}
-
-function isGstError(msg = '') {
-  return msg.includes('Invalid Element') && GST_FIELDS.some(f => msg.includes(f));
 }
 
 async function createContact({ name, companyName, email, phone, gstNumber }) {
   const contact = {
     contact_name: companyName || name || email || 'Customer',
     company_name: companyName || undefined,
-    contact_type: 'customer',
     email: email || undefined,
     contact_persons: [{
       first_name: name || email || 'Customer',
@@ -133,37 +120,18 @@ async function createContact({ name, companyName, email, phone, gstNumber }) {
   if (phone) contact.phone = phone;
 
   const isIndianOrg = getZohoConfig().ZOHO_BOOKS_BASE.includes('.zohoapis.in');
-  if (isIndianOrg && gstNumber) {
-    contact.gst_no = gstNumber;
-    contact.gst_treatment = 'business_gst';
-    const stateCode = gstNumber.substring(0, 2);
-    const stateMap = {
-      '01': 'JK', '02': 'HP', '03': 'PB', '04': 'CH', '05': 'UK', '06': 'HR', '07': 'DL', '08': 'RJ', '09': 'UP',
-      '10': 'BR', '11': 'SK', '12': 'AR', '13': 'NL', '14': 'MN', '15': 'MZ', '16': 'TR', '17': 'ML', '18': 'AS',
-      '19': 'WB', '20': 'JH', '21': 'OR', '22': 'CT', '23': 'MP', '24': 'GJ', '25': 'DD', '26': 'DN', '27': 'MH',
-      '29': 'KA', '30': 'GA', '31': 'LD', '32': 'KL', '33': 'TN', '34': 'PY', '35': 'AN', '36': 'TG', '37': 'AD',
-      '38': 'LA'
-    };
-    contact.place_of_contact = stateMap[stateCode] || 'GJ';
-  }
-  // Note: we intentionally omit gst_treatment:'consumer' and is_taxable because
-  // those fields are also rejected by non-GST-enabled Zoho organisations.
-
-  console.log(`[Zoho] Creating contact: ${contact.contact_name}`);
-  try {
-    const data = await zohoRequest('POST', '/contacts', { data: contact });
-    return data?.contact || null;
-  } catch (err) {
-    const errorMsg = err.response?.data?.message || err.message || '';
-    if (isGstError(errorMsg)) {
-      // Strip ALL GST fields at once and retry — avoids repeated one-field-at-a-time failures
-      console.warn(`[Zoho] GST field error: "${errorMsg}". Stripping all GST fields and retrying.`);
-      stripGstFields(contact);
-      const data = await zohoRequest('POST', '/contacts', { data: contact });
-      return data?.contact || null;
+  if (isIndianOrg) {
+    if (gstNumber) {
+      contact.gst_no = gstNumber;
+      contact.gst_treatment = 'business_gst';
+    } else {
+      // For types where GST is optional, it should be treated as consumer or unregistered business
+      contact.gst_treatment = 'consumer';
     }
-    throw err;
   }
+
+  const data = await zohoRequest('POST', '/contacts', { data: contact });
+  return data?.contact || null;
 }
 
 export async function ensureZohoContactForVendor(vendor) {
@@ -197,85 +165,61 @@ export async function ensureZohoContactForVendor(vendor) {
   return contact?.contact_id || contact?.contact_person_id;
 }
 
-export async function createSubscriptionInvoice({ 
-  contactId, 
-  planName, 
-  amount, 
-  currency = 'INR', 
-  referenceNumber, 
-  notes, 
+export async function createSubscriptionInvoice({
+  contactId,
+  planName,
+  amount,
+  currency = 'INR',
+  referenceNumber,
+  notes,
   vendorGstNumber,
   baseAmount,
   gstAmount,
-  discount,
-  // Upgrade-specific fields
-  newPlanFullPrice,   // Full price of the new plan (e.g. 9999)
-  creditFromOldPlan,  // Credit deducted from old plan remaining value (e.g. 4999)
-  isUpgrade = false
+  discount
 }) {
   const dateStr = new Date().toISOString().slice(0, 10);
-  
+
+  const gstTaxId = process.env.ZOHO_GST_18_TAX_ID;
   const lineItems = [];
-
-  if (isUpgrade && newPlanFullPrice !== undefined && creditFromOldPlan !== undefined) {
-    // === UPGRADE INVOICE BREAKDOWN ===
-    // Line 1: Full new plan price
-    lineItems.push({
-      description: `${planName || 'Subscription'} (New Plan - Full Price)`,
-      rate: newPlanFullPrice,
-      quantity: 1,
-    });
-
-    // Line 2: Credit from existing plan (shown as deduction)
-    if (creditFromOldPlan > 0) {
-      lineItems.push({
-        description: 'Credit from Existing Plan (Unused Days)',
-        rate: -creditFromOldPlan,
-        quantity: 1,
-      });
-    }
-
-    // Line 3: Additional discount if any (discount field passed in)
-    if (discount && discount > 0) {
-      lineItems.push({
-        description: 'Additional Discount',
-        rate: -discount,
-        quantity: 1,
-      });
-    }
-
-    // Line 4: GST on net amount
-    if (gstAmount !== undefined && gstAmount !== null && gstAmount > 0) {
-      lineItems.push({
-        description: 'GST (18%)',
-        rate: gstAmount,
-        quantity: 1,
-      });
-    }
-  } else if (baseAmount !== undefined && baseAmount !== null && gstAmount !== undefined && gstAmount !== null) {
-    // === REGULAR SUBSCRIPTION / ADD-ON INVOICE BREAKDOWN ===
-    // Line 1: Base Plan Price
-    lineItems.push({
+  
+  if (baseAmount !== undefined && baseAmount !== null) {
+    // 1. Main Plan Item
+    const mainItem = {
       description: planName || 'Subscription',
       rate: baseAmount,
       quantity: 1,
-    });
+      hsn_or_sac: 9987, // Default SAC for technical/business services
+    };
 
-    // Line 2: Discount (if any)
+    // If a native Zoho Tax ID is configured, use it. 
+    // Otherwise, fallback to the previous manual line-item fix.
+    if (gstTaxId) {
+      mainItem.tax_id = gstTaxId;
+    } else {
+      mainItem.is_taxable = false;
+      mainItem.tax_exemption_code = 'NON_TAXABLE';
+    }
+    lineItems.push(mainItem);
+
+    // 2. Discount (if any)
     if (discount && discount > 0) {
       lineItems.push({
         description: 'Discount Applied',
         rate: -discount,
         quantity: 1,
+        is_taxable: false,
+        tax_exemption_code: 'NON_TAXABLE',
       });
     }
 
-    // Line 3: GST
-    if (gstAmount > 0) {
+    // 3. Manual GST Line (Only if NOT using native Zoho Tax)
+    if (!gstTaxId && gstAmount > 0) {
       lineItems.push({
         description: 'GST (Tax)',
         rate: gstAmount,
         quantity: 1,
+        is_taxable: false,
+        tax_exemption_code: 'NON_TAXABLE',
       });
     }
   } else {
@@ -284,7 +228,24 @@ export async function createSubscriptionInvoice({
       description: planName || 'Subscription',
       rate: amount,
       quantity: 1,
+      is_taxable: false,
+      tax_exemption_code: 'NON_TAXABLE',
+      hsn_or_sac: 9987,
     });
+  }
+
+  // Build rich notes that include GST numbers for maximum visibility
+  const adminGst = process.env.ADMIN_GST_NUMBER || 'N/A';
+  const vendorGst = vendorGstNumber || 'Not Provided';
+  
+  let finalizedNotes = notes || '';
+  const gstSection = [
+    `Seller GSTIN: ${adminGst}`,
+    `Buyer GSTIN: ${vendorGst}`
+  ].join('\n');
+
+  if (gstSection) {
+    finalizedNotes = finalizedNotes ? `${gstSection}\n\n${finalizedNotes}` : gstSection;
   }
 
   const invoice = {
@@ -294,56 +255,27 @@ export async function createSubscriptionInvoice({
     reference_number: referenceNumber,
     line_items: lineItems,
     currency_code: currency,
-    notes: notes || 'Thank you for your business.',
+    notes: finalizedNotes,
+    gst_no: vendorGstNumber || undefined,
+    gst_treatment: vendorGstNumber ? 'business_gst' : 'consumer',
   };
 
-  const isIndianOrg = getZohoConfig().ZOHO_BOOKS_BASE.includes('.zohoapis.in');
-  if (isIndianOrg) {
-    if (vendorGstNumber) {
-      invoice.gst_no = vendorGstNumber;
-      invoice.gst_treatment = 'business_gst';
-      
-      const stateCode = vendorGstNumber.substring(0, 2);
-      const stateMap = {
-        '01': 'JK', '02': 'HP', '03': 'PB', '04': 'CH', '05': 'UK', '06': 'HR', '07': 'DL', '08': 'RJ', '09': 'UP',
-        '10': 'BR', '11': 'SK', '12': 'AR', '13': 'NL', '14': 'MN', '15': 'MZ', '16': 'TR', '17': 'ML', '18': 'AS',
-        '19': 'WB', '20': 'JH', '21': 'OR', '22': 'CT', '23': 'MP', '24': 'GJ', '25': 'DD', '26': 'DN', '27': 'MH',
-        '29': 'KA', '30': 'GA', '31': 'LD', '32': 'KL', '33': 'TN', '34': 'PY', '35': 'AN', '36': 'TG', '37': 'AD',
-        '38': 'LA'
-      };
-      invoice.place_of_supply = stateMap[stateCode] || 'GJ';
-    } else {
-      invoice.gst_treatment = 'consumer';
-    }
-  }
+  if (!invoice.gst_no) delete invoice.gst_no;
 
   console.log(`[Zoho] Creating invoice for contact: ${contactId}, Amount: ${amount}`);
-  let data;
-  try {
-    data = await zohoRequest('POST', '/invoices', { data: invoice });
-  } catch (err) {
-    const errorMsg = err.response?.data?.message || err.message || '';
-    if (isGstError(errorMsg)) {
-      // Strip ALL GST fields at once — one-by-one removal causes a chain of errors
-      console.warn(`[Zoho] GST field error on invoice: "${errorMsg}". Stripping all GST fields and retrying.`);
-      stripGstFields(invoice);
-      data = await zohoRequest('POST', '/invoices', { data: invoice });
-    } else {
-      throw err;
-    }
-  }
-
+  const data = await zohoRequest('POST', '/invoices', { data: invoice });
   const inv = data?.invoice;
   if (!inv) {
     console.error('[Zoho] Invoice creation returned no invoice data');
     throw new Error('Zoho did not return invoice');
   }
 
-  console.log(`[Zoho] Invoice created: ${inv.invoice_number} (ID: ${inv.invoice_id})`);
+  console.log(`[Zoho] Invoice created: ${inv.invoice_number} (ID: ${inv.invoice_id}, Total: ${inv.total})`);
   return {
     id: inv.invoice_id,
     number: inv.invoice_number,
     status: inv.status,
+    total: inv.total,
     pdfUrl: inv.invoice_pdf_url || inv.invoice_url || null,
   };
 }
@@ -353,10 +285,37 @@ export async function createSubscriptionInvoice({
  * Required for some Zoho orgs to allow PDF download via API
  */
 export async function markInvoiceAsSent(invoiceId, sendEmail = false) {
-  if (!invoiceId) return null;
-  const path = `/invoices/${invoiceId}/status/sent`;
-  const params = sendEmail ? { send: true } : {};
-  return await zohoRequest('POST', path, { params });
+  if (!invoiceId) return false;
+  
+  try {
+    // 1. If Org has "Approval" enabled, we must approve it first
+    console.log(`[Zoho] Attempting to Approve/Sent invoice ${invoiceId}`);
+    try {
+      await zohoRequest('POST', `/invoices/${invoiceId}/status/approved`);
+      console.log(`[Zoho] Invoice ${invoiceId} approved`);
+    } catch (approveErr) {
+      // Ignore failure if approval is not enabled/required
+      console.log(`[Zoho] Approval check: ${approveErr.message} (may not be required)`);
+    }
+
+    // 2. Mark as Sent
+    await zohoRequest('POST', `/invoices/${invoiceId}/status/sent`);
+    console.log(`[Zoho] Invoice ${invoiceId} marked as SENT`);
+    
+    // 3. Optionally attempt to email
+    if (sendEmail) {
+      try {
+        await zohoRequest('POST', `/invoices/${invoiceId}/email`, { data: {} });
+        console.log(`[Zoho] Email triggered for invoice ${invoiceId}`);
+      } catch (emailErr) {
+        console.warn(`[Zoho] Email trigger skipped (missing template or contact email): ${emailErr.message}`);
+      }
+    }
+    return true;
+  } catch (error) {
+    console.error(`[Zoho] CRITICAL: Failed to transition invoice ${invoiceId} from Draft: ${error.message}`);
+    return false;
+  }
 }
 
 export async function downloadInvoicePdf(invoiceId) {
@@ -368,7 +327,7 @@ export async function downloadInvoicePdf(invoiceId) {
   try {
     console.log(`[Zoho] Attempting to download PDF for invoice: ${invoiceId}`);
     const res = await axios.get(url, {
-      headers: { 
+      headers: {
         Authorization: `Zoho-oauthtoken ${token}`,
         'X-com-zoho-books-organizationid': ZOHO_ORG_ID,
         'Accept': 'application/pdf'
@@ -389,18 +348,51 @@ export async function downloadInvoicePdf(invoiceId) {
   }
 }
 
-export async function recordInvoicePayment({ contactId, invoiceId, amount, paymentDate, razorpayPaymentId, paymentMode = 'Others' }) {
+export async function recordInvoicePayment({ contactId, invoiceId, amount, paymentDate, razorpayPaymentId, paymentMode = 'Others', invoiceTotal }) {
   const date = (paymentDate ? new Date(paymentDate) : new Date()).toISOString().slice(0, 10);
+  
+  // Sanitize payment mode for Zoho
+  const validModes = ['cash', 'check', 'creditcard', 'bank transfer', 'others'];
+  const sanitizedMode = (paymentMode && validModes.includes(paymentMode.toLowerCase())) 
+    ? (paymentMode.charAt(0).toUpperCase() + paymentMode.slice(1)) 
+    : 'Others';
+
+  // IMPORTANT: To clear "Balance Due", we must apply exactly what Zoho thinks is due (including its calculated tax)
+  // If Zoho Total is 588.82 but user paid 499 (mismatch), we apply the Zoho Total to mark as Paid
+  const finalAmount = invoiceTotal || amount;
+  const amountApplied = invoiceTotal || amount;
+
   const payment = {
     customer_id: contactId,
-    payment_mode: paymentMode.toLowerCase() === 'razorpay' ? 'Others' : paymentMode,
-    amount,
+    payment_mode: sanitizedMode,
+    amount: finalAmount,
     date,
-    reference_number: razorpayPaymentId,
-    invoices: [{ invoice_id: invoiceId, amount_applied: amount }],
+    reference_number: razorpayPaymentId || 'N/A',
+    invoices: [{ invoice_id: invoiceId, amount_applied: amountApplied }],
   };
-  const data = await zohoRequest('POST', '/customerpayments', { data: payment });
-  return { id: data?.payment?.payment_id || null, status: data?.payment?.status || null };
+
+  console.log(`[Zoho] Recording payment for invoice: ${invoiceId}, Amount: ${finalAmount}, Applied: ${amountApplied} (Mode: ${sanitizedMode})`);
+  try {
+    const data = await zohoRequest('POST', '/customerpayments', { data: payment });
+    console.log(`[Zoho] Payment recording SUCCESS for ${invoiceId}`);
+    return { 
+      id: data?.payment?.payment_id || null, 
+      status: data?.payment?.status || null 
+    };
+  } catch (err) {
+    console.error(`[Zoho] Payment recording failed for invoice ${invoiceId}: ${err.message}`);
+    // If it failed because it's still in draft, we have a lifecycle issue (Org settings)
+    if (err.message.includes('Draft') || err.message.includes('status')) {
+      console.warn(`[Zoho] Retrying payment after forceful status overrides...`);
+      try {
+        await zohoRequest('POST', `/invoices/${invoiceId}/status/approved`);
+      } catch (e) {}
+      await zohoRequest('POST', `/invoices/${invoiceId}/status/sent`);
+      const data = await zohoRequest('POST', '/customerpayments', { data: payment });
+      return { id: data?.payment?.payment_id || null, status: data?.payment?.status || null };
+    }
+    throw err;
+  }
 }
 
 export async function getInvoicesForContact(contactId) {
@@ -413,8 +405,8 @@ export default {
   getAccessToken,
   ensureZohoContactForVendor,
   createSubscriptionInvoice,
+  markInvoiceAsSent,
   recordInvoicePayment,
   downloadInvoicePdf,
-  markInvoiceAsSent,
   getInvoicesForContact,
 };

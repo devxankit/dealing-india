@@ -1121,7 +1121,18 @@ class SubscriptionService {
             // Mark as sent so it's not a draft (required for PDF and some states)
             if (invoice?.id) {
               existingInvoiceId = invoice.id;
-              await zohoBooksService.markInvoiceAsSent(invoice.id);
+              // PROACTIVELY SAVE ID IMMEDIATELY - Prevents duplicates and ensures visibility if next steps fail
+              await VendorSubscription.findByIdAndUpdate(subscriptionId, { 
+                zohoInvoiceId: invoice.id
+              });
+
+              // PROBABLY THE MOST CRITICAL STEP: Move out of Draft
+              const markSentResult = await zohoBooksService.markInvoiceAsSent(invoice.id, true);
+              if (markSentResult) {
+                  await VendorSubscription.findByIdAndUpdate(subscriptionId, { 
+                    zohoInvoiceStatus: 'sent'
+                  });
+              }
               
               // Record payment immediately if invoice just created
               await zohoBooksService.recordInvoicePayment({
@@ -1129,12 +1140,17 @@ class SubscriptionService {
                 invoiceId: invoice.id, 
                 amount, 
                 paymentDate: new Date(), 
-                razorpayPaymentId
+                razorpayPaymentId,
+                invoiceTotal: invoice.total // Use Zoho's official total
+              });
+
+              await VendorSubscription.findByIdAndUpdate(subscriptionId, { 
+                zohoInvoiceStatus: 'paid'
               });
             }
           }
 
-          // Download PDF if we have an ID
+          // If we have an ID (either just created or from a prior run), finish syncing
           if (existingInvoiceId) {
             invoicePdfBuffer = await zohoBooksService.downloadInvoicePdf(existingInvoiceId);
             
@@ -1142,7 +1158,7 @@ class SubscriptionService {
             const updateObj = {
               zohoContactId: contactId,
               zohoInvoiceId: existingInvoiceId,
-              zohoInvoiceStatus: invoice?.status || subscriptionDoc.zohoInvoiceStatus,
+              zohoInvoiceStatus: 'paid',
               zohoInvoicePdfUrl: invoice?.pdfUrl || subscriptionDoc.zohoInvoicePdfUrl
             };
             await VendorSubscription.findByIdAndUpdate(subscriptionId, updateObj);

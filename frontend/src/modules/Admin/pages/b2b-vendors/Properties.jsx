@@ -32,7 +32,7 @@ const B2BVendorProperties = () => {
             const response = await api.get('/business-types');
             if (response.success) {
                 const filtered = (response.data || []).filter(type =>
-                    type.name === "Developer" || type.name === "Property Broker"
+                    type.name === "Developer / Builder" || type.name === "Property Broker"
                 );
                 setBusinessTypes(filtered);
             }
