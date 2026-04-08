@@ -37,9 +37,11 @@ class AdminB2BSubscriptionPlanController {
   async getPlans(req, res) {
     try {
       const { includeInactive = 'false', businessType } = req.query;
+      const vendorId = req.user?.vendorId || req.userDoc?._id || req.user?.id;
       const plans = await b2bSubscriptionPlanService.getAllPlans({
         includeInactive: includeInactive === 'true',
-        businessType
+        businessType,
+        vendorId
       });
 
       res.status(200).json({
@@ -62,9 +64,11 @@ class AdminB2BSubscriptionPlanController {
   async getActivePlans(req, res) {
     try {
       const { businessType } = req.query;
+      const vendorId = req.user?.vendorId || req.userDoc?._id || req.user?.id;
       const plans = await b2bSubscriptionPlanService.getAllPlans({
         includeInactive: false,
-        businessType
+        businessType,
+        vendorId
       });
 
       res.status(200).json({

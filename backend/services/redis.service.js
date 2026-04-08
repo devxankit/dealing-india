@@ -228,6 +228,9 @@ class RedisService {
             // Create a unique key based on URL and optionally user ID/vendor ID
             let key = `${keyPrefix}:${req.originalUrl || req.url}`;
 
+            // Check for forceRefresh query parameter to bypass cache
+            const forceRefresh = req.query.forceRefresh === 'true';
+
             // If user is authenticated, append user info to key for user-specific caching
             if (req.user) {
                 const userId = req.user.id || req.user._id || req.user.userId;
@@ -237,13 +240,15 @@ class RedisService {
             }
 
             try {
-                const cachedData = await this.get(key);
-                if (cachedData) {
-                    res.set('X-Cache', 'HIT');
-                    return res.json(cachedData);
+                if (!forceRefresh) {
+                    const cachedData = await this.get(key);
+                    if (cachedData) {
+                        res.set('X-Cache', 'HIT');
+                        return res.json(cachedData);
+                    }
                 }
 
-                res.set('X-Cache', 'MISS');
+                res.set('X-Cache', forceRefresh ? 'BYPASS' : 'MISS');
                 // If not in cache, intercept the response and cache it
                 const originalJson = res.json;
                 res.json = (data) => {

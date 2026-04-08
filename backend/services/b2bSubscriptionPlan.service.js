@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import B2BSubscriptionPlan from '../models/B2BSubscriptionPlan.model.js';
 import BusinessType from '../models/BusinessType.model.js';
 import BusinessTypeSettings from '../models/BusinessTypeSettings.model.js';
@@ -19,15 +20,41 @@ class B2BSubscriptionPlanService {
         query.isActive = true;
       }
 
-      if (businessType) {
-        const typeSlug = businessType.toLowerCase();
-        // Check if BusinessTypeSettings HAS explicitly allowed plans for this type
-        const bType = await BusinessType.findOne({ slug: typeSlug });
-        if (bType) {
-          const settings = await BusinessTypeSettings.findOne({ businessTypeId: bType._id });
-          if (settings && settings.allowedPlans && settings.allowedPlans.length > 0) {
-            // If admin has explicitly picked plans in the Business Config UI, ONLY those plans should show
-            query._id = { $in: settings.allowedPlans };
+      if (businessType || options.vendorId) {
+        let businessTypeId = null;
+
+        if (businessType) {
+          // If businessType is a valid ObjectId string, use it directly
+          if (mongoose.Types.ObjectId.isValid(businessType)) {
+            businessTypeId = businessType;
+          } else {
+            // Otherwise treat as slug
+            const bType = await BusinessType.findOne({ slug: businessType.toLowerCase().trim() });
+            if (bType) businessTypeId = bType._id;
+          }
+        } else if (options.vendorId) {
+          // Fallback: Get business type from vendor if vendorId is provided
+          const Vendor = (await import('../models/Vendor.model.js')).default;
+          const vendor = await Vendor.findById(options.vendorId).select('businessTypeRef').lean();
+          if (vendor && vendor.businessTypeRef) {
+            businessTypeId = vendor.businessTypeRef;
+          }
+        }
+
+        if (businessTypeId) {
+          const settings = await BusinessTypeSettings.findOne({ businessTypeId });
+
+          // If settings exist, strictly filter by allowedPlans
+          if (settings) {
+            const allowedPlans = Array.isArray(settings.allowedPlans) ? settings.allowedPlans : [];
+
+            // Filter out any empty/null/undefined plans and convert to ObjectIds for reliable $in query
+            const validAllowedPlans = allowedPlans
+              .filter(pid => pid && pid.toString().trim() !== '')
+              .map(pid => new mongoose.Types.ObjectId(pid.toString().trim()));
+
+            // Apply filter even if empty - will result in 0 matches if allowedPlans is empty
+            query._id = { $in: validAllowedPlans };
           }
         }
       }

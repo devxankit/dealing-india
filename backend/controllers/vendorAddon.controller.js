@@ -21,33 +21,35 @@ class VendorAddonController {
 
       let businessTypeId = vendor.businessTypeRef;
       
-      // If ref is missing, try to find by name/slug
+      // If ref is missing, try to find by name/slug/ID
       if (!businessTypeId && vendor.businessType) {
-        const bt = await BusinessType.findOne({ 
-          $or: [{ name: vendor.businessType }, { slug: vendor.businessType.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') }] 
-        });
-        if (bt) businessTypeId = bt._id;
+        if (/^[0-9a-fA-F]{24}$/.test(vendor.businessType)) {
+          businessTypeId = vendor.businessType;
+        } else {
+          const bt = await BusinessType.findOne({ 
+            $or: [{ name: vendor.businessType }, { slug: vendor.businessType.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') }] 
+          });
+          if (bt) businessTypeId = bt._id;
+        }
       }
 
       if (!businessTypeId) {
         return res.status(200).json({ success: true, data: [], message: 'No business type found for vendor' });
       }
 
-      const settings = await BusinessTypeSettings.findOne({ businessTypeId }).populate({
-        path: 'allowedAddonPlans',
-        match: { isActive: true }
-      });
+      const settings = await BusinessTypeSettings.findOne({ businessTypeId });
+      const availableAddons = settings ? (await b2bAddonPlanService.getAllPlans({ _id: { $in: settings.allowedAddonPlans || [] }, isActive: true })) : [];
 
-      let availableAddons = settings?.allowedAddonPlans || [];
-
+      let filteredAddons = availableAddons;
       const { featureType } = req.query;
+
       if (featureType) {
-        availableAddons = availableAddons.filter(a => a.featureType === featureType);
+        filteredAddons = availableAddons.filter(a => a.featureType === featureType);
       }
 
       res.status(200).json({
         success: true,
-        data: availableAddons,
+        data: filteredAddons,
         message: 'Available addon packages fetched successfully'
       });
     } catch (error) {

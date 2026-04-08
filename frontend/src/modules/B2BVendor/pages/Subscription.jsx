@@ -65,21 +65,21 @@ const B2BVendorSubscription = () => {
         try {
             setLoading(true);
 
-            // Parallelize all initial data fetching
+            // Parallelize all initial data fetching - Force refresh for business types too
             const [businessTypes, subscriptions] = await Promise.all([
-                getBusinessTypes(),
+                getBusinessTypes(true),
                 subscriptionService.getAllSubscriptions()
             ]);
 
-            // Find vendor's business type slug
+            // Find vendor's business type slug - Case insensitive and type-safe matching
             const vendorBusinessType = businessTypes.find(t =>
-                t.name === vendor?.businessType ||
-                t.slug === vendor?.businessType ||
-                t._id === vendor?.businessTypeRef
+                (t.name && vendor?.businessType && t.name.toString().toLowerCase() === vendor.businessType.toString().toLowerCase()) ||
+                (t.slug && vendor?.businessType && t.slug.toString().toLowerCase() === vendor.businessType.toString().toLowerCase()) ||
+                (t._id && vendor?.businessTypeRef && t._id.toString() === vendor.businessTypeRef.toString())
             );
 
-            // Now fetch the plans for this business type
-            const marketPlans = await getActiveB2BPlans({ businessType: vendorBusinessType?.slug });
+            // Now fetch the plans for this business type - Force refresh from API
+            const marketPlans = await getActiveB2BPlans(true, { businessType: vendorBusinessType?.slug });
             const filteredPlans = marketPlans
                 .filter(p => [3, 6, 12].includes(p.duration))
                 .sort((a, b) => a.duration - b.duration);
@@ -612,8 +612,9 @@ const B2BVendorSubscription = () => {
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
-                {availablePlans.map((plan, index) => {
+            {availablePlans.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+                    {availablePlans.map((plan, index) => {
                     const planId = plan._id || plan.id;
                     const isCurrentPlan = currentSubscription?.planId === planId;
                     const hasActiveSubscription = !!currentSubscription;
@@ -772,7 +773,33 @@ const B2BVendorSubscription = () => {
                         </motion.div>
                     );
                 })}
-            </div>
+                </div>
+            ) : (
+                <div className="bg-white rounded-[2.5rem] p-16 shadow-lg border-2 border-dashed border-gray-100 flex flex-col items-center justify-center text-center mb-10 overflow-hidden relative group">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-primary-50/30 rounded-full -mr-24 -mt-24 transition-transform group-hover:scale-110 duration-700"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-50/20 rounded-full -ml-16 -mb-16 transition-transform group-hover:scale-125 duration-700"></div>
+                    
+                    <div className="w-24 h-24 bg-primary-50 text-primary-600 rounded-[2rem] flex items-center justify-center mb-8 relative z-10 shadow-sm border border-primary-100">
+                        <FiPackage className="text-5xl" />
+                    </div>
+                    
+                    <h3 className="text-3xl font-black text-gray-900 mb-4 relative z-10">No Plans Available Right Now</h3>
+                    <p className="text-gray-500 max-w-lg mx-auto mb-10 relative z-10 leading-relaxed font-medium">
+                        We couldn't find any subscription plans matching your vendor business type: <span className="font-black text-primary-600 uppercase bg-primary-50 px-3 py-1 rounded-lg border border-primary-100">{vendor?.businessType || 'N/A'}</span>.
+                        Please ensure your business type is correctly configured or contact administrative support.
+                    </p>
+                    
+                    <div className="flex flex-col items-center gap-4 relative z-10">
+                        <div className="inline-flex items-center gap-3 px-8 py-3 bg-gray-50 rounded-2xl text-sm font-bold text-gray-400 border border-gray-200">
+                            <FiInfo className="text-primary-500 text-lg" /> Admin configuration is required for this role.
+                        </div>
+                        <p className="text-[11px] text-gray-300 font-mono font-bold uppercase tracking-widest bg-gray-50/50 py-1 px-4 rounded-full">
+                            Category Slug: {(vendor?.businessType || 'textile').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}
+                        </p>
+                    </div>
+                </div>
+            )}
+
 
             {/* Add-on Packs Section */}
             <div className="mb-12">

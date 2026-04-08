@@ -62,6 +62,11 @@ export const getB2BPlans = async (forceRefresh = false, options = {}) => {
                 url += `${separator}businessType=${businessType}`;
             }
 
+            if (forceRefresh) {
+                const separator = url.includes('?') ? '&' : '?';
+                url += `${separator}forceRefresh=true`;
+            }
+
             const response = await api.get(url);
             if (response.success && response.data) {
                 plansCache[cacheKey] = response.data;
@@ -143,8 +148,13 @@ export const getB2BPlanById = async (planId) => {
  * @returns {Object|null} Plan object or null
  */
 // ... (getActiveB2BPlans was removed in previous step but needed if not included in ... )
-export const getActiveB2BPlans = async (options = {}) => {
-    const plans = await getB2BPlans(false, options);
+export const getActiveB2BPlans = async (forceRefresh = false, options = {}) => {
+    // Handle case where first argument is options object (legacy call style)
+    if (typeof forceRefresh === 'object' && forceRefresh !== null) {
+        options = forceRefresh;
+        forceRefresh = options.forceRefresh || false;
+    }
+    const plans = await getB2BPlans(forceRefresh, options);
     return plans.filter(plan => plan.isActive !== false);
 };
 
