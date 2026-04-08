@@ -30,7 +30,7 @@ const getIndiaDateKey = (date = new Date()) => {
  */
 export const trackContactClick = async (req, res, next) => {
     try {
-        const { vendorId, clickType, itemType, itemId } = req.body;
+        const { vendorId, clickType, itemType, itemId, category } = req.body;
 
         if (!vendorId || !clickType) {
             return res.status(400).json({
@@ -72,24 +72,23 @@ export const trackContactClick = async (req, res, next) => {
             message: `${clickType} click tracked successfully`
         });
 
-        // Store per-user-per-day click records (for vendor visibility)
-        // Only if clicked by a logged-in buyer user, so we can show details safely
         try {
-            if (req.user && req.user.role === 'user') {
-                const dateKey = getIndiaDateKey(new Date());
-                const safeItemType = ['product', 'lotslot', 'property', 'vendor'].includes(itemType)
-                    ? itemType
-                    : 'unknown';
+            // Store per-user-per-day click records (for vendor visibility)
+            const dateKey = getIndiaDateKey(new Date());
+            const safeItemType = ['product', 'lotslot', 'property', 'vendor', 'reel'].includes(itemType)
+                ? itemType
+                : 'unknown';
 
-                await VendorContactClick.create({
-                    vendorId,
-                    clickType,
-                    userId: req.user.id,
-                    dateKey,
-                    itemType: safeItemType,
-                    itemId: itemId || null,
-                });
-            }
+            await VendorContactClick.create({
+                vendorId,
+                clickType,
+                userId: req.user ? (req.user.id || req.user.vendorId || req.user.adminId) : null,
+                userRole: req.user ? req.user.role : null,
+                dateKey,
+                itemType: safeItemType,
+                itemId: itemId || null,
+                category: category || null,
+            });
         } catch (e) {
             // Non-blocking: analytics storage should never fail the click action
             console.error('VendorContactClick create error:', e?.message || e);
@@ -147,7 +146,6 @@ export const getClickUsers = async (req, res, next) => {
         const match = {
             vendorId: new mongoose.Types.ObjectId(vendorId),
             clickType,
-            userId: { $ne: null },
         };
 
         const fromKey = dateFrom ? String(dateFrom).trim() : null;
@@ -162,9 +160,10 @@ export const getClickUsers = async (req, res, next) => {
             { $match: match },
             {
                 $group: {
-                    _id: { userId: '$userId', dateKey: '$dateKey' },
+                    _id: { userId: '$userId', dateKey: '$dateKey', category: '$category' },
                     clickCount: { $sum: 1 },
                     lastClickAt: { $max: '$createdAt' },
+                    itemType: { $first: '$itemType' },
                 }
             },
             { $sort: { '_id.dateKey': -1, lastClickAt: -1 } },
@@ -173,22 +172,38 @@ export const getClickUsers = async (req, res, next) => {
                     from: 'users',
                     localField: '_id.userId',
                     foreignField: '_id',
-                    as: 'user'
+                    as: 'userData'
                 }
             },
-            { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'vendors',
+                    localField: '_id.userId',
+                    foreignField: '_id',
+                    as: 'vData'
+                }
+            },
+            { $unwind: { path: '$userData', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$vData', preserveNullAndEmptyArrays: true } },
+            {
+                $addFields: {
+                    matchedUser: { $ifNull: ['$userData', '$vData'] }
+                }
+            },
             {
                 $project: {
                     _id: 0,
                     dateKey: '$_id.dateKey',
+                    category: '$_id.category',
                     clickCount: 1,
                     lastClickAt: 1,
                     user: {
-                        _id: '$user._id',
-                        name: '$user.name',
-                        email: '$user.email',
-                        phone: '$user.phone',
-                    }
+                        _id: '$matchedUser._id',
+                        name: { $ifNull: ['$matchedUser.name', 'Anonymous Visitor'] },
+                        email: { $ifNull: ['$matchedUser.email', 'N/A'] },
+                        phone: { $ifNull: ['$matchedUser.phone', 'N/A'] },
+                    },
+                    itemType: 1,
                 }
             },
             { $skip: skip },
@@ -197,7 +212,7 @@ export const getClickUsers = async (req, res, next) => {
 
         const countPipeline = [
             { $match: match },
-            { $group: { _id: { userId: '$userId', dateKey: '$dateKey' } } },
+            { $group: { _id: { userId: '$userId', dateKey: '$dateKey', category: '$category' } } },
             { $count: 'total' }
         ];
 
@@ -267,7 +282,6 @@ export const getClickUsersForVendorAdmin = async (req, res, next) => {
         const match = {
             vendorId: new mongoose.Types.ObjectId(vendorId),
             clickType,
-            userId: { $ne: null },
         };
 
         const fromKey = dateFrom ? String(dateFrom).trim() : null;
@@ -282,9 +296,10 @@ export const getClickUsersForVendorAdmin = async (req, res, next) => {
             { $match: match },
             {
                 $group: {
-                    _id: { userId: '$userId', dateKey: '$dateKey' },
+                    _id: { userId: '$userId', dateKey: '$dateKey', category: '$category' },
                     clickCount: { $sum: 1 },
                     lastClickAt: { $max: '$createdAt' },
+                    itemType: { $first: '$itemType' },
                 }
             },
             { $sort: { '_id.dateKey': -1, lastClickAt: -1 } },
@@ -293,22 +308,38 @@ export const getClickUsersForVendorAdmin = async (req, res, next) => {
                     from: 'users',
                     localField: '_id.userId',
                     foreignField: '_id',
-                    as: 'user'
+                    as: 'userData'
                 }
             },
-            { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'vendors',
+                    localField: '_id.userId',
+                    foreignField: '_id',
+                    as: 'vData'
+                }
+            },
+            { $unwind: { path: '$userData', preserveNullAndEmptyArrays: true } },
+            { $unwind: { path: '$vData', preserveNullAndEmptyArrays: true } },
+            {
+                $addFields: {
+                    matchedUser: { $ifNull: ['$userData', '$vData'] }
+                }
+            },
             {
                 $project: {
                     _id: 0,
                     dateKey: '$_id.dateKey',
+                    category: '$_id.category',
                     clickCount: 1,
                     lastClickAt: 1,
                     user: {
-                        _id: '$user._id',
-                        name: '$user.name',
-                        email: '$user.email',
-                        phone: '$user.phone',
-                    }
+                        _id: '$matchedUser._id',
+                        name: { $ifNull: ['$matchedUser.name', 'Anonymous Visitor'] },
+                        email: { $ifNull: ['$matchedUser.email', 'N/A'] },
+                        phone: { $ifNull: ['$matchedUser.phone', 'N/A'] },
+                    },
+                    itemType: 1,
                 }
             },
             { $skip: skip },
@@ -317,7 +348,7 @@ export const getClickUsersForVendorAdmin = async (req, res, next) => {
 
         const countPipeline = [
             { $match: match },
-            { $group: { _id: { userId: '$userId', dateKey: '$dateKey' } } },
+            { $group: { _id: { userId: '$userId', dateKey: '$dateKey', category: '$category' } } },
             { $count: 'total' }
         ];
 

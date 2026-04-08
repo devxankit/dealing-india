@@ -280,17 +280,24 @@ const B2BVendorStore = () => {
     }, [reels, reelCategoryFilter]);
 
     // Track vendor contact clicks
-    const trackContactClick = async (vendorId, clickType) => {
+    const trackContactClick = async (vendorId, clickType, context = {}) => {
         try {
             if (!vendorId) return;
             await api.post('/vendor/analytics/track-click', {
                 vendorId,
-                clickType
+                clickType,
+                ...context
             });
         } catch (error) {
             console.error('Error tracking click:', error);
         }
     };
+
+    const getTrackingContext = () => ({
+        itemType: 'vendor',
+        itemId: id,
+        category: vendor?.businessType || 'Vendor'
+    });
 
     if (loading) {
         return (
@@ -503,7 +510,7 @@ const B2BVendorStore = () => {
                                     })()}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    onClick={() => trackContactClick(vendor._id || vendor.id, 'whatsapp')}
+                                    onClick={() => trackContactClick(vendor._id || vendor.id, 'whatsapp', getTrackingContext())}
                                     className="w-full px-8 py-5 md:py-6 bg-[#25D366] text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-[#128C7E] transition-all shadow-xl shadow-green-100/50 flex items-center justify-center gap-3 active:scale-95"
                                 >
                                     <FaWhatsapp size={20} />
@@ -514,7 +521,10 @@ const B2BVendorStore = () => {
                                 <button
                                     onClick={() => {
                                         const mapsUrl = getGoogleMapsUrl(shopListing?.mapUrl ? { mapUrl: shopListing.mapUrl } : (vendor.shopUnit || vendor));
-                                        if (mapsUrl) window.open(mapsUrl, '_blank');
+                                        if (mapsUrl) {
+                                            trackContactClick(vendor._id || vendor.id, 'map', getTrackingContext());
+                                            window.open(mapsUrl, '_blank');
+                                        }
                                         else toast.error('Location details not provided');
                                     }}
                                     className="w-full px-8 py-5 md:py-6 bg-orange-600 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-orange-700 transition-all shadow-xl shadow-orange-100/50 flex items-center justify-center gap-3 active:scale-95"
@@ -592,6 +602,10 @@ const B2BVendorStore = () => {
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="p-2 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all active:scale-90"
+                                                    onClick={() => trackContactClick(vendor._id || vendor.id, 'whatsapp', {
+                                                        ...getTrackingContext(),
+                                                        category: `${vendor?.businessType || 'Vendor'} - ${contact.name || contact.post}`
+                                                    })}
                                                 >
                                                     <FaWhatsapp size={14} />
                                                 </a>

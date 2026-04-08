@@ -63,6 +63,12 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
         navigate(vendorUrl);
     };
 
+    const getTrackingContext = () => ({
+        itemType: 'vendor',
+        itemId: vendorIdStr,
+        category: vendor.businessType || 'Vendor'
+    });
+
     // Prefer shop name from ShopUnit or manual shopName field, fallback to registration storeName
     const displayStoreName = vendor.shopUnit?.name || vendor.shopName || vendor.storeName || vendor.name;
 
@@ -197,7 +203,7 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                                 onClick={(e) => {
                                     if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
-                                    if (trackContactClick) trackContactClick(vendorIdStr, 'whatsapp');
+                                    if (trackContactClick) trackContactClick(vendorIdStr, 'whatsapp', getTrackingContext());
                                 }}
                                 className="flex-1 min-w-[30%] py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
                             >
@@ -209,7 +215,7 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                                 onClick={(e) => {
                                     if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
-                                    if (trackContactClick) trackContactClick(vendorIdStr, 'call');
+                                    if (trackContactClick) trackContactClick(vendorIdStr, 'call', getTrackingContext());
                                 }}
                                 className="flex-1 min-w-[30%] py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
                             >
@@ -222,7 +228,7 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                                     e.stopPropagation();
                                     const mapsUrl = getGoogleMapsUrl(vendor);
                                     if (mapsUrl) {
-                                        if (trackContactClick) trackContactClick(vendorIdStr, 'map');
+                                        if (trackContactClick) trackContactClick(vendorIdStr, 'map', getTrackingContext());
                                         window.open(mapsUrl, '_blank');
                                     } else {
                                         toast.error('Location details not provided');

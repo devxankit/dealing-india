@@ -418,8 +418,25 @@ export default function ReelFeed() {
     }
   };
 
+  const trackContactClick = async (type) => {
+    try {
+      const vendorId = currentReel?.vendorId;
+      if (!vendorId) return;
+      await api.post("/vendor/analytics/track-click", {
+        vendorId,
+        clickType: type,
+        itemType: "reel",
+        itemId: currentReel._id,
+        category: currentReel.categoryName
+      });
+    } catch (err) {
+      console.error("Error tracking reel click:", err);
+    }
+  };
+
   const handleWhatsApp = () => {
     if (!currentReel?.vendorPhone) return;
+    trackContactClick("whatsapp");
     const phone = currentReel.vendorPhone.replace(/\D/g, "");
     const formatted = phone.startsWith("91") ? phone : `91${phone}`;
     const siteUrl = getShareUrl();

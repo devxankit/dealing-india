@@ -320,12 +320,13 @@ const ProductCatalog = () => {
   };
 
   // Track vendor contact clicks (call or whatsapp)
-  const trackContactClick = async (vendorId, clickType) => {
+  const trackContactClick = async (vendorId, clickType, context = {}) => {
     try {
       if (!vendorId) return;
       await api.post("/vendor/analytics/track-click", {
         vendorId,
         clickType,
+        ...context
       });
     } catch (error) {
       // Silently fail - tracking shouldn't block user action

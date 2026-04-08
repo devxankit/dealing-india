@@ -68,6 +68,22 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
         return false;
     };
 
+    const getCategoryName = () => {
+        if (product.formType === 'shop-listing') return 'Shop Listing';
+        if (product.category) return product.category; // LotSlot string field
+        if (product.categoryId?.name) return product.categoryId.name;
+        const categoryAttr = product.attributes?.find(attr =>
+            attr.name === 'category' || attr.attributeName === 'category'
+        );
+        return categoryAttr?.value || 'Product';
+    };
+
+    const getTrackingContext = () => ({
+        itemType: product.itemType === 'lotslot' ? 'lotslot' : 'product',
+        itemId: product._id,
+        category: getCategoryName()
+    });
+
     return (
         <motion.div
             layout
@@ -89,12 +105,18 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                     allImages.map((img, idx) => (
                         <div
                             key={idx}
-                            className={`absolute inset-0 w-full h-full bg-slate-50 flex items-center justify-center p-1 transition-opacity duration-300 ${activeImageIndex === idx ? 'opacity-100' : 'opacity-0'}`}
+                            className={`absolute inset-0 w-full h-full bg-white flex items-center justify-center p-2 transition-opacity duration-300 ${activeImageIndex === idx ? 'opacity-100' : 'opacity-0'}`}
                         >
+                            {/* Blurred background for premium fill */}
+                            <div 
+                                className="absolute inset-0 bg-cover bg-center blur-2xl opacity-20 scale-110 pointer-events-none"
+                                style={{ backgroundImage: `url(${img})` }}
+                            />
+                            
                             <img
                                 src={img}
                                 alt={`${product.name} - ${idx + 1}`}
-                                className="w-full h-full object-contain transition-transform duration-700 hover:scale-105"
+                                className="relative z-10 w-full h-full object-contain transition-transform duration-700 hover:scale-105"
                             />
                         </div>
                     ))
@@ -298,7 +320,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                 onClick={(e) => {
                                     if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
-                                    if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'whatsapp');
+                                    if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'whatsapp', getTrackingContext());
                                 }}
                                 className="flex-1 h-10 md:h-11 bg-green-50 text-[#25D366] rounded-xl hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center shadow-sm"
                                 title="WhatsApp"
@@ -310,7 +332,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                 onClick={(e) => {
                                     if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
-                                    if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'call');
+                                    if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'call', getTrackingContext());
                                 }}
                                 className="flex-1 h-10 md:h-11 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center shadow-sm"
                                 title="Call Vendor"
@@ -326,7 +348,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                         : (product.shopUnit || vendor);
                                     const mapsUrl = getGoogleMapsUrl(mapTarget);
                                     if (mapsUrl) {
-                                        if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'map');
+                                        if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'map', getTrackingContext());
                                         window.open(mapsUrl, '_blank');
                                     } else {
                                         toast.error('Location details not provided');

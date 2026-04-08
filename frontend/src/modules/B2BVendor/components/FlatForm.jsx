@@ -709,6 +709,7 @@ const FlatForm = ({ initialData, isEdit }) => {
 
                                 <div className="space-y-6">
                                     <div className="text-xl font-black text-slate-900 uppercase">Media</div>
+                                    <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest -mt-4 mb-2">Note: Please upload square images (1:1 ratio) for better display.</p>
                                     <div className="grid grid-cols-2 gap-4">
                                         {media.map((img, idx) => (
                                             <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-100">

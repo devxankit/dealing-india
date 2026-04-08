@@ -24,6 +24,7 @@ export const optionalAuthenticate = async (req, res, next) => {
     try {
       const decoded = verifyToken(token);
       req.user = decoded;
+      console.log(`[Optional Auth Debug] Token Verified. Role: ${decoded.role}, ID: ${decoded.id || decoded.vendorId}`);
 
       // Optionally fetch user document if token is valid
       if (decoded.role === 'vendor' && decoded.vendorId) {
@@ -43,6 +44,7 @@ export const optionalAuthenticate = async (req, res, next) => {
         }
       }
     } catch (error) {
+      console.warn(`[Optional Auth Debug] Token verification failed: ${error.message}`);
       // Token is invalid or expired, but we continue anyway for logout
       req.user = null;
     }

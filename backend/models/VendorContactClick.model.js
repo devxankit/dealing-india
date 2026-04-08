@@ -14,12 +14,15 @@ const vendorContactClickSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    // Only set when the click is made by a logged-in user
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
       default: null,
       index: true,
+    },
+    userRole: {
+      type: String,
+      enum: ['user', 'vendor', 'admin', 'superadmin', null],
+      default: null,
     },
     // YYYY-MM-DD in Asia/Kolkata timezone
     dateKey: {
@@ -30,8 +33,13 @@ const vendorContactClickSchema = new mongoose.Schema(
     // Optional context (not required for dedupe rule)
     itemType: {
       type: String,
-      enum: ['product', 'lotslot', 'property', 'vendor', 'unknown'],
+      enum: ['product', 'lotslot', 'property', 'vendor', 'reel', 'unknown'],
       default: 'unknown',
+    },
+    category: {
+      type: String,
+      trim: true,
+      default: null,
     },
     itemId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -247,6 +247,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                         <label className={labelStyle}>
                             Photo Upload (Max {MAX_PHOTOS}) <span className="text-red-500">*</span>
                         </label>
+                        <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest -mt-3 mb-2 ml-1">Note: Please upload square images (1:1 ratio) for better display.</p>
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                             <AnimatePresence>
                                 {formData.images.map((img, idx) => (

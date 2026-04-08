@@ -66,7 +66,7 @@ api.interceptors.request.use(
     if (isAdminRoute) {
       token = localStorage.getItem('admin-token');
     } else if (isB2BRoute) {
-      // Prioritize b2b-vendor-token, then check the persisted store
+      // Prioritize b2b-vendor-token for the vendor dashboard
       token = localStorage.getItem('b2b-vendor-token');
       if (!token) {
         try {
@@ -77,18 +77,15 @@ api.interceptors.request.use(
           }
         } catch (e) { }
       }
-      // If still no token, maybe it's using the old 'token' key or shared vendor-token
       if (!token) {
         token = localStorage.getItem('vendor-token') || localStorage.getItem('token');
       }
-    } else if (currentPath.includes('/vendor') || url.includes('/vendor/')) {
-      // Shared vendor routes: try both specific and generic tokens
-      token = localStorage.getItem('vendor-token') || localStorage.getItem('b2b-vendor-token') || localStorage.getItem('token');
     } else {
-      // Default: B2B buyer / general user token
+      // On the Buyer side or public pages, ALWAYS prioritize the buyer token
+      // This ensures track-click and other shared APIs identify the visitor correctly
       token = localStorage.getItem('token');
 
-      // Fallback: if token key missing but Zustand auth store still has token (e.g. after a 401 that only cleared localStorage)
+      // Fallback: if token key missing but Zustand auth store still has token
       if (!token) {
         try {
           const storedAuth = localStorage.getItem('auth-storage');
@@ -96,9 +93,12 @@ api.interceptors.request.use(
             const parsedAuth = JSON.parse(storedAuth);
             token = parsedAuth?.state?.token || null;
           }
-        } catch (e) {
-          // Ignore JSON parse errors and continue without fallback token
-        }
+        } catch (e) { }
+      }
+
+      // Final fallback for shared endpoints like track-click if calling from a non-vendor path
+      if (!token && (url.includes('/vendor/') || url.includes('/shared/'))) {
+        token = localStorage.getItem('vendor-token') || localStorage.getItem('b2b-vendor-token');
       }
     }
 

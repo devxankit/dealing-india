@@ -136,7 +136,10 @@ const PropertyDetail = () => {
 
             await api.post('/vendor/analytics/track-click', {
                 vendorId,
-                clickType
+                clickType,
+                itemType: 'property',
+                itemId: property?._id,
+                category: property?.propertyType || property?.categoryName || 'Property'
             });
         } catch (error) {
             // Silently fail - tracking shouldn't block user action

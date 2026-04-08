@@ -404,12 +404,13 @@ const RealEstate = () => {
         }
     };
 
-    const trackContactClick = async (vendorId, clickType) => {
+    const trackContactClick = async (vendorId, clickType, context = {}) => {
         try {
             if (!vendorId) return;
             await api.post('/vendor/analytics/track-click', {
                 vendorId,
-                clickType
+                clickType,
+                ...context
             });
         } catch (error) {
             console.error('Error tracking click:', error);

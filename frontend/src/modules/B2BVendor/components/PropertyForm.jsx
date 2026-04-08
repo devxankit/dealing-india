@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { FiArrowLeft, FiPlus, FiTrash2, FiCheck } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -861,6 +861,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                         <motion.div key="step5" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8 flex-1">
                             <div>
                                 <label className="label mb-4">Property Media <span className="text-red-500">*</span></label>
+                                <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest -mt-4 mb-3">Note: Please upload square images (1:1 ratio) for better display.</p>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     {media.map((img, idx) => (
                                         <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border-2 border-slate-100">
@@ -910,9 +911,6 @@ const PropertyForm = ({ initialData, isEdit }) => {
             </div>
 
             <style>{`
-                .input-field {
-                    width: 100%;
-                    padding: 1rem 1.5rem;
                     background-color: #f8fafc;
                     border: 2px solid transparent;
                     border-radius: 1rem;

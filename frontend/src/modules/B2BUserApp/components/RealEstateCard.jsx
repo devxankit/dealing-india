@@ -46,18 +46,25 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
     };
 
     // Track vendor contact clicks (call or whatsapp)
-    const trackContactClick = async (vendorId, clickType) => {
+    const trackContactClick = async (vendorId, clickType, context = {}) => {
         try {
             if (!vendorId) return;
             await api.post('/vendor/analytics/track-click', {
                 vendorId,
-                clickType
+                clickType,
+                ...context
             });
         } catch (error) {
             // Silently fail - tracking shouldn't block user action
             console.error('Error tracking click:', error);
         }
     };
+
+    const getTrackingContext = () => ({
+        itemType: 'property',
+        itemId: property._id,
+        category: property.propertyType || property.categoryName || 'Property'
+    });
 
     const toRupees = (amount, unit = 'Lakh') => {
         const n = Number(amount || 0);
@@ -337,7 +344,7 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                         onClick={(e) => {
                             if (redirectToLoginIfRequired(e)) return;
                             e.stopPropagation();
-                            trackContactClick(property.vendorId?._id, 'whatsapp');
+                            trackContactClick(property.vendorId?._id, 'whatsapp', getTrackingContext());
                         }}
                         className="flex-1 h-10 md:h-11 bg-green-50 text-[#25D366] rounded-xl hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center shadow-sm"
                         title="WhatsApp"
@@ -349,7 +356,7 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                         onClick={(e) => {
                             if (redirectToLoginIfRequired(e)) return;
                             e.stopPropagation();
-                            trackContactClick(property.vendorId?._id, 'call');
+                            trackContactClick(property.vendorId?._id, 'call', getTrackingContext());
                         }}
                         className="flex-1 h-10 md:h-11 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center shadow-sm"
                         title="Call"
@@ -362,7 +369,7 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                             e.stopPropagation();
                             const mapsUrl = getGoogleMapsUrl(property);
                             if (mapsUrl) {
-                                trackContactClick(property.vendorId?._id, 'map');
+                                trackContactClick(property.vendorId?._id, 'map', getTrackingContext());
                                 window.open(mapsUrl, '_blank');
                             }
                         }}

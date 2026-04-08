@@ -781,8 +781,11 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                 <input type="file" onChange={handleMultipleImageUpload} className="hidden" multiple accept="image/*" disabled={isUploading} />
                             </label>
                         </div>
-                        <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
+                        <p className="text-[10px] text-gray-400 leading-relaxed font-medium mt-2">
                             {MAX_PHOTOS === 0 ? "No photos allowed on this plan." : `First image is cover. Max ${MAX_PHOTOS < 0 ? 'unlimited' : MAX_PHOTOS} photos.`} Max 300KB each.
+                        </p>
+                        <p className="text-[10px] text-primary-600 font-black uppercase tracking-wider mt-1">
+                            Note: Please upload square images (1:1 ratio) for better display.
                         </p>
                     </div>
 

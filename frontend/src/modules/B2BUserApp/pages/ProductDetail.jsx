@@ -59,20 +59,7 @@ const B2BProductDetail = () => {
     };
 
     // Track vendor contact clicks (call or whatsapp)
-    const trackContactClick = async (clickType) => {
-        try {
-            const vendorId = product?.vendorId?._id || product?.vendorId;
-            if (!vendorId) return;
 
-            await api.post('/vendor/analytics/track-click', {
-                vendorId,
-                clickType
-            });
-        } catch (error) {
-            // Silently fail - tracking shouldn't block user action
-            console.error('Error tracking click:', error);
-        }
-    };
 
     const handleWhatsAppClick = () => {
         trackContactClick('whatsapp');
@@ -151,6 +138,28 @@ const B2BProductDetail = () => {
         return categoryAttr?.value || 'Product';
     };
 
+    // Track vendor contact clicks (call or whatsapp)
+    const trackContactClick = async (clickType) => {
+        try {
+            const vendorId = product?.vendorId?._id || product?.vendorId;
+            if (!vendorId) return;
+
+            // Get category name
+            const categoryName = getCategoryName();
+
+            await api.post('/vendor/analytics/track-click', {
+                vendorId,
+                clickType,
+                itemType: product?.itemType === 'lotslot' ? 'lotslot' : 'product',
+                itemId: product?._id,
+                category: categoryName
+            });
+        } catch (error) {
+            // Silently fail - tracking shouldn't block user action
+            console.error('Error tracking click:', error);
+        }
+    };
+
     const getSpecifications = () => {
         if (product.formType === 'shop-listing' && product.items && product.items.length > 0) {
             // Combine all items into specifications or just show the first one if that's the new standard
@@ -218,14 +227,20 @@ const B2BProductDetail = () => {
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="relative aspect-square md:aspect-[3/4] rounded-3xl md:rounded-[3rem] overflow-hidden bg-slate-50 shadow-2xl border border-gray-100 group flex items-center justify-center"
+                            className="relative aspect-square md:aspect-[1.1/1] rounded-3xl md:rounded-[3rem] overflow-hidden bg-white shadow-2xl border border-gray-100 group flex items-center justify-center p-4"
                         >
+                            {/* Blurred background for a premium look that fills gaps */}
+                            <div 
+                                className="absolute inset-0 bg-cover bg-center blur-3xl opacity-30 scale-110 pointer-events-none"
+                                style={{ backgroundImage: `url(${productImages[safeSelectedImage]})` }}
+                            />
+                            
                             <img 
                                 src={productImages[safeSelectedImage]} 
                                 alt={product.name} 
-                                className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105" 
+                                className="relative z-10 w-full h-full object-contain transition-transform duration-700 group-hover:scale-105 drop-shadow-2xl" 
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent pointer-events-none" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent pointer-events-none z-20" />
                         </motion.div>
 
                         {productImages.length > 1 && (
@@ -234,9 +249,13 @@ const B2BProductDetail = () => {
                                     <button
                                         key={idx}
                                         onClick={() => setSelectedImage(idx)}
-                                        className={`flex-shrink-0 w-20 h-20 md:w-28 md:h-28 rounded-2xl md:rounded-[1.5rem] overflow-hidden border-2 md:border-4 transition-all duration-300 bg-slate-50 flex items-center justify-center ${safeSelectedImage === idx ? 'border-primary-500 shadow-xl scale-105' : 'border-white hover:border-primary-100 shadow-sm'}`}
+                                        className={`relative flex-shrink-0 w-20 h-20 md:w-28 md:h-28 rounded-2xl md:rounded-[1.5rem] overflow-hidden border-2 md:border-4 transition-all duration-300 bg-white flex items-center justify-center p-1.5 ${safeSelectedImage === idx ? 'border-primary-500 shadow-xl scale-105' : 'border-white hover:border-primary-100 shadow-sm'}`}
                                     >
-                                        <img src={img} alt="" className="w-full h-full object-contain" />
+                                        <div 
+                                            className="absolute inset-0 bg-cover bg-center blur-2xl opacity-20 scale-110 pointer-events-none"
+                                            style={{ backgroundImage: `url(${img})` }}
+                                        />
+                                        <img src={img} alt="" className="relative z-10 w-full h-full object-contain" />
                                     </button>
                                 ))}
                             </div>

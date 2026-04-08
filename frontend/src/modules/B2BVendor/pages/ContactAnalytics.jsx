@@ -160,6 +160,11 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
                                                     {row.user?.name || "Unknown User"}
                                                 </p>
                                                 <div className="mt-2 space-y-1">
+                                                    {row.category && (
+                                                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest bg-primary-50 px-2 py-0.5 rounded-md inline-block mb-1">
+                                                            {row.category}
+                                                        </p>
+                                                    )}
                                                     {row.user?.phone && (
                                                         <p className="text-xs font-bold text-slate-700">{row.user.phone}</p>
                                                     )}
