@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag, FiX, FiCopy, FiShare2 } from 'react-icons/fi';
+import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag, FiX, FiCopy, FiShare2, FiInstagram, FiFacebook, FiYoutube } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
@@ -8,6 +8,7 @@ import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import { getMyReferralSummary } from '../../../shared/services/referralService';
+import { getSupportConfig } from '../../../shared/services/supportService';
 
 const Profile = () => {
     const navigate = useNavigate();
@@ -15,6 +16,7 @@ const Profile = () => {
     const [referralData, setReferralData] = useState(null);
     const [referralLoading, setReferralLoading] = useState(false);
     const [referralError, setReferralError] = useState('');
+    const [supportConfig, setSupportConfig] = useState(null);
 
     const menuItems = [
         { icon: FiBriefcase, label: 'Company Profile', desc: 'Manage your business details & GST', path: '/b2b/company' },
@@ -29,6 +31,14 @@ const Profile = () => {
     };
 
     useEffect(() => {
+        const fetchSupport = async () => {
+            try {
+                const res = await getSupportConfig();
+                if (res.success) setSupportConfig(res.data);
+            } catch (err) {}
+        };
+        fetchSupport();
+
         const loadReferral = async () => {
             setReferralLoading(true);
             setReferralError('');
@@ -191,8 +201,48 @@ const Profile = () => {
                     </motion.button>
                 </div>
 
-                {/* Footer Section */}
-                <div className="mt-12 text-center">
+                {/* Footer Section with Social Links */}
+                <div className="mt-12 text-center pb-8 px-4">
+                    {supportConfig && (
+                        <div className="flex items-center justify-center gap-6 mb-8">
+                            {supportConfig.instagram && (
+                                <motion.a 
+                                    whileHover={{ scale: 1.1, y: -2 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    href={supportConfig.instagram} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="w-12 h-12 bg-white rounded-2xl shadow-sm text-pink-600 flex items-center justify-center border border-gray-100 hover:shadow-md transition-all"
+                                >
+                                    <FiInstagram size={24} />
+                                </motion.a>
+                            )}
+                            {supportConfig.facebook && (
+                                <motion.a 
+                                    whileHover={{ scale: 1.1, y: -2 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    href={supportConfig.facebook} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="w-12 h-12 bg-white rounded-2xl shadow-sm text-blue-600 flex items-center justify-center border border-gray-100 hover:shadow-md transition-all"
+                                >
+                                    <FiFacebook size={24} />
+                                </motion.a>
+                            )}
+                            {supportConfig.youtube && (
+                                <motion.a 
+                                    whileHover={{ scale: 1.1, y: -2 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    href={supportConfig.youtube} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="w-12 h-12 bg-white rounded-2xl shadow-sm text-red-600 flex items-center justify-center border border-gray-100 hover:shadow-md transition-all"
+                                >
+                                    <FiYoutube size={24} />
+                                </motion.a>
+                            )}
+                        </div>
+                    )}
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-loose">
                         Dealing India B2B v1.0.4<br />
                         © 2026 All Rights Reserved

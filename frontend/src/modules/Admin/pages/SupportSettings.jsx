@@ -23,6 +23,9 @@ const SupportSettings = () => {
         faqTitle: '',
         callHours: '',
         emailResponse: '',
+        instagram: '',
+        facebook: '',
+        youtube: '',
         faqs: []
     });
 
@@ -262,6 +265,46 @@ const SupportSettings = () => {
                                 value={config.faqTitle}
                                 onChange={handleChange}
                                 placeholder="Frequently Asked Questions"
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Social Media Links */}
+                <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+                    <h2 className="text-lg font-bold text-gray-800 mb-6 underline decoration-primary-500/30 decoration-4 underline-offset-8">Social Media Links</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-semibold text-gray-700 ml-1">Instagram URL</label>
+                            <input
+                                type="url"
+                                name="instagram"
+                                value={config.instagram || ''}
+                                onChange={handleChange}
+                                placeholder="https://instagram.com/dealing_india"
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-semibold text-gray-700 ml-1">Facebook URL</label>
+                            <input
+                                type="url"
+                                name="facebook"
+                                value={config.facebook || ''}
+                                onChange={handleChange}
+                                placeholder="https://facebook.com/dealing_india"
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-semibold text-gray-700 ml-1">YouTube URL</label>
+                            <input
+                                type="url"
+                                name="youtube"
+                                value={config.youtube || ''}
+                                onChange={handleChange}
+                                placeholder="https://youtube.com/@dealing_india"
                                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none"
                             />
                         </div>

@@ -19,6 +19,9 @@ const supportConfigSchema = new mongoose.Schema({
     faqTitle: { type: String, default: 'Frequently Asked Questions' },
     callHours: { type: String, default: '9 AM - 7 PM (Mon-Sat)' },
     emailResponse: { type: String, default: 'response within 4 hours' },
+    instagram: { type: String, default: 'https://instagram.com/dealing_india' },
+    facebook: { type: String, default: 'https://facebook.com/dealing_india' },
+    youtube: { type: String, default: 'https://youtube.com/@dealing_india' },
     faqs: {
         type: [faqSchema],
         default: [

@@ -16,11 +16,17 @@ import {
     FiPlus,
     FiBell,
     FiVideo,
-    FiUsers
+    FiUsers,
+    FiGift,
+    FiAward,
+    FiInstagram,
+    FiFacebook,
+    FiYoutube
 } from "react-icons/fi";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../../hooks/useVendorSettings";
+import { getSupportConfig } from "../../../../shared/services/supportService";
 import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api";
 
@@ -44,6 +50,7 @@ const iconMap = {
     Security: FiBriefcase,
     Reels: FiVideo,
     Followers: FiUsers,
+    Referral: FiGift,
     "Billing & Invoices": FiCreditCard,
 };
 
@@ -78,6 +85,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const { vendor } = useB2BVendorAuthStore();
     const { settings } = useVendorSettings();
     const [expandedItems, setExpandedItems] = useState({});
+    const [supportConfig, setSupportConfig] = useState(null);
     
     // Use global notification store
     // Use selectors for better reactivity and performance
@@ -90,6 +98,16 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     useEffect(() => {
         fetchUnreadCount();
         const interval = setInterval(fetchUnreadCount, 60000);
+
+        // Fetch support config for social links
+        const fetchSupport = async () => {
+            try {
+                const res = await getSupportConfig();
+                if (res.success) setSupportConfig(res.data);
+            } catch (err) { }
+        };
+        fetchSupport();
+
         return () => clearInterval(interval);
     }, [fetchUnreadCount]);
 
@@ -273,6 +291,25 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                         <span className="font-medium text-sm">Logout Account</span>
                     </button>
                 </div>
+                {supportConfig && (
+                    <div className="mt-auto pt-6 px-4 pb-8 flex items-center justify-center gap-6 border-t border-slate-700/50">
+                        {supportConfig.instagram && (
+                            <a href={supportConfig.instagram} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors">
+                                <FiInstagram className="text-xl" />
+                            </a>
+                        )}
+                        {supportConfig.facebook && (
+                            <a href={supportConfig.facebook} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-500 transition-colors">
+                                <FiFacebook className="text-xl" />
+                            </a>
+                        )}
+                        {supportConfig.youtube && (
+                            <a href={supportConfig.youtube} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-red-500 transition-colors">
+                                <FiYoutube className="text-xl" />
+                            </a>
+                        )}
+                    </div>
+                )}
             </nav>
         </div>
     );

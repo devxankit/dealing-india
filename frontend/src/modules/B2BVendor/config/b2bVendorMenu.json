@@ -61,6 +61,11 @@
         "children": []
     },
     {
+        "title": "Referral",
+        "route": "/b2b-vendor/referral",
+        "children": []
+    },
+    {
         "title": "Notifications",
 
         "route": "/b2b-vendor/notifications",

@@ -235,6 +235,9 @@ const B2BVendorShopListing = lazyWithRetry(
 const B2BVendorFollowers = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/Followers"),
 );
+const B2BVendorReferral = lazyWithRetry(
+  () => import("./modules/B2BVendor/pages/Referral"),
+);
 
 // B2B User App Routes
 const B2BUserLogin = lazyWithRetry(
@@ -631,6 +634,7 @@ const AppRoutes = () => {
           <Route path="reels" element={<B2BVendorReels />} />
           <Route path="reels/upload" element={<B2BVendorUploadReel />} />
           <Route path="followers" element={<B2BVendorFollowers />} />
+          <Route path="referral" element={<B2BVendorReferral />} />
         </Route>
         <Route path="*" element={<Navigate to="/b2b/landing" replace />} />
       </Routes>
