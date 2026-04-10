@@ -25,7 +25,7 @@ const VendorHowToUse = () => {
         if (!url) return null;
         const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
         const match = url.match(regExp);
-        return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : url;
+        return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}?modestbranding=1&rel=0&showinfo=0` : url;
     };
 
     if (loading) {
@@ -107,12 +107,6 @@ const VendorHowToUse = () => {
                     )}
                 </motion.div>
 
-                {/* Footer Tip */}
-                <div className="bg-gradient-to-r from-primary-600/20 to-transparent p-8 rounded-3xl border border-primary-500/10 text-center">
-                    <p className="text-slate-400 text-sm italic">
-                        "Need more help? Our account managers are available for direct support via the WhatsApp button in settings."
-                    </p>
-                </div>
             </div>
         </div>
     );
