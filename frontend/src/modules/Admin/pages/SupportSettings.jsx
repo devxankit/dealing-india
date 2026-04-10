@@ -26,6 +26,10 @@ const SupportSettings = () => {
         instagram: '',
         facebook: '',
         youtube: '',
+        userHowToVideo: '',
+        userHowToText: '',
+        vendorHowToVideo: '',
+        vendorHowToText: '',
         faqs: []
     });
 
@@ -306,6 +310,59 @@ const SupportSettings = () => {
                                 onChange={handleChange}
                                 placeholder="https://youtube.com/@dealing_india"
                                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Platform Guide Videos */}
+                <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+                    <h2 className="text-lg font-bold text-gray-800 mb-6 underline decoration-emerald-500/30 decoration-4 underline-offset-8">How to Use Platform (Videos)</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-semibold text-gray-700 ml-1">User Module Guide Video URL</label>
+                            <input
+                                type="url"
+                                name="userHowToVideo"
+                                value={config.userHowToVideo || ''}
+                                onChange={handleChange}
+                                placeholder="https://www.youtube.com/watch?v=..."
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none"
+                            />
+                            <p className="text-[10px] text-gray-400 ml-1 italic">This video will be shown on the User Profile page</p>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-semibold text-gray-700 ml-1">User Guide Script/Text</label>
+                            <textarea
+                                name="userHowToText"
+                                value={config.userHowToText || ''}
+                                onChange={handleChange}
+                                placeholder="Explain how to use the marketplace..."
+                                rows={3}
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none resize-none"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-semibold text-gray-700 ml-1">Vendor Module Guide Video URL</label>
+                            <input
+                                type="url"
+                                name="vendorHowToVideo"
+                                value={config.vendorHowToVideo || ''}
+                                onChange={handleChange}
+                                placeholder="https://www.youtube.com/watch?v=..."
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none"
+                            />
+                            <p className="text-[10px] text-gray-400 ml-1 italic">This video will be shown in the Vendor Sidebar</p>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-semibold text-gray-700 ml-1">Vendor Guide Script/Text</label>
+                            <textarea
+                                name="vendorHowToText"
+                                value={config.vendorHowToText || ''}
+                                onChange={handleChange}
+                                placeholder="Explain how to master the vendor dashboard..."
+                                rows={3}
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none resize-none"
                             />
                         </div>
                     </div>

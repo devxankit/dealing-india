@@ -77,5 +77,10 @@
         "children": [
             "Profile"
         ]
+    },
+    {
+        "title": "How to Use",
+        "route": "/b2b-vendor/how-to-use",
+        "children": []
     }
 ]

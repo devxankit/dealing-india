@@ -31,7 +31,7 @@ export const getSupportConfig = async (req, res) => {
  */
 export const updateSupportConfig = async (req, res) => {
     try {
-        const { heroTitle, heroSubtitle, phone, phoneTitle, email, emailTitle, whatsapp, whatsappTitle, whatsappDesc, whatsappButtonText, faqTitle, callHours, emailResponse, faqs, instagram, facebook, youtube } = req.body;
+        const { heroTitle, heroSubtitle, phone, phoneTitle, email, emailTitle, whatsapp, whatsappTitle, whatsappDesc, whatsappButtonText, faqTitle, callHours, emailResponse, faqs, instagram, facebook, youtube, userHowToVideo, vendorHowToVideo, userHowToText, vendorHowToText } = req.body;
 
         let config = await SupportConfig.findOne();
 
@@ -52,12 +52,16 @@ export const updateSupportConfig = async (req, res) => {
             if (instagram !== undefined) config.instagram = instagram;
             if (facebook !== undefined) config.facebook = facebook;
             if (youtube !== undefined) config.youtube = youtube;
+            if (userHowToVideo !== undefined) config.userHowToVideo = userHowToVideo;
+            if (userHowToText !== undefined) config.userHowToText = userHowToText;
+            if (vendorHowToVideo !== undefined) config.vendorHowToVideo = vendorHowToVideo;
+            if (vendorHowToText !== undefined) config.vendorHowToText = vendorHowToText;
             if (faqs) config.faqs = faqs;
 
             await config.save();
         } else {
             config = await SupportConfig.create({
-                heroTitle, heroSubtitle, phone, phoneTitle, email, emailTitle, whatsapp, whatsappTitle, whatsappDesc, whatsappButtonText, faqTitle, callHours, emailResponse, faqs, instagram, facebook, youtube
+                heroTitle, heroSubtitle, phone, phoneTitle, email, emailTitle, whatsapp, whatsappTitle, whatsappDesc, whatsappButtonText, faqTitle, callHours, emailResponse, faqs, instagram, facebook, youtube, userHowToVideo, vendorHowToVideo, userHowToText, vendorHowToText
             });
         }
 

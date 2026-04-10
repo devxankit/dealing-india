@@ -22,6 +22,10 @@ const supportConfigSchema = new mongoose.Schema({
     instagram: { type: String, default: 'https://instagram.com/dealing_india' },
     facebook: { type: String, default: 'https://facebook.com/dealing_india' },
     youtube: { type: String, default: 'https://youtube.com/@dealing_india' },
+    userHowToVideo: { type: String, default: '' },
+    userHowToText: { type: String, default: '' },
+    vendorHowToVideo: { type: String, default: '' },
+    vendorHowToText: { type: String, default: '' },
     faqs: {
         type: [faqSchema],
         default: [

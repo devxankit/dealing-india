@@ -238,6 +238,9 @@ const B2BVendorFollowers = lazyWithRetry(
 const B2BVendorReferral = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/Referral"),
 );
+const B2BVendorHowToUse = lazyWithRetry(
+  () => import("./modules/B2BVendor/pages/VendorHowToUse"),
+);
 
 // B2B User App Routes
 const B2BUserLogin = lazyWithRetry(
@@ -268,6 +271,9 @@ const B2BCompanyProfile = lazyWithRetry(
 );
 const B2BNotifications = lazyWithRetry(
   () => import("./modules/B2BUserApp/pages/Notifications"),
+);
+const B2BHowToUse = lazyWithRetry(
+  () => import("./modules/B2BUserApp/pages/HowToUse"),
 );
 
 const B2BPayments = lazyWithRetry(
@@ -541,6 +547,14 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/b2b/how-to-use"
+          element={
+            <ProtectedRoute>
+              <B2BHowToUse />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/b2b/product/:id"
           element={
             <ProtectedRoute>
@@ -635,6 +649,7 @@ const AppRoutes = () => {
           <Route path="reels/upload" element={<B2BVendorUploadReel />} />
           <Route path="followers" element={<B2BVendorFollowers />} />
           <Route path="referral" element={<B2BVendorReferral />} />
+          <Route path="how-to-use" element={<B2BVendorHowToUse />} />
         </Route>
         <Route path="*" element={<Navigate to="/b2b/landing" replace />} />
       </Routes>

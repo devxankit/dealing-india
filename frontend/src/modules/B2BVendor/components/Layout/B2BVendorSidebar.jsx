@@ -21,7 +21,8 @@ import {
     FiAward,
     FiInstagram,
     FiFacebook,
-    FiYoutube
+    FiYoutube,
+    FiPlayCircle
 } from "react-icons/fi";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
@@ -52,6 +53,7 @@ const iconMap = {
     Followers: FiUsers,
     Referral: FiGift,
     "Billing & Invoices": FiCreditCard,
+    "How to Use": FiPlayCircle,
 };
 
 const getChildRoute = (parentRoute, childName) => {
