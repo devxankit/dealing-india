@@ -70,6 +70,10 @@ const b2bSubscriptionPlanSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed, // Number or 'unlimited'
       default: 0,
     },
+    propertyLimit: {
+      type: mongoose.Schema.Types.Mixed, // Number or 'unlimited'
+      default: 0,
+    },
     imagesPerListing: {
       type: mongoose.Schema.Types.Mixed, // Number or 'unlimited'
       default: 5,

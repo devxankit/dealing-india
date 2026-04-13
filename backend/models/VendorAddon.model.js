@@ -50,14 +50,22 @@ const vendorAddonSchema = new mongoose.Schema(
       required: [true, 'Payment ID is required'],
       index: true,
     },
+    paymentMethod: {
+      type: String,
+      required: true,
+      default: 'razorpay',
+      enum: ['razorpay', 'wallet'],
+    },
     razorpayOrderId: {
       type: String,
-      required: [true, 'Razorpay order ID is required'],
       index: true,
     },
     razorpaySignature: {
       type: String,
-      required: [true, 'Razorpay signature is required'],
+    },
+    razorpayPaymentId: { // Added for completeness if needed
+      type: String,
+      index: true,
     },
     // Payment breakdown for GST
     basePrice: {

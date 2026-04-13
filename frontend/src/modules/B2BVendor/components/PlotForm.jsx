@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
+import { useSubscriptionStore } from "../store/subscriptionStore";
 
 const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
     const navigate = useNavigate();
@@ -258,6 +259,12 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
 
             if (response.success) {
                 toast.success(`${formType} listed successfully!`);
+                // Refresh subscription status to update counts
+                try {
+                    await useSubscriptionStore.getState().refreshStatus();
+                } catch (e) {
+                    console.error("Refresh status failed", e);
+                }
                 navigate('/b2b-vendor/properties/manage-properties');
             }
         } catch (error) {

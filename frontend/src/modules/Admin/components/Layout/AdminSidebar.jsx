@@ -86,49 +86,33 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   const { admin } = useAdminAuthStore();
   const [expandedItems, setExpandedItems] = useState({});
   const [isMobile, setIsMobile] = useState(false);
-  const [pendingReelsCount, setPendingReelsCount] = useState(0);
-  const [pendingReportsCount, setPendingReportsCount] = useState(0);
+  const [sidebarCounts, setSidebarCounts] = useState({
+    pendingVendors: 0,
+    pendingBanners: 0,
+    pendingReels: 0,
+    pendingReports: 0
+  });
 
-  // Fetch count of pending reels for moderation badge
+  // Fetch all sidebar notification counts
   useEffect(() => {
     let cancelled = false;
 
-    const fetchPendingReelsCount = async () => {
+    const fetchCounts = async () => {
       try {
-        const params = new URLSearchParams({
-          page: "1",
-          limit: "1",
-          status: "pending",
-        });
-        const res = await api.get(`/admin/reels?${params.toString()}`);
-        if (!cancelled && res?.pagination?.total != null) {
-          setPendingReelsCount(res.pagination.total);
+        const res = await api.get("/admin/reports/sidebar-counts");
+        if (!cancelled && res?.success && res.data) {
+          setSidebarCounts(res.data);
         }
-      } catch {
-        if (!cancelled) {
-          setPendingReelsCount(0);
-        }
+      } catch (err) {
+        console.error("Error fetching sidebar counts:", err);
       }
     };
 
-    fetchPendingReelsCount();
-    
-    const fetchPendingReportsCount = async () => {
-      try {
-        const res = await api.get(`/admin/reels/reports/all?status=pending&limit=1`);
-        if (!cancelled && res?.pagination?.total != null) {
-          setPendingReportsCount(res.pagination.total);
-        }
-      } catch {
-        if (!cancelled) setPendingReportsCount(0);
-      }
-    };
-    fetchPendingReportsCount();
+    fetchCounts();
 
     const interval = setInterval(() => {
-      fetchPendingReelsCount();
-      fetchPendingReportsCount();
-    }, 60000);
+      fetchCounts();
+    }, 60000); // Refresh every minute
 
     return () => {
       cancelled = true;
@@ -285,14 +269,25 @@ const AdminSidebar = ({ isOpen, onClose }) => {
           />
           <span className="font-medium flex-1 text-sm flex items-center gap-2">
             {item.title}
-            {item.route === "/admin/reels" && pendingReelsCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[18px] px-1.5 py-0.5 rounded-full bg-red-500 text-[11px] font-semibold text-white">
-                {pendingReelsCount > 99 ? "99+" : pendingReelsCount}
+            {/* Notification Badges */}
+            {item.title === "Pending" && sidebarCounts.pendingVendors > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] px-1.5 py-0.5 rounded-full bg-orange-500 text-[10px] font-bold text-white shadow-sm">
+                {sidebarCounts.pendingVendors > 99 ? "99+" : sidebarCounts.pendingVendors}
               </span>
             )}
-            {item.route === "/admin/reel-reports" && pendingReportsCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[18px] px-1.5 py-0.5 rounded-full bg-red-500 text-[11px] font-semibold text-white">
-                {pendingReportsCount > 99 ? "99+" : pendingReportsCount}
+            {item.title === "Banner Bookings" && sidebarCounts.pendingBanners > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] px-1.5 py-0.5 rounded-full bg-blue-500 text-[10px] font-bold text-white shadow-sm">
+                {sidebarCounts.pendingBanners > 99 ? "99+" : sidebarCounts.pendingBanners}
+              </span>
+            )}
+            {item.title === "Reel Moderation" && sidebarCounts.pendingReels > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] px-1.5 py-0.5 rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm">
+                {sidebarCounts.pendingReels > 99 ? "99+" : sidebarCounts.pendingReels}
+              </span>
+            )}
+            {item.title === "Reel Reports" && sidebarCounts.pendingReports > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] px-1.5 py-0.5 rounded-full bg-rose-600 text-[10px] font-bold text-white shadow-sm">
+                {sidebarCounts.pendingReports > 99 ? "99+" : sidebarCounts.pendingReports}
               </span>
             )}
           </span>

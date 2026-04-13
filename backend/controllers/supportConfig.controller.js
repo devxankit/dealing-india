@@ -6,18 +6,29 @@ import SupportConfig from '../models/SupportConfig.model.js';
  */
 export const getSupportConfig = async (req, res) => {
     try {
-        let config = await SupportConfig.findOne();
+        let configs = await SupportConfig.find().sort({ updatedAt: -1 });
+        
+        if (configs.length > 1) {
+            console.warn(`[SupportConfig] Found ${configs.length} documents. Deduping to keep latest...`);
+            const keepId = configs[0]._id;
+            await SupportConfig.deleteMany({ _id: { $ne: keepId } });
+        }
+
+        let config = configs[0];
 
         // If no config exists, create the default one
         if (!config) {
+            console.log('[SupportConfig] No config found. Creating default...');
             config = await SupportConfig.create({});
         }
 
+        console.log(`[SupportConfig] Returning config ID: ${config._id}`);
         res.status(200).json({
             success: true,
             data: config
         });
     } catch (error) {
+        console.error('[SupportConfig] Fetch error:', error);
         res.status(500).json({
             success: false,
             message: error.message || 'Error fetching support configuration'
@@ -31,24 +42,33 @@ export const getSupportConfig = async (req, res) => {
  */
 export const updateSupportConfig = async (req, res) => {
     try {
-        const { heroTitle, heroSubtitle, phone, phoneTitle, email, emailTitle, whatsapp, whatsappTitle, whatsappDesc, whatsappButtonText, faqTitle, callHours, emailResponse, faqs, instagram, facebook, youtube, userHowToVideo, vendorHowToVideo, userHowToText, vendorHowToText } = req.body;
+        const { heroTitle, heroSubtitle, phone, phoneTitle, email, emailTitle, whatsapp, whatsappTitle, whatsappDesc, whatsappButtonText, faqTitle, callHours, emailResponse, faqs, instagram, facebook, youtube, userHowToVideo, vendorHowToVideo, userHowToText, vendorHowToText, userTermsAndConditions, vendorTermsAndConditions } = req.body;
 
         let config = await SupportConfig.findOne();
 
         if (config) {
-            config.heroTitle = heroTitle || config.heroTitle;
-            config.heroSubtitle = heroSubtitle || config.heroSubtitle;
-            config.phone = phone || config.phone;
-            config.phoneTitle = phoneTitle || config.phoneTitle;
-            config.email = email || config.email;
-            config.emailTitle = emailTitle || config.emailTitle;
-            config.whatsapp = whatsapp || config.whatsapp;
-            config.whatsappTitle = whatsappTitle || config.whatsappTitle;
-            config.whatsappDesc = whatsappDesc || config.whatsappDesc;
-            config.whatsappButtonText = whatsappButtonText || config.whatsappButtonText;
-            config.faqTitle = faqTitle || config.faqTitle;
-            config.callHours = callHours || config.callHours;
-            config.emailResponse = emailResponse || config.emailResponse;
+            console.log('Updating Support Config with body keys:', Object.keys(req.body));
+            
+            // Core Header
+            if (heroTitle !== undefined) config.heroTitle = heroTitle;
+            if (heroSubtitle !== undefined) config.heroSubtitle = heroSubtitle;
+            
+            // Contact
+            if (phone !== undefined) config.phone = phone;
+            if (phoneTitle !== undefined) config.phoneTitle = phoneTitle;
+            if (email !== undefined) config.email = email;
+            if (emailTitle !== undefined) config.emailTitle = emailTitle;
+            if (whatsapp !== undefined) config.whatsapp = whatsapp;
+            if (whatsappTitle !== undefined) config.whatsappTitle = whatsappTitle;
+            if (whatsappDesc !== undefined) config.whatsappDesc = whatsappDesc;
+            if (whatsappButtonText !== undefined) config.whatsappButtonText = whatsappButtonText;
+            
+            // Info
+            if (faqTitle !== undefined) config.faqTitle = faqTitle;
+            if (callHours !== undefined) config.callHours = callHours;
+            if (emailResponse !== undefined) config.emailResponse = emailResponse;
+            
+            // Social & Media
             if (instagram !== undefined) config.instagram = instagram;
             if (facebook !== undefined) config.facebook = facebook;
             if (youtube !== undefined) config.youtube = youtube;
@@ -56,13 +76,19 @@ export const updateSupportConfig = async (req, res) => {
             if (userHowToText !== undefined) config.userHowToText = userHowToText;
             if (vendorHowToVideo !== undefined) config.vendorHowToVideo = vendorHowToVideo;
             if (vendorHowToText !== undefined) config.vendorHowToText = vendorHowToText;
+            
+            // Terms & Conditions (Legal) - Explicitly assign
+            if (userTermsAndConditions !== undefined) config.userTermsAndConditions = userTermsAndConditions;
+            if (vendorTermsAndConditions !== undefined) config.vendorTermsAndConditions = vendorTermsAndConditions;
+            
+            // FAQs
             if (faqs) config.faqs = faqs;
 
             await config.save();
+            console.log('Support Config saved successfully');
         } else {
-            config = await SupportConfig.create({
-                heroTitle, heroSubtitle, phone, phoneTitle, email, emailTitle, whatsapp, whatsappTitle, whatsappDesc, whatsappButtonText, faqTitle, callHours, emailResponse, faqs, instagram, facebook, youtube, userHowToVideo, vendorHowToVideo, userHowToText, vendorHowToText
-            });
+            console.log('Creating new Support Config document');
+            config = await SupportConfig.create(req.body);
         }
 
         res.status(200).json({

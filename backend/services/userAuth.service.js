@@ -63,7 +63,8 @@ export const registerUser = async (userData) => {
     return {
         success: true,
         message: 'Registration successful. Please verify your email with the OTP sent.',
-        email: email
+        email: email,
+        otp: process.env.NODE_ENV !== 'production' ? otp : undefined
     };
 };
 
@@ -127,7 +128,7 @@ export const verifyUserEmail = async (email, otp) => {
         recipientId: user._id,
         recipientType: 'user',
         type: 'system',
-        title: 'Welcome to Dealing India! 🚀',
+        title: 'Welcome to Dealing India! \uD83D\uDE80',
         message: `Hi ${user.name}, your account is now verified. Start exploring thousands of B2B products and real estate opportunities.`,
         actionUrl: '/b2b/catalog'
     }).catch(e => console.error('Notification Error:', e.message));
@@ -162,7 +163,7 @@ export const loginUser = async (identifier, password) => {
     }).select('+password');
 
     if (!user) {
-        throw new Error('Invalid credentials');
+        throw new Error('user not found please register');
     }
 
     const isPasswordMatch = await comparePassword(password, user.password);

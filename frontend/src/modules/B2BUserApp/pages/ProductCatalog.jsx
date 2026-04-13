@@ -188,6 +188,9 @@ const ProductCatalog = () => {
     let handled = false;
 
     if (openParam === "categories") {
+      setIsBusinessTypeDropdownOpen(false);
+      setIsCityDropdownOpen(false);
+      setIsMobileFilterOpen(false);
       if (selectedCategory && selectedCategory !== "All") {
         setExpandedCategory(selectedCategory);
         setShowMobileSubcategoryCard(true);
@@ -196,14 +199,16 @@ const ProductCatalog = () => {
       }
       handled = true;
     } else if (openParam === "business" && businessTypes?.length > 0) {
+      setIsMainCategoryDropdownOpen(false);
+      setIsCityDropdownOpen(false);
+      setIsMobileFilterOpen(false);
+      setShowMobileSubcategoryCard(false);
       setIsBusinessTypeDropdownOpen(true);
       handled = true;
     }
 
-    if (handled) {
-      newParams.delete("open");
-      setSearchParams(newParams, { replace: true });
-    }
+    // We keep the param so the BottomNav stays active while the overlay is open
+    // It will be cleared when the overlay is closed manually
   }, [searchParams, selectedCategory, businessTypes?.length]);
 
   useEffect(() => {
@@ -317,6 +322,29 @@ const ProductCatalog = () => {
 
   const toggleMainCategory = () => {
     setOpenFilters((prev) => ({ ...prev, mainCategory: !prev.mainCategory }));
+  };
+
+  const closeMobileOverlays = () => {
+    setIsMainCategoryDropdownOpen(false);
+    setIsBusinessTypeDropdownOpen(false);
+    setIsCityDropdownOpen(false);
+    setIsMobileFilterOpen(false);
+    setShowMobileSubcategoryCard(false);
+    setMobileExpandedBusinessType(null);
+
+    const openParam = searchParams.get("open");
+    if (openParam) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("open");
+      setSearchParams(newParams, { replace: true });
+    }
+  };
+
+  const openOverlay = (name) => {
+    setIsMainCategoryDropdownOpen(name === 'categories');
+    setIsBusinessTypeDropdownOpen(name === 'business');
+    setIsCityDropdownOpen(name === 'city');
+    setIsMobileFilterOpen(name === 'filters');
   };
 
   // Track vendor contact clicks (call or whatsapp)
@@ -2215,18 +2243,18 @@ const ProductCatalog = () => {
         </div>
         <div className="mt-2 grid grid-cols-3 gap-2">
           <button
-            onClick={() => setIsMobileFilterOpen(true)}
+            onClick={() => openOverlay('filters')}
             className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center">
             Filters
           </button>
           <button
-            onClick={() => setIsMainCategoryDropdownOpen(true)}
+            onClick={() => openOverlay('categories')}
             className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center">
             Category
           </button>
           {!noProductsInBusinessType && (
             <button
-              onClick={() => setIsCityDropdownOpen(true)}
+              onClick={() => openOverlay('city')}
               className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center">
               City
             </button>
@@ -2302,7 +2330,7 @@ const ProductCatalog = () => {
       {isMainCategoryDropdownOpen && (
         <div
           className="md:hidden fixed inset-0 z-[70] bg-black/40"
-          onClick={() => setIsMainCategoryDropdownOpen(false)}>
+          onClick={closeMobileOverlays}>
           <div
             className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
@@ -2311,7 +2339,7 @@ const ProductCatalog = () => {
                 Browse Categories
               </span>
               <button
-                onClick={() => setIsMainCategoryDropdownOpen(false)}
+                onClick={closeMobileOverlays}
                 className="text-xs font-bold text-gray-400">
                 Close
               </button>
@@ -2393,7 +2421,7 @@ const ProductCatalog = () => {
       {isBusinessTypeDropdownOpen && (
         <div
           className="md:hidden fixed inset-0 z-[70] bg-black/40"
-          onClick={() => setIsBusinessTypeDropdownOpen(false)}>
+          onClick={closeMobileOverlays}>
           <div
             className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
@@ -2402,7 +2430,7 @@ const ProductCatalog = () => {
                 Business Type
               </span>
               <button
-                onClick={() => setIsBusinessTypeDropdownOpen(false)}
+                onClick={closeMobileOverlays}
                 className="text-xs font-bold text-gray-400">
                 Close
               </button>

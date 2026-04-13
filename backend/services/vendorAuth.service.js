@@ -268,8 +268,8 @@ export const loginVendor = async (email, password) => {
 
     if (!vendor) {
       console.log(`[Login Failed] Vendor not found: ${email}`);
-      const error = new Error('Invalid email or password');
-      error.statusCode = 401;
+      const error = new Error('Vendor not found');
+      error.statusCode = 404;
       throw error;
     }
 

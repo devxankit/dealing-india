@@ -8,10 +8,21 @@ import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 // @access  Public
 export const getActiveBusinessTypes = asyncHandler(async (req, res) => {
     const businessTypesRaw = await BusinessType.find({ isActive: true }).lean();
+
+    // Fetch settings for all these business types
+    const settings = await BusinessTypeSettings.find({
+        businessTypeId: { $in: businessTypesRaw.map(bt => bt._id) }
+    }).lean();
+
     const businessTypes = businessTypesRaw.map(bt => {
+        const btSettings = settings.find(s => s.businessTypeId.toString() === bt._id.toString());
         const { subTypes, ...rest } = bt;
-        return rest;
+        return {
+            ...rest,
+            settings: btSettings || null
+        };
     });
+
     res.status(200).json({
         success: true,
         data: businessTypes,

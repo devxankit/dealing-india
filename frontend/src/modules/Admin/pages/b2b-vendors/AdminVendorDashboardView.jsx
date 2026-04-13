@@ -35,6 +35,13 @@ const AdminVendorDashboardView = () => {
 
     useEffect(() => {
         const fetchAll = async () => {
+            if (!id || id === 'undefined') {
+                console.error("❌ AdminVendorDashboard: Invalid vendor ID provided", { id });
+                toast.error("Invalid vendor identifier. Please return to the vendor list.");
+                setLoading(false);
+                return;
+            }
+
             setLoading(true);
             try {
                 // 1. Fetch Dashboard Data
@@ -66,14 +73,15 @@ const AdminVendorDashboardView = () => {
                     setBillingHistory(billingRes.data);
                 }
             } catch (error) {
-                console.error("Error fetching vendor dashboard:", error);
-                toast.error("Failed to load vendor dashboard details");
+                console.error("❌ Error fetching vendor dashboard:", error);
+                const msg = error.response?.data?.message || error.message || "Failed to load vendor dashboard details";
+                toast.error(msg);
             } finally {
                 setLoading(false);
             }
         };
 
-        if (id) fetchAll();
+        fetchAll();
     }, [id]);
 
     if (loading) {

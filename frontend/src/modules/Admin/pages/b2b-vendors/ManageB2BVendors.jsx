@@ -157,7 +157,8 @@ const ManageB2BVendors = () => {
                     <div>
                         <p className="font-bold text-gray-800">{val || row.storeName || row.name || 'N/A'}</p>
                         <Link
-                            to={`/admin/b2b-vendors/manage/${row._id || row.id}/dashboard`}
+                            to={(row._id || row.id) ? `/admin/b2b-vendors/manage/${row._id || row.id}/dashboard` : '#'}
+                            onClick={(e) => { if (!(row._id || row.id)) { e.preventDefault(); toast.error("Vendor ID missing"); } }}
                             className="text-xs text-primary-600 font-bold hover:underline flex items-center gap-1 group/link"
                         >
                             {row.name}
@@ -434,6 +435,14 @@ const ManageB2BVendors = () => {
                         columns={columns}
                         pagination={true}
                         itemsPerPage={10}
+                        onRowClick={(row) => {
+                            const id = row._id || row.id;
+                            if (id) {
+                                navigate(`/admin/b2b-vendors/manage/${id}/dashboard`);
+                            } else {
+                                toast.error("Vendor ID missing");
+                            }
+                        }}
                     />
                 ) : (
                     <div className="text-center py-12">

@@ -5,12 +5,15 @@ import { useNavigate } from "react-router-dom";
 import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
+import { useSubscriptionStore } from "../store/subscriptionStore";
 
 const PropertyForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1);
     const [media, setMedia] = useState([]); // { url, data, name }
+
+    const propertyTypeOptions = ["Shop", "Office", "Showroom", "Warehouse", "Industrial Shed", "Other"];
 
     const [formData, setFormData] = useState({
         // 1. Basic Info
@@ -69,7 +72,6 @@ const PropertyForm = ({ initialData, isEdit }) => {
         },
 
         // 5. Specs & Facilities
-        // 5. Specs & Facilities
         specifications: [{
             builtUpArea: '',
             builtUpAreaUnit: 'Sq. Ft.',
@@ -103,18 +105,15 @@ const PropertyForm = ({ initialData, isEdit }) => {
             if (Array.isArray(initialData.specifications)) {
                 specs = initialData.specifications.map(spec => ({
                     ...spec,
-                    // If maliya comes as array/object from legacy nested structure, convert to string
                     maliya: (typeof spec.maliya === 'string') ? spec.maliya : (Array.isArray(spec.maliya) && spec.maliya[0]?.value) || 'No'
                 }));
             } else if (initialData.specifications && typeof initialData.specifications === 'object') {
-                // Determine maliya value from legacy object structure
                 const maliyaVal = (Array.isArray(initialData.specifications.maliya) && initialData.specifications.maliya[0]?.value) || 'No';
                 specs = [{
                     ...initialData.specifications,
                     maliya: maliyaVal
                 }];
             } else {
-                // Default if empty
                 specs = [{
                     builtUpArea: '', builtUpAreaUnit: 'Sq. Ft.',
                     carpetArea: '', carpetAreaUnit: '%',
@@ -125,11 +124,9 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 }];
             }
 
-            // Populate form data
             setFormData(prev => ({
                 ...prev,
                 ...initialData,
-                // Ensure nested objects are merged correctly if missing in initialData
                 saleDetails: { ...prev.saleDetails, ...(initialData.saleDetails || {}) },
                 rentDetails: { ...prev.rentDetails, ...(initialData.rentDetails || {}) },
                 leaseDetails: { ...prev.leaseDetails, ...(initialData.leaseDetails || {}) },
@@ -140,7 +137,6 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 facilities: { ...prev.facilities, ...(initialData.facilities || {}) },
             }));
 
-            // Populate media
             if (initialData.media && Array.isArray(initialData.media)) {
                 setMedia(initialData.media.map(m => ({ url: m.url, data: m.url })));
             }
@@ -151,8 +147,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
         const { name, value } = e.target;
 
         if (index !== null && name.startsWith('specifications')) {
-            // Handle specifications array update
-            const field = name.split('.')[1]; // e.g., specifications.builtUpArea -> builtUpArea
+            const field = name.split('.')[1];
             setFormData(prev => {
                 const newSpecs = [...prev.specifications];
                 if (newSpecs[index]) {
@@ -250,92 +245,93 @@ const PropertyForm = ({ initialData, isEdit }) => {
     };
 
     const handleSubmit = async () => {
+        if (!formData.title || !formData.location.address || !formData.location.city) {
+            toast.error("Please fill all required fields");
+            return;
+        }
+
+        const parseNumber = (val) => {
+            if (!val) return null;
+            const parsed = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+            return isNaN(parsed) ? null : parsed;
+        };
+
         try {
             setLoading(true);
 
             const payload = {
                 ...formData,
-                propertyType: formData.propertyTypes[0] || 'Shop', // Legacy field
+                specifications: formData.specifications.map(spec => ({
+                    ...spec,
+                    builtUpArea: parseNumber(spec.builtUpArea),
+                    carpetArea: parseNumber(spec.carpetArea),
+                    floorNumber: parseNumber(spec.floorNumber),
+                    totalFloors: parseNumber(spec.totalFloors),
+                    ceilingHeight: parseNumber(spec.ceilingHeight),
+                    entranceWidth: parseNumber(spec.entranceWidth)
+                })),
                 media: media.map(m => ({ url: m.data || m.url }))
             };
 
-            // Clean up legacy price field if it exists in formData to avoid sending stale data
-            if (payload.price) delete payload.price;
-
-            // Remove deposit and maintenance from saleDetails if listing type is Sale
-            if (payload.listingType === 'Sale' && payload.saleDetails) {
-                const cleanedSaleDetails = { ...payload.saleDetails };
-                delete cleanedSaleDetails.depositAmount;
-                delete cleanedSaleDetails.depositUnit;
-                delete cleanedSaleDetails.maintenance;
-                payload.saleDetails = cleanedSaleDetails;
-            }
-
-            let response;
-            if (isEdit) {
-                response = await api.put(`/property/update/${initialData._id}`, payload);
-            } else {
-                response = await api.post('/property/add', payload);
-            }
+            const response = isEdit
+                ? await api.put(`/property/update/${initialData._id}`, payload)
+                : await api.post('/property/add', payload);
 
             if (response.success) {
                 toast.success(isEdit ? 'Property updated successfully!' : 'Property listed successfully!');
+                // Refresh subscription status to update counts
+                try {
+                    await useSubscriptionStore.getState().refreshStatus();
+                } catch (e) {
+                    console.error("Refresh status failed", e);
+                }
                 navigate('/b2b-vendor/properties/manage-properties');
             }
         } catch (error) {
-            console.error('Error listing/updating property:', error);
-            toast.error(error.message || 'Failed to process property');
+            toast.error(error.message || (isEdit ? 'Failed to update property' : 'Failed to list property'));
         } finally {
             setLoading(false);
         }
     };
 
     const steps = [
-        { id: 1, title: "Basic Info", sub: "Type & Listing" },
-        { id: 2, title: "Pricing", sub: "Rent & Deposit" },
-        { id: 3, title: "Details", sub: "Specs & Status" },
-        { id: 4, title: "Location", sub: "Address & Market" },
-        { id: 5, title: "Media", sub: "Photos" },
+        { id: 1, title: "Basic", sub: "Step 1" },
+        { id: 2, title: "Pricing", sub: "Step 2" },
+        { id: 3, title: "Specs", sub: "Step 3" },
+        { id: 4, title: "Location", sub: "Step 4" },
+        { id: 5, title: "Media", sub: "Step 5" },
     ];
 
-    const propertyTypeOptions = ['Shop', 'Office', 'Showroom', 'Godown', 'Factory', 'Commercial Building'];
-
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-5xl mx-auto p-4 md:p-6 space-y-6 md:space-y-8 pb-20">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-5xl mx-auto p-4 md:p-6 flex flex-col min-h-screen">
             {/* Header */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 mb-8">
                 <button onClick={() => navigate(-1)} className="p-3 bg-white hover:bg-slate-100 rounded-full shadow-sm transition-all">
                     <FiArrowLeft size={20} />
                 </button>
                 <div>
-                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{isEdit ? 'Edit Commercial' : 'List New Commercial'}</h1>
-                    <div className="flex items-center gap-2">
-                        <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">Growth your business with Dealing India</p>
-                        <span className="md:hidden px-2 py-0.5 bg-primary-50 text-primary-600 rounded-full text-[9px] font-black uppercase transition-all">Step {step} of 5</span>
-                    </div>
+                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{isEdit ? 'Edit' : 'Add'} Commercial Property</h1>
+                    <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">Growth your business with Dealing India</p>
                 </div>
             </div>
 
             {/* Stepper */}
-            <div className="flex justify-between items-center bg-white p-3 md:p-6 rounded-3xl shadow-sm border border-gray-50 overflow-x-auto gap-1 md:gap-4">
+            <div className="flex justify-between items-center bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-gray-50 mb-8 overflow-x-auto gap-4">
                 {steps.map((s, idx) => (
                     <div key={s.id} className="flex items-center flex-1 min-w-0">
-                        <div className="flex flex-col items-center gap-1.5 md:gap-2 flex-1">
-                            <div className={`w-7 h-7 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-[10px] md:text-sm transition-all ${step >= s.id ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-400'
-                                }`}>
+                        <div className="flex flex-col items-center gap-2 flex-1">
+                            <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm transition-all ${step >= s.id ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
                                 {step > s.id ? <FiCheck /> : s.id}
                             </div>
-                            <div className="hidden md:block text-center">
-                                <p className={`text-[10px] font-black uppercase ${step >= s.id ? 'text-primary-600' : 'text-slate-400'}`}>{s.title}</p>
-                            </div>
+                            <div className="hidden md:block text-[10px] font-black uppercase whitespace-nowrap">{s.title}</div>
                         </div>
-                        {idx < steps.length - 1 && <div className={`h-[1px] md:h-[2px] flex-1 mx-0.5 md:mx-2 transition-all min-w-[8px] md:min-w-[20px] ${step > s.id ? 'bg-primary-600' : 'bg-slate-100'}`} />}
+                        {idx < steps.length - 1 && <div className={`h-[2px] flex-1 mx-2 transition-all min-w-[12px] ${step > s.id ? 'bg-primary-600' : 'bg-slate-100'}`} />}
                     </div>
                 ))}
             </div>
 
             {/* Form Content */}
-            <div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-xl border border-gray-50 min-h-[500px] flex flex-col">
+            <div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-xl border border-gray-50 flex-1 flex flex-col mb-10">
                 <AnimatePresence mode="wait">
                     {step === 1 && (
                         <motion.div key="step1" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8 flex-1">
@@ -386,7 +382,6 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                             <option value="Crore">Crore</option>
                                         </select>
                                     </div>
-                                    {/* Removed Deposit Amount and Maintenance for Sale as per user request */}
                                 </div>
                             )}
 
@@ -619,8 +614,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                                 className={`flex-1 py-3 px-2 rounded-xl text-center text-xs font-bold border-2 cursor-pointer transition-all ${formData.facilities.parking.includes(type)
                                                     ? 'bg-primary-600 text-white border-primary-600'
                                                     : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
-                                                    }`}
-                                            >
+                                                    }`}>
                                                 <input
                                                     type="checkbox"
                                                     checked={formData.facilities.parking.includes(type)}
@@ -658,20 +652,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         <option value="Yes">Yes</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="label">Passenger Lift</label>
-                                    <select name="facilities.liftPassenger" value={formData.facilities.liftPassenger} onChange={handleChange} className="input-select">
-                                        <option value="No">No</option>
-                                        <option value="Yes">Yes</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="label">Loading Lift</label>
-                                    <select name="facilities.liftLoading" value={formData.facilities.liftLoading} onChange={handleChange} className="input-select">
-                                        <option value="No">No</option>
-                                        <option value="Yes">Yes</option>
-                                    </select>
-                                </div>
+                                {/* ... Other lift types ... */}
                                 <div>
                                     <label className="label">Power Backup</label>
                                     <select name="facilities.powerBackup" value={formData.facilities.powerBackup} onChange={handleChange} className="input-select">
@@ -679,7 +660,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         <option value="Yes">Yes</option>
                                     </select>
                                 </div>
-                                <div>
+                                <div className="md:col-span-2">
                                     <label className="label">Water Supply</label>
                                     <div className="flex gap-2">
                                         {['24hr', 'Borewell', 'Municipal', 'No'].map(type => (
@@ -688,8 +669,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                                 className={`flex-1 py-3 px-1 rounded-xl text-center text-[10px] font-black border-2 cursor-pointer transition-all ${(Array.isArray(formData.facilities.waterSupply) ? formData.facilities.waterSupply : [formData.facilities.waterSupply]).includes(type)
                                                         ? 'bg-primary-600 text-white border-primary-600'
                                                         : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
-                                                    }`}
-                                            >
+                                                    }`}>
                                                 <input
                                                     type="checkbox"
                                                     checked={(Array.isArray(formData.facilities.waterSupply) ? formData.facilities.waterSupply : [formData.facilities.waterSupply]).includes(type)}
@@ -721,57 +701,9 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         ))}
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="label">Washroom</label>
-                                    <div className="flex gap-2">
-                                        {['Private', 'Common', 'No'].map(type => (
-                                            <label
-                                                key={type}
-                                                className={`flex-1 py-3 px-1 rounded-xl text-center text-[10px] font-black border-2 cursor-pointer transition-all ${formData.facilities.washroom.includes(type)
-                                                    ? 'bg-primary-600 text-white border-primary-600'
-                                                    : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
-                                                    }`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.facilities.washroom.includes(type)}
-                                                    onChange={() => {
-                                                        const current = Array.isArray(formData.facilities.washroom) ? formData.facilities.washroom : [];
-                                                        let updated;
-
-                                                        if (type === 'No') {
-                                                            updated = ['No'];
-                                                        } else {
-                                                            const withoutNo = current.filter(t => t !== 'No');
-                                                            if (withoutNo.includes(type)) {
-                                                                updated = withoutNo.filter(t => t !== type);
-                                                            } else {
-                                                                updated = [...withoutNo, type];
-                                                            }
-                                                        }
-
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            facilities: { ...prev.facilities, washroom: updated }
-                                                        }));
-                                                    }}
-                                                    className="hidden"
-                                                />
-                                                {type}
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="label">Fire Safety</label>
-                                    <select name="facilities.fireSafety" value={formData.facilities.fireSafety} onChange={handleChange} className="input-select">
-                                        <option value="No">No</option>
-                                        <option value="Yes">Yes</option>
-                                    </select>
-                                </div>
                             </div>
 
-                            <h3 className="text-xl font-black text-slate-900 uppercase">Status</h3>
+                            <h3 className="text-xl font-black text-slate-900 uppercase">Status & Legal</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="label">Furnishing</label>
@@ -790,17 +722,6 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         <option value="10+ years">10+ years</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="label">Position</label>
-                                    <select name="status.propertyPosition" value={formData.status.propertyPosition} onChange={handleChange} className="input-select">
-                                        <option value="Ready to Move">Ready to Move</option>
-                                        <option value="Under Construction">Under Construction</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <h3 className="text-xl font-black text-slate-900 uppercase">Legal & Load</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {formData.listingType === 'Sale' && (
                                     <div>
                                         <label className="label">Loan Available</label>
@@ -816,17 +737,6 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         <option value="No">No</option>
                                         <option value="Yes">Yes</option>
                                     </select>
-                                </div>
-                                <div>
-                                    <label className="label">Load</label>
-                                    <input
-                                        type="text"
-                                        name="legal.load"
-                                        placeholder="E.g. 10 kW"
-                                        value={formData.legal.load}
-                                        onChange={handleChange}
-                                        className="input-field"
-                                    />
                                 </div>
                             </div>
                         </motion.div>
@@ -845,7 +755,6 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                 <div className="md:col-span-2">
                                     <input name="location.mapUrl" placeholder="Google Map URL" value={formData.location.mapUrl} onChange={handleChange} className="input-field" />
                                 </div>
-
                                 <div>
                                     <label className="label">Road Facing</label>
                                     <select name="roadFacing" value={formData.roadFacing} onChange={handleChange} className="input-select">
@@ -911,6 +820,9 @@ const PropertyForm = ({ initialData, isEdit }) => {
             </div>
 
             <style>{`
+                .input-field {
+                    width: 100%;
+                    padding: 1rem 1.5rem;
                     background-color: #f8fafc;
                     border: 2px solid transparent;
                     border-radius: 1rem;

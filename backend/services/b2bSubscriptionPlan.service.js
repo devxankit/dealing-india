@@ -42,20 +42,34 @@ class B2BSubscriptionPlanService {
         }
 
         if (businessTypeId) {
-          const settings = await BusinessTypeSettings.findOne({ businessTypeId });
+          const settings = await BusinessTypeSettings.findOne({ businessTypeId }).lean();
 
           // If settings exist, strictly filter by allowedPlans
           if (settings) {
             const allowedPlans = Array.isArray(settings.allowedPlans) ? settings.allowedPlans : [];
 
-            // Filter out any empty/null/undefined plans and convert to ObjectIds for reliable $in query
+            // Filter out any empty/null/undefined plans and convert to ObjectIds if possible
             const validAllowedPlans = allowedPlans
               .filter(pid => pid && pid.toString().trim() !== '')
-              .map(pid => new mongoose.Types.ObjectId(pid.toString().trim()));
+              .map(pid => {
+                 try {
+                    return mongoose.Types.ObjectId.isValid(pid.toString().trim()) 
+                        ? new mongoose.Types.ObjectId(pid.toString().trim()) 
+                        : null;
+                 } catch (e) { return null; }
+              })
+              .filter(pid => pid !== null);
 
-            // Apply filter even if empty - will result in 0 matches if allowedPlans is empty
+            // Apply filter - if allowedPlans was [], validAllowedPlans is [], and query._id is { $in: [] } (returns 0)
             query._id = { $in: validAllowedPlans };
+          } else {
+            // If no settings found for a valid business type, we should probably return NO plans
+            // to be safe and encourage configuration
+            query._id = { $in: [] }; 
           }
+        } else if (businessType) {
+           // businessType slug was provided but not found - return nothing instead of everything
+           query._id = { $in: [] };
         }
       }
 
@@ -182,6 +196,7 @@ class B2BSubscriptionPlanService {
         description: description?.trim(),
         reelsLimit: planData.reelsLimit || 0,
         productLimit: planData.productLimit || 0,
+        propertyLimit: planData.propertyLimit || 0,
         lotSlotLimit: planData.lotSlotLimit || 0,
         imagesPerListing: planData.imagesPerListing || 5,
         shopSlideshow: !!planData.shopSlideshow,
@@ -222,7 +237,7 @@ class B2BSubscriptionPlanService {
       }
  
       // 🔹 Validate structured numeric features if provided
-      const structuredNumericFields = ['reelsLimit', 'productLimit', 'lotSlotLimit', 'imagesPerListing'];
+      const structuredNumericFields = ['reelsLimit', 'productLimit', 'propertyLimit', 'lotSlotLimit', 'imagesPerListing'];
       for (const field of structuredNumericFields) {
         if (updateData[field] !== undefined && updateData[field] !== 'unlimited') {
           const val = Number(updateData[field]);
@@ -336,6 +351,7 @@ class B2BSubscriptionPlanService {
       // 🔹 Update Structured Features
       if (updateData.reelsLimit !== undefined) plan.reelsLimit = updateData.reelsLimit;
       if (updateData.productLimit !== undefined) plan.productLimit = updateData.productLimit;
+      if (updateData.propertyLimit !== undefined) plan.propertyLimit = updateData.propertyLimit;
       if (updateData.lotSlotLimit !== undefined) plan.lotSlotLimit = updateData.lotSlotLimit;
       if (updateData.imagesPerListing !== undefined) plan.imagesPerListing = updateData.imagesPerListing;
       if (updateData.shopSlideshow !== undefined) plan.shopSlideshow = !!updateData.shopSlideshow;

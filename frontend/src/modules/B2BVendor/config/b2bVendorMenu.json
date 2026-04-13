@@ -46,6 +46,11 @@
         "children": []
     },
     {
+        "title": "My Wallet",
+        "route": "/b2b-vendor/wallet",
+        "children": []
+    },
+    {
         "title": "Banner Booking",
         "route": "/b2b-vendor/banner-booking",
         "children": []

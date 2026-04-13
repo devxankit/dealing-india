@@ -32,7 +32,7 @@ const ShopListing = () => {
         );
     }
 
-    if (!hasActiveSubscription()) {
+    if (!hasActiveSubscription() && !status?.isEligibleForShopListing) {
         return (
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -86,21 +86,6 @@ const ShopListing = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
         >
-            <div className="flex items-center gap-4 mb-2">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="p-2 bg-white rounded-xl hover:bg-slate-50 transition-all shadow-sm border border-gray-100"
-                >
-                    <FiArrowLeft size={18} className="text-gray-600" />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-black text-gray-800 tracking-tight uppercase flex items-center gap-2">
-                        <FiHome className="text-primary-600" />
-                        Shop Listing
-                    </h1>
-                    <p className="text-sm text-gray-500 font-medium">Create or update your shop profile details.</p>
-                </div>
-            </div>
 
             <ShopListingForm
                 key={refreshKey}

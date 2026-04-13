@@ -303,7 +303,35 @@ class VendorSubscriptionController {
     }
   }
 
-  // Reel related methods removed (B2C logic cleaned)
+  /**
+   * Purchase subscription using wallet balance
+   * POST /vendor/subscriptions/purchase-wallet
+   */
+  async purchaseViaWallet(req, res) {
+    try {
+      const vendorId = req.user?.vendorId || req.userDoc?._id;
+      const { planId } = req.body;
+
+      if (!planId) {
+        return res.status(400).json({ success: false, message: 'Plan ID is required' });
+      }
+
+      const subscription = await SubscriptionService.purchaseSubscriptionViaWallet(vendorId, planId);
+
+      res.status(200).json({
+        success: true,
+        data: subscription,
+        message: 'Subscription activated successfully using wallet balance'
+      });
+    } catch (error) {
+      console.error('Error in purchaseViaWallet controller:', error);
+      const isBalanceError = error.message?.includes('Insufficient wallet balance');
+      res.status(isBalanceError ? 400 : 500).json({
+        success: false,
+        message: error.message || 'Failed to purchase subscription using wallet'
+      });
+    }
+  }
 }
 
 export default new VendorSubscriptionController();

@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
+import { useSubscriptionStore } from "../store/subscriptionStore";
 
 const LotSlotForm = ({ initialData, isEdit, id }) => {
     const navigate = useNavigate();
@@ -324,6 +325,13 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
             } else {
                 await api.post('/b2b-vendor/lot-slots', payload);
                 toast.success("Lot/Slot listed successfully");
+            }
+
+            // Refresh subscription status to update counts
+            try {
+                await useSubscriptionStore.getState().refreshStatus();
+            } catch (e) {
+                console.error("Refresh status failed", e);
             }
 
             navigate("/b2b-vendor/lotslot/manage-lots");

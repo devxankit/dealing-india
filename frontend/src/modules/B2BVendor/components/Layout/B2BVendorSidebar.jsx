@@ -22,7 +22,8 @@ import {
     FiInstagram,
     FiFacebook,
     FiYoutube,
-    FiPlayCircle
+    FiPlayCircle,
+    FiLock
 } from "react-icons/fi";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
@@ -48,11 +49,12 @@ const iconMap = {
     "Notifications": FiBell,
     "Account Settings": FiSettings,
     Profile: FiUser,
-    Security: FiBriefcase,
+    Security: FiLock,
     Reels: FiVideo,
     Followers: FiUsers,
     Referral: FiGift,
     "Billing & Invoices": FiCreditCard,
+    "My Wallet": FiBriefcase,
     "How to Use": FiPlayCircle,
 };
 
@@ -116,7 +118,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const filteredMenu = b2bVendorMenu.filter(item => {
         if (item.title === "Dashboard") return true;
 
-        const alwaysVisible = ["Subscription", "Billing & Invoices", "Banner Booking", "Notifications", "Account Settings"];
+        const alwaysVisible = ["Subscription", "Billing & Invoices", "My Wallet", "Banner Booking", "Notifications", "Account Settings"];
         if (alwaysVisible.includes(item.title)) return true;
 
         if (!settings || !settings.enabledModules) return false;

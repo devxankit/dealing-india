@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiArrowLeft, FiPlus, FiTrash2, FiMapPin, FiMaximize, FiHome, FiImage } from 'react-icons/fi';
+import { FiArrowLeft, FiPlus, FiTrash2, FiMapPin, FiMaximize, FiHome, FiImage, FiCamera } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import B2BHeader from '../../B2BUserApp/components/Layout/B2BHeader';
 import toast from 'react-hot-toast';
@@ -73,13 +73,22 @@ const PropertyUpload = () => {
                                     </div>
                                 ))}
                                 {images.length < 10 && (
-                                    <label className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 transition-all text-gray-400 group">
-                                        <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
-                                        <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-primary-50 group-hover:text-primary-600 transition-all">
-                                            <FiPlus size={24} />
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase">Add Photo</span>
-                                    </label>
+                                    <div className="grid grid-cols-2 col-span-2 sm:col-span-1 gap-3">
+                                        <label className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 transition-all text-gray-400 group">
+                                            <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                            <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-primary-50 group-hover:text-primary-600 transition-all shadow-sm">
+                                                <FiPlus size={20} />
+                                            </div>
+                                            <span className="text-[8px] font-black uppercase tracking-widest text-center">Upload</span>
+                                        </label>
+                                        <label className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 transition-all text-gray-400 group">
+                                            <input type="file" capture="environment" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                            <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-all shadow-sm">
+                                                <FiCamera size={18} />
+                                            </div>
+                                            <span className="text-[8px] font-black uppercase tracking-widest text-center">Camera</span>
+                                        </label>
+                                    </div>
                                 )}
                             </div>
                         </div>

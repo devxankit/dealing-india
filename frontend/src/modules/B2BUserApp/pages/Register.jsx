@@ -11,6 +11,7 @@ const B2BUserRegister = () => {
     const { register } = useAuthStore();
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [errors, setErrors] = useState({});
 
     const [formData, setFormData] = useState({
         name: '',
@@ -25,19 +26,95 @@ const B2BUserRegister = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+
+        // Clear error for this field
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: '' }));
+        }
+
+        // Custom filtering for Name and Phone
+        if (name === 'name') {
+            const alphaValue = value.replace(/[^a-zA-Z\s]/g, '');
+            setFormData(prev => ({ ...prev, [name]: alphaValue }));
+            return;
+        }
+
+        if (name === 'phone') {
+            const digitsOnly = value.replace(/[^0-9]/g, '').slice(0, 10);
+            setFormData(prev => ({ ...prev, [name]: digitsOnly }));
+            return;
+        }
+
         if (name.includes('.')) {
             const [parent, child] = name.split('.');
+            let cleanedValue = value;
+
+            // Alphabet filtering for City
+            if (child === 'city') {
+                cleanedValue = value.replace(/[^a-zA-Z\s]/g, '');
+            }
+
             setFormData(prev => ({
                 ...prev,
-                [parent]: { ...prev[parent], [child]: value }
+                [parent]: { ...prev[parent], [child]: cleanedValue }
             }));
+            if (errors[name]) {
+                setErrors(prev => ({ ...prev, [name]: '' }));
+            }
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
     };
 
+    const validateForm = () => {
+        const newErrors = {};
+
+        // 1. Full Name Validation: Alphabets only
+        if (!formData.name.trim()) {
+            newErrors.name = 'Full Name is required';
+        } else if (!/^[a-zA-Z\s]+$/.test(formData.name)) {
+            newErrors.name = 'Name should only contain alphabets';
+        }
+
+        // 2. Business Email Validation: Format check (restricting TLD length to 2-3 to catch typos like .comm and .commm)
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
+        if (!formData.email.trim()) {
+            newErrors.email = 'Business Email is required';
+        } else if (!emailRegex.test(formData.email)) {
+            newErrors.email = 'Enter a valid email (e.g., name@company.com)';
+        }
+
+        // 3. Phone Number Validation: Exactly 10 digits
+        if (!formData.phone.trim()) {
+            newErrors.phone = 'Phone Number is required';
+        } else if (formData.phone.length !== 10) {
+            newErrors.phone = 'Phone number must be 10 digits';
+        }
+
+        // 4. Password
+        if (!formData.password) {
+            newErrors.password = 'Password is required';
+        } else if (formData.password.length < 6) {
+            newErrors.password = 'Password must be at least 6 characters';
+        }
+
+        // 5. City
+        if (!formData.address.city.trim()) {
+            newErrors['address.city'] = 'City is required';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!validateForm()) {
+            toast.error('Please fix the errors in the form');
+            return;
+        }
+
         setIsLoading(true);
         try {
             const payload = {
@@ -64,7 +141,10 @@ const B2BUserRegister = () => {
             );
 
             if (result.success) {
-                toast.success('Registration successful! Please verify your email.');
+                const successMsg = result.otp 
+                    ? `Registration successful! Your OTP is ${result.otp}` 
+                    : 'Registration successful! Please verify your email.';
+                toast.success(successMsg, { duration: 6000 });
                 navigate('/b2b/verification', { state: { email: formData.email } });
             } else {
                 toast.error(result.message || 'Registration failed');
@@ -106,7 +186,7 @@ const B2BUserRegister = () => {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <form onSubmit={handleSubmit} noValidate className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Contact Information */}
                     <div className="md:col-span-2">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-primary-600 mb-2 px-1">Contact Information</h3>
@@ -119,13 +199,15 @@ const B2BUserRegister = () => {
                             <input
                                 type="text"
                                 name="name"
-                                required
                                 value={formData.name}
                                 onChange={handleChange}
                                 placeholder="John Doe"
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
+                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${
+                                    errors.name ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                }`}
                             />
                         </div>
+                        {errors.name && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors.name}</p>}
                     </div>
 
                     <div className="space-y-1.5">
@@ -135,13 +217,15 @@ const B2BUserRegister = () => {
                             <input
                                 type="email"
                                 name="email"
-                                required
                                 value={formData.email}
                                 onChange={handleChange}
                                 placeholder="name@business.com"
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
+                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${
+                                    errors.email ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                }`}
                             />
                         </div>
+                        {errors.email && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors.email}</p>}
                     </div>
 
                     <div className="space-y-1.5">
@@ -151,13 +235,15 @@ const B2BUserRegister = () => {
                             <input
                                 type="tel"
                                 name="phone"
-                                required
                                 value={formData.phone}
                                 onChange={handleChange}
-                                placeholder="+91 9876543210"
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
+                                placeholder="9876543210"
+                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${
+                                    errors.phone ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                }`}
                             />
                         </div>
+                        {errors.phone && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors.phone}</p>}
                     </div>
 
                     <div className="space-y-1.5">
@@ -167,20 +253,22 @@ const B2BUserRegister = () => {
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 name="password"
-                                required
                                 value={formData.password}
                                 onChange={handleChange}
                                 placeholder="••••••••"
-                                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
+                                className={`w-full pl-10 pr-10 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${
+                                    errors.password ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                }`}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-500"
+                                className={`absolute right-3 top-1/2 -translate-y-1/2 hover:text-primary-500 ${errors.password ? 'text-rose-400' : 'text-gray-400'}`}
                             >
                                 {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                             </button>
                         </div>
+                        {errors.password && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors.password}</p>}
                     </div>
 
                     <div className="md:col-span-2 space-y-1.5 pt-2">
@@ -190,13 +278,15 @@ const B2BUserRegister = () => {
                             <input
                                 type="text"
                                 name="address.city"
-                                required
                                 value={formData.address.city}
                                 onChange={handleChange}
                                 placeholder="Surat"
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
+                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${
+                                    errors['address.city'] ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                }`}
                             />
                         </div>
+                        {errors['address.city'] && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors['address.city']}</p>}
                     </div>
 
                     <div className="md:col-span-2 pt-4">

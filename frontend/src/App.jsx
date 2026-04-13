@@ -130,6 +130,9 @@ const ProtectedRoute = lazyWithRetry(
 const ErrorBoundary = lazyWithRetry(
   () => import("./shared/components/ErrorBoundary/ErrorBoundary"),
 );
+const TermsAndConditions = lazyWithRetry(
+  () => import("./shared/pages/TermsAndConditions"),
+);
 // Mobile App Routes
 
 // B2B Vendor Routes
@@ -241,6 +244,9 @@ const B2BVendorReferral = lazyWithRetry(
 const B2BVendorHowToUse = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/VendorHowToUse"),
 );
+const B2BVendorWallet = lazyWithRetry(
+  () => import("./modules/B2BVendor/pages/WalletPage"),
+);
 
 // B2B User App Routes
 const B2BUserLogin = lazyWithRetry(
@@ -340,6 +346,7 @@ const AppRoutes = () => {
         </div>
       }>
       <Routes>
+        <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/" element={<Navigate to="/b2b/landing" replace />} />
         <Route
           path="/b2b-vendors"
@@ -627,6 +634,7 @@ const AppRoutes = () => {
 
           <Route path="subscription" element={<B2BVendorSubscription />} />
           <Route path="billing" element={<B2BVendorBilling />} />
+          <Route path="wallet" element={<B2BVendorWallet />} />
           <Route path="banner-booking" element={<B2BVendorBannerBooking />} />
           <Route path="lotslot">
             <Route

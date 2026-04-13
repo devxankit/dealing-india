@@ -14,13 +14,39 @@
  * @param {Function} options.modal - Modal options
  * @returns {Promise} Razorpay checkout promise
  */
-export const initializeRazorpayCheckout = (options) => {
-  return new Promise((resolve, reject) => {
-    // Check if Razorpay is loaded
-    if (typeof window.Razorpay === 'undefined') {
-      reject(new Error('Razorpay SDK not loaded. Please check if the script is included.'));
-      return;
+/**
+ * Helper to dynamically load script
+ */
+const loadScript = (src) => {
+  return new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => {
+      resolve(true);
+    };
+    script.onerror = () => {
+      resolve(false);
+    };
+    document.body.appendChild(script);
+  });
+};
+
+/**
+ * Initialize Razorpay Checkout
+ * @param {Object} options - Razorpay checkout options
+...
+ */
+export const initializeRazorpayCheckout = async (options) => {
+  // Check if Razorpay is loaded, if not try to load it dynamically
+  if (typeof window.Razorpay === 'undefined') {
+    console.log('Razorpay SDK not found, attempting to load dynamically...');
+    const loaded = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+    if (!loaded || typeof window.Razorpay === 'undefined') {
+      throw new Error('Razorpay SDK failed to load. Please check your internet connection.');
     }
+  }
+
+  return new Promise((resolve, reject) => {
 
     const {
       key,

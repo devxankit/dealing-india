@@ -25,6 +25,7 @@ import ShopUnit from '../models/ShopUnit.model.js';
 import Reel from '../models/Reel.model.js';
 import VendorAddon from '../models/VendorAddon.model.js';
 import vendorAddonService from './vendorAddon.service.js';
+import BusinessTypeSettings from '../models/BusinessTypeSettings.model.js';
 
 // Plan type constants
 export const PLAN_TYPES = {
@@ -66,7 +67,7 @@ class SubscriptionRulesService {
                 subscription = await VendorSubscription.findById(vendor.currentSubscription)
                     .populate({
                         path: 'planId',
-                        select: 'name duration price features isActive productLimit reelsLimit lotSlotLimit imagesPerListing shopSlideshow'
+                        select: 'name duration price features isActive productLimit propertyLimit reelsLimit lotSlotLimit imagesPerListing shopSlideshow'
                     })
                     .lean();
             }
@@ -79,7 +80,7 @@ class SubscriptionRulesService {
                 })
                     .populate({
                         path: 'planId',
-                        select: 'name duration price features isActive productLimit reelsLimit lotSlotLimit imagesPerListing shopSlideshow'
+                        select: 'name duration price features isActive productLimit propertyLimit reelsLimit lotSlotLimit imagesPerListing shopSlideshow'
                     })
                     .sort({ createdAt: -1 })
                     .lean();
@@ -166,6 +167,45 @@ class SubscriptionRulesService {
             message: 'Active subscription found.',
             subscription: subData.subscription
         };
+    }
+
+    /**
+     * Check if vendor can create/update their Shop Listing
+     * @param {String} vendorId 
+     */
+    async canListShop(vendorId) {
+        try {
+            const vendor = await Vendor.findById(vendorId).select('businessType businessTypeRef').lean();
+            if (!vendor) return { allowed: false, message: 'Vendor not found' };
+
+            // 1. Regular check: If they have a subscription, they can always list shop
+            const subData = await this.getActiveSubscription(vendorId);
+            if (subData) return { allowed: true };
+
+            // 2. Special check: If admin hasn't configured any plans for this business type, allow listing shop for free
+            const settings = await BusinessTypeSettings.findOne({ 
+                $or: [
+                    { businessTypeId: vendor.businessTypeRef },
+                    { businessTypeSlug: vendor.businessType?.toLowerCase() }
+                ]
+            }).lean();
+
+            if (settings && Array.isArray(settings.allowedPlans) && settings.allowedPlans.length === 0) {
+                return { 
+                    allowed: true, 
+                    message: `No subscription required for ${vendor.businessType} vendors. Shop listing allowed.` 
+                };
+            }
+
+            return { 
+                allowed: false, 
+                message: 'To list your shop, you need to purchase any subscription plan.',
+                subscriptionRequired: true
+            };
+        } catch (error) {
+            console.error('Error in canListShop rule:', error);
+            return { allowed: false, message: 'Eligibility check failed.' };
+        }
     }
 
     /**
@@ -310,19 +350,12 @@ class SubscriptionRulesService {
             const businessType = this.normalizeBusinessType(subData.vendor?.businessType);
 
             // 🔹 Determine Property Limit
-            const productLimit = plan.productLimit === 'unlimited' ? -1 : (Number(plan.productLimit) || 0);
-            
-            // Default: All property-eligible plans can list properties if productLimit > 0
-            // More strict: Property limits are unlimited for Premium plans, 0 for others
-            const planType = this.determinePlanType(plan.name);
-            let subLimit = (planType === PLAN_TYPES.PREMIUM || businessType === BUSINESS_TYPES.DEVELOPER || businessType === BUSINESS_TYPES.BROKER) 
-                ? productLimit 
-                : 0;
+            const subLimit = plan.propertyLimit === 'unlimited' ? -1 : (Number(plan.propertyLimit) || 0);
 
             const maxImages = plan.imagesPerListing === 'unlimited' ? -1 : (Number(plan.imagesPerListing) || 0);
             
-            // Must have a Premium plan OR explicitly allowed images
-            if (planType === PLAN_TYPES.PREMIUM || (plan && plan.imagesPerListing !== undefined)) {
+            // Allow if subLimit is -1 (unlimited) or > 0, OR if they have a Premium plan
+            if (subLimit !== 0 || this.determinePlanType(plan.name) === PLAN_TYPES.PREMIUM || (plan && plan.imagesPerListing !== undefined)) {
                 
                 const sinceDate = subData.subscription?.startDate || new Date(0);
                 const currentCount = await Product.countDocuments({ 
@@ -516,7 +549,7 @@ class SubscriptionRulesService {
 
         if (!subData) {
             // Fetch vendor info to ensure businessType is available even without subscription
-            const vendor = await Vendor.findById(vendorId).select('businessType').lean();
+            const vendor = await Vendor.findById(vendorId).select('businessType businessTypeRef').lean();
             const businessType = vendor?.businessType;
 
             const productCount = await this.getProductCount(vendorId);
@@ -524,8 +557,12 @@ class SubscriptionRulesService {
             const lotSlotCount = await this.getLotSlotCount(vendorId);
             const propertyCount = await Product.countDocuments({ vendorId, formType: 'property' });
 
+            // Check if admin hasn't configured any plans for this business type
+            const shopCheck = await this.canListShop(vendorId);
+
             return {
-                hasSubscription: (addonStats.products + addonStats.reels + addonStats.lot_slot) > 0,
+                hasSubscription: (addonStats.products + addonStats.reels + addonStats.lot_slot) > 0 || shopCheck.allowed,
+                isEligibleForShopListing: shopCheck.allowed,
                 hasShop,
                 plan: { id: null, name: 'No Active Plan', type: 'none', expiresAt: null },
                 businessType: businessType || 'textile',
@@ -534,21 +571,21 @@ class SubscriptionRulesService {
                         allowed: addonStats.products > 0, 
                         limit: addonStats.products, 
                         current: productCount, 
-                        remaining: addonStats.products, // 🟢 Correct: addonStats already is (total - used)
+                        remaining: Math.max(0, addonStats.products - productCount),
                         hasAddon: addonStats.products > 0
                     },
                     lotSlot: { 
                         allowed: addonStats.lot_slot > 0, 
                         limit: addonStats.lot_slot,
                         current: lotSlotCount, 
-                        remaining: addonStats.lot_slot, // 🟢 Correct
+                        remaining: Math.max(0, addonStats.lot_slot - lotSlotCount),
                         hasAddon: addonStats.lot_slot > 0
                     },
                     properties: { 
                         allowed: addonStats.property > 0, 
                         limit: addonStats.property,
                         current: propertyCount,
-                        remaining: addonStats.property,
+                        remaining: Math.max(0, addonStats.property - propertyCount),
                         hasAddon: addonStats.property > 0,
                         maxImages: 0 
                     },
@@ -556,7 +593,7 @@ class SubscriptionRulesService {
                         allowed: addonStats.reels > 0, 
                         limit: addonStats.reels, 
                         current: reelCount,
-                        remaining: addonStats.reels, // 🟢 Correct
+                        remaining: Math.max(0, addonStats.reels - reelCount),
                         hasAddon: addonStats.reels > 0
                     }
                 },
@@ -579,25 +616,25 @@ class SubscriptionRulesService {
 
         // 🔹 Rule: Calculate total capacity including addons
         const subProductLimit = plan.productLimit === 'unlimited' ? -1 : (Number(plan.productLimit) || 0);
+        const subPropertyLimit = plan.propertyLimit === 'unlimited' ? -1 : (Number(plan.propertyLimit) || 0);
         const subLotSlotLimit = plan.lotSlotLimit === 'unlimited' ? -1 : (Number(plan.lotSlotLimit) || 0);
         const subReelLimit = plan.reelsLimit === 'unlimited' ? -1 : (Number(plan.reelsLimit) || 0);
         
-        // 🔹 Correct Remaining Calculation: Max(0, BaseLimit - Current) + AddonAvailable
-        const productRemaining = subProductLimit === -1 ? -1 : (Math.max(0, subProductLimit - productCount) + addonStats.products);
-        const lotSlotRemaining = subLotSlotLimit === -1 ? -1 : (Math.max(0, subLotSlotLimit - lotSlotCount) + addonStats.lot_slot);
-        const reelRemaining = subReelLimit === -1 ? -1 : (Math.max(0, subReelLimit - reelCount) + addonStats.reels);
-
+        // 🔹 Correct Remaining Calculation: Total Limit (Base + Addon) - Current Usage
         const totalProductLimit = subProductLimit === -1 ? -1 : (subProductLimit + addonStats.products);
+        const productRemaining = totalProductLimit === -1 ? -1 : Math.max(0, totalProductLimit - productCount);
+
         const totalLotSlotLimit = subLotSlotLimit === -1 ? -1 : (subLotSlotLimit + addonStats.lot_slot);
+        const lotSlotRemaining = totalLotSlotLimit === -1 ? -1 : Math.max(0, totalLotSlotLimit - lotSlotCount);
+
         const totalReelLimit = subReelLimit === -1 ? -1 : (subReelLimit + addonStats.reels);
+        const reelRemaining = totalReelLimit === -1 ? -1 : Math.max(0, totalReelLimit - reelCount);
 
         const imagesPerListing = plan.imagesPerListing === 'unlimited' ? -1 : (Number(plan.imagesPerListing) || 0);
         const shopSlideshow = !!plan.shopSlideshow;
 
-        // Properties follow product limits unless it's a dedicated property plan
-        const propertyLimitValue = (businessType === BUSINESS_TYPES.DEVELOPER || businessType === BUSINESS_TYPES.BROKER) 
-            ? subProductLimit 
-            : (subProductLimit > 0 ? subProductLimit : 0);
+        // Properties follow propertyLimit from DB
+        const propertyLimitValue = subPropertyLimit;
 
         return {
             hasSubscription: true,
@@ -651,6 +688,12 @@ class SubscriptionRulesService {
             const subData = await this.getActiveSubscription(vendorId);
 
             if (!subData) {
+                // Check if they are eligible for shop listing anyway (no plans configured)
+                const eligibility = await this.canListShop(vendorId);
+                if (eligibility.allowed) {
+                    return { allowed: true };
+                }
+
                 return { 
                     allowed: false, 
                     message: 'An active subscription plan is required for shop slideshow.',

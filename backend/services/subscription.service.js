@@ -221,6 +221,116 @@ class SubscriptionService {
     }
   }
 
+  /**
+   * Purchase subscription or upgrade via wallet
+   * @param {String} vendorId - Vendor ID
+   * @param {String} planId - Subscription Plan ID
+   * @returns {Promise<Object>} VendorSubscription record
+   */
+  async purchaseSubscriptionViaWallet(vendorId, planId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const vendor = await Vendor.findById(vendorId).session(session);
+      if (!vendor) throw new Error('Vendor not found');
+
+      const plan = await B2BSubscriptionPlan.findById(planId).session(session);
+      if (!plan) throw new Error('Subscription plan not found');
+
+      const basePrice = plan.price || 0;
+      const discount = plan.discount || 0;
+      const priceAfterDiscount = Math.max(0, basePrice - discount);
+
+      // For wallet purchases, we do NOT add GST because it was already collected during recharge top-up
+      const gstAmount = 0;
+      const totalAmount = priceAfterDiscount;
+
+      // Pay via wallet - this will check balance and debit
+      const { default: vendorWalletService } = await import('./vendorWallet.service.js');
+      await vendorWalletService.payViaWallet(
+        vendorId,
+        totalAmount,
+        `Purchase Subscription Plan: ${plan.name}`,
+        planId.toString(),
+        'subscription_plan'
+      );
+
+      // Create Active Subscription
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + (plan.duration || 12));
+
+      const [subscription] = await VendorSubscription.create([{
+        vendorId,
+        planId,
+        billingCycle: 'yearly',
+        startDate,
+        endDate,
+        paymentMethod: 'wallet',
+        status: 'active',
+        lastPaymentDate: new Date(),
+        nextBillingDate: endDate,
+        basePrice: basePrice,
+        discount: discount,
+        gstAmount: gstAmount,
+        totalAmount: totalAmount,
+        usage: { lastResetDate: startDate }
+      }], { session });
+
+      // Update Vendor currentSubscription
+      await Vendor.findByIdAndUpdate(vendorId, {
+        currentSubscription: subscription._id
+      }, { session });
+
+      await session.commitTransaction();
+
+      // Trigger Email integration helper (Async - skipping Zoho as per wallet pattern)
+      this.sendWalletSubscriptionNotification(subscription._id).catch(err => {
+        console.error('[SubWallet][Email] Background email failed:', err);
+      });
+
+      return await VendorSubscription.findById(subscription._id).populate('planId').populate('vendorId').lean();
+    } catch (error) {
+      await session.abortTransaction();
+      console.error('Purchase Subscription Via Wallet Error:', error);
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  /**
+   * Send email notification for wallet-based subscription purchase
+   */
+  async sendWalletSubscriptionNotification(subscriptionId) {
+    try {
+      const subscription = await VendorSubscription.findById(subscriptionId)
+        .populate('vendorId')
+        .populate('planId');
+
+      if (!subscription || !subscription.vendorId) return;
+
+      await sendPaymentSuccessEmail({
+        to: subscription.vendorId.email,
+        amount: subscription.totalAmount,
+        planName: subscription.planId.name,
+        title: subscription.planId.name,
+        paymentFor: 'subscription',
+        paymentDate: new Date(),
+        transactionId: subscription.paymentId || 'WALLET-TRANS',
+        referenceId: `SUB-${subscription._id}`,
+        paymentMethod: 'Wallet Balance',
+        vendor: { 
+          name: subscription.vendorId.storeName || subscription.vendorId.name,
+          email: subscription.vendorId.email,
+          phone: subscription.vendorId.phone 
+        }
+      });
+    } catch (error) {
+      console.error('Error sending wallet subscription notification:', error);
+    }
+  }
+
   async verifySubscriptionPayment(vendorId, planId, paymentData, io = null) {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -920,11 +1030,15 @@ class SubscriptionService {
   }
 
   async getVendorBillingHistory(vendorId) {
-    const [subs, addons, bannerBookings] = await Promise.all([
+    const [subs, addons, bannerBookings, walletRecharges] = await Promise.all([
       VendorSubscription.find({ vendorId }).populate('planId').sort({ createdAt: -1 }).lean(),
       (await import('../models/VendorAddon.model.js')).default.find({ vendorId }).populate('addonPlanId').sort({ createdAt: -1 }).lean(),
       (await import('../models/BannerBooking.model.js')).default
         .find({ vendorId, paymentStatus: 'paid' })
+        .sort({ createdAt: -1 })
+        .lean(),
+      (await import('../models/VendorWalletTransaction.model.js')).default
+        .find({ vendorId, type: 'credit', referenceType: 'recharge' })
         .sort({ createdAt: -1 })
         .lean()
     ]);
@@ -976,6 +1090,24 @@ class SubscriptionService {
         bannerType: booking.bannerType,
         startDate: booking.startDate,
         endDate: booking.endDate
+      });
+    }
+    
+    // Process Wallet Recharges
+    for (const recharge of walletRecharges) {
+      // Re-calculate total amount (inclusive of GST) if not stored in metadata
+      // Since it's credit, recharge.amount is the base amount credited (net)
+      const totalPaid = recharge.metadata?.totalAmount || Math.round(recharge.amount * 1.18);
+      
+      history.push({
+        id: recharge._id.toString(),
+        transactionCode: recharge.referenceId || `WAL-REC-${recharge._id}`,
+        amount: totalPaid,
+        type: 'wallet_recharge',
+        status: 'completed',
+        date: recharge.createdAt,
+        planName: 'Wallet Recharge',
+        zohoInvoiceId: recharge.zohoInvoiceId
       });
     }
 

@@ -26,6 +26,7 @@ const B2BVendorLogin = () => {
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [isLoadingPlans, setIsLoadingPlans] = useState(false);
+    const [showRegisterModal, setShowRegisterModal] = useState(false);
 
     useEffect(() => {
         // Check for existing authentication on mount
@@ -131,7 +132,11 @@ const B2BVendorLogin = () => {
                     });
                 } else {
                     console.error('[B2B Vendor Login Page] Login failed:', errorMsg);
-                    toast.error(errorMsg, { id: 'login-error' });
+                    if (errorMsg.toLowerCase().includes('not found')) {
+                        setShowRegisterModal(true);
+                    } else {
+                        toast.error(errorMsg, { id: 'login-error' });
+                    }
                 }
             }
         } catch (error) {
@@ -303,8 +308,16 @@ const B2BVendorLogin = () => {
                                 <FiShoppingBag /> Login as Buyer
                             </Link>
                         </div>
-                    </div>
-                </form>
+                        <div className="pt-2">
+                             <p className="text-[10px] text-gray-400">
+                                 By signing in, you agree to our{' '}
+                                 <Link to="/terms?type=vendor" className="text-primary-600 font-bold hover:underline">
+                                     Terms & Conditions
+                                 </Link>
+                             </p>
+                         </div>
+                     </div>
+                 </form>
 
                 {/* Subscription Plans Section - Only shown when expired */}
                 <AnimatePresence>
@@ -402,6 +415,55 @@ const B2BVendorLogin = () => {
                 planId={selectedPlan}
                 onSuccess={handlePaymentSuccess}
             />
+
+            {/* Register Modal */}
+            <AnimatePresence>
+                {showRegisterModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 min-h-screen">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowRegisterModal(false)}
+                            className="absolute inset-0 bg-slate-950/60 backdrop-blur-md"
+                        />
+                        
+                        {/* Modal Content */}
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden p-8 text-center"
+                        >
+                            <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <FiShoppingBag className="text-primary-600 text-3xl" />
+                            </div>
+                            
+                            <h3 className="text-2xl font-black text-gray-900 mb-2">Vendor Not Found</h3>
+                            <p className="text-gray-500 font-medium mb-8 leading-relaxed">
+                                This business email is not registered with us. Would you like to create a new vendor account?
+                            </p>
+                            
+                            <div className="space-y-3">
+                                <Link
+                                    to="/b2b-vendor/register"
+                                    onClick={() => setShowRegisterModal(false)}
+                                    className="block w-full py-4 bg-primary-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-primary-200 hover:bg-primary-700 transition-all"
+                                >
+                                    Register Now
+                                </Link>
+                                <button
+                                    onClick={() => setShowRegisterModal(false)}
+                                    className="block w-full py-4 bg-gray-50 text-gray-500 rounded-2xl font-black text-sm hover:bg-gray-100 transition-all border border-gray-100"
+                                >
+                                    Try Different Email
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

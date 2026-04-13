@@ -43,6 +43,8 @@ const B2BBannerBooking = () => {
     const [showBookingModal, setShowBookingModal] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [walletBalance, setWalletBalance] = useState(0);
+    const [showWalletConfirm, setShowWalletConfirm] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
 
 
     // Standard date formatter for B2B Banners (Literal UTC-to-IST)
@@ -251,7 +253,7 @@ const B2BBannerBooking = () => {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
 
         if (!formData.image) {
             toast.error("Please upload a banner image");
@@ -263,17 +265,10 @@ const B2BBannerBooking = () => {
             return;
         }
 
-        // Handle date to avoid timezone conversion issues
-        // User selects date like "2026-01-21" - we want to store exactly that date
-        // Send date-only string to backend, which will interpret it as UTC midnight
-        // This ensures the date stored matches what user selected
-
-        // For validation, use local date comparison (user's perspective)
-        const localSelectedDate = new Date(`${formData.startDate}T00:00:00`); // Local time for validation
+        const localSelectedDate = new Date(`${formData.startDate}T00:00:00`); 
         const now = new Date();
         const maxDateObj = new Date(now.getTime() + (settings.bookingWindowDays * 24 * 60 * 60 * 1000));
 
-        // Compare using local dates for user-friendly validation
         if (localSelectedDate < now) {
             toast.error("Start time cannot be in the past");
             return;
@@ -289,91 +284,48 @@ const B2BBannerBooking = () => {
             return;
         }
 
+        // If paying with wallet, show confirmation modal first
+        if (formData.paymentMethod === 'wallet' && !showWalletConfirm) {
+            setShowWalletConfirm(true);
+            return;
+        }
+
         setLoading(true);
+        setIsProcessing(true);
 
         try {
-            // Validate required fields before creating FormData
-            if (!selectedSlot || !selectedSlot._id) {
-                toast.error("Please select a slot");
-                setLoading(false);
-                return;
-            }
-
-            if (!formData.image) {
-                toast.error("Please upload a banner image");
-                setLoading(false);
-                return;
-            }
-
-            // Create FormData for the booking
             const formDataToSend = new FormData();
             formDataToSend.append('slotId', selectedSlot._id);
-            // Send date-only string (YYYY-MM-DD) - backend will interpret as UTC midnight
-            // This ensures the selected date is stored correctly without timezone shifts
             formDataToSend.append('startDate', formData.startDate);
             formDataToSend.append('durationDays', formData.durationDays.toString());
             formDataToSend.append('title', formData.title || '');
             formDataToSend.append('link', formData.link || '/');
             formDataToSend.append('image', formData.image);
-            formDataToSend.append('paymentMethod', formData.paymentMethod); // Use selected payment method
-            formDataToSend.append('bannerType', 'b2b'); // Explicitly set bannerType for B2B vendors
-
-            // Verify FormData contents
-            console.log('Creating booking with data:', {
-                slotId: selectedSlot._id,
-                startDate: formData.startDate, // Date-only string (YYYY-MM-DD)
-                durationDays: formData.durationDays,
-                hasImage: !!formData.image,
-                imageName: formData.image?.name,
-                imageSize: formData.image?.size,
-                imageType: formData.image?.type
-            });
-
-            // Log FormData entries (for debugging)
-            console.log('FormData entries:');
-            for (let pair of formDataToSend.entries()) {
-                console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File(${pair[1].name}, ${pair[1].size} bytes)` : pair[1]));
-            }
+            formDataToSend.append('paymentMethod', formData.paymentMethod);
+            formDataToSend.append('bannerType', 'b2b');
 
             const response = await createBannerBooking(formDataToSend);
-
-            console.log('Booking response:', response);
-            console.log('Response type:', typeof response);
-            console.log('Response keys:', Object.keys(response || {}));
-
-            // API interceptor returns response.data directly, so response is already unwrapped
-            // Response structure: { success: true, message: '...', data: { ... } }
             const responseData = response;
 
-            console.log('Response data:', responseData);
-            console.log('Response success:', responseData?.success);
-
             if (responseData?.success) {
-                // Data is in responseData.data
                 const bookingData = responseData.data;
 
-                console.log('Booking data:', bookingData);
-                console.log('Has razorpayOrder:', !!bookingData?.razorpayOrder);
-                console.log('Booking ID:', bookingData?._id);
-
-                // If wallet payment was used, it's already paid
                 if (bookingData.paymentStatus === 'paid' && bookingData.paymentMethod === 'wallet') {
                     toast.success("Banner booking created successfully using wallet! Awaiting admin approval.");
-                    await loadData();
+                    setShowWalletConfirm(false);
                     setShowBookingModal(false);
                     resetForm();
+                    await loadData();
                 } else if (bookingData.razorpayOrder) {
-                    // For Razorpay, open payment gateway
                     toast.success("Booking initiated! Opening payment gateway...");
                     await handleRazorpayPayment(
                         bookingData._id,
                         bookingData.razorpayOrder,
-                        bookingData.amount, // Use backend amount which includes GST
+                        bookingData.amount,
                         bookingData.razorpayKeyId
                     );
                 } else {
-                    // Booking created but payment gateway failed
-                    toast.error("Booking created but payment gateway failed. Please contact support.");
+                    toast.error("Booking created but payment gateway failed.");
                     await loadData();
                     setShowBookingModal(false);
                     resetForm();
@@ -383,45 +335,11 @@ const B2BBannerBooking = () => {
             }
         } catch (error) {
             console.error('Error creating booking:', error);
-            console.error('Error details:', {
-                message: error?.message,
-                response: error?.response,
-                responseData: error?.response?.data,
-                status: error?.response?.status,
-                config: error?.config
-            });
-
-            // Show detailed error message
-            let errorMessage = 'Failed to create banner booking';
-
-            if (error?.response?.data) {
-                errorMessage = error.response.data.message
-                    || error.response.data.error
-                    || error.response.data
-                    || errorMessage;
-            } else if (error?.message) {
-                errorMessage = error.message;
-            }
-
-            // Check for specific error cases
-            if (error?.response?.status === 401) {
-                errorMessage = 'Authentication failed. Please login again.';
-            } else if (error?.response?.status === 400) {
-                errorMessage = error.response.data?.message || 'Invalid booking data. Please check all fields.';
-            } else if (error?.response?.status === 403) {
-                errorMessage = error.response.data?.message || 'You do not have permission to create this booking.';
-            } else if (error?.isNetworkError) {
-                errorMessage = 'Network error. Please check your connection and try again.';
-            }
-
-            toast.error(errorMessage, { duration: 5000 });
-
-            // Log full error for debugging
-            if (error?.response?.data) {
-                console.error('Full error response:', JSON.stringify(error.response.data, null, 2));
-            }
+            const errorMessage = error?.response?.data?.message || error?.message || 'Failed to create banner booking';
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
+            setIsProcessing(false);
         }
     };
 
@@ -818,21 +736,22 @@ const B2BBannerBooking = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    if (walletBalance < calculatedPrice) {
-                                                        toast.error("Insufficient wallet balance");
+                                                    const totalForCheck = Math.round(calculatedPrice * 1.18);
+                                                    if (walletBalance < totalForCheck) {
+                                                        toast.error(`Insufficient wallet balance. Required: ₹${totalForCheck.toLocaleString('en-IN')}`);
                                                         return;
                                                     }
                                                     setFormData(prev => ({ ...prev, paymentMethod: "wallet" }));
                                                 }}
                                                 className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${formData.paymentMethod === "wallet"
                                                     ? "border-green-600 bg-green-50 text-green-600"
-                                                    : walletBalance < calculatedPrice
+                                                    : walletBalance < Math.round(calculatedPrice * 1.18)
                                                         ? "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-60"
                                                         : "border-gray-100 hover:border-gray-200 text-gray-600"
                                                     }`}
                                             >
                                                 <BiWallet className="text-xl mb-1" />
-                                                <span className="text-xs font-semibold uppercase tracking-tight">Wallet Balance ({formatPrice(walletBalance)})</span>
+                                                <span className="text-xs font-semibold uppercase tracking-tight">Wallet (₹{walletBalance.toLocaleString('en-IN')})</span>
                                             </button>
                                         </div>
                                         {formData.paymentMethod === "wallet" && (
@@ -949,18 +868,118 @@ const B2BBannerBooking = () => {
                                     <button
                                         type="submit"
                                         disabled={loading || !formData.startDate || !formData.image}
-                                        className="px-8 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        className={`px-8 py-2 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+                                            formData.paymentMethod === 'wallet' 
+                                            ? 'bg-green-600 text-white hover:bg-green-700' 
+                                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                                        }`}
                                     >
                                         {loading ? (
                                             "Processing..."
                                         ) : (
                                             <>
-                                                <FiCreditCard /> Pay {formatPrice(Math.round(calculatedPrice * 1.18))}
+                                                {formData.paymentMethod === 'wallet' ? <BiWallet /> : <FiCreditCard />}
+                                                {formData.paymentMethod === 'wallet' ? 'Confirm Booking' : `Pay ${formatPrice(Math.round(calculatedPrice * 1.18))}`}
                                             </>
                                         )}
                                     </button>
                                 </div>
                             </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Wallet Confirmation Modal */}
+            <AnimatePresence>
+                {showWalletConfirm && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowWalletConfirm(false)}
+                            className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+                        >
+                            <div className="bg-green-600 p-6 text-white text-center">
+                                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <BiWallet size={32} />
+                                </div>
+                                <h3 className="text-xl font-bold">Use Wallet Balance?</h3>
+                                <p className="text-green-50 text-sm opacity-90">Instant deduction from your wallet</p>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <span className="text-sm text-gray-500 font-medium">Slot {selectedSlot?.slotNumber} Booking</span>
+                                        <span className="text-sm font-bold text-gray-900">{formData.durationDays} Days</span>
+                                    </div>
+                                    <div className="h-px bg-gray-200/50 my-2" />
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Base Price</span>
+                                            <span className="font-semibold">{formatPrice(calculatedPrice)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">GST (0%)</span>
+                                            <span className="font-semibold text-green-600">₹0 (Already Paid)</span>
+                                        </div>
+                                        <div className="flex justify-between text-lg font-black text-blue-600 pt-2 border-t border-gray-100">
+                                            <span>Total</span>
+                                            <span>{formatPrice(calculatedPrice)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-center px-2">
+                                    <span className="text-sm text-gray-500 font-medium">Your Balance</span>
+                                    <span className="text-lg font-bold text-gray-900">{formatPrice(walletBalance)}</span>
+                                </div>
+
+                                {walletBalance < calculatedPrice ? (
+                                    <div className="space-y-3">
+                                        <p className="text-center text-xs text-red-500 font-bold uppercase tracking-tight">
+                                            Insufficient Balance
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/b2b-vendor/wallet')}
+                                            className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+                                        >
+                                            Recharge Wallet
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-3 mt-6">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowWalletConfirm(false)}
+                                            className="py-4 border-2 border-gray-100 text-gray-500 rounded-2xl font-bold hover:bg-gray-50 transition-all"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSubmit()}
+                                            disabled={isProcessing}
+                                            className="py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center justify-center gap-2"
+                                        >
+                                            {isProcessing ? (
+                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            ) : (
+                                                <>Confirm Pay</>
+                                            )}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </motion.div>
                     </div>
                 )}

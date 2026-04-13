@@ -30,6 +30,8 @@ const SupportSettings = () => {
         userHowToText: '',
         vendorHowToVideo: '',
         vendorHowToText: '',
+        userTermsAndConditions: '',
+        vendorTermsAndConditions: '',
         faqs: []
     });
 
@@ -38,7 +40,10 @@ const SupportSettings = () => {
             try {
                 const res = await getSupportConfig();
                 if (res.success) {
-                    setConfig(res.data);
+                    setConfig(prev => ({
+                        ...prev,
+                        ...res.data
+                    }));
                 }
             } catch (error) {
                 toast.error('Failed to load support settings');
@@ -364,6 +369,37 @@ const SupportSettings = () => {
                                 rows={3}
                                 className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none resize-none"
                             />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Terms & Conditions Settings */}
+                <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+                    <h2 className="text-lg font-bold text-gray-800 mb-6 underline decoration-amber-500/30 decoration-4 underline-offset-8">Terms & Conditions (Legal)</h2>
+                    <div className="grid grid-cols-1 gap-8">
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-semibold text-gray-700 ml-1">User Module Terms & Conditions</label>
+                            <textarea
+                                name="userTermsAndConditions"
+                                value={config.userTermsAndConditions || ''}
+                                onChange={handleChange}
+                                placeholder="Enter user terms and conditions here..."
+                                rows={8}
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none resize-none bg-gray-50/30"
+                            />
+                            <p className="text-[10px] text-gray-400 ml-1 italic">Shown on User Login & Profile pages</p>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-semibold text-gray-700 ml-1">Vendor Module Terms & Conditions</label>
+                            <textarea
+                                name="vendorTermsAndConditions"
+                                value={config.vendorTermsAndConditions || ''}
+                                onChange={handleChange}
+                                placeholder="Enter vendor terms and conditions here..."
+                                rows={8}
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all outline-none resize-none bg-gray-50/30"
+                            />
+                            <p className="text-[10px] text-gray-400 ml-1 italic">Shown on Vendor Login & Profile pages</p>
                         </div>
                     </div>
                 </div>

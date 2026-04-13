@@ -179,7 +179,38 @@ export async function createSubscriptionInvoice({
 }) {
   const dateStr = new Date().toISOString().slice(0, 10);
 
-  const gstTaxId = process.env.ZOHO_GST_18_TAX_ID;
+  // 🔹 GST Logic: Compare seller and buyer states
+  const adminGst = process.env.ADMIN_GST_NUMBER || '24AATCM8365L1ZM';
+  const adminStateCode = adminGst.substring(0, 2);
+  const vendorGst = (vendorGstNumber || '').trim();
+  const vendorStateCode = vendorGst.substring(0, 2);
+
+  // Determine which GST Tax ID to use (Default to CGST/SGST unless IGST is required and available)
+  let gstTaxId = process.env.ZOHO_GST_18_TAX_ID;
+  const igstTaxId = process.env.ZOHO_IGST_18_TAX_ID;
+  const isInterstate = vendorStateCode && vendorStateCode !== adminStateCode;
+
+  if (isInterstate && igstTaxId) {
+    gstTaxId = igstTaxId;
+    console.log(`[Zoho] Interstate transaction (Seller: ${adminStateCode}, Buyer: ${vendorStateCode}). Using IGST ID.`);
+  } else if (isInterstate && !igstTaxId) {
+    console.warn(`[Zoho] Interstate detected but ZOHO_IGST_18_TAX_ID is missing in .env! Attempting auto-discovery...`);
+    try {
+      const taxesData = await zohoRequest('GET', '/settings/taxes');
+      const taxes = taxesData?.taxes || [];
+      // Common names for IGST 18% in Zoho India
+      const match = taxes.find(t => ['IGST18', 'IGST 18', 'IGST 18%', 'Interstate GST 18%'].includes(t.tax_name));
+      if (match) {
+        gstTaxId = match.tax_id;
+        console.log(`[Zoho] Auto-discovered IGST ID: ${gstTaxId} (Name: ${match.tax_name})`);
+      } else {
+        console.error(`[Zoho] Could not find IGST 18% in Zoho tax settings. Please set ZOHO_IGST_18_TAX_ID in .env`);
+      }
+    } catch (e) {
+      console.error(`[Zoho] Tax auto-discovery failed:`, e.message);
+    }
+  }
+
   const lineItems = [];
   
   if (baseAmount !== undefined && baseAmount !== null) {
@@ -188,12 +219,11 @@ export async function createSubscriptionInvoice({
       description: planName || 'Subscription',
       rate: baseAmount,
       quantity: 1,
-      hsn_or_sac: 9987, // Default SAC for technical/business services
+      hsn_or_sac: 9987,
     };
 
-    // If a native Zoho Tax ID is configured, use it. 
-    // Otherwise, fallback to the previous manual line-item fix.
-    if (gstTaxId) {
+    const useTaxId = gstTaxId && gstAmount > 0;
+    if (useTaxId) {
       mainItem.tax_id = gstTaxId;
     } else {
       mainItem.is_taxable = false;
@@ -203,13 +233,21 @@ export async function createSubscriptionInvoice({
 
     // 2. Discount (if any)
     if (discount && discount > 0) {
-      lineItems.push({
+      const discountItem = {
         description: 'Discount Applied',
         rate: -discount,
         quantity: 1,
-        is_taxable: false,
-        tax_exemption_code: 'NON_TAXABLE',
-      });
+      };
+
+      if (useTaxId) {
+        // If the main item is taxable, the discount line must also be taxable 
+        // to avoid Zoho's "mixed taxable/non-taxable" error for GST-registered businesses.
+        discountItem.tax_id = gstTaxId;
+      } else {
+        discountItem.is_taxable = false;
+        discountItem.tax_exemption_code = 'NON_TAXABLE';
+      }
+      lineItems.push(discountItem);
     }
 
     // 3. Manual GST Line (Only if NOT using native Zoho Tax)
@@ -235,13 +273,10 @@ export async function createSubscriptionInvoice({
   }
 
   // Build rich notes that include GST numbers for maximum visibility
-  const adminGst = process.env.ADMIN_GST_NUMBER || 'N/A';
-  const vendorGst = vendorGstNumber || 'Not Provided';
-  
   let finalizedNotes = notes || '';
   const gstSection = [
     `Seller GSTIN: ${adminGst}`,
-    `Buyer GSTIN: ${vendorGst}`
+    `Buyer GSTIN: ${vendorGst || 'Not Provided'}`
   ].join('\n');
 
   if (gstSection) {
@@ -258,6 +293,7 @@ export async function createSubscriptionInvoice({
     notes: finalizedNotes,
     gst_no: vendorGstNumber || undefined,
     gst_treatment: vendorGstNumber ? 'business_gst' : 'consumer',
+    place_of_supply: vendorStateCode || adminStateCode,
   };
 
   if (!invoice.gst_no) delete invoice.gst_no;

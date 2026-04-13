@@ -26,6 +26,8 @@ const supportConfigSchema = new mongoose.Schema({
     userHowToText: { type: String, default: '' },
     vendorHowToVideo: { type: String, default: '' },
     vendorHowToText: { type: String, default: '' },
+    userTermsAndConditions: { type: String, default: '' },
+    vendorTermsAndConditions: { type: String, default: '' },
     faqs: {
         type: [faqSchema],
         default: [

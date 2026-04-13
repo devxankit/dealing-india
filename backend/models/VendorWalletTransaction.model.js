@@ -36,8 +36,12 @@ const vendorWalletTransactionSchema = new mongoose.Schema(
         },
         referenceType: {
             type: String,
-            enum: ['order', 'withdrawal', 'adjustment', 'manual', 'refund', 'banner_booking'],
+            enum: ['order', 'withdrawal', 'adjustment', 'manual', 'refund', 'banner_booking', 'recharge', 'addon_plan', 'referral_reward'],
             default: 'manual',
+        },
+        metadata: {
+            type: mongoose.Schema.Types.Mixed,
+            default: {},
         },
         performedBy: {
             type: mongoose.Schema.Types.ObjectId,
@@ -47,6 +51,14 @@ const vendorWalletTransactionSchema = new mongoose.Schema(
         performedByModel: {
             type: String,
             enum: ['Admin', 'Vendor', null],
+            default: null,
+        },
+        zohoInvoiceId: {
+            type: String,
+            default: null,
+        },
+        zohoInvoicePdfUrl: {
+            type: String,
             default: null,
         }
     },

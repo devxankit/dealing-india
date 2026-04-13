@@ -41,6 +41,22 @@ const B2BVendorVerification = () => {
         }
     };
 
+    const handlePaste = (e) => {
+        e.preventDefault();
+        const pasteData = e.clipboardData.getData('text').trim().slice(0, 6);
+        if (!/^\d+$/.test(pasteData)) return;
+
+        const newCodes = [...codes];
+        pasteData.split('').forEach((char, index) => {
+            if (index < 6) newCodes[index] = char;
+        });
+        setCodes(newCodes);
+
+        // Focus the last filled input or the next one
+        const focusIndex = Math.min(pasteData.length, 5);
+        inputRefs.current[focusIndex]?.focus();
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         const otp = codes.join('');
@@ -114,6 +130,7 @@ const B2BVendorVerification = () => {
                                 value={code}
                                 onChange={(e) => handleChange(index, e.target.value)}
                                 onKeyDown={(e) => handleKeyDown(index, e)}
+                                onPaste={handlePaste}
                                 className="w-10 h-12 text-center text-xl font-extrabold bg-gray-50 border-2 border-transparent rounded-xl focus:outline-none focus:border-primary-500 focus:bg-white text-gray-800 transition-all shadow-sm"
                             />
                         ))}

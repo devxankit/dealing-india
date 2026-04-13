@@ -52,7 +52,8 @@ const B2BVendorDashboard = () => {
         const shopAlert = {
             id: 'shop-required',
             type: 'warning',
-            message: 'Aapne apni Shop Listing poori nahi ki hai. Listings add karne ke liye pehle shop setup poora karein.'
+            message: 'You have not completed your Shop Listing. Please complete the shop setup first to add listings.',
+            actionLink: '/b2b-vendor/shop-listing'
         };
         // Add to the beginning of alerts
         if (!dashboard.alerts.some(a => a.id === 'shop-required')) {
@@ -141,14 +142,22 @@ const B2BVendorDashboard = () => {
                         <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0 sm:mb-1">Overall Status</p>
                         <p className="text-sm font-black text-slate-800">Operational</p>
                     </div>
-                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
+                    <button 
+                        onClick={() => navigate('/b2b-vendor/subscription')}
+                        className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex sm:flex-col justify-between sm:justify-start items-center sm:items-start text-left hover:bg-amber-100 transition-all group shadow-sm active:scale-95"
+                    >
                         <p className="text-[9px] sm:text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-0 sm:mb-1">Nearest Expiry</p>
-                        <p className="text-sm font-black text-amber-700">
-                            {dashboard.subscriptions.length > 0
-                                ? new Date(Math.min(...dashboard.subscriptions.map(s => new Date(s.expiry)))).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                                : 'No Active Plan'}
-                        </p>
-                    </div>
+                        <div className="flex flex-col">
+                            <p className="text-sm font-black text-amber-700">
+                                {dashboard.subscriptions.length > 0
+                                    ? new Date(Math.min(...dashboard.subscriptions.map(s => new Date(s.expiry)))).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                                    : 'No Active Plan'}
+                            </p>
+                            {dashboard.subscriptions.length === 0 && (
+                                <p className="text-[9px] font-black text-amber-500 uppercase mt-1 underline underline-offset-2">Buy Plan</p>
+                            )}
+                        </div>
+                    </button>
                 </div>
             </header>
 
@@ -309,7 +318,12 @@ const B2BVendorDashboard = () => {
                                         </div>
                                         <div>
                                             <p className="text-xs font-bold text-slate-700 leading-relaxed">{alert.message}</p>
-                                            <button className="mt-2 text-[10px] font-black text-slate-900 uppercase underline underline-offset-4 decoration-slate-300">Take Action</button>
+                                            <button 
+                                                onClick={() => alert.actionLink && navigate(alert.actionLink)}
+                                                className={`mt-2 text-[10px] font-black text-slate-900 uppercase underline underline-offset-4 decoration-slate-300 ${alert.actionLink ? 'cursor-pointer' : 'cursor-default'}`}
+                                            >
+                                                Take Action
+                                            </button>
                                         </div>
                                     </div>
                                 ))}

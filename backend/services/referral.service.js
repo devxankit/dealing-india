@@ -142,7 +142,7 @@ export const processSuccessfulUserReferral = async ({ referredUserId, referralCo
             settings.vendorReferrerRewardPoints,
             'Referral reward points',
             history._id.toString(),
-            'manual'
+            'referral_reward'
         );
     }
 

@@ -76,11 +76,17 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
             <div className="flex items-center justify-between mb-4">
                 <button
                     type="button"
-                    onClick={() =>
-                        mode === "admin" && id
-                            ? navigate(`/admin/b2b-vendors/manage/${id}/dashboard`)
-                            : navigate("/b2b-vendor/dashboard")
-                    }
+                    onClick={() => {
+                        if (mode === "admin") {
+                            if (id && id !== 'undefined') {
+                                navigate(`/admin/b2b-vendors/manage/${id}/dashboard`);
+                            } else {
+                                navigate("/admin/b2b-vendors/manage");
+                            }
+                        } else {
+                            navigate("/b2b-vendor/dashboard");
+                        }
+                    }}
                     className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-900"
                 >
                     <FiArrowLeft size={16} />

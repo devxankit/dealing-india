@@ -9,6 +9,8 @@ import B2BCategory from '../models/B2BCategory.model.js';
 import VendorSubscription from '../models/VendorSubscription.model.js';
 import LotSlot from '../models/LotSlot.model.js';
 import VendorAddon from '../models/VendorAddon.model.js';
+import Reel from '../models/Reel.model.js';
+import ReelReport from '../models/ReelReport.model.js';
 
 /**
  * Get Admin Dashboard Summary
@@ -274,6 +276,35 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
                 topLocations: topLocations.length ? topLocations : [{ name: 'No Data', views: 0 }]
             },
             revenueData: revenueData
+        }
+    });
+});
+
+/**
+ * Get Sidebar Notification Counts
+ * @route GET /api/admin/reports/sidebar-counts
+ * @access Private/Admin
+ */
+export const getSidebarCounts = asyncHandler(async (req, res) => {
+    const [
+        pendingVendors,
+        pendingBanners,
+        pendingReels,
+        pendingReports
+    ] = await Promise.all([
+        Vendor.countDocuments({ status: 'pending', vendorType: { $ne: 'admin' } }),
+        BannerBooking.countDocuments({ status: 'pending', paymentStatus: 'paid' }),
+        Reel.countDocuments({ status: 'pending' }),
+        ReelReport.countDocuments({ status: 'pending' })
+    ]);
+
+    res.status(200).json({
+        success: true,
+        data: {
+            pendingVendors,
+            pendingBanners,
+            pendingReels,
+            pendingReports
         }
     });
 });

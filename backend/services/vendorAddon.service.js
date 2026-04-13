@@ -79,6 +79,112 @@ class VendorAddonService {
   }
 
   /**
+   * Purchase addon unit using wallet balance (no Zoho invoice as requested)
+   * @param {string} vendorId 
+   * @param {string} addonPlanId 
+   * @returns {Promise<Object>} Created vendor addon record
+   */
+  async purchaseAddonViaWallet(vendorId, addonPlanId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const addonPlan = await B2BAddonPlan.findById(addonPlanId).session(session);
+      if (!addonPlan || !addonPlan.isActive) {
+        throw new Error('Invalid or inactive add-on plan');
+      }
+
+      const price = addonPlan.price || 0;
+      const discountAmount = addonPlan.discount || 0;
+      const gstPercentage = addonPlan.gst || 18;
+
+      const priceAfterDiscount = Math.max(0, price - discountAmount);
+      // For wallet purchases, we do NOT add GST because it was already collected during recharge top-up
+      const gstAmount = 0;
+      const totalAmount = priceAfterDiscount;
+
+      // Pay via wallet - this will check balance and debit
+      const { default: vendorWalletService } = await import('./vendorWallet.service.js');
+      await vendorWalletService.payViaWallet(
+        vendorId,
+        totalAmount,
+        `Purchase Add-on Plan: ${addonPlan.name}`,
+        addonPlanId.toString(),
+        'addon_plan'
+      );
+
+      // Create VendorAddon Record
+      const [vendorAddon] = await VendorAddon.create([{
+        vendorId,
+        addonPlanId,
+        featureType: addonPlan.featureType,
+        totalQuantity: addonPlan.quantity,
+        usedCount: 0,
+        purchaseDate: new Date(),
+        status: 'active',
+        paymentMethod: 'wallet',
+        paymentId: `WALLET-${Date.now()}`,
+        basePrice: price,
+        discount: discountAmount,
+        gstAmount,
+        totalAmount
+      }], { session });
+
+      await session.commitTransaction();
+
+      // Notify via email (without Zoho invoice as requested)
+      this.sendWalletPaymentNotification(vendorAddon._id).catch(err => {
+        console.error('[AddonWallet][Email] Background email failed:', err);
+      });
+
+      return vendorAddon;
+    } catch (error) {
+      await session.abortTransaction();
+      console.error('Purchase Addon Via Wallet Error:', error);
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  /**
+   * Send email notification for wallet-based purchase (No Zoho as requested)
+   */
+  async sendWalletPaymentNotification(addonId) {
+    try {
+      const { sendPaymentSuccessEmail } = await import('./email.service.js');
+      const addonDoc = await VendorAddon.findById(addonId).populate('addonPlanId').populate('vendorId');
+      if (!addonDoc) return;
+
+      const v = addonDoc.vendorId;
+      const planDoc = addonDoc.addonPlanId;
+      const amount = Number(addonDoc.totalAmount || 0);
+      const planName = planDoc?.name || `Add-on: ${addonDoc.featureType}`;
+
+      const emailData = {
+        amount,
+        planName,
+        title: planName,
+        paymentFor: 'addon_purchase',
+        paymentDate: new Date(),
+        transactionId: addonDoc.paymentId,
+        referenceId: `ADDON-${addonId}`,
+        paymentMethod: 'wallet',
+        vendor: {
+          name: v.businessName || v.storeName || v.name || 'Vendor',
+          email: v.email,
+          phone: v.phone
+        }
+      };
+
+      if (v.email) {
+        await sendPaymentSuccessEmail({ ...emailData, to: v.email });
+      }
+    } catch (e) {
+      console.error('[AddonWallet][Email] error:', e.message);
+    }
+  }
+
+  /**
    * Initialize addon purchase (Create Razorpay Order)
    * @param {string} vendorId - Vendor ID
    * @param {string} addonPlanId - ID of the addon package
@@ -180,7 +286,9 @@ class VendorAddonService {
         usedCount: 0,
         purchaseDate: new Date(),
         status: 'active',
+        paymentMethod: 'razorpay',
         paymentId: razorpayPaymentId,
+        razorpayPaymentId,
         razorpayOrderId,
         razorpaySignature,
         basePrice: price,

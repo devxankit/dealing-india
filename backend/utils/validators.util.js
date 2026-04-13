@@ -5,7 +5,8 @@
  */
 export const isValidEmail = (email) => {
   if (!email) return false;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Strict check to prevent common typos like .comm or .commm
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
   return emailRegex.test(email.trim());
 };
 

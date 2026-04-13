@@ -8,6 +8,6 @@ const router = express.Router();
 router.use(protectVendor);
 
 router.get('/', getMyUnit);
-router.post('/', requireActiveSubscription, createOrUpdateUnit);
+router.post('/', createOrUpdateUnit);
 
 export default router;

@@ -56,7 +56,7 @@ const B2BVendorReferral = () => {
                          </div>
                          <div>
                             <p className="text-[10px] font-bold text-primary-600 uppercase tracking-widest">Total Earned</p>
-                            <p className="text-xl font-black text-gray-900">{referralData?.wallet?.pointsBalance || 0} Points</p>
+                            <p className="text-xl font-black text-gray-900">₹{(referralData?.wallet?.pointsBalance || 0).toLocaleString('en-IN')}</p>
                          </div>
                     </div>
                 </div>
@@ -145,7 +145,7 @@ const B2BVendorReferral = () => {
                              </div>
                              <div>
                                 <h4 className="font-bold text-white mb-1">How it works</h4>
-                                <p className="text-slate-400 text-xs leading-relaxed">Referrals are tracked automatically. Once your referred vendors complete their verification, points are credited to your wallet.</p>
+                                <p className="text-slate-400 text-xs leading-relaxed">Referrals are tracked automatically. Once your referred vendors complete their verification, referral rewards are credited directly to your wallet as spendable balance.</p>
                              </div>
                         </div>
                         

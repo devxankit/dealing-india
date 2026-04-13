@@ -4,7 +4,7 @@ import {
     FiCheck, FiStar, FiInfo, FiCreditCard, FiCheckCircle,
     FiRefreshCw, FiX, FiCalendar, FiAlertTriangle, FiClock,
     FiDollarSign, FiPackage, FiShield, FiExternalLink, FiPlusCircle, FiGrid,
-    FiArrowRight
+    FiArrowRight, FiArrowUpRight, FiHome
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { getActiveB2BPlans, getB2BPlanByIdSync } from '../../../shared/utils/b2bPlanManager';
@@ -16,6 +16,7 @@ import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
 import { getBusinessTypes } from '../../../shared/utils/businessTypeCache';
 import { getB2BPlanById } from '../../../shared/utils/b2bPlanManager';
 import { useSubscriptionStore } from '../store/subscriptionStore';
+import vendorWalletService from '../services/vendorWalletService';
 
 const B2BVendorSubscription = () => {
     const { vendor } = useB2BVendorAuthStore();
@@ -39,10 +40,13 @@ const B2BVendorSubscription = () => {
     // Payment Confirmation Modal State
     const [showPayModal, setShowPayModal] = useState(false);
     const [payModalData, setPayModalData] = useState(null);
+    const [walletBalance, setWalletBalance] = useState(0);
+    const [isWalletProcessing, setIsWalletProcessing] = useState(false);
 
     useEffect(() => {
         loadSubscriptionData();
         loadAddonData();
+        loadWalletData();
 
         // Handle URL search params for filtering
         const params = new URLSearchParams(window.location.search);
@@ -71,17 +75,36 @@ const B2BVendorSubscription = () => {
                 subscriptionService.getAllSubscriptions()
             ]);
 
-            // Find vendor's business type slug - Case insensitive and type-safe matching
+            // Find vendor's business type and its settings
             const vendorBusinessType = businessTypes.find(t =>
-                (t.name && vendor?.businessType && t.name.toString().toLowerCase() === vendor.businessType.toString().toLowerCase()) ||
+                (t._id && vendor?.businessTypeRef && t._id.toString() === vendor.businessTypeRef.toString()) ||
                 (t.slug && vendor?.businessType && t.slug.toString().toLowerCase() === vendor.businessType.toString().toLowerCase()) ||
-                (t._id && vendor?.businessTypeRef && t._id.toString() === vendor.businessTypeRef.toString())
+                (t.name && vendor?.businessType && t.name.toString().toLowerCase() === vendor.businessType.toString().toLowerCase())
             );
 
+            // Use ID if available, fallback to slug
+            const bTypeFilter = vendorBusinessType?._id || vendorBusinessType?.slug;
+
             // Now fetch the plans for this business type - Force refresh from API
-            const marketPlans = await getActiveB2BPlans(true, { businessType: vendorBusinessType?.slug });
+            const marketPlans = await getActiveB2BPlans(true, { businessType: bTypeFilter });
+            
+            // Apply strict filtering based on configuration settings
+            const allowedPlansConfig = vendorBusinessType?.settings?.allowedPlans || [];
+            
             const filteredPlans = marketPlans
-                .filter(p => [3, 6, 12].includes(p.duration))
+                .filter(p => {
+                    const planId = p._id || p.id;
+                    // If the configuration specifies allowed plans, strictly follow it
+                    if (allowedPlansConfig.length > 0) {
+                        return allowedPlansConfig.includes(planId);
+                    }
+                    // If allowedPlans is an empty array [] (explicitly restricted), allow none
+                    if (vendorBusinessType?.settings && Array.isArray(vendorBusinessType.settings.allowedPlans) && vendorBusinessType.settings.allowedPlans.length === 0) {
+                        return false;
+                    }
+                    // Default fallback (legacy or unconfigured)
+                    return [3, 6, 12].includes(p.duration);
+                })
                 .sort((a, b) => a.duration - b.duration);
 
             setAvailablePlans(filteredPlans);
@@ -119,6 +142,15 @@ const B2BVendorSubscription = () => {
         } finally {
             setLoading(false);
             isFetchingRef.current = false;
+        }
+    };
+
+    const loadWalletData = async () => {
+        try {
+            const data = await vendorWalletService.getMyWallet();
+            setWalletBalance(data.balance || 0);
+        } catch (err) {
+            console.error('Error loading wallet:', err);
         }
     };
 
@@ -407,6 +439,34 @@ const B2BVendorSubscription = () => {
             toast.error(error.message || 'Failed to purchase add-on');
         } finally {
             setProcessingAddonId(null);
+        }
+    };
+
+    const proceedWithWalletPayment = async () => {
+        const { id, type } = payModalData;
+        try {
+            setIsWalletProcessing(true);
+            toast.loading('Processing wallet payment...', { id: 'wallet-pay' });
+            
+            if (type === 'addon') {
+                await vendorWalletService.purchaseAddonViaWallet(id);
+            } else {
+                // For both 'subscribe' and 'upgrade', we use the same wallet endpoint
+                await api.post('/vendor/subscriptions/purchase-wallet', { planId: id });
+            }
+            
+            toast.success('Payment successful via wallet!', { id: 'wallet-pay' });
+            setShowPayModal(false);
+            
+            if (type === 'addon') loadAddonData();
+            else loadSubscriptionData();
+            
+            loadWalletData();
+            refreshStatus();
+        } catch (err) {
+            toast.error(err.response?.data?.message || err.message || 'Wallet payment failed', { id: 'wallet-pay' });
+        } finally {
+            setIsWalletProcessing(false);
         }
     };
 
@@ -783,19 +843,24 @@ const B2BVendorSubscription = () => {
                         <FiPackage className="text-5xl" />
                     </div>
                     
-                    <h3 className="text-3xl font-black text-gray-900 mb-4 relative z-10">No Plans Available Right Now</h3>
-                    <p className="text-gray-500 max-w-lg mx-auto mb-10 relative z-10 leading-relaxed font-medium">
-                        We couldn't find any subscription plans matching your vendor business type: <span className="font-black text-primary-600 uppercase bg-primary-50 px-3 py-1 rounded-lg border border-primary-100">{vendor?.businessType || 'N/A'}</span>.
-                        Please ensure your business type is correctly configured or contact administrative support.
+                    <h3 className="text-3xl font-black text-gray-900 mb-4 relative z-10">No Subscription Plans Configured</h3>
+                    <p className="text-gray-500 max-w-lg mx-auto mb-1 relative z-10 leading-relaxed font-medium">
+                        Your business type (<span className="font-black text-primary-600 uppercase bg-primary-50 px-3 py-1 rounded-lg border border-primary-100">{vendor?.businessType || 'N/A'}</span>) currently doesn't require a monthly subscription.
+                    </p>
+                    <p className="text-gray-400 max-w-xl mx-auto mb-10 relative z-10 leading-relaxed text-sm">
+                        You can still **list your shop** for free and purchase individual **Feature Packs** (Products, Reels, etc.) from the section below using your wallet balance.
                     </p>
                     
                     <div className="flex flex-col items-center gap-4 relative z-10">
-                        <div className="inline-flex items-center gap-3 px-8 py-3 bg-gray-50 rounded-2xl text-sm font-bold text-gray-400 border border-gray-200">
-                            <FiInfo className="text-primary-500 text-lg" /> Admin configuration is required for this role.
-                        </div>
-                        <p className="text-[11px] text-gray-300 font-mono font-bold uppercase tracking-widest bg-gray-50/50 py-1 px-4 rounded-full">
-                            Category Slug: {(vendor?.businessType || 'textile').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}
-                        </p>
+                        <button 
+                            onClick={() => {
+                                const element = document.getElementById('addon-packs');
+                                if (element) element.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className="inline-flex items-center gap-3 px-8 py-3 bg-primary-600 rounded-2xl text-sm font-bold text-white shadow-lg shadow-primary-200 hover:bg-primary-700 transition-all"
+                        >
+                            <FiPlusCircle className="text-lg" /> Explore Add-on Packs
+                        </button>
                     </div>
                 </div>
             )}
@@ -817,7 +882,7 @@ const B2BVendorSubscription = () => {
                                         b._id === 'products' ? 'bg-blue-500 text-white' : 
                                         'bg-amber-500 text-white'
                                     }`}>
-                                        {b._id === 'reels' ? <FiPackage /> : b._id === 'products' ? <FiPlusCircle /> : <FiGrid />}
+                                        {b._id === 'reels' ? <FiPackage /> : b._id === 'products' ? <FiPlusCircle /> : b._id === 'property' ? <FiHome /> : <FiGrid />}
                                     </div>
                                 ))}
                             </div>
@@ -863,10 +928,12 @@ const B2BVendorSubscription = () => {
                                 <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center mb-6 relative z-10 font-bold ${
                                     addon.featureType === 'reels' ? 'bg-rose-50 text-rose-600' : 
                                     addon.featureType === 'products' ? 'bg-blue-50 text-blue-600' : 
+                                    addon.featureType === 'property' ? 'bg-indigo-50 text-indigo-600' :
                                     'bg-amber-50 text-amber-600'
                                 }`}>
                                     {addon.featureType === 'reels' ? <FiPackage className="text-3xl" /> : 
                                      addon.featureType === 'products' ? <FiPlusCircle className="text-3xl" /> : 
+                                     addon.featureType === 'property' ? <FiHome className="text-3xl" /> :
                                      <FiGrid className="text-3xl" />}
                                 </div>
 
@@ -953,7 +1020,7 @@ const B2BVendorSubscription = () => {
                                                     item.featureType === 'products' ? 'bg-blue-100 text-blue-600' :
                                                     'bg-amber-100 text-amber-600'
                                                 }`}>
-                                                    {item.featureType === 'reels' ? <FiPackage /> : item.featureType === 'products' ? <FiPlusCircle /> : <FiGrid />}
+                                                    {item.featureType === 'reels' ? <FiPackage /> : item.featureType === 'products' ? <FiPlusCircle /> : item.featureType === 'property' ? <FiHome /> : <FiGrid />}
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-gray-800 text-sm leading-tight">{item.addonPlanId?.name || 'Custom Pack'}</p>
@@ -1275,6 +1342,19 @@ const B2BVendorSubscription = () => {
                                             </>
                                         )}
                                     </div>
+                                    <div className="mt-4 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">Wallet Special Price</p>
+                                                <p className="text-sm font-bold text-indigo-700">No GST Applied</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-xl font-black text-indigo-600">
+                                                    ₹{(payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0)).toLocaleString('en-IN')}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="flex justify-between items-center mb-10 px-2">
@@ -1283,7 +1363,6 @@ const B2BVendorSubscription = () => {
                                         ₹{(payModalData.totalAmount || 0).toLocaleString('en-IN')}
                                     </span>
                                 </div>
-
                                 <button
                                     onClick={() => {
                                         if (payModalData.type === 'subscribe') proceedWithSubscription(payModalData.id);
@@ -1295,6 +1374,31 @@ const B2BVendorSubscription = () => {
                                     Proceed To Pay
                                     <FiArrowRight size={20} />
                                 </button>
+
+                                <button
+                                    onClick={proceedWithWalletPayment}
+                                    disabled={isWalletProcessing || walletBalance < (payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0))}
+                                    className={`w-full py-4 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-3 border-2 ${
+                                        walletBalance >= (payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0))
+                                        ? 'border-indigo-600 text-indigo-600 hover:bg-indigo-50'
+                                        : 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                    }`}
+                                >
+                                    <div className="flex flex-col items-center">
+                                        <div className="flex items-center gap-2">
+                                            <FiArrowUpRight size={18} />
+                                            Pay with Wallet
+                                        </div>
+                                        <span className="text-[10px] font-bold mt-0.5">
+                                            Current Balance: ₹{walletBalance.toLocaleString('en-IN')}
+                                        </span>
+                                    </div>
+                                </button>
+                                {walletBalance < (payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0)) && (
+                                    <p className="text-center text-[9px] text-rose-500 font-bold mt-2 uppercase tracking-tight">
+                                        Insufficient Balance. Please recharge your wallet.
+                                    </p>
+                                )}
                                 <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-6">
                                     Trusted & Secured Payment Interface
                                 </p>

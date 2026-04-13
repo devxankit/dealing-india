@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList } from "react-icons/fi";
+import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList, FiCamera } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
@@ -18,6 +18,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const [loading, setLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const { vendor } = useB2BVendorAuthStore();
+    const cameraInputRef = useRef(null);
 
     const [formData, setFormData] = useState(initialData || {
         name: "",
@@ -232,7 +233,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         setFormData(prev => ({ ...prev, bulkPricing: updated }));
     };
 
-    const { canCreateProduct } = useSubscriptionStore();
+    const { canCreateProduct, refreshStatus } = useSubscriptionStore();
     const productPermission = canCreateProduct();
     const MAX_PHOTOS = productPermission.maxImages !== undefined ? parseInt(productPermission.maxImages) : 5;
 
@@ -386,6 +387,9 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 await api.post('/b2b-vendor/products', productPayload);
                 toast.success("Product listed successfully");
             }
+
+            // Important: refresh subscription status so counts update immediately across the app
+            try { await refreshStatus(); } catch (e) { console.error("Refresh status failed", e); }
 
             categoriesCache = null;
             navigate("/b2b-vendor/products/manage-products");
@@ -754,32 +758,66 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                            {formData.images.map((img, index) => (
-                                <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 group">
-                                    <img src={img} alt="" className="w-full h-full object-cover" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <button
-                                            type="button"
-                                            onClick={() => removeImage(index)}
-                                            className="p-1.5 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"
-                                        >
-                                            <FiTrash2 size={14} />
-                                        </button>
-                                    </div>
-                                    {index === 0 && (
-                                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary-600 text-[7px] text-white font-bold uppercase rounded">
-                                            Cover
+                        <div className="flex gap-3 mb-4">
+                            <div className="grid grid-cols-2 flex-1 gap-3">
+                                {formData.images.map((img, index) => (
+                                    <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 group">
+                                        <img src={img} alt="" className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <button
+                                                type="button"
+                                                onClick={() => removeImage(index)}
+                                                className="p-1.5 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"
+                                            >
+                                                <FiTrash2 size={14} />
+                                            </button>
                                         </div>
-                                    )}
+                                        {index === 0 && (
+                                            <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary-600 text-[7px] text-white font-bold uppercase rounded">
+                                                Cover
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Action Buttons */}
+                                <div className="col-span-2 flex gap-3">
+                                    <label className="flex-1 flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-2xl hover:bg-primary-50 hover:border-primary-200 cursor-pointer transition-all group relative overflow-hidden">
+                                        <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-primary-600 transition-all shadow-sm">
+                                            {isUploading ? <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div> : <FiPlus />}
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary-600 mt-2">Upload</span>
+                                        <input 
+                                            type="file" 
+                                            onChange={handleMultipleImageUpload} 
+                                            className="hidden" 
+                                            multiple 
+                                            accept="image/*" 
+                                            disabled={isUploading} 
+                                        />
+                                    </label>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => cameraInputRef.current?.click()}
+                                        disabled={isUploading}
+                                        className="flex-1 flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-2xl hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group relative overflow-hidden"
+                                    >
+                                        <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-blue-600 transition-all shadow-sm">
+                                            <FiCamera size={18} />
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-blue-600 mt-2">Camera</span>
+                                        <input
+                                            ref={cameraInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            className="hidden"
+                                            onChange={handleMultipleImageUpload}
+                                        />
+                                    </button>
                                 </div>
-                            ))}
-                            <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-gray-200 rounded-xl hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-all group">
-                                <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-purple-600 transition-all">
-                                    {isUploading ? <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div> : <FiPlus />}
-                                </div>
-                                <input type="file" onChange={handleMultipleImageUpload} className="hidden" multiple accept="image/*" disabled={isUploading} />
-                            </label>
+                            </div>
                         </div>
                         <p className="text-[10px] text-gray-400 leading-relaxed font-medium mt-2">
                             {MAX_PHOTOS === 0 ? "No photos allowed on this plan." : `First image is cover. Max ${MAX_PHOTOS < 0 ? 'unlimited' : MAX_PHOTOS} photos.`} Max 300KB each.

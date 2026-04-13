@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag, FiX, FiCopy, FiShare2, FiInstagram, FiFacebook, FiYoutube, FiPlayCircle } from 'react-icons/fi';
+import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag, FiX, FiCopy, FiShare2, FiInstagram, FiFacebook, FiYoutube, FiPlayCircle, FiShield } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
@@ -23,6 +23,7 @@ const Profile = () => {
         { icon: FiBell, label: 'Notifications', desc: 'Manage inquiry alerts', path: '/b2b/notifications' },
         { icon: FiHelpCircle, label: 'Support & FAQs', desc: 'Get help with your bulk orders', path: '/b2b/support' },
         { icon: FiPlayCircle, label: 'How to Use', desc: 'Watch a guide to the platform', path: '/b2b/how-to-use' },
+        { icon: FiShield, label: 'Terms & Conditions', desc: 'Platform legal guidelines', path: '/terms?type=user' },
     ];
 
     const handleLogout = () => {

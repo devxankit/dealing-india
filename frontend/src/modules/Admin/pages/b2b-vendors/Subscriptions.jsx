@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX, FiShoppingBag, FiDownload } from "react-icons/fi";
+import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX, FiShoppingBag, FiDownload, FiHome } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import { getB2BPlans, updateB2BPlan, createB2BPlan, initializeDefaultPlans } from "../../../../shared/utils/b2bPlanManager";
@@ -130,6 +130,7 @@ const Subscriptions = () => {
                     reelsLimit: editingPlan.reelsLimit,
                     lotSlotLimit: editingPlan.lotSlotLimit,
                     imagesPerListing: editingPlan.imagesPerListing,
+                    propertyLimit: editingPlan.propertyLimit,
                     shopSlideshow: editingPlan.shopSlideshow,
                 });
                 toast.success('Plan updated successfully');
@@ -147,6 +148,7 @@ const Subscriptions = () => {
                     reelsLimit: editingPlan.reelsLimit,
                     lotSlotLimit: editingPlan.lotSlotLimit,
                     imagesPerListing: editingPlan.imagesPerListing,
+                    propertyLimit: editingPlan.propertyLimit,
                     shopSlideshow: editingPlan.shopSlideshow,
                 });
                 toast.success('Plan created successfully');
@@ -327,7 +329,13 @@ const Subscriptions = () => {
             render: (val, row) => (
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => navigate(`/admin/b2b-vendors/manage/${row.vendorId}/dashboard`)}
+                        onClick={() => {
+                            if (row.vendorId) {
+                                navigate(`/admin/b2b-vendors/manage/${row.vendorId}/dashboard`);
+                            } else {
+                                toast.error("Vendor associated with this subscription not found");
+                            }
+                        }}
                         className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                         title="View Vendor Dashboard"
                     >
@@ -685,6 +693,7 @@ const Subscriptions = () => {
                                 <div className="space-y-4">
                                     {[
                                         { id: 'productLimit', label: 'Product Listings', icon: FiShoppingBag },
+                                        { id: 'propertyLimit', label: 'Property Listings', icon: FiHome },
                                         { id: 'reelsLimit', label: 'Video Reels', icon: FiActivity },
                                         { id: 'lotSlotLimit', label: 'Lot/Slot Pack', icon: FiPlus },
                                         { id: 'imagesPerListing', label: 'Images per Listing', icon: FiSettings }

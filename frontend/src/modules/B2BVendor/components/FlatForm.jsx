@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
+import { useSubscriptionStore } from "../store/subscriptionStore";
 
 const FlatForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
@@ -304,6 +305,12 @@ const FlatForm = ({ initialData, isEdit }) => {
                 : await api.post('/property/add', payload);
             if (response.success) {
                 toast.success(isEdit ? 'Flat updated successfully!' : 'Flat listed successfully!');
+                // Refresh subscription status to update counts
+                try {
+                    await useSubscriptionStore.getState().refreshStatus();
+                } catch (e) {
+                    console.error("Refresh status failed", e);
+                }
                 navigate('/b2b-vendor/properties/manage-properties');
             }
         } catch (error) {

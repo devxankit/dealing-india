@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { FiUpload, FiX, FiTag, FiHome, FiLock, FiUnlock, FiEdit3, FiSave, FiPlus } from "react-icons/fi";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { FiUpload, FiX, FiTag, FiHome, FiLock, FiUnlock, FiEdit3, FiSave, FiPlus, FiCamera } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
@@ -11,16 +11,39 @@ const ALL_BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Sem
 const DEVELOPER_BUSINESS_CATEGORIES = ['Developer', 'Property'];
 
 const ShopListingForm = ({ onSubmit, isLoading = false }) => {
-    const [formData, setFormData] = useState({
-        shopName: "",
-        description: "",
-        businessCategory: "",
-        mapUrl: "",
-        minPrice: "",
-        maxPrice: "",
-        images: [],
-        details: [{ name: "", post: "", mobile: "" }],
-        shopUnitId: null,
+    const [formData, setFormData] = useState(() => {
+        // Try to load draft from localStorage on initial load
+        const savedDraft = localStorage.getItem('shop_listing_draft');
+        if (savedDraft) {
+            try {
+                const parsed = JSON.parse(savedDraft);
+                // Ensure default structure
+                return {
+                    shopName: parsed.shopName || "",
+                    description: parsed.description || "",
+                    businessCategory: parsed.businessCategory || "",
+                    mapUrl: parsed.mapUrl || "",
+                    minPrice: parsed.minPrice || "",
+                    maxPrice: parsed.maxPrice || "",
+                    images: parsed.images || [],
+                    details: parsed.details?.length > 0 ? parsed.details : [{ name: "", post: "", mobile: "" }],
+                    shopUnitId: null,
+                };
+            } catch (e) {
+                console.error("Failed to parse draft:", e);
+            }
+        }
+        return {
+            shopName: "",
+            description: "",
+            businessCategory: "",
+            mapUrl: "",
+            minPrice: "",
+            maxPrice: "",
+            images: [],
+            details: [{ name: "", post: "", mobile: "" }],
+            shopUnitId: null,
+        };
     });
 
     const { vendor } = useB2BVendorAuthStore();
@@ -70,6 +93,17 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         };
         fetchUnit();
     }, []);
+
+    // Save to localStorage whenever formData changes (Draft Persistence)
+    useEffect(() => {
+        const { shopUnitId, ...draftData } = formData;
+        // Don't save large base64 strings to localStorage to avoid quota exceeded error
+        const cleanDraft = {
+            ...draftData,
+            images: draftData.images.filter(img => img.startsWith('http')) 
+        };
+        localStorage.setItem('shop_listing_draft', JSON.stringify(cleanDraft));
+    }, [formData]);
 
     // When vendor is Developer, ensure selected businessCategory is in allowed list
     useEffect(() => {
@@ -175,6 +209,8 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
             details: formData.details.filter(d => d.name || d.post || d.mobile),
         };
 
+        // Clear draft on successful submit
+        localStorage.removeItem('shop_listing_draft');
         onSubmit(payload);
     };
 
@@ -270,11 +306,19 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                                 ))}
                             </AnimatePresence>
                             {formData.images.length < MAX_PHOTOS && (
-                                <label className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group">
-                                    <FiUpload size={22} className="group-hover:scale-110 transition-transform" />
-                                    <span className="text-[10px] font-black uppercase tracking-wider">Upload</span>
-                                    <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
-                                </label>
+                                <div className="flex gap-4 col-span-2 sm:col-span-1">
+                                    <label className="flex-1 aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group">
+                                        <FiUpload size={20} className="group-hover:scale-110 transition-transform" />
+                                        <span className="text-[10px] font-black uppercase tracking-wider">File</span>
+                                        <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                    </label>
+                                    
+                                    <label className="flex-1 aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group">
+                                        <FiCamera size={20} className="group-hover:scale-110 transition-transform text-primary-500" />
+                                        <span className="text-[10px] font-black uppercase tracking-wider">Camera</span>
+                                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                                    </label>
+                                </div>
                             )}
                         </div>
                     </div>

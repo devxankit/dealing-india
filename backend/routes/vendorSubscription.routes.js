@@ -19,6 +19,7 @@ router.post('/initialize', VendorSubscriptionController.initializeSubscription);
 router.post('/verify-payment', VendorSubscriptionController.verifyPayment);
 router.post('/subscribe', logSubscriptionChange('vendor_subscribe'), VendorSubscriptionController.subscribe);
 router.post('/upgrade', logSubscriptionChange('vendor_upgrade'), VendorSubscriptionController.upgrade);
+router.post('/purchase-wallet', logSubscriptionChange('vendor_wallet_purchase'), VendorSubscriptionController.purchaseViaWallet);
 router.post('/cancel', logSubscriptionChange('vendor_cancel'), VendorSubscriptionController.cancelSubscription);
 router.put('/renewal', logSubscriptionChange('vendor_renewal_update'), VendorSubscriptionController.updateRenewal);
 router.get('/invoice/:invoiceId', VendorSubscriptionController.downloadInvoice);

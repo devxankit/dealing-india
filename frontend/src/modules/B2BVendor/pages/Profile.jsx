@@ -1,4 +1,4 @@
-import { FiMapPin, FiPhone, FiMail, FiEdit2, FiCheckCircle, FiCopy, FiShare2 } from "react-icons/fi";
+import { FiMapPin, FiPhone, FiMail, FiEdit2, FiCheckCircle, FiCopy, FiShare2, FiShield, FiArrowRight } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useEffect, useState } from "react";
@@ -149,6 +149,25 @@ const B2BVendorProfile = () => {
                                 <FiCheckCircle className="text-blue-500 text-xl" />
                             </div>
                         </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-4 md:p-8 shadow-sm border border-gray-100">
+                        <h3 className="text-xl font-bold text-gray-800 mb-6">Legal & Policies</h3>
+                        <button 
+                            onClick={() => navigate('/terms?type=vendor')}
+                            className="w-full p-4 border border-gray-100 rounded-xl flex items-center justify-between group hover:border-primary-200 hover:bg-primary-50/30 transition-all"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-gray-500 group-hover:bg-white group-hover:text-primary-600 transition-colors">
+                                    <FiShield size={20} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-bold text-gray-700 text-sm md:text-base">Terms & Conditions</p>
+                                    <p className="text-[10px] font-medium text-gray-400">Review platform legal and operational guidelines</p>
+                                </div>
+                            </div>
+                            <FiArrowRight className="text-gray-300 group-hover:text-primary-500 transition-all group-hover:translate-x-1" />
+                        </button>
                     </div>
 
                     <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-4 md:p-6 text-white shadow-sm">

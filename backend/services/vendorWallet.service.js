@@ -182,6 +182,17 @@ class VendorWalletService {
     }
 
     /**
+     * Pay via wallet with balance check
+     */
+    async payViaWallet(vendorId, amount, description, referenceId, referenceType) {
+        const wallet = await this.getOrCreateWallet(vendorId);
+        if (wallet.balance < amount) {
+            throw new Error(`Insufficient wallet balance. Total required: ₹${amount}, Available: ₹${wallet.balance}`);
+        }
+        return await this.debitWallet(vendorId, amount, description, referenceId, referenceType);
+    }
+
+    /**
      * Debit vendor wallet (e.g., for banner bookings)
      */
     async debitWallet(vendorId, amount, description, referenceId, referenceType = 'refund') {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { FiPhone, FiLock, FiEye, FiEyeOff, FiBriefcase, FiShoppingBag, FiArrowLeft } from 'react-icons/fi';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from '../../../shared/utils/toast';
 import { registerFCMToken } from '../../../services/pushNotificationService';
@@ -13,6 +13,7 @@ const B2BUserLogin = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+    const [showRegisterModal, setShowRegisterModal] = useState(false);
     const [formData, setFormData] = useState({
         phone: '',
         countryCode: '+91',
@@ -76,7 +77,12 @@ const B2BUserLogin = () => {
                 toast.error(result.message || 'Login failed');
             }
         } catch (error) {
-            toast.error(error.message || 'Something went wrong. Please try again.');
+            const errorMsg = error.response?.data?.message || error.message || '';
+            if (errorMsg.toLowerCase().includes('user not found')) {
+                setShowRegisterModal(true);
+            } else {
+                toast.error(errorMsg || 'Something went wrong. Please try again.');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -205,9 +211,66 @@ const B2BUserLogin = () => {
                                 <FiBriefcase /> Login as Vendor
                             </Link>
                         </div>
-                    </div>
-                </form>
+                        <div className="pt-2">
+                             <p className="text-[10px] text-gray-400">
+                                 By signing in, you agree to our{' '}
+                                 <Link to="/terms?type=user" className="text-primary-600 font-bold hover:underline">
+                                     Terms & Conditions
+                                 </Link>
+                             </p>
+                         </div>
+                     </div>
+                 </form>
             </motion.div>
+
+            {/* Register Modal */}
+            <AnimatePresence>
+                {showRegisterModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 min-h-screen">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowRegisterModal(false)}
+                            className="absolute inset-0 bg-navy-950/60 backdrop-blur-md"
+                        />
+                        
+                        {/* Modal Content */}
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden p-8 text-center"
+                        >
+                            <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <FiShoppingBag className="text-primary-600 text-3xl" />
+                            </div>
+                            
+                            <h3 className="text-2xl font-black text-gray-900 mb-2">User Not Found</h3>
+                            <p className="text-gray-500 font-medium mb-8 leading-relaxed">
+                                This phone number or email is not registered with us. Would you like to create a new account?
+                            </p>
+                            
+                            <div className="space-y-3">
+                                <Link
+                                    to="/b2b/register"
+                                    onClick={() => setShowRegisterModal(false)}
+                                    className="block w-full py-4 bg-primary-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-primary-200 hover:bg-primary-700 transition-all"
+                                >
+                                    Register Now
+                                </Link>
+                                <button
+                                    onClick={() => setShowRegisterModal(false)}
+                                    className="block w-full py-4 bg-gray-50 text-gray-500 rounded-2xl font-black text-sm hover:bg-gray-100 transition-all border border-gray-100"
+                                >
+                                    Try Different Number
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div >
     );
 };

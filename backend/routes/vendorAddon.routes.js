@@ -12,6 +12,7 @@ router.use(authorize('vendor'));
 router.get('/available', VendorAddonController.getAvailableAddons);
 router.post('/initialize', VendorAddonController.initializeAddonPurchase);
 router.post('/verify', VendorAddonController.verifyAddonPayment);
+router.post('/purchase-wallet', VendorAddonController.purchaseAddonViaWallet);
 router.get('/status', VendorAddonController.getMyAddonsStatus);
 router.get('/history', VendorAddonController.getRecentAddons);
 

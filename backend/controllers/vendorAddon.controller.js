@@ -33,12 +33,18 @@ class VendorAddonController {
         }
       }
 
-      if (!businessTypeId) {
-        return res.status(200).json({ success: true, data: [], message: 'No business type found for vendor' });
+      // Note: We don't return early if businessTypeId is missing. 
+      // Instead, we skip settings-specific addons and hit the fallback below.
+      
+      const settings = businessTypeId ? await BusinessTypeSettings.findOne({ businessTypeId }) : null;
+      
+      let availableAddons = [];
+      if (settings && settings.allowedAddonPlans && settings.allowedAddonPlans.length > 0) {
+        availableAddons = await b2bAddonPlanService.getAllPlans({ _id: { $in: settings.allowedAddonPlans }, isActive: true });
+      } else {
+        // Fallback: If no specific addons are configured, show all active B2B addon plans
+        availableAddons = await b2bAddonPlanService.getAllPlans({ isActive: true });
       }
-
-      const settings = await BusinessTypeSettings.findOne({ businessTypeId });
-      const availableAddons = settings ? (await b2bAddonPlanService.getAllPlans({ _id: { $in: settings.allowedAddonPlans || [] }, isActive: true })) : [];
 
       let filteredAddons = availableAddons;
       const { featureType } = req.query;
@@ -57,6 +63,35 @@ class VendorAddonController {
       res.status(500).json({
         success: false,
         message: error.message || 'Failed to fetch addon package plans'
+      });
+    }
+  }
+
+  /**
+   * Purchase addon using wallet balance
+   * POST /vendor/addons/purchase-wallet
+   */
+  async purchaseAddonViaWallet(req, res) {
+    try {
+      const vendorId = req.user?.vendorId || req.userDoc?._id || req.user?.id;
+      const { addonPlanId } = req.body;
+
+      if (!addonPlanId) {
+        return res.status(400).json({ success: false, message: 'Addon plan ID is required' });
+      }
+
+      const addonRecord = await vendorAddonService.purchaseAddonViaWallet(vendorId, addonPlanId);
+
+      res.status(200).json({
+        success: true,
+        data: addonRecord,
+        message: 'Addon purchased successfully using wallet balance'
+      });
+    } catch (error) {
+      console.error('Error in purchaseAddonViaWallet controller:', error);
+      res.status(error.message?.includes('Insufficient wallet balance') ? 400 : 500).json({
+        success: false,
+        message: error.message || 'Failed to purchase addon using wallet'
       });
     }
   }

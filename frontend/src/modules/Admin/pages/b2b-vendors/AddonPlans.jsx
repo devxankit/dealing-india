@@ -119,6 +119,7 @@ const AddonPlans = () => {
                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${
                                     plan.featureType === 'reels' ? 'bg-rose-50 text-rose-600' :
                                     plan.featureType === 'products' ? 'bg-blue-50 text-blue-600' :
+                                    plan.featureType === 'property' ? 'bg-indigo-50 text-indigo-600' :
                                     'bg-amber-50 text-amber-600'
                                 } group-hover:scale-110 transition-transform`}>
                                     <FiPackage />
@@ -194,6 +195,7 @@ const AddonPlans = () => {
                                             <option value="products">Products</option>
                                             <option value="reels">Reels</option>
                                             <option value="lot_slot">Lot/Slot</option>
+                                            <option value="property">Property</option>
                                         </select>
                                     </div>
                                     <div>

@@ -175,12 +175,16 @@ const Billing = () => {
                                                             ? 'bg-primary-100 text-primary-600' 
                                                             : item.type === 'banner_booking'
                                                             ? 'bg-amber-100 text-amber-600'
+                                                            : item.type === 'wallet_recharge'
+                                                            ? 'bg-emerald-100 text-emerald-600'
                                                             : 'bg-indigo-100 text-indigo-600'
                                                     }`}>
                                                         {item.type === 'subscription_payment' 
                                                             ? <FiPackage /> 
                                                             : item.type === 'banner_booking'
                                                             ? <FiImage />
+                                                            : item.type === 'wallet_recharge'
+                                                            ? <FiCreditCard />
                                                             : <FiPlusCircle />}
                                                     </div>
                                                     <div>
@@ -252,36 +256,6 @@ const Billing = () => {
                 </div>
             </div>
 
-            {/* Zoho Info Banner */}
-            <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="bg-indigo-600 rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-indigo-100"
-            >
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24"></div>
-                
-                <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
-                    <div className="w-24 h-24 bg-white/20 backdrop-blur-xl rounded-3xl flex items-center justify-center text-5xl shadow-2xl">
-                        <FiInfo />
-                    </div>
-                    <div className="flex-1 text-center md:text-left">
-                        <h4 className="text-2xl font-black uppercase tracking-tight mb-3 italic">Zoho Books Integration</h4>
-                        <p className="text-indigo-100 text-lg font-medium leading-relaxed max-w-2xl">
-                            All your invoices are automatically generated via <span className="text-white font-bold underline decoration-2 underline-offset-4">Zoho Books</span>. 
-                            Our system syncs with Zoho in real-time to provide you with GST-compliant official billing documents.
-                        </p>
-                    </div>
-                    <div className="flex flex-col gap-3 w-full md:w-auto">
-                        <div className="px-6 py-3 bg-white/10 backdrop-blur rounded-2xl border border-white/20 text-xs font-black uppercase tracking-widest text-center">
-                            GST Compliant
-                        </div>
-                        <div className="px-6 py-3 bg-white/10 backdrop-blur rounded-2xl border border-white/20 text-xs font-black uppercase tracking-widest text-center">
-                            Instant PDF Download
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
         </div>
     );
 };

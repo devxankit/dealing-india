@@ -26,25 +26,26 @@ const B2BBottomNav = () => {
     return (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-[100] md:hidden pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
             <div className="flex justify-around items-center h-16">
-                {navItems.map((item) => (
-                    <NavLink
-                        key={item.path}
-                        to={item.path}
-                        end={item.path === '/b2b/landing'}
-                        onClick={(e) => handleNavClick(e, item)}
-                        className={({ isActive }) => `
-                            flex flex-col items-center gap-1 transition-all flex-1 py-2
-                            ${isActive ? 'text-primary-600' : 'text-gray-400'}
-                        `}
-                    >
-                        {({ isActive }) => (
-                            <>
-                                <item.icon className={`text-xl transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-105'}`} />
-                                <span className="text-[10px] font-black uppercase tracking-tight text-center">{item.label}</span>
-                            </>
-                        )}
-                    </NavLink>
-                ))}
+                {navItems.map((item) => {
+                    const isActive = location.pathname === item.path.split('?')[0] && 
+                                   (item.path.includes('?') ? location.search.includes(item.path.split('?')[1]) : location.search === '');
+
+                    return (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            end={item.path === '/b2b/landing'}
+                            onClick={(e) => handleNavClick(e, item)}
+                            className={`
+                                flex flex-col items-center gap-1 transition-all flex-1 py-2
+                                ${isActive ? 'text-primary-600' : 'text-gray-400'}
+                            `}
+                        >
+                            <item.icon className={`text-xl transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-105'}`} />
+                            <span className="text-[10px] font-black uppercase tracking-tight text-center">{item.label}</span>
+                        </NavLink>
+                    );
+                })}
             </div>
         </nav>
     );
