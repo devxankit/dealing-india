@@ -50,7 +50,10 @@ export const initiateRecharge = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         success: true,
-        data: order
+        data: {
+            ...order,
+            razorpayKeyId: process.env.RAZORPAY_KEY_ID
+        }
     });
 });
 

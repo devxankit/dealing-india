@@ -345,10 +345,10 @@ const B2BBannerBooking = () => {
 
     const handleRazorpayPayment = async (bookingId, razorpayOrder, amount, razorpayKeyId = null) => {
         try {
-            const keyId = razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+            const keyId = razorpayKeyId;
 
             if (!keyId) {
-                toast.error("Payment gateway not configured. Please contact support.");
+                toast.error("Payment gateway not configured correctly. Please contact support.");
                 return;
             }
 

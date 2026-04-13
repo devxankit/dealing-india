@@ -52,7 +52,7 @@ const WalletPage = () => {
             const order = await initiateRecharge(totalPayable);
             
             const options = {
-                key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+                key: order.razorpayKeyId,
                 amount: order.amount,
                 currency: 'INR',
                 name: 'Dealing India',

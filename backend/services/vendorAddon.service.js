@@ -233,7 +233,8 @@ class VendorAddonService {
         totalAmount: totalAmount,
         quantity: addonPlan.quantity,
         featureType: addonPlan.featureType,
-        name: addonPlan.name
+        name: addonPlan.name,
+        razorpayKeyId: process.env.RAZORPAY_KEY_ID
       };
     } catch (error) {
       console.error('Initialize Addon Purchase Error:', error);
