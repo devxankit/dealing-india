@@ -20,7 +20,7 @@ function firebaseSwPlugin() {
         measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID || "",
       };
       let content = fs.readFileSync(swPath, "utf8");
-      content = content.replace("self.__FIREBASE_CONFIG__ ||", `self.__FIREBASE_CONFIG__ || ${JSON.stringify(config)}`);
+      content = content.replace("self.__FIREBASE_CONFIG__ || null", `self.__FIREBASE_CONFIG__ || ${JSON.stringify(config)}`);
       fs.writeFileSync(swPath, content);
     },
   };

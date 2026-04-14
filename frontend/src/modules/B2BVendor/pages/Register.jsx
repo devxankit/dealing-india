@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import imageCompression from 'browser-image-compression';
 import api from '../../../shared/utils/api';
+import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
 
 /**
  * B2B Vendor Registration Page
