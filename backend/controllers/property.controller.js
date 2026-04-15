@@ -5,6 +5,7 @@ import VendorPropertySubscription from '../models/VendorPropertySubscription.mod
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadBase64ToCloudinary, deleteFromCloudinary, isBase64DataUrl } from '../utils/cloudinary.util.js';
 import ShopUnit from '../models/ShopUnit.model.js';
+import vendorAddonService from '../services/vendorAddon.service.js';
 
 const DEFAULT_FLAT_DETAILS = {
     flatType: '2BHK',
@@ -303,6 +304,11 @@ export const addProperty = asyncHandler(async (req, res) => {
     }
 
     const property = await Property.create(propertyData);
+    
+    // Consume addon unit if applicable
+    if (req.subscriptionLimits?.property?.useAddon) {
+        await vendorAddonService.consumeAddonUnit(vendorId, 'property');
+    }
 
     // Flatten specifications for frontend compatibility
     const responseData = property.toObject();

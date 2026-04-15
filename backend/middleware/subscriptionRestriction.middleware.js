@@ -143,10 +143,12 @@ export const checkPropertyCreation = async (req, res, next) => {
             });
         }
 
-        // Attach image limit to request for use in controller
+        // Attach limits to request for use in controller
         req.subscriptionLimits = {
             property: {
-                maxImages: result.maxImages
+                maxImages: result.maxImages,
+                useAddon: result.useAddon,
+                addonCount: result.addonCount
             }
         };
 
