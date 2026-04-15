@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { FiArrowLeft, FiPhone, FiMessageSquare, FiMapPin, FiUsers } from "react-icons/fi";
+import { FiArrowLeft, FiPhone, FiMessageSquare, FiMapPin, FiUsers, FiAlertCircle, FiPackage, FiX, FiPlusCircle } from "react-icons/fi";
+import { FaWhatsapp } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
 import api from "../../../shared/utils/api";
+import toast from "react-hot-toast";
+import subscriptionService from "../services/subscriptionService";
+import vendorWalletService from "../services/vendorWalletService";
 
 const CLICK_TYPES = {
     call: {
@@ -34,12 +39,55 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // Enquiry stats (vendor mode only)
+    const [enquiryStats, setEnquiryStats] = useState(null);
+    const [loadingStats, setLoadingStats] = useState(false);
+    const [unlockingIds, setUnlockingIds] = useState({});
+    
+    // Quota Modal State
+    const [showQuotaModal, setShowQuotaModal] = useState(false);
+    const [enquiryPlans, setEnquiryPlans] = useState([]);
+    const [walletBalance, setWalletBalance] = useState(0);
+    const [isPurchasing, setIsPurchasing] = useState(false);
+
     useEffect(() => {
         if (clickType !== normalizedType) {
             setSearchParams({ type: clickType });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [clickType]);
+
+    // Fetch enquiry stats on mount (vendor mode only)
+    useEffect(() => {
+        if (mode !== 'vendor') return;
+        const fetchStats = async () => {
+            setLoadingStats(true);
+            try {
+                const res = await api.get('/vendor/analytics/enquiry-stats');
+                if (res?.success) setEnquiryStats(res.data);
+            } catch (e) {
+                console.error('Failed to load enquiry stats:', e?.message);
+            } finally {
+                setLoadingStats(false);
+            }
+        };
+        fetchStats();
+        loadQuotaData();
+    }, [mode]);
+
+    const loadQuotaData = async () => {
+        if (mode !== 'vendor') return;
+        try {
+            const [plans, wallet] = await Promise.all([
+                subscriptionService.getAddonPlans('enquiry'),
+                vendorWalletService.getMyWallet()
+            ]);
+            setEnquiryPlans(plans || []);
+            setWalletBalance(wallet?.balance || 0);
+        } catch (e) {
+            console.error('Failed to load quota data:', e);
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -68,6 +116,48 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
         fetchData();
     }, [clickType]);
 
+    const handleUnlock = async (row) => {
+        const userId = row.user?._id;
+        const dateKey = row.dateKey;
+        if (!userId || !dateKey) return;
+
+        setUnlockingIds(prev => ({ ...prev, [`${dateKey}-${userId}`]: true }));
+        try {
+            const res = await api.post('/vendor/analytics/unlock-enquiry', { userId, dateKey });
+            if (res.success) {
+                toast.success('Lead unlocked successfully!');
+                // Refresh everything
+                const statsRes = await api.get('/vendor/analytics/enquiry-stats');
+                if (statsRes?.success) setEnquiryStats(statsRes.data);
+                
+                const url = mode === "admin" && id
+                    ? `/admin/analytics/vendor-contact/${id}/click-users`
+                    : "/vendor/analytics/click-users";
+                const response = await api.get(url, {
+                    params: { clickType, page: 1, limit: 100 },
+                });
+                if (response?.success) setItems(response.data?.items || []);
+            } else {
+                if (res.message?.toLowerCase().includes('insufficient enquiry quota')) {
+                    setShowQuotaModal(true);
+                    loadQuotaData();
+                } else {
+                    toast.error(res.message || 'Failed to unlock lead');
+                }
+            }
+        } catch (e) {
+            const msg = e.response?.data?.message || e.message || '';
+            if (msg.toLowerCase().includes('insufficient enquiry quota')) {
+                setShowQuotaModal(true);
+                loadQuotaData();
+            } else {
+                toast.error(msg || 'Error unlocking lead');
+            }
+        } finally {
+            setUnlockingIds(prev => ({ ...prev, [`${dateKey}-${userId}`]: false }));
+        }
+    };
+
     const currentMeta = CLICK_TYPES[clickType] || CLICK_TYPES.whatsapp;
     const CurrentIcon = currentMeta.icon;
 
@@ -93,6 +183,46 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
                     Back to Dashboard
                 </button>
             </div>
+
+            {/* Enquiry Stats Banner — vendor mode only */}
+            {mode === 'vendor' && (
+                <div className="grid grid-cols-3 gap-4 mb-2">
+                    <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 flex flex-col gap-1">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Today's Enquiries</p>
+                        <p className="text-3xl font-black text-slate-900">
+                            {loadingStats ? '—' : (enquiryStats?.todayEnquiries ?? 0)}
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-bold">Unique users today</p>
+                    </div>
+                    <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 flex flex-col gap-1">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">This Month</p>
+                        <p className="text-3xl font-black text-slate-900">
+                            {loadingStats ? '—' : (enquiryStats?.monthlyEnquiries ?? 0)}
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-bold">Total unique enquiries</p>
+                    </div>
+                    <div className={`rounded-[2rem] p-5 shadow-sm border flex flex-col gap-1 ${
+                        (enquiryStats?.addonQuotaRemaining ?? 0) === 0
+                            ? 'bg-red-50 border-red-100'
+                            : 'bg-purple-50 border-purple-100'
+                    }`}>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Enquiry Quota Left</p>
+                        <p className={`text-3xl font-black ${
+                            (enquiryStats?.addonQuotaRemaining ?? 0) === 0 ? 'text-red-600' : 'text-purple-700'
+                        }`}>
+                            {loadingStats ? '—' : (enquiryStats?.addonQuotaRemaining ?? 0)}
+                        </p>
+                        <p 
+                            onClick={() => (enquiryStats?.addonQuotaRemaining ?? 0) === 0 && navigate('/b2b-vendor/subscription?feature=enquiry')}
+                            className={`text-[9px] font-bold ${(enquiryStats?.addonQuotaRemaining ?? 0) === 0 ? 'cursor-pointer hover:underline' : ''}`}
+                        >
+                            {(enquiryStats?.addonQuotaRemaining ?? 0) === 0
+                                ? '⚠️ Low balance. Buy enquiry add-on'
+                                : 'Units remaining'}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 shadow-sm border border-slate-100">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -150,7 +280,11 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
                             {items.map((row, idx) => (
                                 <div
                                     key={`${row?.dateKey || "date"}-${row?.user?._id || idx}`}
-                                    className="p-4 rounded-3xl border border-slate-100 bg-slate-50/50 hover:bg-white transition-all"
+                                    className={`p-4 rounded-3xl border transition-all ${
+                                        row.user?.isLocked 
+                                        ? 'border-red-100 bg-red-50/30 hover:bg-red-50/50' 
+                                        : 'border-slate-100 bg-slate-50/50 hover:bg-white'
+                                    }`}
                                 >
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex items-start gap-3">
@@ -165,17 +299,41 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
                                                 <p className="text-sm font-black text-slate-900 mt-1">
                                                     {row.user?.name || "Unknown User"}
                                                 </p>
-                                                <div className="mt-2 space-y-1">
-                                                    {row.category && (
-                                                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest bg-primary-50 px-2 py-0.5 rounded-md inline-block mb-1">
-                                                            {row.category}
-                                                        </p>
+                                                <div className="mt-2 space-y-2">
+                                                    {(row.category || row.user?.isLocked) && (
+                                                        <div className="flex flex-wrap gap-2">
+                                                        {row.category && (
+                                                            <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest bg-primary-50 px-2 py-0.5 rounded-md inline-block">
+                                                                {row.category}
+                                                            </p>
+                                                        )}
+                                                        {row.user?.isLocked && (
+                                                            <p className="text-[10px] font-black text-red-600 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded-md inline-block border border-red-100 italic">
+                                                                Locked Enquiry • Recharge to View
+                                                            </p>
+                                                        )}
+                                                        </div>
                                                     )}
-                                                    {row.user?.phone && (
-                                                        <p className="text-xs font-bold text-slate-700">{row.user.phone}</p>
-                                                    )}
-                                                    {row.user?.email && (
-                                                        <p className="text-xs font-bold text-slate-500">{row.user.email}</p>
+                                                    
+                                                    {row.user?.isLocked ? (
+                                                        <div className="pt-2">
+                                                            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest bg-red-50 px-2 py-1 rounded-lg inline-block">
+                                                                Contact Hidden • Recharge to View
+                                                            </p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-0.5">
+                                                            {row.user?.phone && (
+                                                                <p className="text-xs font-bold text-slate-700">
+                                                                    {row.user.phone}
+                                                                </p>
+                                                            )}
+                                                            {row.user?.email && (
+                                                                <p className="text-xs font-bold text-slate-500">
+                                                                    {row.user.email}
+                                                                </p>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
@@ -189,6 +347,16 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
                                                     ? new Date(row.lastClickAt).toLocaleString("en-GB")
                                                     : "--"}
                                             </p>
+                                            
+                                            {row.user?.isLocked && (
+                                                <button
+                                                    onClick={() => handleUnlock(row)}
+                                                    disabled={unlockingIds[`${row.dateKey}-${row.user?._id}`]}
+                                                    className="mt-3 px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 transition-all shadow-sm"
+                                                >
+                                                    {unlockingIds[`${row.dateKey}-${row.user?._id}`] ? 'Unlocking...' : 'Unlock Lead (1 Credit)'}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -197,6 +365,116 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
                     )}
                 </div>
             </div>
+
+            {/* Quota Recharge Modal */}
+            <AnimatePresence>
+                {showQuotaModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => !isPurchasing && setShowQuotaModal(false)}
+                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl relative z-10"
+                        >
+                            <div className="p-8">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+                                            <FiAlertCircle size={20} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Need More Enquiries?</h3>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Your quota is exhausted</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setShowQuotaModal(false)}
+                                        className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors"
+                                    >
+                                        <FiX size={20} />
+                                    </button>
+                                </div>
+
+                                <div className="bg-slate-50 rounded-2xl p-4 mb-6 flex items-center justify-between border border-slate-100">
+                                    <div>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Available Balance</p>
+                                        <p className="text-xl font-black text-slate-900">₹{walletBalance.toLocaleString('en-IN')}</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => navigate('/b2b-vendor/wallet')}
+                                        className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-slate-400 transition-all flex items-center gap-2"
+                                    >
+                                        <FiPlusCircle size={14} className="text-slate-900" />
+                                        Add Money
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {enquiryPlans.length === 0 ? (
+                                        <p className="text-center py-10 text-slate-400 text-xs font-bold">No enquiry packs available</p>
+                                    ) : (
+                                        enquiryPlans.map(plan => (
+                                            <div 
+                                                key={plan._id}
+                                                className="p-4 rounded-2xl border border-slate-100 bg-white hover:border-primary-200 hover:shadow-md transition-all group"
+                                            >
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <div>
+                                                        <p className="text-sm font-black text-slate-900">{plan.name}</p>
+                                                        <p className="text-[10px] font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded inline-block mt-1">
+                                                            {plan.credits} Enquiry Units
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-lg font-black text-slate-900">₹{plan.price}</p>
+                                                        <button 
+                                                            disabled={isPurchasing}
+                                                            onClick={async () => {
+                                                                if (walletBalance < plan.price) {
+                                                                    toast.error('Insufficient wallet balance');
+                                                                    return;
+                                                                }
+                                                                setIsPurchasing(true);
+                                                                try {
+                                                                    await vendorWalletService.purchaseAddonViaWallet(plan._id);
+                                                                    toast.success('Pack purchased successfully!');
+                                                                    setShowQuotaModal(false);
+                                                                    // Refresh page data
+                                                                    const statsRes = await api.get('/vendor/analytics/enquiry-stats');
+                                                                    if (statsRes?.success) setEnquiryStats(statsRes.data);
+                                                                    loadQuotaData();
+                                                                } catch (e) {
+                                                                    toast.error(e.message || 'Purchase failed');
+                                                                } finally {
+                                                                    setIsPurchasing(false);
+                                                                }
+                                                            }}
+                                                            className="mt-1 text-[9px] font-black text-white bg-slate-900 hover:bg-primary-600 px-3 py-1.5 rounded-lg uppercase tracking-widest transition-all disabled:opacity-50"
+                                                        >
+                                                            Buy Now
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                
+                                <p className="text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-6">
+                                    Units are deducted per user per day
+                                </p>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

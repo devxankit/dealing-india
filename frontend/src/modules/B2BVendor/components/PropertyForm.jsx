@@ -7,95 +7,56 @@ import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useSubscriptionStore } from "../store/subscriptionStore";
 
+const DRAFT_KEY = "b2b_property_add_draft";
+
 const PropertyForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
     const [step, setStep] = useState(1);
-    const [media, setMedia] = useState([]); // { url, data, name }
+    const [media, setMedia] = useState(() => {
+        if (!isEdit) {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                try { return JSON.parse(saved).media || []; } catch(e) {}
+            }
+        }
+        return [];
+    }); // { url, data, name }
 
     const propertyTypeOptions = ["Shop", "Office", "Showroom", "Warehouse", "Industrial Shed", "Other"];
 
-    const [formData, setFormData] = useState({
-        // 1. Basic Info
-        title: '',
-        propertyTypes: [],
-        listingType: 'Rent',
-        description: '',
+    const [formData, setFormData] = useState(() => {
+        const defaultData = {
+            title: '', propertyTypes: [], listingType: 'Rent', description: '',
+            saleDetails: { priceMin: '', priceMax: '', priceUnit: 'Lakh', depositAmount: '', depositUnit: 'Lakh', maintenance: 'Excluded', veraBill: 'Excluded' },
+            rentDetails: { monthlyRent: '', rentUnit: 'Thousand', depositAmount: '', depositUnit: 'Thousand', maintenance: 'Excluded', veraBill: 'Excluded' },
+            leaseDetails: { monthlyLeaseRate: '', leaseUnit: 'Lakh', depositAmount: '', depositUnit: 'Lakh', leaseDurationYears: '' },
+            status: { furnishing: 'Unfurnished', propertyStatus: 'Ready', propertyCondition: 'New', propertyPosition: 'Ready to Move' },
+            location: { address: '', area: '', market: '', city: '', mapUrl: '' },
+            roadFacing: 'Main Road', legal: { loanAvailable: 'No', reraApproved: 'No', load: '' },
+            specifications: [{ builtUpArea: '', builtUpAreaUnit: 'Sq. Ft.', carpetArea: '', carpetAreaUnit: '%', floorNumber: '', totalFloors: '', ceilingHeight: '', ceilingHeightUnit: 'Ft.', entranceWidth: '', entranceWidthUnit: 'Ft.', maliya: 'No' }],
+            facilities: { parking: [], lift: 'No', liftPassenger: 'No', liftLoading: 'No', powerBackup: 'No', waterSupply: [], washroom: ['Common'], fireSafety: 'No' }
+        };
 
-        // 2. Pricing (Conditional)
-        saleDetails: {
-            priceMin: '',
-            priceMax: '',
-            priceUnit: 'Lakh',
-            depositAmount: '',
-            depositUnit: 'Lakh',
-            maintenance: 'Excluded',
-            veraBill: 'Excluded'
-        },
-        rentDetails: {
-            monthlyRent: '',
-            rentUnit: 'Thousand',
-            depositAmount: '',
-            depositUnit: 'Thousand',
-            maintenance: 'Excluded',
-            veraBill: 'Excluded'
-        },
-        leaseDetails: {
-            monthlyLeaseRate: '',
-            leaseUnit: 'Lakh',
-            depositAmount: '',
-            depositUnit: 'Lakh',
-            leaseDurationYears: ''
-        },
-
-        // 3. Status
-        status: {
-            furnishing: 'Unfurnished',
-            propertyStatus: 'Ready',
-            propertyCondition: 'New',
-            propertyPosition: 'Ready to Move'
-        },
-
-        // 4. Location & Road Facing
-        location: {
-            address: '',
-            area: '',
-            market: '',
-            city: '',
-            mapUrl: ''
-        },
-        roadFacing: 'Main Road',
-        legal: {
-            loanAvailable: 'No',
-            reraApproved: 'No',
-            load: ''
-        },
-
-        // 5. Specs & Facilities
-        specifications: [{
-            builtUpArea: '',
-            builtUpAreaUnit: 'Sq. Ft.',
-            carpetArea: '',
-            carpetAreaUnit: '%',
-            floorNumber: '',
-            totalFloors: '',
-            ceilingHeight: '',
-            ceilingHeightUnit: 'Ft.',
-            entranceWidth: '',
-            entranceWidthUnit: 'Ft.',
-            maliya: 'No'
-        }],
-        facilities: {
-            parking: [],
-            lift: 'No',
-            liftPassenger: 'No',
-            liftLoading: 'No',
-            powerBackup: 'No',
-            waterSupply: [],
-            washroom: ['Common'],
-            fireSafety: 'No'
+        if (initialData) return defaultData; // Will be hydrated by useEffect below
+        if (!isEdit) {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                try { return JSON.parse(saved).formData || defaultData; } catch(e) {}
+            }
         }
+        return defaultData;
     });
+
+    // Auto-save draft
+    useEffect(() => {
+        if (!isEdit) {
+            localStorage.setItem(DRAFT_KEY, JSON.stringify({ formData, media }));
+        } else {
+            localStorage.removeItem(DRAFT_KEY);
+        }
+    }, [formData, media, isEdit]);
 
     useEffect(() => {
         if (initialData) {
@@ -135,6 +96,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 legal: { ...prev.legal, ...(initialData.legal || {}) },
                 specifications: specs,
                 facilities: { ...prev.facilities, ...(initialData.facilities || {}) },
+                propertyTypes: initialData.propertyTypes || (initialData.propertyType ? [initialData.propertyType] : []),
             }));
 
             if (initialData.media && Array.isArray(initialData.media)) {
@@ -244,11 +206,33 @@ const PropertyForm = ({ initialData, isEdit }) => {
         setMedia(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleSubmit = async () => {
-        if (!formData.title || !formData.location.address || !formData.location.city) {
-            toast.error("Please fill all required fields");
-            return;
+    const validateStep = (currentStep) => {
+        const newErrors = {};
+        if (currentStep === 1) {
+            if (!formData.title?.trim()) newErrors.title = "Listing title is required";
+            if (!formData.propertyTypes?.length) newErrors.propertyTypes = "At least one property type is required";
         }
+        if (currentStep === 4) {
+            if (!formData.location?.address?.trim()) newErrors['location.address'] = "Address is required";
+            if (!formData.location?.area?.trim()) newErrors['location.area'] = "Locality/Area is required";
+            if (!formData.location?.city?.trim()) newErrors['location.city'] = "City is required";
+        }
+        if (currentStep === 5) {
+            if (media.length === 0) newErrors.media = "At least one photo is required";
+        }
+
+        setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) {
+            const firstError = Object.keys(newErrors)[0];
+            const el = document.getElementsByName(firstError)[0] || document.getElementById(firstError);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
+        return true;
+    };
+
+    const handleSubmit = async () => {
+        if (!validateStep(step)) return;
 
         const parseNumber = (val) => {
             if (!val) return null;
@@ -261,6 +245,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
 
             const payload = {
                 ...formData,
+                propertyType: formData.propertyTypes[0] || "",
                 specifications: formData.specifications.map(spec => ({
                     ...spec,
                     builtUpArea: parseNumber(spec.builtUpArea),
@@ -278,6 +263,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 : await api.post('/property/add', payload);
 
             if (response.success) {
+                localStorage.removeItem(DRAFT_KEY);
                 toast.success(isEdit ? 'Property updated successfully!' : 'Property listed successfully!');
                 // Refresh subscription status to update counts
                 try {
@@ -337,19 +323,21 @@ const PropertyForm = ({ initialData, isEdit }) => {
                         <motion.div key="step1" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8 flex-1">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Listing Title <span className="text-red-500">*</span></label>
-                                <input type="text" name="title" value={formData.title} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-700" placeholder="Prime Commercial Hub in Heart of City" />
+                                <input name="title" type="text" value={formData.title} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors.title ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-slate-300'} rounded-2xl outline-none transition-all font-bold text-slate-700`} placeholder="Prime Commercial Hub in Heart of City" />
+                                {errors.title && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.title}</p>}
                             </div>
 
                             <div>
                                 <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-4">Property Type (Select Multiple) <span className="text-red-500">*</span></label>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     {propertyTypeOptions.map(t => (
-                                        <label key={t} className={`flex items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all font-bold text-sm ${formData.propertyTypes.includes(t) ? 'border-primary-600 bg-primary-600 text-white' : 'border-slate-100 text-slate-500 hover:border-slate-300'}`}>
-                                            <input type="checkbox" checked={formData.propertyTypes.includes(t)} onChange={() => handlePropertyTypeChange(t)} className="hidden" />
+                                        <label key={t} className={`flex items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all font-bold text-sm ${formData.propertyTypes.includes(t) ? 'border-primary-600 bg-primary-600 text-white' : errors.propertyTypes ? 'border-red-200 bg-red-50 text-red-400' : 'border-slate-100 text-slate-500 hover:border-slate-300'}`}>
+                                            <input type="checkbox" checked={formData.propertyTypes.includes(t)} onChange={() => { if (errors.propertyTypes) setErrors(p => ({ ...p, propertyTypes: null })); handlePropertyTypeChange(t); }} className="hidden" />
                                             {t}
                                         </label>
                                     ))}
                                 </div>
+                                {errors.propertyTypes && <p className="text-[10px] text-red-500 font-bold mt-2 ml-1">{errors.propertyTypes}</p>}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -747,11 +735,23 @@ const PropertyForm = ({ initialData, isEdit }) => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="md:col-span-2">
                                     <label className="label">Full Address <span className="text-red-500">*</span></label>
-                                    <textarea name="location.address" value={formData.location.address} onChange={handleChange} className="input-field min-h-[80px]" />
+                                    <textarea name="location.address" value={formData.location.address} onChange={handleChange} className={`input-field min-h-[80px] ${errors['location.address'] ? 'border-red-500 bg-red-50' : ''}`} />
+                                    {errors['location.address'] && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors['location.address']}</p>}
                                 </div>
-                                <input name="location.area" placeholder="Area" value={formData.location.area} onChange={handleChange} className="input-field" />
-                                <input name="location.city" placeholder="City" value={formData.location.city} onChange={handleChange} className="input-field" />
-                                <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="input-field" />
+                                <div>
+                                    <label className="label uppercase text-[8px] text-gray-400 mb-1 ml-1 text-slate-900">Locality/Area <span className="text-red-500">*</span></label>
+                                    <input name="location.area" placeholder="E.g. MG Road" value={formData.location.area} onChange={handleChange} className={`input-field ${errors['location.area'] ? 'border-red-500 bg-red-50' : ''}`} />
+                                    {errors['location.area'] && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors['location.area']}</p>}
+                                </div>
+                                <div>
+                                    <label className="label uppercase text-[8px] text-gray-400 mb-1 ml-1 text-slate-900">City <span className="text-red-500">*</span></label>
+                                    <input name="location.city" placeholder="City" value={formData.location.city} onChange={handleChange} className={`input-field ${errors['location.city'] ? 'border-red-500 bg-red-50' : ''}`} />
+                                    {errors['location.city'] && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors['location.city']}</p>}
+                                </div>
+                                <div>
+                                    <label className="label uppercase text-[8px] text-gray-400 mb-1 ml-1">Market</label>
+                                    <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="input-field" />
+                                </div>
                                 <div className="md:col-span-2">
                                     <input name="location.mapUrl" placeholder="Google Map URL" value={formData.location.mapUrl} onChange={handleChange} className="input-field" />
                                 </div>
@@ -770,7 +770,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                         <motion.div key="step5" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8 flex-1">
                             <div>
                                 <label className="label mb-4">Property Media <span className="text-red-500">*</span></label>
-                                <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest -mt-4 mb-3">Note: Please upload square images (1:1 ratio) for better display.</p>
+                                <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest mb-3">Note: Please upload square images (1:1 ratio) for better display.</p>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     {media.map((img, idx) => (
                                         <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border-2 border-slate-100">
@@ -802,14 +802,16 @@ const PropertyForm = ({ initialData, isEdit }) => {
                     </button>
                     {step < 5 ? (
                         <button
-                            onClick={() => setStep(s => s + 1)}
+                            onClick={() => {
+                                if (validateStep(step)) setStep(s => s + 1);
+                            }}
                             className="bg-primary-600 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest transition-all hover:bg-primary-700 shadow-xl shadow-slate-200"
                         >
                             Continue
                         </button>
                     ) : (
                         <button
-                            disabled={loading || media.length === 0}
+                            disabled={loading}
                             onClick={handleSubmit}
                             className="bg-primary-600 text-white px-12 py-4 rounded-2xl font-black uppercase tracking-widest transition-all hover:bg-primary-700 shadow-xl shadow-primary-100 disabled:opacity-50"
                         >

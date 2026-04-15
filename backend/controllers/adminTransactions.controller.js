@@ -3,6 +3,7 @@ import VendorSubscription from '../models/VendorSubscription.model.js';
 import BannerBooking from '../models/BannerBooking.model.js';
 import VendorAddon from '../models/VendorAddon.model.js';
 import Vendor from '../models/Vendor.model.js';
+import VendorWalletTransaction from '../models/VendorWalletTransaction.model.js';
 
 /**
  * GET /api/admin/transactions
@@ -26,11 +27,12 @@ export const getAllTransactions = asyncHandler(async (req, res) => {
   }
 
   // ── Revenue Totals ─────────────────────────────────────────
-  const [subRev, bannerRev, addonRev] = await Promise.all([
+  const [subRev, bannerRev, addonRev, walletRev] = await Promise.all([
     VendorSubscription.aggregate([
       { $match: { 
         status: { $in: ['active', 'expired'] }, 
         totalAmount: { $gt: 0 },
+        paymentMethod: { $nin: ['wallet', 'free'] },
         ...(vendorIds.length > 0 || businessType && businessType !== 'All Business Types' ? vendorMatch : {})
       } },
       { $group: { _id: null, total: { $sum: '$totalAmount' }, count: { $sum: 1 } } }
@@ -46,9 +48,22 @@ export const getAllTransactions = asyncHandler(async (req, res) => {
       { $match: { 
         status: { $ne: 'failed' }, 
         totalAmount: { $gt: 0 },
+        paymentMethod: { $ne: 'wallet' },
         ...(vendorIds.length > 0 || businessType && businessType !== 'All Business Types' ? vendorMatch : {})
       } },
       { $group: { _id: null, total: { $sum: '$totalAmount' }, count: { $sum: 1 } } }
+    ]),
+    VendorWalletTransaction.aggregate([
+      { $match: { 
+        referenceType: 'recharge',
+        type: 'credit',
+        ...(vendorIds.length > 0 || businessType && businessType !== 'All Business Types' ? vendorMatch : {})
+      } },
+      { $group: { 
+        _id: null, 
+        total: { $sum: { $ifNull: ["$metadata.totalAmount", { $multiply: ["$amount", 1.18] }] } }, 
+        count: { $sum: 1 } 
+      } }
     ])
   ]);
 
@@ -56,7 +71,8 @@ export const getAllTransactions = asyncHandler(async (req, res) => {
     subscription: { total: subRev[0]?.total || 0, count: subRev[0]?.count || 0 },
     banner:       { total: bannerRev[0]?.total || 0, count: bannerRev[0]?.count || 0 },
     addon:        { total: addonRev[0]?.total || 0, count: addonRev[0]?.count || 0 },
-    grand:        (subRev[0]?.total || 0) + (bannerRev[0]?.total || 0) + (addonRev[0]?.total || 0)
+    wallet:       { total: walletRev[0]?.total || 0, count: walletRev[0]?.count || 0 },
+    grand:        (subRev[0]?.total || 0) + (bannerRev[0]?.total || 0) + (addonRev[0]?.total || 0) + (walletRev[0]?.total || 0)
   };
 
   // ── Fetch records by type ──────────────────────────────────
@@ -162,15 +178,51 @@ export const getAllTransactions = asyncHandler(async (req, res) => {
     }));
   };
 
+  const fetchRecharges = async () => {
+    const query = { referenceType: 'recharge', type: 'credit' };
+    if (vendorIds.length > 0 || businessType && businessType !== 'All Business Types') {
+      query.vendorId = { $in: vendorIds };
+    }
+    const docs = await VendorWalletTransaction.find(query)
+      .sort({ createdAt: -1 })
+      .populate('vendorId', 'name storeName email phone gstNumber')
+      .lean();
+
+    return docs.map(r => ({
+      _id: r._id,
+      amount: r.metadata?.totalAmount || Math.round(r.amount * 1.18 * 100) / 100,
+      baseAmount: r.amount,
+      gstAmount: (r.metadata?.totalAmount || r.amount * 1.18) - r.amount,
+      type: 'recharge',
+      label: 'Wallet Recharge',
+      method: 'Razorpay',
+      date: r.createdAt,
+      status: 'completed',
+      vendorName: r.vendorId?.storeName || r.vendorId?.name || 'Vendor',
+      vendorEmail: r.vendorId?.email,
+      vendorPhone: r.vendorId?.phone,
+      vendorGst: r.vendorId?.gstNumber,
+      razorpayPaymentId: r.referenceId,
+      zohoInvoiceId: r.zohoInvoiceId
+    }));
+  };
+
   if (type === 'subscription') {
     transactions = await fetchSubs();
   } else if (type === 'banner') {
     transactions = await fetchBanners();
   } else if (type === 'addon') {
     transactions = await fetchAddons();
+  } else if (type === 'recharge') {
+    transactions = await fetchRecharges();
   } else {
-    const [subs, banners, addons] = await Promise.all([fetchSubs(), fetchBanners(), fetchAddons()]);
-    transactions = [...subs, ...banners, ...addons].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const [subs, banners, addons, recharges] = await Promise.all([
+      fetchSubs(), 
+      fetchBanners(), 
+      fetchAddons(),
+      fetchRecharges()
+    ]);
+    transactions = [...subs, ...banners, ...addons, ...recharges].sort((a, b) => new Date(b.date) - new Date(a.date));
   }
 
   const total = transactions.length;

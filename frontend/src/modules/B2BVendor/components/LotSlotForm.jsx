@@ -11,22 +11,28 @@ import { useSubscriptionStore } from "../store/subscriptionStore";
 const LotSlotForm = ({ initialData, isEdit, id }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
     const [isUploading, setIsUploading] = useState(false);
     const { vendor } = useB2BVendorAuthStore();
+    const DRAFT_KEY = "b2b_lotslot_add_draft";
 
-    const [formData, setFormData] = useState(initialData || {
-        name: "",
-        category: "",
-        subcategory: "",
-        moq: 1,
-        price: "", // Base Price / Expected price
-        description: "",
-        images: [],
-        specifications: [{ name: "", value: "" }],
-        bulkPricing: [{ minQty: "", price: "" }],
-        brand: "",
-        availability: "In Stock",
-        unit: "Lot",
+    const [formData, setFormData] = useState(() => {
+        const defaultData = {
+            name: "", category: "", subcategory: "", moq: 1, price: "",
+            description: "", images: [], specifications: [{ name: "", value: "" }],
+            bulkPricing: [{ minQty: "", price: "" }], brand: "", availability: "In Stock", unit: "Lot",
+        };
+        if (initialData) return initialData;
+        if (!isEdit) {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    return parsed.formData || defaultData;
+                } catch (e) {}
+            }
+        }
+        return defaultData;
     });
 
     const [categories, setCategories] = useState([]);
@@ -36,8 +42,38 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     const [isSubcategoryDropdownOpen, setIsSubcategoryDropdownOpen] = useState(false);
     const subcategoryDropdownRef = useRef(null);
     const [dynamicFields, setDynamicFields] = useState([]);
-    const [dynamicValues, setDynamicValues] = useState({});
-    const [customMultiInputs, setCustomMultiInputs] = useState({});
+    const [dynamicValues, setDynamicValues] = useState(() => {
+        if (!isEdit) {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                try { return JSON.parse(saved).dynamicValues || {}; } catch(e) {}
+            }
+        }
+        return {};
+    });
+
+    const [customMultiInputs, setCustomMultiInputs] = useState(() => {
+        if (!isEdit) {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                try { return JSON.parse(saved).customMultiInputs || {}; } catch(e) {}
+            }
+        }
+        return {};
+    });
+
+    // Auto-save draft
+    useEffect(() => {
+        if (!isEdit) {
+            localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                formData,
+                dynamicValues,
+                customMultiInputs
+            }));
+        } else {
+            localStorage.removeItem(DRAFT_KEY);
+        }
+    }, [formData, dynamicValues, customMultiInputs, isEdit]);
 
     const filteredSubcategories = useMemo(() => {
         return (subcategories || []).filter(sub => {
@@ -177,6 +213,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+        if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
@@ -265,18 +302,24 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
             ...prev,
             images: prev.images.filter((_, i) => i !== index)
         }));
+        if (formData.images.length <= 1) setErrors(prev => ({ ...prev, images: null }));
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
+        const newErrors = {};
 
-        if (formData.images.length === 0) {
-            toast.error("Please upload at least one image");
-            return;
-        }
+        if (formData.images.length === 0) newErrors.images = "Please upload at least one image";
+        if (!formData.name?.trim()) newErrors.name = "Title is required";
+        if (!formData.price) newErrors.price = "Price is required";
+        if (!formData.category) newErrors.category = "Category is required";
+        if (!formData.description?.trim()) newErrors.description = "Description is required";
 
-        if (!formData.name || !formData.price || !formData.moq || !formData.category) {
-            toast.error("Please fill in all required fields");
+        setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) {
+            const firstError = Object.keys(newErrors)[0];
+            const el = document.getElementsByName(firstError)[0] || document.getElementById(firstError);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
 
@@ -327,6 +370,8 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                 toast.success("Lot/Slot listed successfully");
             }
 
+            localStorage.removeItem(DRAFT_KEY);
+
             // Refresh subscription status to update counts
             try {
                 await useSubscriptionStore.getState().refreshStatus();
@@ -345,7 +390,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="max-w-7xl mx-auto space-y-6 pb-20">
+        <form onSubmit={handleSubmit} noValidate className="max-w-7xl mx-auto space-y-6 pb-20">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Left Section: Details */}
                 <div className="lg:col-span-8 space-y-6">
@@ -370,10 +415,10 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                     name="name"
                                     value={formData.name}
                                     onChange={handleChange}
-                                    required
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                    className={`w-full px-4 py-2.5 bg-slate-50 border ${errors.name ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none`}
                                     placeholder="e.g. Bulk Cotton Lot 500kg"
                                 />
+                                {errors.name && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.name}</p>}
                             </div>
 
                             <div className="md:col-span-1">
@@ -382,15 +427,15 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                     name="category"
                                     value={formData.category}
                                     onChange={handleChange}
-                                    required
                                     disabled={categoriesLoading}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-50"
+                                    className={`w-full px-4 py-2.5 bg-slate-50 border ${errors.category ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-50`}
                                 >
                                     <option value="">{categoriesLoading ? "Loading categories..." : "Select Category"}</option>
                                     {categories.map((cat) => (
                                         <option key={cat.id} value={cat.name}>{cat.name}</option>
                                     ))}
                                 </select>
+                                {errors.category && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.category}</p>}
                             </div>
 
                             <div className="md:col-span-1" ref={subcategoryDropdownRef}>
@@ -651,9 +696,10 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                             value={formData.description}
                             onChange={handleChange}
                             rows={4}
-                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all resize-none outline-none"
+                            className={`w-full px-4 py-2.5 bg-slate-50 border ${errors.description ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all resize-none outline-none`}
                             placeholder="Provide a detailed description for bulk buyers..."
                         />
+                        {errors.description && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.description}</p>}
                     </div>
 
                     {/* Specifications */}
@@ -759,13 +805,14 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                     )}
                                 </div>
                             ))}
-                            <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-gray-200 rounded-xl hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-all group">
+                            <label className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed ${errors.images ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-xl hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-all group`}>
                                 <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-purple-600 transition-all">
                                     {isUploading ? <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div> : <FiPlus />}
                                 </div>
                                 <input type="file" onChange={handleMultipleImageUpload} className="hidden" multiple accept="image/*" disabled={isUploading} />
                             </label>
                         </div>
+                        {errors.images && <p className="text-[10px] text-red-500 font-bold mb-2 ml-1">{errors.images}</p>}
                         <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
                             First image is cover. Max 300KB each.
                         </p>
@@ -790,11 +837,11 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                         name="price"
                                         value={formData.price}
                                         onChange={handleChange}
-                                        required
-                                        className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                        className={`w-full pl-8 pr-4 py-2.5 bg-slate-50 border ${errors.price ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none`}
                                         placeholder="45000"
                                     />
                                 </div>
+                                {errors.price && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.price}</p>}
                             </div>
 
                             <div>

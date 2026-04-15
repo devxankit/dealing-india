@@ -10,8 +10,19 @@ import { useSubscriptionStore } from "../store/subscriptionStore";
 const FlatForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
     const [step, setStep] = useState(1);
-    const [media, setMedia] = useState([]);
+    const DRAFT_KEY = "b2b_flat_add_draft";
+
+    const [media, setMedia] = useState(() => {
+        if (!isEdit) {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                try { return JSON.parse(saved).media || []; } catch(e) {}
+            }
+        }
+        return [];
+    });
 
     const baseFlat = {
         flatType: '',
@@ -47,45 +58,44 @@ const FlatForm = ({ initialData, isEdit }) => {
         }
     };
 
-    const [flatVariants, setFlatVariants] = useState([baseFlat]);
-    const [formData, setFormData] = useState({
-        title: '',
-        listingType: 'Rent',
-        description: '',
-        propertyType: 'Flat',
-
-        // Pricing (using same structure as PropertyForm for compatibility)
-        saleDetails: {
-            priceMin: '',
-            priceMax: '',
-            priceUnit: 'Lakh',
-        },
-        rentDetails: {
-            monthlyRent: '',
-            rentUnit: 'Thousand',
-            depositAmount: '',
-            depositUnit: 'Thousand',
-            maintenance: 'Excluded',
-            veraBill: 'Excluded'
-        },
-        leaseDetails: {
-            monthlyLeaseRate: '',
-            leaseUnit: 'Lakh',
-            depositAmount: '',
-            depositUnit: 'Lakh',
-            leaseDurationYears: ''
-        },
-
-        // Flat Specific Details
-        flatDetails: { ...baseFlat },
-        location: {
-            address: '',
-            area: '',
-            state: '',
-            city: '',
-            mapUrl: ''
+    const [flatVariants, setFlatVariants] = useState(() => {
+        if (!isEdit) {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                try { return JSON.parse(saved).flatVariants || [{ ...baseFlat }]; } catch(e) {}
+            }
         }
+        return [{ ...baseFlat }];
     });
+
+    const [formData, setFormData] = useState(() => {
+        const defaultData = {
+            title: '', listingType: 'Rent', description: '', propertyType: 'Flat',
+            saleDetails: { priceMin: '', priceMax: '', priceUnit: 'Lakh' },
+            rentDetails: { monthlyRent: '', rentUnit: 'Thousand', depositAmount: '', depositUnit: 'Thousand', maintenance: 'Excluded', veraBill: 'Excluded' },
+            leaseDetails: { monthlyLeaseRate: '', leaseUnit: 'Lakh', depositAmount: '', depositUnit: 'Lakh', leaseDurationYears: '' },
+            flatDetails: { ...baseFlat },
+            location: { address: '', area: '', state: '', city: '', mapUrl: '' }
+        };
+
+        if (initialData) return defaultData; // Hydrated in useEffect
+        if (!isEdit) {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                try { return JSON.parse(saved).formData || defaultData; } catch(e) {}
+            }
+        }
+        return defaultData;
+    });
+
+    // Auto-save draft
+    useEffect(() => {
+        if (!isEdit) {
+            localStorage.setItem(DRAFT_KEY, JSON.stringify({ formData, flatVariants, media }));
+        } else {
+            localStorage.removeItem(DRAFT_KEY);
+        }
+    }, [formData, flatVariants, media, isEdit]);
 
     useEffect(() => {
         // keep primary flatDetails in sync with first variant
@@ -136,6 +146,13 @@ const FlatForm = ({ initialData, isEdit }) => {
 
     const handleChange = (e, variantIndex = 0) => {
         const { name, value } = e.target;
+        // Clear error on change
+        if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
+        if (name.startsWith('flatDetails.')) {
+            const field = name.split('.').pop();
+            setErrors(prev => ({ ...prev, [`flatDetails.${variantIndex}.${field}`]: null }));
+        }
+
         if (name.includes('.')) {
             const parts = name.split('.');
             if (parts.length === 2) {
@@ -262,13 +279,43 @@ const FlatForm = ({ initialData, isEdit }) => {
 
     const removeImage = (index) => {
         setMedia(prev => prev.filter((_, i) => i !== index));
+        if (media.length <= 1) setErrors(p => ({ ...p, media: null }));
+    };
+
+    const validateStep = (currentStep) => {
+        const newErrors = {};
+        if (currentStep === 1) {
+            if (!formData.title?.trim()) newErrors.title = "Listing title is required";
+            if (!formData.description?.trim()) newErrors.description = "Description is required";
+        }
+        if (currentStep === 2) {
+            flatVariants.forEach((v, idx) => {
+                if (!v.flatType) newErrors[`flatDetails.${idx}.flatType`] = "Flat type is required";
+                if (!v.builtUpArea) newErrors[`flatDetails.${idx}.builtUpArea`] = "Area is required";
+            });
+        }
+        if (currentStep === 3) {
+            if (formData.listingType === 'Sale' && !formData.saleDetails.priceMin) newErrors['saleDetails.priceMin'] = "Price is required";
+            if (formData.listingType === 'Rent' && !formData.rentDetails.monthlyRent) newErrors['rentDetails.monthlyRent'] = "Rent is required";
+        }
+        if (currentStep === 5) {
+            if (!formData.location.address?.trim()) newErrors['location.address'] = "Address is required";
+            if (!formData.location.city?.trim()) newErrors['location.city'] = "City is required";
+            if (media.length === 0) newErrors.media = "At least one photo is required";
+        }
+
+        setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) {
+            const firstError = Object.keys(newErrors)[0];
+            const el = document.getElementsByName(firstError)[0] || document.getElementById(firstError);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
+        return true;
     };
 
     const handleSubmit = async () => {
-        if (!formData.title || !formData.location.address || !formData.location.city) {
-            toast.error("Please fill all required fields");
-            return;
-        }
+        if (!validateStep(5)) return;
 
         const parseNumber = (val) => {
             if (!val) return null;
@@ -293,6 +340,7 @@ const FlatForm = ({ initialData, isEdit }) => {
 
         const payload = {
             ...formData,
+            propertyType: "Flat",
             flatDetails: {
                 ...(normalizedVariants[0] || flatVariants[0]),
             },
@@ -304,6 +352,7 @@ const FlatForm = ({ initialData, isEdit }) => {
                 ? await api.put(`/property/update/${initialData._id}`, payload)
                 : await api.post('/property/add', payload);
             if (response.success) {
+                localStorage.removeItem(DRAFT_KEY);
                 toast.success(isEdit ? 'Flat updated successfully!' : 'Flat listed successfully!');
                 // Refresh subscription status to update counts
                 try {
@@ -382,7 +431,8 @@ const FlatForm = ({ initialData, isEdit }) => {
                         <motion.div key="step1" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Listing Title <span className="text-red-500">*</span></label>
-                                <input type="text" name="title" value={formData.title} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-700" placeholder="E.g. Luxury 3BHK Flat in City Center" />
+                                <input type="text" name="title" value={formData.title} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors.title ? 'border-red-500 bg-red-50' : 'border-transparent'} focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-700`} placeholder="E.g. Luxury 3BHK Flat in City Center" />
+                                {errors.title && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.title}</p>}
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
@@ -393,7 +443,8 @@ const FlatForm = ({ initialData, isEdit }) => {
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Description <span className="text-red-500">*</span></label>
-                                    <textarea name="description" value={formData.description} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-700 min-h-[100px]" placeholder="Brief description..." />
+                                    <textarea name="description" value={formData.description} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors.description ? 'border-red-500 bg-red-50' : 'border-transparent'} focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-700 min-h-[100px]`} placeholder="Brief description..." />
+                                    {errors.description && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.description}</p>}
                                 </div>
                             </div>
                         </motion.div>
@@ -433,19 +484,21 @@ const FlatForm = ({ initialData, isEdit }) => {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div>
-                                                <label className="text-[10px] font-black uppercase">Flat Type</label>
-                                                <select name="flatDetails.flatType" value={flat.flatType} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
+                                                <label className="text-[10px] font-black uppercase">Flat Type <span className="text-red-500">*</span></label>
+                                                <select name="flatDetails.flatType" value={flat.flatType} onChange={(e) => handleChange(e, idx)} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors[`flatDetails.${idx}.flatType`] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold`}>
                                                     {['', '1BHK', '2BHK', '3BHK', '4BHK', '5BHK', '6BHK'].map(t => <option key={t || 'none'} value={t}>{t || 'Select'}</option>)}
                                                 </select>
+                                                {errors[`flatDetails.${idx}.flatType`] && <p className="text-[8px] text-red-500 font-bold mt-1 ml-1">{errors[`flatDetails.${idx}.flatType`]}</p>}
                                             </div>
                                             <div>
-                                                <label className="text-[10px] font-black uppercase">Built-up Area</label>
+                                                <label className="text-[10px] font-black uppercase">Built-up Area <span className="text-red-500">*</span></label>
                                                 <div className="grid grid-cols-2 gap-3">
-                                                    <input type="text" name="flatDetails.builtUpArea" value={flat.builtUpArea} onChange={(e) => handleChange(e, idx)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1200" />
+                                                    <input type="text" name="flatDetails.builtUpArea" value={flat.builtUpArea} onChange={(e) => handleChange(e, idx)} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors[`flatDetails.${idx}.builtUpArea`] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold`} placeholder="E.g. 1200" />
                                                     <select name="flatDetails.carpetAreaUnit" value={flat.carpetAreaUnit} onChange={(e) => handleChange(e, idx)} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
                                                         {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
                                                     </select>
                                                 </div>
+                                                {errors[`flatDetails.${idx}.builtUpArea`] && <p className="text-[8px] text-red-500 font-bold mt-1 ml-1">{errors[`flatDetails.${idx}.builtUpArea`]}</p>}
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-black uppercase">Common Area (CAP %)</label>
@@ -496,7 +549,10 @@ const FlatForm = ({ initialData, isEdit }) => {
                             {formData.listingType === 'Sale' && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2 text-xl font-black text-slate-900 uppercase">Sale Details</div>
-                                    <input type="number" name="saleDetails.priceMin" placeholder="Min Price" value={formData.saleDetails.priceMin} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
+                                    <div className="space-y-1">
+                                        <input type="number" name="saleDetails.priceMin" placeholder="Min Price *" value={formData.saleDetails.priceMin} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['saleDetails.priceMin'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold`} />
+                                        {errors['saleDetails.priceMin'] && <p className="text-[10px] text-red-500 font-bold ml-1">{errors['saleDetails.priceMin']}</p>}
+                                    </div>
                                     <input type="number" name="saleDetails.priceMax" placeholder="Max Price" value={formData.saleDetails.priceMax} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
                                     <select name="saleDetails.priceUnit" value={formData.saleDetails.priceUnit} onChange={handleChange} className="w-full px-6 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
                                         {['Rs', 'Thousand', 'Lakh', 'Crore'].map(u => <option key={u} value={u}>{u}</option>)}
@@ -507,7 +563,10 @@ const FlatForm = ({ initialData, isEdit }) => {
                             {formData.listingType === 'Rent' && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2 text-xl font-black text-slate-900 uppercase">Rent Details</div>
-                                    <input type="number" name="rentDetails.monthlyRent" placeholder="Monthly Rent" value={formData.rentDetails.monthlyRent} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
+                                    <div className="space-y-1">
+                                        <input type="number" name="rentDetails.monthlyRent" placeholder="Monthly Rent *" value={formData.rentDetails.monthlyRent} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['rentDetails.monthlyRent'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold`} />
+                                        {errors['rentDetails.monthlyRent'] && <p className="text-[10px] text-red-500 font-bold ml-1">{errors['rentDetails.monthlyRent']}</p>}
+                                    </div>
                                     <select name="rentDetails.rentUnit" value={formData.rentDetails.rentUnit} onChange={handleChange} className="w-full px-6 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
                                         {['Rs', 'Thousand', 'Lakh', 'Crore'].map(u => <option key={u} value={u}>{u}</option>)}
                                     </select>
@@ -696,9 +755,15 @@ const FlatForm = ({ initialData, isEdit }) => {
 
                                     <div className="text-xl font-black text-slate-900 uppercase pt-4">Location</div>
                                     <div className="space-y-4">
-                                        <textarea name="location.address" placeholder="Full Address *" value={formData.location.address} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold min-h-[80px]" />
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <input name="location.city" placeholder="City *" value={formData.location.city} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
+                                    <div className="space-y-1">
+                                        <textarea name="location.address" placeholder="Full Address *" value={formData.location.address} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['location.address'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold min-h-[80px]`} />
+                                        {errors['location.address'] && <p className="text-[10px] text-red-500 font-bold ml-1">{errors['location.address']}</p>}
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div className="flex flex-col gap-1">
+                                            <input name="location.city" placeholder="City *" value={formData.location.city} onChange={handleChange} className={`px-4 py-3 bg-slate-50 border-2 ${errors['location.city'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-xl font-bold text-xs`} />
+                                            {errors['location.city'] && <p className="text-[8px] text-red-500 font-bold ml-1">{errors['location.city']}</p>}
+                                        </div>
                                             <input name="location.area" placeholder="Area" value={formData.location.area} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                             <input name="location.state" placeholder="State" value={formData.location.state} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                         </div>
@@ -716,7 +781,7 @@ const FlatForm = ({ initialData, isEdit }) => {
 
                                 <div className="space-y-6">
                                     <div className="text-xl font-black text-slate-900 uppercase">Media</div>
-                                    <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest -mt-4 mb-2">Note: Please upload square images (1:1 ratio) for better display.</p>
+                                    <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest mb-2">Note: Please upload square images (1:1 ratio) for better display.</p>
                                     <div className="grid grid-cols-2 gap-4">
                                         {media.map((img, idx) => (
                                             <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-100">
@@ -725,13 +790,14 @@ const FlatForm = ({ initialData, isEdit }) => {
                                             </div>
                                         ))}
                                         {media.length < 50 && (
-                                            <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 text-slate-400">
+                                            <label className={`aspect-square rounded-2xl border-2 border-dashed ${errors.media ? 'border-red-500 bg-red-50' : 'border-slate-200'} flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 text-slate-400`}>
                                                 <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
                                                 <FiPlus size={24} />
                                                 <span className="text-[10px] font-bold uppercase">Add Photo</span>
                                             </label>
                                         )}
                                     </div>
+                                    {errors.media && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.media}</p>}
                                 </div>
                             </div>
                         </motion.div>
@@ -745,7 +811,7 @@ const FlatForm = ({ initialData, isEdit }) => {
                     ) : <div />}
 
                     {step < 5 ? (
-                        <button onClick={() => setStep(s => s + 1)} className="px-10 py-4 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all">Next Step</button>
+                        <button onClick={() => { if (validateStep(step)) setStep(s => s + 1); }} className="px-10 py-4 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all">Next Step</button>
                     ) : (
                         <button onClick={handleSubmit} disabled={loading} className="px-10 py-4 bg-green-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-green-700 shadow-lg shadow-green-200 transition-all disabled:opacity-50">
                             {loading ? 'Processing...' : 'Submit Listing'}

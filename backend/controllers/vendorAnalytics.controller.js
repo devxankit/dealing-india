@@ -1,6 +1,7 @@
 import Vendor from '../models/Vendor.model.js';
 import notificationService from '../services/notification.service.js';
 import VendorContactClick from '../models/VendorContactClick.model.js';
+import vendorAddonService from '../services/vendorAddon.service.js';
 import mongoose from 'mongoose';
 
 const getIndiaDateKey = (date = new Date()) => {
@@ -46,7 +47,47 @@ export const trackContactClick = async (req, res, next) => {
             });
         }
 
-        // Increment the appropriate counter
+        // --- STEP 1: Dedup check FIRST (before any counter increment) ---
+        // call/whatsapp are billable — deduped per user per vendor per day
+        // map is never deduped — always increments
+        const isBillableClick = clickType === 'call' || clickType === 'whatsapp';
+        const userId = req.user ? (req.user.id || req.user.vendorId || req.user.adminId) : null;
+        const dateKey = getIndiaDateKey(new Date());
+        let isNewEnquiry = false;
+        let enquiryConsumed = false;
+
+        if (isBillableClick) {
+            if (userId) {
+                // Has this user already contacted this vendor today (any clickType)?
+                const existingToday = await VendorContactClick.findOne(
+                    { vendorId, userId, dateKey, isNewEnquiry: true },
+                    { _id: 1 }
+                ).lean();
+
+                if (!existingToday) {
+                    isNewEnquiry = true; // First click of this user today
+                }
+                
+                // Has ANY click for this user+vendor+date already BEEN CONSUMED (paid)?
+                const alreadyPaid = await VendorContactClick.findOne(
+                    { vendorId, userId, dateKey, enquiryConsumed: true },
+                    { _id: 1 }
+                ).lean();
+                
+                if (alreadyPaid) {
+                    enquiryConsumed = true;
+                }
+            } else {
+                // Anonymous user — no dedup possible, every click counts as new but we don't consume from quota without userId
+                isNewEnquiry = true;
+            }
+        }
+
+        // --- STEP 2: Increment vendor analytics ONLY when warranted ---
+        // For call/whatsapp: only on the first click of the day (isNewEnquiry)
+        // For map: always increment (no dedup)
+        const shouldIncrement = !isBillableClick || isNewEnquiry;
+
         const updateField =
             clickType === 'call'
                 ? 'analytics.callClicks'
@@ -54,27 +95,42 @@ export const trackContactClick = async (req, res, next) => {
                     ? 'analytics.whatsappClicks'
                     : 'analytics.mapClicks';
 
-        const updatedVendor = await Vendor.findByIdAndUpdate(
-            vendorId,
-            { $inc: { [updateField]: 1 } },
-            { new: true }
-        );
+        let updatedVendor = null;
+        if (shouldIncrement) {
+            updatedVendor = await Vendor.findByIdAndUpdate(
+                vendorId,
+                { $inc: { [updateField]: 1 } },
+                { new: true, select: 'storeName analytics' }
+            );
 
-        if (!updatedVendor) {
-            return res.status(404).json({
-                success: false,
-                message: 'Vendor not found'
-            });
+            if (!updatedVendor) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Vendor not found'
+                });
+            }
+        } else {
+            // Repeated click — still need vendor for response/notification
+            updatedVendor = await Vendor.findById(vendorId).select('storeName').lean();
+            if (!updatedVendor) {
+                return res.status(404).json({ success: false, message: 'Vendor not found' });
+            }
+        }
+
+        // --- STEP 3: Consume enquiry addon unit (if billable, not yet paid today, and userId exists) ---
+        if (isBillableClick && userId && !enquiryConsumed) {
+            enquiryConsumed = await vendorAddonService.consumeAddonUnit(vendorId, 'enquiry');
         }
 
         res.status(200).json({
             success: true,
+            isNewEnquiry,
+            enquiryConsumed,
             message: `${clickType} click tracked successfully`
         });
 
+        // --- STEP 4: Store raw click record (always, for full analytics history) ---
         try {
-            // Store per-user-per-day click records (for vendor visibility)
-            const dateKey = getIndiaDateKey(new Date());
             const safeItemType = ['product', 'lotslot', 'property', 'vendor', 'reel'].includes(itemType)
                 ? itemType
                 : 'unknown';
@@ -82,27 +138,28 @@ export const trackContactClick = async (req, res, next) => {
             await VendorContactClick.create({
                 vendorId,
                 clickType,
-                userId: req.user ? (req.user.id || req.user.vendorId || req.user.adminId) : null,
+                userId,
                 userRole: req.user ? req.user.role : null,
                 dateKey,
                 itemType: safeItemType,
                 itemId: itemId || null,
                 category: category || null,
+                isNewEnquiry,
+                enquiryConsumed: userId ? !!enquiryConsumed : true
             });
         } catch (e) {
-            // Non-blocking: analytics storage should never fail the click action
             console.error('VendorContactClick create error:', e?.message || e);
         }
 
-        // Backend side notification for the user who clicked (if logged in)
-        if (req.user && req.user.role === 'user') {
-            const userId = req.user.id;
+        // --- STEP 5: Notify user only on first enquiry of the day ---
+        if (isNewEnquiry && req.user && req.user.role === 'user') {
+            const uid = req.user.id;
             notificationService.createNotification({
-                recipientId: userId,
+                recipientId: uid,
                 recipientType: 'user',
                 type: 'system',
                 title: 'Contact Request Logged 📞',
-                message: `You recently tried to contact "${updatedVendor.storeName}" via ${clickType}. Don't forget to follow up for the best quotes!`,
+                message: `You recently tried to contact "${updatedVendor?.storeName}" via ${clickType}. Don't forget to follow up for the best quotes!`,
                 actionUrl: `/b2b/vendor/${vendorId}`
             }).catch(e => console.error('Notification Error:', e.message));
         }
@@ -164,6 +221,7 @@ export const getClickUsers = async (req, res, next) => {
                     clickCount: { $sum: 1 },
                     lastClickAt: { $max: '$createdAt' },
                     itemType: { $first: '$itemType' },
+                    enquiryConsumed: { $max: '$enquiryConsumed' }
                 }
             },
             { $sort: { '_id.dateKey': -1, lastClickAt: -1 } },
@@ -199,11 +257,36 @@ export const getClickUsers = async (req, res, next) => {
                     lastClickAt: 1,
                     user: {
                         _id: '$matchedUser._id',
-                        name: { $ifNull: ['$matchedUser.name', 'Anonymous Visitor'] },
-                        email: { $ifNull: ['$matchedUser.email', 'N/A'] },
-                        phone: { $ifNull: ['$matchedUser.phone', 'N/A'] },
+                        name: { 
+                            $cond: [
+                                { $or: [{ $eq: ['$enquiryConsumed', true] }, { $not: ['$_id.userId'] }] },
+                                { $ifNull: ['$matchedUser.name', 'Anonymous Visitor'] },
+                                { $concat: ["Locked Enquiry (", { $ifNull: ["$matchedUser.name", "User"] }, ")"] }
+                            ]
+                        },
+                        email: {
+                            $cond: [
+                                { $or: [{ $eq: ['$enquiryConsumed', true] }, { $not: ['$_id.userId'] }] },
+                                { $ifNull: ['$matchedUser.email', 'N/A'] },
+                                'RECHARGE TO VIEW'
+                            ]
+                        },
+                        phone: {
+                            $cond: [
+                                { $or: [{ $eq: ['$enquiryConsumed', true] }, { $not: ['$_id.userId'] }] },
+                                { $ifNull: ['$matchedUser.phone', 'N/A'] },
+                                'RECHARGE TO VIEW'
+                            ]
+                        },
+                        isLocked: { 
+                            $and: [
+                                { $ne: ['$enquiryConsumed', true] },
+                                { $gt: ['$_id.userId', null] } 
+                            ]
+                        }
                     },
                     itemType: 1,
+                    enquiryConsumed: 1,
                 }
             },
             { $skip: skip },
@@ -300,6 +383,7 @@ export const getClickUsersForVendorAdmin = async (req, res, next) => {
                     clickCount: { $sum: 1 },
                     lastClickAt: { $max: '$createdAt' },
                     itemType: { $first: '$itemType' },
+                    enquiryConsumed: { $max: '$enquiryConsumed' }
                 }
             },
             { $sort: { '_id.dateKey': -1, lastClickAt: -1 } },
@@ -335,11 +419,31 @@ export const getClickUsersForVendorAdmin = async (req, res, next) => {
                     lastClickAt: 1,
                     user: {
                         _id: '$matchedUser._id',
-                        name: { $ifNull: ['$matchedUser.name', 'Anonymous Visitor'] },
-                        email: { $ifNull: ['$matchedUser.email', 'N/A'] },
-                        phone: { $ifNull: ['$matchedUser.phone', 'N/A'] },
+                        name: { 
+                            $cond: [
+                                { $eq: ['$enquiryConsumed', true] },
+                                { $ifNull: ['$matchedUser.name', 'Anonymous Visitor'] },
+                                { $concat: ["Locked Enquiry (", { $ifNull: ["$matchedUser.name", "User"] }, ")"] }
+                            ]
+                        },
+                        email: {
+                            $cond: [
+                                { $eq: ['$enquiryConsumed', true] },
+                                { $ifNull: ['$matchedUser.email', 'N/A'] },
+                                'RECHARGE TO VIEW'
+                            ]
+                        },
+                        phone: {
+                            $cond: [
+                                { $eq: ['$enquiryConsumed', true] },
+                                { $ifNull: ['$matchedUser.phone', 'N/A'] },
+                                'RECHARGE TO VIEW'
+                            ]
+                        },
+                        isLocked: { $ne: ['$enquiryConsumed', true] }
                     },
                     itemType: 1,
+                    enquiryConsumed: 1,
                 }
             },
             { $skip: skip },
@@ -411,6 +515,123 @@ export const getVendorAnalytics = async (req, res, next) => {
         res.status(500).json({
             success: false,
             message: 'Failed to fetch analytics',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get vendor enquiry stats — unique new enquiries count + addon quota remaining
+ * GET /api/vendor/analytics/enquiry-stats
+ * (Vendor auth)
+ */
+export const getEnquiryStats = async (req, res, next) => {
+    try {
+        const vendorId = req.user.vendorId;
+        const todayKey = getIndiaDateKey(new Date());
+
+        // Count unique new enquiries today
+        const todayEnquiries = await VendorContactClick.countDocuments({
+            vendorId,
+            isNewEnquiry: true,
+            dateKey: todayKey,
+        });
+
+        // Count total new enquiries this month
+        const nowIST = new Date();
+        const monthStart = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' })
+            .format(new Date(nowIST.getFullYear(), nowIST.getMonth(), 1));
+        const monthlyEnquiries = await VendorContactClick.countDocuments({
+            vendorId,
+            isNewEnquiry: true,
+            dateKey: { $gte: monthStart },
+        });
+
+        // Remaining enquiry addon quota
+        const addonQuotaRemaining = await vendorAddonService.getTotalAvailableAddonUnits(
+            vendorId,
+            'enquiry'
+        );
+
+        res.status(200).json({
+            success: true,
+            data: {
+                todayEnquiries,
+                monthlyEnquiries,
+                addonQuotaRemaining,
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching enquiry stats:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch enquiry stats',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Unlock a specific lead by consuming quota
+ * POST /api/vendor/analytics/unlock-enquiry
+ * Body: { userId, dateKey }
+ */
+export const unlockEnquiry = async (req, res, next) => {
+    try {
+        const vendorId = req.user.vendorId;
+        const { userId, dateKey } = req.body;
+
+        if (!userId || !dateKey) {
+            return res.status(400).json({
+                success: false,
+                message: 'userId and dateKey are required'
+            });
+        }
+
+        // Check if already consumed for this combo
+        const alreadyConsumed = await VendorContactClick.findOne({
+            vendorId,
+            userId: new mongoose.Types.ObjectId(userId),
+            dateKey,
+            enquiryConsumed: true
+        });
+
+        if (alreadyConsumed) {
+            return res.status(400).json({
+                success: false,
+                message: 'This enquiry is already unlocked'
+            });
+        }
+
+        // Try to consume 1 unit
+        const success = await vendorAddonService.consumeAddonUnit(vendorId, 'enquiry');
+
+        if (!success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Insufficient enquiry quota. Please recharge your wallet and buy an enquiry add-on.'
+            });
+        }
+
+        // Update all records for this user+vendor+date to consumed
+        await VendorContactClick.updateMany(
+            {
+                vendorId,
+                userId: new mongoose.Types.ObjectId(userId),
+                dateKey
+            },
+            { $set: { enquiryConsumed: true } }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Enquiry unlocked successfully'
+        });
+    } catch (error) {
+        console.error('Error unlocking enquiry:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to unlock enquiry',
             error: error.message
         });
     }

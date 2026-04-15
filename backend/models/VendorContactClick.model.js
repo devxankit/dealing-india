@@ -45,6 +45,18 @@ const vendorContactClickSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       default: null,
     },
+    // True only for the FIRST click of the day for this user+vendor combo
+    // Subsequent clicks on the same day are raw analytics only (not billed)
+    isNewEnquiry: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    enquiryConsumed: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   { timestamps: true }
 );
@@ -52,6 +64,18 @@ const vendorContactClickSchema = new mongoose.Schema(
 vendorContactClickSchema.index(
   { vendorId: 1, clickType: 1, dateKey: 1, userId: 1 },
   { name: 'vendor_clicktype_date_user' }
+);
+
+// Fast dedup lookup: has this user contacted this vendor today?
+vendorContactClickSchema.index(
+  { vendorId: 1, userId: 1, dateKey: 1 },
+  { name: 'vendor_user_date_dedup' }
+);
+
+// For vendor dashboard enquiry stats
+vendorContactClickSchema.index(
+  { vendorId: 1, isNewEnquiry: 1, dateKey: 1 },
+  { name: 'vendor_enquiry_date' }
 );
 
 export default mongoose.model('VendorContactClick', vendorContactClickSchema);

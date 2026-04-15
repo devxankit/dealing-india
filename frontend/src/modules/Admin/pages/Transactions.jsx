@@ -17,6 +17,7 @@ const TYPE_META = {
   subscription: { label: 'Subscription', icon: FiCreditCard, color: 'indigo', bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-100' },
   banner: { label: 'Banner', icon: FiImage, color: 'amber', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100' },
   addon: { label: 'Add-on', icon: FiPackage, color: 'rose', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-100' },
+  recharge: { label: 'Wallet Topup', icon: FiTrendingUp, color: 'emerald', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-100' },
 };
 
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
@@ -167,12 +168,19 @@ const TABS = [
   { key: 'subscription', label: 'Subscriptions', icon: FiCreditCard },
   { key: 'banner', label: 'Banner Bookings', icon: FiImage },
   { key: 'addon', label: 'Add-on Plans', icon: FiPackage },
+  { key: 'recharge', label: 'Wallet Recharges', icon: FiTrendingUp },
 ];
 
 const AdminTransactions = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [transactions, setTransactions] = useState([]);
-  const [revenue, setRevenue] = useState({ subscription: { total: 0, count: 0 }, banner: { total: 0, count: 0 }, addon: { total: 0, count: 0 }, grand: 0 });
+  const [revenue, setRevenue] = useState({ 
+    subscription: { total: 0, count: 0 }, 
+    banner: { total: 0, count: 0 }, 
+    addon: { total: 0, count: 0 }, 
+    wallet: { total: 0, count: 0 },
+    grand: 0 
+  });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -241,12 +249,13 @@ const AdminTransactions = () => {
       </div>
 
       {/* Revenue Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { label: 'Total Revenue', value: revenue.grand, icon: FiTrendingUp, color: 'emerald', sub: `${(revenue.subscription?.count || 0) + (revenue.banner?.count || 0) + (revenue.addon?.count || 0)} transactions` },
+          { label: 'Total Revenue', value: revenue.grand, icon: FiTrendingUp, color: 'emerald', sub: `${(revenue.subscription?.count || 0) + (revenue.banner?.count || 0) + (revenue.addon?.count || 0) + (revenue.wallet?.count || 0)} transactions` },
           { label: 'Subscriptions', value: revenue.subscription?.total || 0, icon: FiCreditCard, color: 'indigo', sub: `${revenue.subscription?.count || 0} plans sold` },
           { label: 'Banner Bookings', value: revenue.banner?.total || 0, icon: FiImage, color: 'amber', sub: `${revenue.banner?.count || 0} bookings` },
           { label: 'Add-on Packs', value: revenue.addon?.total || 0, icon: FiPackage, color: 'rose', sub: `${revenue.addon?.count || 0} packs sold` },
+          { label: 'Wallet Topups', value: revenue.wallet?.total || 0, icon: FiDollarSign, color: 'emerald', sub: `${revenue.wallet?.count || 0} recharges` },
         ].map((card, i) => {
           const Icon = card.icon;
           return (
@@ -284,7 +293,8 @@ const AdminTransactions = () => {
                     {tab.key === 'all' ? total :
                       tab.key === 'subscription' ? (revenue.subscription?.count || 0) :
                         tab.key === 'banner' ? (revenue.banner?.count || 0) :
-                          (revenue.addon?.count || 0)}
+                          tab.key === 'addon' ? (revenue.addon?.count || 0) :
+                            (revenue.wallet?.count || 0)}
                   </span>
                 </button>
               );

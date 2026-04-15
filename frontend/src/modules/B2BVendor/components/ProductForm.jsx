@@ -13,34 +13,86 @@ let categoriesCache = null;
 let isFetchingCategories = false;
 let categoriesPromise = null;
 
+const DRAFT_KEY = "b2b_product_add_draft";
+
 const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const { vendor } = useB2BVendorAuthStore();
     const cameraInputRef = useRef(null);
+    const [errors, setErrors] = useState({});
 
-    const [formData, setFormData] = useState(initialData || {
-        name: "",
-        category: "",
-        subcategory: "",
-        moq: 1,
-        price: "", // Base Price / Expected price
-        description: "",
-        images: [],
-        specifications: [{ name: "", value: "" }],
-        bulkPricing: [{ minQty: "", price: "" }],
-        brand: "",
-        availability: "In Stock",
-        unit: "",
+    const [formData, setFormData] = useState(() => {
+        if (initialData) return initialData;
+        if (!isEdit) {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    return parsed.formData || {
+                        name: "", category: "", subcategory: "", moq: 1, price: "",
+                        description: "", images: [], specifications: [{ name: "", value: "" }],
+                        bulkPricing: [{ minQty: "", price: "" }], brand: "", availability: "In Stock", unit: "",
+                    };
+                } catch (e) { console.error("Draft load failed", e); }
+            }
+        }
+        return {
+            name: "",
+            category: "",
+            subcategory: "",
+            moq: 1,
+            price: "", // Base Price / Expected price
+            description: "",
+            images: [],
+            specifications: [{ name: "", value: "" }],
+            bulkPricing: [{ minQty: "", price: "" }],
+            brand: "",
+            availability: "In Stock",
+            unit: "",
+        };
     });
 
     const [categories, setCategories] = useState(categoriesCache || []);
     const [subcategories, setSubcategories] = useState([]);
     const [categoriesLoading, setCategoriesLoading] = useState(!categoriesCache);
     const [dynamicFields, setDynamicFields] = useState([]);
-    const [dynamicValues, setDynamicValues] = useState({});
-    const [customMultiInputs, setCustomMultiInputs] = useState({});
+    
+    // Initialize dynamic values and custom inputs from draft
+    const [dynamicValues, setDynamicValues] = useState(() => {
+        if (!isEdit) {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                try { return JSON.parse(saved).dynamicValues || {}; } catch(e) {}
+            }
+        }
+        return {};
+    });
+    
+    const [customMultiInputs, setCustomMultiInputs] = useState(() => {
+        if (!isEdit) {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                try { return JSON.parse(saved).customMultiInputs || {}; } catch(e) {}
+            }
+        }
+        return {};
+    });
+
+    // Auto-save draft
+    useEffect(() => {
+        if (!isEdit) {
+            localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                formData,
+                dynamicValues,
+                customMultiInputs
+            }));
+        } else {
+            // If editing, clear any stale add drafts to prevent overlap
+            localStorage.removeItem(DRAFT_KEY);
+        }
+    }, [formData, dynamicValues, customMultiInputs, isEdit]);
 
     useEffect(() => {
         if (!categoriesCache) {
@@ -311,18 +363,55 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
             ...prev,
             images: prev.images.filter((_, i) => i !== index)
         }));
+        // Auto-clear image error if at least one remains
+        if (formData.images.length > 1) {
+            setErrors(prev => ({ ...prev, images: null }));
+        }
+    };
+
+    const validateForm = () => {
+        const newErrors = {};
+        
+        if (!formData.name?.trim()) newErrors.name = "Product title is required";
+        if (!formData.category) newErrors.category = "Category is required";
+        if (!formData.price) newErrors.price = "Base price is required";
+        if (!formData.moq) newErrors.moq = "Minimum order quantity is required";
+        if (!formData.unit) newErrors.unit = "Unit is required";
+        
+        if (formData.images.length === 0) {
+            newErrors.images = "At least one product image is required";
+        }
+
+        // Validate dynamic required fields
+        dynamicFields.forEach(f => {
+            if (f.required) {
+                const val = dynamicValues[f.label];
+                if (val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) {
+                    newErrors[f.label] = `${f.label} is required`;
+                } else if (val === '__OTHER__' && !dynamicValues[`${f.label}_custom`]?.trim()) {
+                    newErrors[f.label] = `Please specify ${f.label}`;
+                }
+            }
+        });
+
+        setErrors(newErrors);
+        
+        if (Object.keys(newErrors).length > 0) {
+            // Scroll to the first error
+            const firstErrorField = Object.keys(newErrors)[0];
+            const element = document.getElementsByName(firstErrorField)[0] || document.getElementById(firstErrorField);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return false;
+        }
+        return true;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (formData.images.length === 0) {
-            toast.error("Please upload at least one product image");
-            return;
-        }
-
-        if (!formData.name || !formData.price || !formData.moq) {
-            toast.error("Please fill in all required fields (Name, Price, MOQ)");
+        if (!validateForm()) {
             return;
         }
 
@@ -388,6 +477,9 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 toast.success("Product listed successfully");
             }
 
+            // Clear draft on success
+            localStorage.removeItem(DRAFT_KEY);
+
             // Important: refresh subscription status so counts update immediately across the app
             try { await refreshStatus(); } catch (e) { console.error("Refresh status failed", e); }
 
@@ -403,7 +495,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="max-w-7xl mx-auto space-y-6 pb-20">
+        <form onSubmit={handleSubmit} noValidate className="max-w-7xl mx-auto space-y-6 pb-20">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Left Section: Details (8 cols) */}
                 <div className="lg:col-span-8 space-y-6">
@@ -428,10 +520,10 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     name="name"
                                     value={formData.name}
                                     onChange={handleChange}
-                                    required
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                    className={`w-full px-4 py-2.5 bg-slate-50 border ${errors.name ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none`}
                                     placeholder="e.g. Industrial Grade Steel Pipes"
                                 />
+                                {errors.name && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.name}</p>}
                             </div>
 
                             <div className="md:col-span-1">
@@ -448,15 +540,15 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                             subcategory: val === '__OTHER_CAT__' ? '' : prev.subcategory 
                                         }));
                                     }}
-                                    required
                                     disabled={categoriesLoading}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-50"
+                                    className={`w-full px-4 py-2.5 bg-slate-50 border ${errors.category ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-50`}
                                 >
                                     <option value="">{categoriesLoading ? "Loading categories..." : "Select Category"}</option>
                                     {categories.map((cat) => (
                                         <option key={cat.id} value={cat.name}>{cat.name}</option>
                                     ))}
                                 </select>
+                                {errors.category && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.category}</p>}
                             </div>
 
                             <div className="md:col-span-1">
@@ -499,7 +591,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         <input
                                             type="number"
                                             value={dynamicValues[f.label] || ""}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                            className={`w-full px-4 py-2.5 bg-slate-50 border ${errors[f.label] ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none`}
                                             placeholder="0"
                                             onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
                                         />
@@ -508,8 +600,9 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     {f.type === "select" && (
                                         <div className="space-y-2">
                                             <select
+                                                id={f.label}
                                                 value={dynamicValues[f.label] || ""}
-                                                className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                                className={`w-full px-4 py-2.5 bg-slate-50 border ${errors[f.label] ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none`}
                                                 onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
                                             >
                                                 <option value="">Select {f.label}</option>
@@ -529,8 +622,8 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     )}
 
                                     {f.type === "multi-select" && (
-                                        <div className="space-y-3">
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 border border-gray-200 rounded-xl max-h-60 overflow-y-auto">
+                                        <div className="space-y-3" id={f.label}>
+                                            <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 border ${errors[f.label] ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-xl max-h-60 overflow-y-auto`}>
                                                 {(f.options || []).map(opt => {
                                                     const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
                                                     const isSelected = currentVals.some(v => String(v).toLowerCase() === String(opt).toLowerCase());
@@ -618,6 +711,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                             )}
                                         </div>
                                     )}
+                                    {errors[f.label] && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors[f.label]}</p>}
                                 </div>
                             ))}
 
@@ -819,6 +913,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                 </div>
                             </div>
                         </div>
+                        {errors.images && <p className="text-[10px] text-red-500 font-bold mt-2 ml-1">{errors.images}</p>}
                         <p className="text-[10px] text-gray-400 leading-relaxed font-medium mt-2">
                             {MAX_PHOTOS === 0 ? "No photos allowed on this plan." : `First image is cover. Max ${MAX_PHOTOS < 0 ? 'unlimited' : MAX_PHOTOS} photos.`} Max 300KB each.
                         </p>
@@ -847,11 +942,11 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         name="price"
                                         value={formData.price}
                                         onChange={handleChange}
-                                        required
-                                        className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                        className={`w-full pl-8 pr-4 py-2.5 bg-slate-50 border ${errors.price ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none`}
                                         placeholder="4500.50"
                                     />
                                 </div>
+                                {errors.price && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.price}</p>}
                             </div>
 
                             <div>
@@ -862,15 +957,14 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         name="moq"
                                         value={formData.moq}
                                         onChange={handleChange}
-                                        required
-                                        className="flex-1 px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                        className={`flex-1 px-4 py-2.5 bg-slate-50 border ${errors.moq ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none`}
                                         placeholder="100"
                                     />
                                     <select
                                         name="unit"
                                         value={formData.unit}
                                         onChange={handleChange}
-                                        className="w-28 px-2 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none font-bold text-gray-700 text-xs"
+                                        className={`w-28 px-2 py-2.5 bg-slate-50 border ${errors.unit ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none font-bold text-gray-700 text-xs`}
                                     >
                                         <option value="">Unit</option>
                                         <option value="pieces">Pieces</option>
@@ -899,6 +993,10 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         <option value="sqm">Square Meter (sqm)</option>
                                         <option value="Night">Night</option>
                                     </select>
+                                </div>
+                                <div className="flex gap-2">
+                                    {errors.moq && <p className="flex-1 text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.moq}</p>}
+                                    {errors.unit && <p className="w-28 text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.unit}</p>}
                                 </div>
                             </div>
 

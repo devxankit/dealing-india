@@ -35,10 +35,10 @@ export const initiateRecharge = asyncHandler(async (req, res) => {
     const { amount } = req.body; // Amount inclusive of GST
     const vendorId = req.user.vendorId || req.user.id;
 
-    if (!amount || amount < 1) {
+    if (!amount || amount < 100) {
         return res.status(400).json({
             success: false,
-            message: 'Please provide a valid amount (minimum ₹1)'
+            message: 'Minimum recharge amount is ₹100'
         });
     }
 
@@ -63,11 +63,21 @@ export const initiateRecharge = asyncHandler(async (req, res) => {
  * @access  Private (Vendor)
  */
 export const verifyRecharge = asyncHandler(async (req, res) => {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
+    const { 
+        razorpay_order_id, razorpayOrderId, 
+        razorpay_payment_id, razorpayPaymentId, 
+        razorpay_signature, razorpaySignature, 
+        amount 
+    } = req.body;
+
+    const orderId = razorpay_order_id || razorpayOrderId;
+    const paymentId = razorpay_payment_id || razorpayPaymentId;
+    const signature = razorpay_signature || razorpaySignature;
+
     const vendorId = req.user.vendorId || req.user.id;
 
     // 1. Verify Signature
-    const isValid = razorpayService.verifyPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+    const isValid = razorpayService.verifyPayment(orderId, paymentId, signature);
     if (!isValid) {
         return res.status(400).json({
             success: false,
@@ -86,7 +96,7 @@ export const verifyRecharge = asyncHandler(async (req, res) => {
         vendorId,
         baseAmount,
         `Wallet Recharge (Incl. GST: ₹${gstAmount})`,
-        razorpay_payment_id,
+        paymentId,
         'recharge'
     );
 
@@ -102,9 +112,9 @@ export const verifyRecharge = asyncHandler(async (req, res) => {
                     amount: totalAmount,
                     baseAmount: baseAmount,
                     gstAmount: gstAmount,
-                    referenceNumber: razorpay_payment_id,
+                    referenceNumber: paymentId,
                     vendorGstNumber: vendor.gstNumber,
-                    notes: `Wallet recharge via Razorpay. Order ID: ${razorpay_order_id}`
+                    notes: `Wallet recharge via Razorpay. Order ID: ${orderId}`
                 });
 
                 if (invoice?.id) {
@@ -112,7 +122,7 @@ export const verifyRecharge = asyncHandler(async (req, res) => {
                         contactId: zohoContactId,
                         invoiceId: invoice.id,
                         amount: totalAmount,
-                        razorpayPaymentId: razorpay_payment_id,
+                        razorpayPaymentId: paymentId,
                         invoiceTotal: invoice.total
                     });
                     
@@ -130,7 +140,7 @@ export const verifyRecharge = asyncHandler(async (req, res) => {
                             planName: 'Wallet Recharge',
                             paymentFor: 'wallet_recharge',
                             paymentDate: new Date(),
-                            transactionId: razorpay_payment_id,
+                            transactionId: paymentId,
                             referenceId: invoice.number,
                             paymentMethod: 'razorpay',
                             vendor: {
@@ -157,7 +167,7 @@ export const verifyRecharge = asyncHandler(async (req, res) => {
 
                     // Update transaction with invoice info
                     await VendorWalletTransaction.findOneAndUpdate(
-                        { referenceId: razorpay_payment_id, referenceType: 'recharge' },
+                        { referenceId: paymentId, referenceType: 'recharge' },
                         { 
                             zohoInvoiceId: invoice.id,
                             zohoInvoicePdfUrl: invoice.pdfUrl,

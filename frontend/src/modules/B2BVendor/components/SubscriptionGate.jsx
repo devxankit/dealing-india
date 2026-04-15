@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiLock, FiAlertCircle, FiArrowRight, FiRefreshCw, FiPlus, FiCheckCircle, FiPackage, FiCreditCard, FiX, FiHome, FiPlusCircle, FiArrowUpRight } from 'react-icons/fi';
+import { FiLock, FiAlertCircle, FiArrowRight, FiRefreshCw, FiPlus, FiCheckCircle, FiPackage, FiCreditCard, FiX, FiHome, FiPlusCircle, FiArrowUpRight, FiInfo } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useVendorSettings } from '../hooks/useVendorSettings';
 import { useSubscriptionStore } from '../store/subscriptionStore';
@@ -38,6 +38,11 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
     const [walletBalance, setWalletBalance] = useState(0);
     const [showWalletConfirmModal, setShowWalletConfirmModal] = useState(false);
     const [walletConfirmData, setWalletConfirmData] = useState(null);
+    const [isRecharging, setIsRecharging] = useState(false);
+    const [showRechargeModal, setShowRechargeModal] = useState(false);
+    const [rechargeAmountInput, setRechargeAmountInput] = useState(100);
+    const [noticeData, setNoticeData] = useState(null);
+    const [showNoticeModal, setShowNoticeModal] = useState(false);
     const fetchAttempted = useRef(false);
     const hideBasePlans = useMemo(() => ['product', 'property', 'lotslot', 'reels'].includes(action), [action]);
 
@@ -124,51 +129,70 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         }
     }, [action, fullPage, hideBasePlans]);
 
+    const handleRechargeWallet = async (amount = 100) => {
+        try {
+            setIsRecharging(true);
+            const totalToPay = Math.round(amount * 1.18);
+            toast.loading('Initializing recharge...', { id: 'wallet-gate-recharge' });
+
+            const { initiateRecharge, verifyRecharge } = await import('../services/vendorWalletService');
+            const orderData = await initiateRecharge(totalToPay);
+            
+            const paymentResponse = await initializeRazorpayCheckout({
+                key: orderData.razorpayKeyId,
+                amount: orderData.amount / 100,
+                orderId: orderData.id,
+                name: 'Dealing India Wallet',
+                description: `Wallet Recharge: ₹${amount} + 18% GST (Total: ₹${totalToPay})`,
+            });
+
+            toast.loading('Verifying recharge...', { id: 'wallet-gate-recharge' });
+
+            const verifyData = {
+                ...handlePaymentSuccess(paymentResponse),
+                amount: totalToPay
+            };
+
+            await verifyRecharge(verifyData);
+            
+            toast.success(`Wallet recharged with ₹${amount}!`, { id: 'wallet-gate-recharge' });
+            
+            // Refresh balance
+            const walletData = await getMyWallet();
+            setWalletBalance(walletData.balance || 0);
+        } catch (err) {
+            console.error('Recharge error:', err);
+            toast.error(err.message || 'Payment cancelled or recharge failed', { id: 'wallet-gate-recharge' });
+        } finally {
+            setIsRecharging(false);
+        }
+    };
+
     const handleBuyAddon = async (planId, planPrice) => {
         if (processingAddonId) return;
 
-        try {
-            setProcessingAddonId(planId);
+        // Force wallet usage for addons
+        const plan = addonPlans.find(p => p._id === planId);
+        if (!plan) return;
 
-            if (walletBalance >= planPrice) {
-                const plan = addonPlans.find(p => p._id === planId);
-                setWalletConfirmData({
-                    id: planId,
-                    name: plan?.name || 'Add-on Pack',
-                    price: planPrice,
-                    type: 'addon'
-                });
-                setShowWalletConfirmModal(true);
-                setProcessingAddonId(null);
-                return;
-            }
-
-            const response = await subscriptionService.initializeAddonPurchase(planId);
-            const { order, key } = response;
-
-            if (order && key) {
-                const paymentResponse = await initializeRazorpayCheckout({
-                    key: key,
-                    amount: order.amount / 100,
-                    orderId: order.id,
-                    name: 'Dealing India Add-on',
-                    description: `Purchase Extra Feature Units`,
-                });
-
-                toast.loading('Verifying purchase...', { id: 'verify-addon-gate' });
-                const verifyData = {
-                    planId: planId,
-                    ...handlePaymentSuccess(paymentResponse)
-                };
-                await subscriptionService.verifyAddonPayment(verifyData);
-                toast.success('Add-on purchased successfully!', { id: 'verify-addon-gate' });
-                setShowAddonModal(false);
-                await fetchStatus(true);
-            }
-        } catch (error) {
-            toast.error(error.message || 'Failed to purchase add-on');
-        } finally {
-            setProcessingAddonId(null);
+        if (walletBalance >= planPrice) {
+            setWalletConfirmData({
+                id: planId,
+                name: plan.name || 'Add-on Pack',
+                price: planPrice,
+                type: 'addon'
+            });
+            setShowWalletConfirmModal(true);
+        } else {
+            // Insufficient balance — show custom notice modal
+            const deficit = Math.ceil(planPrice - walletBalance);
+            const rechargeAmt = Math.max(100, deficit);
+            setNoticeData({
+                required: planPrice,
+                balance: walletBalance,
+                suggested: rechargeAmt
+            });
+            setShowNoticeModal(true);
         }
     };
 
@@ -259,48 +283,150 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
     }, [fullPage, permission.allowed, loadingAddons, handleFetchAddonsAndPlans]);
 
     const renderWalletModal = () => (
-        <AnimatePresence>
-            {showWalletConfirmModal && walletConfirmData && (
-                <Modal onClose={() => setShowWalletConfirmModal(false)}>
-                    <div className="text-center">
-                        <div className="w-16 h-16 bg-indigo-100 rounded-[1.5rem] flex items-center justify-center text-indigo-600 mx-auto mb-6">
-                            <FiCreditCard size={32} />
+        <>
+            {/* Balance Notice Modal */}
+            <AnimatePresence>
+                {showNoticeModal && noticeData && (
+                    <Modal onClose={() => setShowNoticeModal(false)}>
+                        <div className="text-center">
+                            <div className="w-16 h-16 bg-rose-100 rounded-[1.5rem] flex items-center justify-center text-rose-600 mx-auto mb-6">
+                                <FiAlertCircle size={32} />
+                            </div>
+                            <h3 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">Insufficient Balance</h3>
+                            <div className="bg-rose-50 rounded-2xl p-4 mb-6 text-left space-y-2">
+                                <div className="flex justify-between text-xs font-bold">
+                                    <span className="text-rose-400">Total Required:</span>
+                                    <span className="text-rose-900">₹{noticeData.required}</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-bold">
+                                    <span className="text-rose-400">Current Balance:</span>
+                                    <span className="text-rose-900">₹{noticeData.balance}</span>
+                                </div>
+                            </div>
+                            <p className="text-gray-500 mb-8 font-medium text-sm leading-relaxed">
+                                You need to add funds to your wallet to proceed with this purchase. Would you like to recharge ₹{noticeData.suggested} now?
+                            </p>
+                            <div className="space-y-3">
+                                <button
+                                    onClick={() => {
+                                        setRechargeAmountInput(noticeData.suggested);
+                                        setShowNoticeModal(false);
+                                        setShowRechargeModal(true);
+                                    }}
+                                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                                >
+                                    Yes, Recharge Now <FiArrowRight />
+                                </button>
+                                <button
+                                    onClick={() => setShowNoticeModal(false)}
+                                    className="w-full py-2 text-gray-400 font-bold text-[10px] uppercase tracking-widest"
+                                >
+                                    Maybe Later
+                                </button>
+                            </div>
                         </div>
-                        <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight text-center">Confirm Wallet Pay</h3>
-                        <p className="text-gray-500 mb-8 font-medium">Use your wallet balance to instantly activate this feature.</p>
-                        <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100">
-                            <div className="flex justify-between items-center mb-4">
-                                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Item</span>
-                                <span className="font-bold text-gray-800">{walletConfirmData.name}</span>
-                            </div>
-                            <div className="flex justify-between items-center mb-4 pt-4 border-t border-gray-200/50">
-                                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Amount</span>
-                                <span className="font-black text-xl text-primary-600">₹{walletConfirmData.price.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between items-center pt-4 border-t border-gray-200/50">
-                                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Balance After</span>
-                                <span className="font-bold text-gray-600 text-sm">₹{(walletBalance - walletConfirmData.price).toLocaleString()}</span>
-                            </div>
+                    </Modal>
+                )}
+            </AnimatePresence>
+
+            {/* Add Money Modal */}
+            <AnimatePresence>
+                {showRechargeModal && (
+                    <Modal onClose={() => setShowRechargeModal(false)}>
+                        <div className="mb-6">
+                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-1">Add Money</h3>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Recharge wallet to enjoy services</p>
                         </div>
-                        <div className="space-y-3">
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Amount (₹)</label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-indigo-300">₹</span>
+                                    <input
+                                        type="number"
+                                        value={rechargeAmountInput}
+                                        onChange={(e) => setRechargeAmountInput(Math.max(0, parseInt(e.target.value) || 0))}
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 pl-8 pr-4 font-black text-slate-900 focus:outline-none focus:border-indigo-500 transition-all"
+                                    />
+                                </div>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-4 space-y-3">
+                                <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold">
+                                    <span className="text-slate-500 uppercase tracking-widest">Base Amount</span>
+                                    <span className="text-slate-900">₹{rechargeAmountInput.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold">
+                                    <span className="text-slate-500 uppercase tracking-widest">GST (18%)</span>
+                                    <span className="text-indigo-600">+₹{Math.round(rechargeAmountInput * 0.18).toLocaleString()}</span>
+                                </div>
+                                <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                                    <span className="text-[11px] sm:text-[12px] font-black text-slate-900 uppercase tracking-tighter">Total Payable</span>
+                                    <span className="text-lg font-black text-indigo-600">₹{Math.round(rechargeAmountInput * 1.18).toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-3 flex gap-3">
+                                <FiInfo className="text-indigo-600 flex-shrink-0" size={14} />
+                                <p className="text-[9px] font-bold text-indigo-700 leading-tight uppercase tracking-tight">GST is charged per regulations. Total amount includes 18% GST. Invoice will be emailed.</p>
+                            </div>
                             <button
-                                onClick={handleConfirmWalletPayment}
-                                className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 active:scale-95"
+                                onClick={async () => {
+                                    if (rechargeAmountInput < 100) return toast.error('Min ₹100 required');
+                                    setShowRechargeModal(false);
+                                    await handleRechargeWallet(rechargeAmountInput);
+                                }}
+                                disabled={isRecharging}
+                                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
                             >
-                                <FiArrowUpRight size={20} />
-                                Confirm & Pay (₹{walletConfirmData.price})
-                            </button>
-                            <button
-                                onClick={() => setShowWalletConfirmModal(false)}
-                                className="w-full py-4 bg-transparent text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600 transition-colors"
-                            >
-                                Cancel Transaction
+                                {isRecharging ? 'Processing...' : 'Proceed to Payment'}
                             </button>
                         </div>
-                    </div>
-                </Modal>
-            )}
-        </AnimatePresence>
+                    </Modal>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {showWalletConfirmModal && walletConfirmData && (
+                    <Modal onClose={() => setShowWalletConfirmModal(false)}>
+                        <div className="text-center">
+                            <div className="w-16 h-16 bg-indigo-100 rounded-[1.5rem] flex items-center justify-center text-indigo-600 mx-auto mb-6">
+                                <FiCreditCard size={32} />
+                            </div>
+                            <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight text-center">Confirm Wallet Pay</h3>
+                            <p className="text-gray-500 mb-8 font-medium">Use your wallet balance to instantly activate this feature.</p>
+                            <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100">
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Item</span>
+                                    <span className="font-bold text-gray-800">{walletConfirmData.name}</span>
+                                </div>
+                                <div className="flex justify-between items-center mb-4 pt-4 border-t border-gray-200/50">
+                                    <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Amount</span>
+                                    <span className="font-black text-xl text-primary-600">₹{walletConfirmData.price.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between items-center pt-4 border-t border-gray-200/50">
+                                    <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Balance After</span>
+                                    <span className="font-bold text-gray-600 text-sm">₹{(walletBalance - walletConfirmData.price).toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <button
+                                    onClick={handleConfirmWalletPayment}
+                                    className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 active:scale-95"
+                                >
+                                    <FiArrowUpRight size={20} />
+                                    Confirm & Pay (₹{walletConfirmData.price})
+                                </button>
+                                <button
+                                    onClick={() => setShowWalletConfirmModal(false)}
+                                    className="w-full py-4 bg-transparent text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600 transition-colors"
+                                >
+                                    Cancel Transaction
+                                </button>
+                            </div>
+                        </div>
+                    </Modal>
+                )}
+            </AnimatePresence>
+        </>
     );
 
     if (!isModuleEnabled()) return null;
@@ -410,20 +536,40 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                 <FiPackage /> Add-on Packs
                             </h3>
                             <div className="grid grid-cols-1 gap-3">
-                                {addonPlans.map(plan => (
-                                    <button key={plan._id} onClick={() => handleBuyAddon(plan._id, plan.price)} disabled={!!processingAddonId} className={`flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20`}>
-                                        <div className="text-left">
-                                            <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
-                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.quantity} Extra Units</p>
+                                {addonPlans.map(plan => {
+                                    const isInsufficient = walletBalance < plan.price;
+                                    return (
+                                        <div key={plan._id} className="space-y-2">
+                                            <button 
+                                                onClick={() => handleBuyAddon(plan._id, plan.price)} 
+                                                disabled={!!processingAddonId || isRecharging} 
+                                                className={`w-full flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20`}
+                                            >
+                                                <div className="text-left">
+                                                    <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
+                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.quantity} Extra Units</p>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    <span className="font-black text-lg text-amber-600">₹{plan.price}</span>
+                                                    <div className={`w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white group-hover/item:border-${theme.color}-600 transition-all shadow-sm`}>
+                                                        {processingAddonId === plan._id || isRecharging ? <FiRefreshCw className="animate-spin" size={18} /> : (isInsufficient ? <FiPlusCircle /> : theme.icon)}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            {isInsufficient && (
+                                                <div className="flex items-center justify-between px-4 pb-2">
+                                                    <p className="text-[9px] font-black text-rose-500 uppercase tracking-tighter italic">Insufficient Balance (₹{walletBalance})</p>
+                                                    <button 
+                                                        onClick={() => handleRechargeWallet(Math.max(100, Math.ceil(plan.price - walletBalance)))}
+                                                        className="text-[9px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
+                                                    >
+                                                        Click here to Quick Recharge & Pay
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="flex items-center gap-4">
-                                            <span className="font-black text-lg text-amber-600">₹{plan.price}</span>
-                                            <div className={`w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white group-hover/item:border-${theme.color}-600 transition-all shadow-sm`}>
-                                                {processingAddonId === plan._id ? <FiRefreshCw className="animate-spin" size={18} /> : theme.icon}
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
+                                    );
+                                })}
                                 {addonPlans.length === 0 && !loadingAddons && (
                                     <div className="p-8 border-2 border-dashed border-gray-100 rounded-3xl text-center">
                                         <p className="text-gray-400 text-xs italic">No add-ons available for this feature. Please consider upgrading / buying units.</p>

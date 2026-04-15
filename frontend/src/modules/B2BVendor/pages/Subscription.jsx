@@ -4,7 +4,7 @@ import {
     FiCheck, FiStar, FiInfo, FiCreditCard, FiCheckCircle,
     FiRefreshCw, FiX, FiCalendar, FiAlertTriangle, FiClock,
     FiDollarSign, FiPackage, FiShield, FiExternalLink, FiPlusCircle, FiGrid,
-    FiArrowRight, FiArrowUpRight, FiHome
+    FiArrowRight, FiArrowUpRight, FiHome, FiAlertCircle
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { getActiveB2BPlans, getB2BPlanByIdSync } from '../../../shared/utils/b2bPlanManager';
@@ -42,6 +42,9 @@ const B2BVendorSubscription = () => {
     const [payModalData, setPayModalData] = useState(null);
     const [walletBalance, setWalletBalance] = useState(0);
     const [isWalletProcessing, setIsWalletProcessing] = useState(false);
+    const [isRecharging, setIsRecharging] = useState(false);
+    const [showAddMoneyModal, setShowAddMoneyModal] = useState(false);
+    const [rechargeAmountInput, setRechargeAmountInput] = useState(100);
 
     useEffect(() => {
         loadSubscriptionData();
@@ -382,10 +385,12 @@ const B2BVendorSubscription = () => {
         if (!addon) return;
 
         const discountAmount = addon.discount || 0;
-        const gstPercentage = addon.gst || 18;
         const priceAfterDiscount = Math.max(0, addon.price - discountAmount);
-        const gstAmount = Math.round(priceAfterDiscount * (gstPercentage / 100));
-        const totalAmount = priceAfterDiscount + gstAmount;
+        
+        // No GST for addons at purchase time (collected at recharge)
+        const gstPercentage = 0;
+        const gstAmount = 0;
+        const totalAmount = priceAfterDiscount;
 
         setPayModalData({
             id: planId,
@@ -439,6 +444,43 @@ const B2BVendorSubscription = () => {
             toast.error(error.message || 'Failed to purchase add-on');
         } finally {
             setProcessingAddonId(null);
+        }
+    };
+
+    const handleRechargeAndPay = async (amount = 100) => {
+        try {
+            setIsRecharging(true);
+            const totalToPay = Math.round(amount * 1.18);
+            toast.loading('Initializing recharge...', { id: 'wallet-recharge' });
+
+            const orderData = await vendorWalletService.initiateRecharge(totalToPay);
+            
+            const paymentResponse = await initializeRazorpayCheckout({
+                key: orderData.razorpayKeyId,
+                amount: orderData.amount / 100,
+                orderId: orderData.id,
+                name: 'Dealing India Wallet',
+                description: `Wallet Recharge: ₹${amount} + 18% GST (Total: ₹${totalToPay})`,
+            });
+
+            toast.loading('Verifying recharge...', { id: 'wallet-recharge' });
+
+            const verifyData = {
+                ...handlePaymentSuccess(paymentResponse),
+                amount: totalToPay
+            };
+
+            await vendorWalletService.verifyRecharge(verifyData);
+            
+            toast.success(`Wallet recharged with ₹${amount}!`, { id: 'wallet-recharge' });
+            
+            // Refresh balance
+            await loadWalletData();
+        } catch (err) {
+            console.error('Recharge error:', err);
+            toast.error(err.message || 'Payment cancelled or recharge failed', { id: 'wallet-recharge' });
+        } finally {
+            setIsRecharging(false);
         }
     };
 
@@ -904,13 +946,13 @@ const B2BVendorSubscription = () => {
                 </div>
 
                 {loadingAddons ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16 px-2 sm:px-0 animate-pulse">
                         {[1, 2, 3, 4].map(i => (
                             <div key={i} className="bg-gray-100 h-64 rounded-3xl"></div>
                         ))}
                     </div>
                 ) : availableAddons.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="addon-packs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2 sm:px-0" id="addon-packs">
                     {availableAddons
                         .filter(addon => {
                             const params = new URLSearchParams(window.location.search);
@@ -1327,18 +1369,20 @@ const B2BVendorSubscription = () => {
                                                         <span>- ₹{payModalData.discount.toLocaleString('en-IN')}</span>
                                                     </div>
                                                 )}
-                                                <div className="flex justify-between text-gray-600 font-medium">
-                                                    <div className="flex items-center gap-2">
-                                                        <span>GST ({payModalData.gstPercentage || 18}%)</span>
-                                                        <div className="group relative">
-                                                            <FiInfo size={14} className="text-gray-400" />
-                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center">
-                                                                Goods and Services Tax as per Government regulations
+                                                {payModalData.gstAmount > 0 && (
+                                                    <div className="flex justify-between text-gray-600 font-medium">
+                                                        <div className="flex items-center gap-2">
+                                                            <span>GST ({payModalData.gstPercentage || 18}%)</span>
+                                                            <div className="group relative">
+                                                                <FiInfo size={14} className="text-gray-400" />
+                                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center">
+                                                                    Goods and Services Tax as per Government regulations
+                                                                </div>
                                                             </div>
                                                         </div>
+                                                        <span>+ ₹{(payModalData.gstAmount || 0).toLocaleString('en-IN')}</span>
                                                     </div>
-                                                    <span>+ ₹{(payModalData.gstAmount || 0).toLocaleString('en-IN')}</span>
-                                                </div>
+                                                )}
                                             </>
                                         )}
                                     </div>
@@ -1363,45 +1407,188 @@ const B2BVendorSubscription = () => {
                                         ₹{(payModalData.totalAmount || 0).toLocaleString('en-IN')}
                                     </span>
                                 </div>
-                                <button
-                                    onClick={() => {
-                                        if (payModalData.type === 'subscribe') proceedWithSubscription(payModalData.id);
-                                        if (payModalData.type === 'upgrade') proceedWithUpgrade(payModalData.id);
-                                        if (payModalData.type === 'addon') proceedWithAddonPurchase(payModalData.id);
-                                    }}
-                                    className="w-full py-5 bg-primary-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-primary-200 hover:bg-primary-700 transition-all flex items-center justify-center gap-3 active:scale-95"
-                                >
-                                    Proceed To Pay
-                                    <FiArrowRight size={20} />
-                                </button>
-
-                                <button
-                                    onClick={proceedWithWalletPayment}
-                                    disabled={isWalletProcessing || walletBalance < (payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0))}
-                                    className={`w-full py-4 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-3 border-2 ${
-                                        walletBalance >= (payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0))
-                                        ? 'border-indigo-600 text-indigo-600 hover:bg-indigo-50'
-                                        : 'border-gray-200 text-gray-300 cursor-not-allowed'
-                                    }`}
-                                >
-                                    <div className="flex flex-col items-center">
-                                        <div className="flex items-center gap-2">
-                                            <FiArrowUpRight size={18} />
-                                            Pay with Wallet
-                                        </div>
-                                        <span className="text-[10px] font-bold mt-0.5">
-                                            Current Balance: ₹{walletBalance.toLocaleString('en-IN')}
-                                        </span>
-                                    </div>
-                                </button>
-                                {walletBalance < (payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0)) && (
-                                    <p className="text-center text-[9px] text-rose-500 font-bold mt-2 uppercase tracking-tight">
-                                        Insufficient Balance. Please recharge your wallet.
-                                    </p>
+                                {payModalData.type !== 'addon' && (
+                                    <button
+                                        onClick={() => {
+                                            if (payModalData.type === 'subscribe') proceedWithSubscription(payModalData.id);
+                                            if (payModalData.type === 'upgrade') proceedWithUpgrade(payModalData.id);
+                                        }}
+                                        className="w-full py-5 bg-primary-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-primary-200 hover:bg-primary-700 transition-all flex items-center justify-center gap-3 active:scale-95 mb-3"
+                                    >
+                                        Proceed To Pay
+                                        <FiArrowRight size={20} />
+                                    </button>
                                 )}
-                                <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-6">
+
+                                {walletBalance < (payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0)) ? (
+                                    <div className="space-y-4">
+                                        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="w-8 h-8 bg-rose-100 text-rose-600 rounded-lg flex items-center justify-center">
+                                                    <FiAlertCircle />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-black text-rose-900 uppercase tracking-tight">Insufficient Balance</p>
+                                                    <p className="text-[10px] text-rose-600 font-bold">Your current balance is ₹{walletBalance.toLocaleString('en-IN')}</p>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-3 gap-2 mb-4">
+                                                {[100, 500, 1000].map(amt => (
+                                                    <button 
+                                                        key={amt}
+                                                        onClick={() => handleRechargeAndPay(amt)}
+                                                        disabled={isRecharging}
+                                                        className="py-2 bg-white border border-rose-200 text-rose-600 rounded-xl text-[10px] font-black hover:bg-rose-600 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                                                    >
+                                                        + ₹{amt}
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            <button
+                                                onClick={() => {
+                                                    const deficit = Math.max(100, Math.ceil((payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0)) - walletBalance));
+                                                    setRechargeAmountInput(deficit);
+                                                    setShowAddMoneyModal(true);
+                                                }}
+                                                className="w-full py-4 rounded-2xl font-black text-sm bg-indigo-600 text-white shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-3 hover:bg-indigo-700 active:scale-95"
+                                            >
+                                                <FiPlusCircle size={18} />
+                                                Add Money to Wallet
+                                            </button>
+                                        </div>
+                                        <p className="text-center text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+                                            GST is collected only during recharge.<br/>Add-on units are billed at base price from wallet.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={proceedWithWalletPayment}
+                                        disabled={isWalletProcessing}
+                                        className="w-full py-5 rounded-2xl font-black text-sm bg-indigo-50 border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center gap-3 active:scale-95 shadow-lg shadow-indigo-100"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <FiArrowUpRight size={22} />
+                                            <div className="text-left">
+                                                <p className="leading-none mb-0.5">Pay with Wallet</p>
+                                                <p className="text-[10px] font-bold opacity-80">Current: ₹{walletBalance.toLocaleString('en-IN')}</p>
+                                            </div>
+                                        </div>
+                                    </button>
+                                )}
+                                <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-8">
                                     Trusted & Secured Payment Interface
                                 </p>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+            {/* Add Money / Recharge Modal */}
+            <AnimatePresence>
+                {showAddMoneyModal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[10001] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden mx-4"
+                        >
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setShowAddMoneyModal(false)}
+                                className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-900 border border-gray-100 rounded-full transition-colors"
+                            >
+                                <FiX size={18} />
+                            </button>
+
+                            <div className="mb-6 sm:mb-8">
+                                <h3 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tight mb-1">Add Money</h3>
+                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest leading-tight">Recharge your wallet to enjoy platform services</p>
+                            </div>
+
+                            <div className="space-y-4 sm:space-y-6">
+                                {/* Amount Input Box */}
+                                <div>
+                                    <label className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 sm:mb-3 block px-1">Amount (₹)</label>
+                                    <div className="relative">
+                                        <div className="absolute left-5 sm:left-6 top-1/2 -translate-y-1/2 text-xl sm:text-2xl font-black text-indigo-200">₹</div>
+                                        <input
+                                            type="number"
+                                            value={rechargeAmountInput}
+                                            onChange={(e) => setRechargeAmountInput(Math.max(0, parseInt(e.target.value) || 0))}
+                                            placeholder="Enter amount (Min ₹100)"
+                                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl sm:rounded-3xl py-4 sm:py-6 pl-12 sm:pl-14 pr-4 sm:pr-6 text-xl sm:text-2xl font-black text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all placeholder:text-slate-200"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Quick Select Buttons */}
+                                <div className="grid grid-cols-4 gap-2">
+                                    {[100, 500, 1000, 2000, 5000].map(amt => (
+                                        <button
+                                            key={amt}
+                                            onClick={() => setRechargeAmountInput(amt)}
+                                            className={`py-2 px-1 rounded-xl text-[10px] font-black transition-all border ${
+                                                rechargeAmountInput === amt 
+                                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100'
+                                                : 'bg-white border-slate-100 text-slate-500 hover:border-indigo-400 hover:text-indigo-600'
+                                            }`}
+                                        >
+                                            +₹{amt}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                 {/* GST Breakdown Box */}
+                                <div className="bg-slate-50 border border-slate-100 rounded-2xl sm:rounded-3xl p-5 space-y-3">
+                                    <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold">
+                                        <span className="text-slate-500 uppercase tracking-widest">Base Amount</span>
+                                        <span className="text-slate-900">₹{rechargeAmountInput.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold">
+                                        <span className="text-slate-500 uppercase tracking-widest">GST (18%)</span>
+                                        <span className="text-indigo-600">+₹{Math.round(rechargeAmountInput * 0.18).toLocaleString()}</span>
+                                    </div>
+                                    <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                                        <span className="text-[11px] sm:text-[12px] font-black text-slate-900 uppercase tracking-tighter">Total Payable</span>
+                                        <span className="text-xl sm:text-2xl font-black text-indigo-600">₹{Math.round(rechargeAmountInput * 1.18).toLocaleString()}</span>
+                                    </div>
+                                </div>
+
+                                {/* Info Box */}
+                                <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex gap-3 sm:gap-4">
+                                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-100 text-indigo-600 rounded-xl sm:rounded-2xl flex-shrink-0 flex items-center justify-center">
+                                        <FiInfo size={16} />
+                                    </div>
+                                    <p className="text-[9px] sm:text-[10px] font-bold text-indigo-600/80 leading-relaxed uppercase tracking-tight">
+                                        The recharge amount will be added to your spendable balance. Total payable includes 18% GST as per government regulations. Official invoice will be emailed.
+                                    </p>
+                                </div>
+
+                                {/* Proceed Button */}
+                                <button
+                                    onClick={() => {
+                                        if (rechargeAmountInput < 100) {
+                                            toast.error('Minimum recharge amount is ₹100');
+                                            return;
+                                        }
+                                        handleRechargeAndPay(rechargeAmountInput);
+                                        setShowAddMoneyModal(false);
+                                    }}
+                                    disabled={isRecharging}
+                                    className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+                                >
+                                    {isRecharging ? (
+                                        <FiRefreshCw className="animate-spin" />
+                                    ) : (
+                                        <>
+                                            Proceed to Payment
+                                            <FiArrowRight size={18} />
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </motion.div>
                     </div>

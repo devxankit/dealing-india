@@ -193,11 +193,12 @@ class VendorAddonController {
     try {
       const vendorId = req.user?.vendorId || req.userDoc?._id || req.user?.id;
 
-      const [reelsQuota, productsQuota, lotSlotQuota, propertyQuota] = await Promise.all([
+      const [reelsQuota, productsQuota, lotSlotQuota, propertyQuota, enquiryQuota] = await Promise.all([
         vendorAddonService.getTotalAvailableAddonUnits(vendorId, 'reels'),
         vendorAddonService.getTotalAvailableAddonUnits(vendorId, 'products'),
         vendorAddonService.getTotalAvailableAddonUnits(vendorId, 'lot_slot'),
         vendorAddonService.getTotalAvailableAddonUnits(vendorId, 'property'),
+        vendorAddonService.getTotalAvailableAddonUnits(vendorId, 'enquiry'),
       ]);
 
       res.status(200).json({
@@ -206,7 +207,8 @@ class VendorAddonController {
           { _id: 'reels', totalAvailable: reelsQuota || 0 },
           { _id: 'products', totalAvailable: productsQuota || 0 },
           { _id: 'lot_slot', totalAvailable: lotSlotQuota || 0 },
-          { _id: 'property', totalAvailable: propertyQuota || 0 }
+          { _id: 'property', totalAvailable: propertyQuota || 0 },
+          { _id: 'enquiry', totalAvailable: enquiryQuota || 0 }
         ],
         message: 'Addon quotas fetched successfully'
       });

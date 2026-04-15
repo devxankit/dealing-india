@@ -11,6 +11,7 @@ import LotSlot from '../models/LotSlot.model.js';
 import VendorAddon from '../models/VendorAddon.model.js';
 import Reel from '../models/Reel.model.js';
 import ReelReport from '../models/ReelReport.model.js';
+import VendorWalletTransaction from '../models/VendorWalletTransaction.model.js';
 
 /**
  * Get Admin Dashboard Summary
@@ -126,10 +127,14 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         views: l.count
     }));
 
-    // Real revenue: sum totalAmount from paid subscriptions + banner bookings + addons
-    const [subRevenueResult, bannerRevenueResult, addonRevenueResult] = await Promise.all([
+    // Real revenue: sum totalAmount from paid subscriptions + banner bookings + addons + wallet recharges
+    const [subRevenueResult, bannerRevenueResult, addonRevenueResult, walletRevenueResult] = await Promise.all([
       VendorSubscription.aggregate([
-        { $match: { status: { $in: ['active', 'expired'] }, totalAmount: { $gt: 0 } } },
+        { $match: { 
+          status: { $in: ['active', 'expired'] }, 
+          totalAmount: { $gt: 0 },
+          paymentMethod: { $nin: ['wallet', 'free'] } 
+        } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
       ]),
       BannerBooking.aggregate([
@@ -137,14 +142,26 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       VendorAddon.aggregate([
-        { $match: { status: { $ne: 'failed' }, totalAmount: { $gt: 0 } } },
+        { $match: { 
+          status: { $ne: 'failed' }, 
+          totalAmount: { $gt: 0 },
+          paymentMethod: { $ne: 'wallet' }
+        } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]),
+      VendorWalletTransaction.aggregate([
+        { $match: { referenceType: 'recharge', type: 'credit' } },
+        { $group: { 
+          _id: null, 
+          total: { $sum: { $ifNull: ["$metadata.totalAmount", { $multiply: ["$amount", 1.18] }] } } 
+        } }
       ])
     ]);
 
     const totalRevenue = (subRevenueResult[0]?.total || 0) +
                          (bannerRevenueResult[0]?.total || 0) +
-                         (addonRevenueResult[0]?.total || 0);
+                         (addonRevenueResult[0]?.total || 0) +
+                         (walletRevenueResult[0]?.total || 0);
 
     // Dynamic Revenue Data (Last 6 Months) from VendorSubscription Audit Logs
     const sixMonthsAgo = new Date();
@@ -248,7 +265,23 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
             user: a.vendorId?.storeName || a.vendorId?.name || 'Vendor',
             userEmail: a.vendorId?.email,
             zohoInvoiceId: a.zohoInvoiceId
-        }))
+        })),
+        ...(await VendorWalletTransaction.find({ referenceType: 'recharge' })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .populate('vendorId', 'name storeName email')
+            .lean()).map(r => ({
+                id: r._id,
+                amount: r.metadata?.totalAmount || Math.round(r.amount * 1.18 * 100) / 100,
+                type: 'recharge',
+                label: 'Wallet Recharge',
+                method: 'Razorpay',
+                date: r.createdAt,
+                status: 'completed',
+                user: r.vendorId?.storeName || r.vendorId?.name || 'Vendor',
+                userEmail: r.vendorId?.email,
+                zohoInvoiceId: r.zohoInvoiceId
+            }))
     ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 15);
 
     res.status(200).json({

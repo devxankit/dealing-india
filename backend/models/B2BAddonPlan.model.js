@@ -11,7 +11,7 @@ const b2bAddonPlanSchema = new mongoose.Schema(
     featureType: {
       type: String,
       required: [true, 'Feature type is required'],
-      enum: ['reels', 'products', 'lot_slot', 'property'], // Extensible keys
+      enum: ['reels', 'products', 'lot_slot', 'property', 'enquiry'], // Extensible keys
       index: true,
     },
     quantity: {

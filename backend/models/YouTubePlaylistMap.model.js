@@ -10,6 +10,5 @@ const youtubePlaylistMapSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-youtubePlaylistMapSchema.index({ categoryName: 1 }, { unique: true });
 
 export default mongoose.model('YouTubePlaylistMap', youtubePlaylistMapSchema);
