@@ -51,9 +51,9 @@ const QuotaBanner = ({ action, className = "" }) => {
         );
     }
 
-    const percentage = isUnlimited ? 0 : (limit > 0 ? Math.min(100, (current / limit) * 100) : (current > 0 ? 100 : 0));
-    const isLow = !isUnlimited && remaining <= (limit * 0.2) && remaining > 0;
     const isExhausted = !isUnlimited && !permission.allowed;
+    const percentage = isUnlimited ? 0 : (isExhausted ? 100 : (limit > 0 ? Math.min(100, (current / limit) * 100) : 0));
+    const isLow = !isUnlimited && remaining <= (limit * 0.2) && remaining > 0;
 
     return (
         <motion.div

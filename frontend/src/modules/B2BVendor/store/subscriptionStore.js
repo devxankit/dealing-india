@@ -103,20 +103,14 @@ export const useSubscriptionStore = create((set, get) => ({
         const remaining = limits.remaining;
         
         if (limits.limit !== -1 && remaining !== undefined && remaining <= 0) {
-            // Check if user has purchased addons
-            if (limits.hasAddon) {
-                return {
-                    allowed: true,
-                    isAddon: true,
-                    message: 'Using purchased add-on units.'
-                };
-            }
-
             return {
                 allowed: false,
                 requiresAddon: true,
                 featureType: 'products',
-                message: `Product limit reached (${limits.current}/${limits.limit}). Please buy an add-on pack or upgrade your plan.`
+                message: `Product limit reached (${limits.current}/${limits.limit}). Please buy an add-on pack or upgrade your plan.`,
+                current: limits.current,
+                limit: limits.limit,
+                remaining: limits.remaining
             };
         }
 
@@ -147,23 +141,14 @@ export const useSubscriptionStore = create((set, get) => ({
         const remaining = limits.remaining;
         
         if (limits.limit !== -1 && remaining !== undefined && remaining <= 0) {
-            // Check if user has purchased addons
-            if (limits.hasAddon) {
-                return {
-                    allowed: true,
-                    isAddon: true,
-                    message: 'Using purchased add-on units.',
-                    remaining: limits.remaining,
-                    current: limits.current,
-                    limit: limits.limit
-                };
-            }
-
             return {
                 allowed: false,
                 requiresAddon: true,
                 featureType: 'lot_slot',
-                message: `Lot/Slot limit reached. Please buy an add-on pack.`
+                message: `Lot/Slot limit reached. Please buy an add-on pack.`,
+                current: limits.current,
+                limit: limits.limit,
+                remaining: limits.remaining
             };
         }
 
@@ -191,23 +176,14 @@ export const useSubscriptionStore = create((set, get) => ({
         const remaining = limits.remaining;
         
         if (limits.limit !== -1 && remaining !== undefined && remaining <= 0) {
-            if (limits.hasAddon) {
-                return {
-                    allowed: true,
-                    isAddon: true,
-                    message: 'Using purchased add-on units.',
-                    maxImages: limits.maxImages,
-                    remaining: limits.remaining,
-                    current: limits.current,
-                    limit: limits.limit
-                };
-            }
-
             return {
                 allowed: false,
                 requiresAddon: true,
                 featureType: 'property',
-                message: `Property limit reached (${limits.current}/${limits.limit}). Please buy an add-on pack.`
+                message: `Property limit reached (${limits.current}/${limits.limit}). Please buy an add-on pack.`,
+                current: limits.current,
+                limit: limits.limit,
+                remaining: limits.remaining
             };
         }
 
@@ -231,19 +207,14 @@ export const useSubscriptionStore = create((set, get) => ({
         const remaining = limits.remaining;
         
         if (limits.limit !== -1 && remaining !== undefined && remaining <= 0) {
-            if (limits.hasAddon) {
-                return {
-                    allowed: true,
-                    isAddon: true,
-                    message: 'Using purchased add-on units.'
-                };
-            }
-
             return {
                 allowed: false,
                 requiresAddon: true,
                 featureType: 'reels',
-                message: `Reel limit reached (${limits.current}/${limits.limit}). Please buy an add-on pack.`
+                message: `Reel limit reached (${limits.current}/${limits.limit}). Please buy an add-on pack.`,
+                current: limits.current,
+                limit: limits.limit,
+                remaining: limits.remaining
             };
         }
 

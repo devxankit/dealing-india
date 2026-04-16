@@ -618,6 +618,7 @@ const AppRoutes = () => {
           <Route path="properties">
             <Route index element={<B2BVendorProperties />} />
             <Route path="manage-properties" element={<B2BVendorManageProperties />} />
+            <Route path="add-property" element={<B2BVendorAddProperty />} />
             <Route path="add-commercial" element={<B2BVendorAddProperty />} />
             <Route path="add-flat" element={<B2BVendorAddFlat />} />
             <Route path="add-villa" element={<B2BVendorAddVilla />} />

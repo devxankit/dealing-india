@@ -55,7 +55,7 @@ const ManageProperties = () => {
         if (type === 'villa' || type === 'plot') return 'villa';
 
         // Priority 2: Commercial types
-        const commercialTypes = ['shop', 'office', 'showroom', 'godown', 'factory', 'commercial building'];
+        const commercialTypes = ['shop', 'office', 'showroom', 'godown', 'factory', 'commercial building', 'industrial shed', 'warehouse'];
         if (commercialTypes.includes(type) || type === 'commercial' || type === 'property') return 'commercial';
 
         // Priority 3: Check details for non-default markers if type is missing
@@ -79,42 +79,43 @@ const ManageProperties = () => {
     }, [properties, searchQuery, propertyTypeFilter]);
 
     return (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 p-2 md:p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Manage Listings</h1>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 p-2 md:p-6 overflow-x-hidden">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="text-center lg:text-left">
+                    <h1 className="text-2xl md:text-3xl font-black text-slate-800 uppercase tracking-tight">Manage Listings</h1>
                     <p className="text-gray-500 text-sm font-medium">You have {properties.length} properties listed.</p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-4 items-center w-full md:w-auto">
-                    <div className="relative w-full sm:w-64 md:w-80">
+                <div className="flex flex-col md:flex-row flex-wrap xl:flex-nowrap gap-3 items-center w-full lg:w-auto">
+                    <div className="relative w-full md:flex-1 xl:w-80">
                         <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
                             placeholder="Search by title or area..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-slate-800 outline-none transition-all font-medium text-sm"
+                            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-slate-800 outline-none transition-all font-medium text-sm"
                         />
                     </div>
-                    <select
-                        value={propertyTypeFilter}
-                        onChange={(e) => setPropertyTypeFilter(e.target.value)}
-                        className="w-full sm:w-auto px-4 py-3.5 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none font-bold text-sm text-slate-700"
-                    >
-                        <option value="all">All Property Types</option>
-                        <option value="flat">Flat</option>
-                        <option value="villa">Row house / Villa</option>
-                        <option value="commercial">Commercial</option>
-                    </select>
-                    {/* Wrapped with SubscriptionGate to enforce Premium plan and show max images */}
-                    <SubscriptionGate action="property">
-                        <button
-                            onClick={() => navigate("/b2b-vendor/properties/add-commercial")}
-                            className="flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg w-full sm:w-auto whitespace-nowrap"
+                    <div className="flex w-full md:w-auto gap-3 items-center">
+                        <select
+                            value={propertyTypeFilter}
+                            onChange={(e) => setPropertyTypeFilter(e.target.value)}
+                            className="flex-1 md:w-auto px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none font-bold text-sm text-slate-700 min-w-[120px]"
                         >
-                            <FiPlus className="text-lg" /> New Listing
-                        </button>
-                    </SubscriptionGate>
+                            <option value="all">All Types</option>
+                            <option value="flat">Flat</option>
+                            <option value="villa">Villa</option>
+                            <option value="commercial">Commercial</option>
+                        </select>
+                        <SubscriptionGate action="property">
+                            <button
+                                onClick={() => navigate("/b2b-vendor/properties/add-property")}
+                                className="flex-1 md:w-auto flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg whitespace-nowrap"
+                            >
+                                <FiPlus className="text-lg" /> <span className="hidden sm:inline">New Listing</span><span className="sm:hidden">New</span>
+                            </button>
+                        </SubscriptionGate>
+                    </div>
                 </div>
             </div>
 
@@ -123,10 +124,10 @@ const ManageProperties = () => {
                     {[1, 2, 3].map(i => <div key={i} className="h-96 bg-gray-100 animate-pulse rounded-[2.5rem]" />)}
                 </div>
             ) : filteredProperties.length === 0 ? (
-                <div className="bg-white rounded-[3rem] p-20 text-center border-2 border-dashed border-gray-100">
+                <div className="bg-white rounded-[3rem] p-20 text-center border-2 border-dashed border-gray-100 italic">
                     <FiTag size={48} className="mx-auto text-gray-200 mb-4" />
-                    <h3 className="text-xl font-bold text-slate-400">No properties found</h3>
-                    <p className="text-sm text-gray-400">Try adjusting your search or add a new listing.</p>
+                    <h3 className="text-xl font-bold text-slate-400">No listings found</h3>
+                    <p className="text-sm text-gray-400">Try adjusting your filters or add a new property.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -299,7 +300,7 @@ const ManageProperties = () => {
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="bg-white rounded-[3rem] w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col md:flex-row shadow-2xl"
+                            className="bg-white rounded-[2rem] md:rounded-[3rem] w-full max-w-6xl max-h-[95vh] md:max-h-[90vh] overflow-y-auto md:overflow-hidden flex flex-col md:flex-row shadow-2xl relative"
                             onClick={e => e.stopPropagation()}
                         >
                             {/* Left Side: Image Gallery */}

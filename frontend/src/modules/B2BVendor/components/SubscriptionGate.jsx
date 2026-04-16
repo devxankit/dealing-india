@@ -44,7 +44,16 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
     const [noticeData, setNoticeData] = useState(null);
     const [showNoticeModal, setShowNoticeModal] = useState(false);
     const fetchAttempted = useRef(false);
-    const hideBasePlans = useMemo(() => ['product', 'property', 'lotslot', 'reels'].includes(action), [action]);
+    // Hide base plans only if the user ALREADY HAS an active subscription that ALLOWS this feature
+    const hideBasePlans = useMemo(() => {
+        if (!status?.isActive) return false;
+        
+        // Check if the current plan even allows this feature type
+        const limits = status?.limits?.[action === 'lotslot' ? 'lotSlot' : (action === 'product' ? 'products' : (action === 'property' ? 'properties' : action))];
+        if (!limits?.allowed) return false; 
+        
+        return ['product', 'property', 'lotslot', 'reels'].includes(action);
+    }, [action, status]);
 
     const loading = settingsLoading || subscriptionLoading;
 
@@ -201,7 +210,12 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         try {
             setProcessingPlanId(planId);
 
-            if (walletBalance >= planPrice) {
+            // Fetch latest wallet balance first to be sure
+            const currentWallet = await getMyWallet();
+            const currentBalance = currentWallet.balance || 0;
+            setWalletBalance(currentBalance);
+
+            if (currentBalance >= planPrice) {
                 const plan = basePlans.find(p => p._id === planId);
                 setWalletConfirmData({
                     id: planId,
@@ -210,10 +224,12 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                     type: 'subscribe'
                 });
                 setShowWalletConfirmModal(true);
-                setProcessingPlanId(null);
                 return;
             }
 
+            // If insufficient wallet, we can either offer Razorpay (default) or the recharge flow
+            // The user requested wallet-only for addons, but subscriptions can still use Razorpay or Wallet.
+            // Let's stick to the current logic which falls back to Razorpay if wallet is insufficient
             const response = await subscriptionService.createSubscription(planId);
             const { razorpay, razorpayKeyId } = response;
 
@@ -277,10 +293,10 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
     }, [action, canCreateProduct, canCreateLotSlot, canCreateProperty, canUploadReel, status]);
 
     useEffect(() => {
-        if (fullPage && !permission.allowed && !fetchAttempted.current && !loadingAddons) {
+        if (fullPage && (!status?.isActive || !permission.allowed) && !fetchAttempted.current && !loadingAddons) {
             handleFetchAddonsAndPlans(true);
         }
-    }, [fullPage, permission.allowed, loadingAddons, handleFetchAddonsAndPlans]);
+    }, [fullPage, status, permission.allowed, loadingAddons, handleFetchAddonsAndPlans]);
 
     const renderWalletModal = () => (
         <>
@@ -490,24 +506,121 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         );
     }
 
+    if (!status?.isActive && !permission.allowed) {
+        const title = status?.isExpired ? "Plan Expired" : "Subscription Required";
+        const message = status?.isExpired 
+            ? "Your subscription plan has expired. Please renew or upgrade to continue."
+            : "An active subscription plan is required to access this feature.";
+
+        if (fullPage) {
+            return (
+                <div className="bg-white border-2 border-dashed border-amber-100 rounded-[2.5rem] p-8 md:p-12 text-center max-w-4xl mx-auto shadow-sm min-h-[60vh] flex flex-col items-center justify-center">
+                    {renderWalletModal()}
+                    <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center text-rose-600 mx-auto mb-6">
+                        <FiLock className="text-4xl" />
+                    </div>
+                    <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">{title}</h2>
+                    <p className="text-gray-500 mb-10 max-w-sm mx-auto font-medium leading-relaxed">{message}</p>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 w-full max-w-2xl">
+                        <div className="space-y-6">
+                            <h3 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] flex items-center gap-2 justify-center lg:justify-start">
+                                <FiCreditCard /> Primary Plans
+                            </h3>
+                            <div className="grid grid-cols-1 gap-3">
+                                {basePlans.length > 0 ? basePlans.map(plan => (
+                                    <button key={plan._id} onClick={() => handleSubscribeBase(plan._id, plan.price)} disabled={!!processingPlanId} className="flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-indigo-500 hover:bg-indigo-50 transition-all group/item bg-gray-50/20">
+                                        <div className="text-left">
+                                            <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.duration} Month Duration</p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className="font-black text-lg text-indigo-600">₹{plan.price}</span>
+                                            <div className="w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-indigo-600 group-hover/item:text-white group-hover/item:border-indigo-600 transition-all shadow-sm">
+                                                {processingPlanId === plan._id ? <FiRefreshCw className="animate-spin" size={18} /> : <FiArrowRight size={18} />}
+                                            </div>
+                                        </div>
+                                    </button>
+                                )) : (
+                                    <div className="p-8 border-2 border-dashed border-gray-100 rounded-3xl text-center">
+                                        <p className="text-gray-400 text-xs italic">Loading plans...</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <h3 className={`text-xs font-black text-${theme.color}-600 uppercase tracking-[0.2em] flex items-center gap-2 justify-center lg:justify-start`}>
+                                <FiPackage /> {action === 'property' ? 'Property' : (action === 'product' ? 'Product' : (action === 'reels' ? 'Reels' : 'Feature'))} Add-ons
+                            </h3>
+                            <div className="grid grid-cols-1 gap-3">
+                                {addonPlans.length > 0 ? addonPlans.map(plan => (
+                                    <button key={plan._id} onClick={() => handleBuyAddon(plan._id, plan.price)} disabled={!!processingAddonId} className={`flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20`}>
+                                        <div className="text-left">
+                                            <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.quantity} Extra Units</p>
+                                        </div>
+                                        <div className="flex items-center gap-4 text-right">
+                                            <span className={`font-black text-lg text-${theme.color}-600`}>₹{plan.price}</span>
+                                            <div className={`w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white group-hover/item:border-${theme.color}-600 transition-all shadow-sm`}>
+                                                {processingAddonId === plan._id ? <FiRefreshCw className="animate-spin" size={18} /> : theme.icon}
+                                            </div>
+                                        </div>
+                                    </button>
+                                )) : (
+                                    <div className="p-8 border-2 border-dashed border-gray-100 rounded-3xl text-center">
+                                        <p className="text-gray-400 text-xs italic">
+                                            {loadingAddons ? 'Loading units...' : `No ${action} add-ons available.`}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <div className="pt-4 mt-6 border-t border-gray-100">
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                    <FiCheckCircle className="text-emerald-500" /> Benefit of Add-ons
+                                </h4>
+                                <ul className="space-y-2">
+                                    <li className="text-[11px] font-bold text-gray-500 uppercase flex items-center gap-2">
+                                        <div className="w-1 h-1 bg-gray-300 rounded-full"></div> Pay only for what you use
+                                    </li>
+                                    <li className="text-[11px] font-bold text-gray-500 uppercase flex items-center gap-2">
+                                        <div className="w-1 h-1 bg-gray-300 rounded-full"></div> No monthly commitments
+                                    </li>
+                                    <li className="text-[11px] font-bold text-gray-500 uppercase flex items-center gap-2">
+                                        <div className="w-1 h-1 bg-gray-300 rounded-full"></div> Lifetime validity for units
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+    }
+
     if (!permission.allowed) {
         if (fullPage) {
             return (
-                <div className="bg-white border-2 border-dashed border-amber-100 rounded-[2.5rem] p-8 md:p-12 text-center max-w-4xl mx-auto shadow-sm">
+                <div className="bg-white border-2 border-dashed border-amber-100 rounded-[2.5rem] p-8 md:p-12 text-center max-w-4xl mx-auto shadow-sm min-h-[70vh] flex flex-col items-center justify-center">
                     {renderWalletModal()}
                     <div className={`w-20 h-20 bg-${theme.color}-50 rounded-3xl flex items-center justify-center text-${theme.color}-600 mx-auto mb-6`}>
                         <FiAlertCircle className="text-4xl" />
                     </div>
-                    <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Requirement Unmet</h2>
-                    <p className="text-gray-500 mb-10 max-w-sm mx-auto font-medium">{permission.message}</p>
+                    <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">
+                        {status?.isActive ? 'Limit Reached' : 'Plan Required'}
+                    </h2>
+                    <p className="text-gray-500 mb-10 max-w-sm mx-auto font-medium leading-relaxed font-bold uppercase text-xs tracking-widest text-center">
+                        {permission.message}
+                    </p>
                     
-                    <div className={`grid grid-cols-1 ${hideBasePlans ? '' : 'lg:grid-cols-2'} gap-10`}>
+                    <div className={`grid grid-cols-1 ${hideBasePlans ? '' : 'lg:grid-cols-2'} gap-10 w-full`}>
                         {!hideBasePlans && (
                             <div className="space-y-6">
                                 <h3 className="text-xs font-black text-primary-600 uppercase tracking-[0.2em] flex items-center gap-2 justify-center lg:justify-start">
                                     <FiCreditCard /> Primary Plans
                                 </h3>
-                                <div className="grid grid-cols-1 gap-3">
+                                <div className="grid grid-cols-1 gap-3 text-left">
                                     {basePlans.length > 0 ? basePlans.map(plan => (
                                         <button key={plan._id} onClick={() => handleSubscribeBase(plan._id, plan.price)} disabled={!!processingPlanId} className="flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-indigo-500 hover:bg-indigo-50 transition-all group/item bg-gray-50/20">
                                             <div className="text-left">
@@ -523,14 +636,12 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                         </button>
                                     )) : !loadingAddons && (
                                         <div className="p-8 border-2 border-dashed border-gray-100 rounded-3xl text-center">
-                                            <p className="text-gray-400 text-xs italic">No base plans available for your category.</p>
+                                            <p className="text-gray-400 text-xs italic">No plans available.</p>
                                         </div>
                                     )}
-                                    {loadingAddons && <div className="animate-spin h-8 w-8 border-4 border-primary-600 border-t-transparent rounded-full mx-auto"></div>}
                                 </div>
                             </div>
                         )}
-
                         <div className={hideBasePlans ? "max-w-md mx-auto w-full space-y-6" : "space-y-6"}>
                             <h3 className={`text-xs font-black text-${theme.color}-600 uppercase tracking-[0.2em] flex items-center gap-2 justify-center lg:justify-start`}>
                                 <FiPackage /> Add-on Packs

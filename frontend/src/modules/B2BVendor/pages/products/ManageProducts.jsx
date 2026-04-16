@@ -150,36 +150,39 @@ const ManageProducts = () => {
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Manage Listings</h1>
-                    <p className="text-gray-500">Overview of all your products visible to vendors.</p>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="text-center md:text-left">
+                    <h1 className="text-2xl md:text-3xl font-black text-gray-800 uppercase tracking-tight">Manage Listings</h1>
+                    <p className="text-gray-500 font-medium">Overview of your product catalog.</p>
                 </div>
                 {/* Wrapped with SubscriptionGate to enforce product limits */}
                 <SubscriptionGate action="product">
-                    <button onClick={() => navigate("/b2b-vendor/products/add-product")} className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-md">
-                        <FiPlus /> Add New Listing
+                    <button 
+                        onClick={() => navigate("/b2b-vendor/products/add-product")} 
+                        className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl whitespace-nowrap"
+                    >
+                        <FiPlus className="text-lg" /> <span>Add New Listing</span>
                     </button>
                 </SubscriptionGate>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <div className="mb-6 flex flex-col sm:flex-row gap-4">
+            <div className="relative">
+                <div className="mb-6 flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
-                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="Search listings..."
+                            placeholder="Search by name, category..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500"
+                            className="w-full pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-slate-900 outline-none transition-all font-bold text-sm text-gray-700"
                         />
                     </div>
                 </div>
 
                 {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                        <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[1, 2, 3].map(i => <div key={i} className="h-64 bg-gray-50 animate-pulse rounded-[2.5rem]" />)}
                     </div>
                 ) : (
                     <>
@@ -195,22 +198,77 @@ const ManageProducts = () => {
                             const productListings = filterProducts(products);
 
                             return (
-                                <div className="space-y-10">
-                                    {productListings.length > 0 && (
-                                        <div>
-                                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-4">Product Listings</h3>
-                                            <DataTable
-                                                data={productListings}
-                                                columns={productListingColumns}
-                                                pagination={productListings.length > 10}
-                                                itemsPerPage={10}
-                                            />
+                                <div className="space-y-8">
+                                    {productListings.length > 0 ? (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                                            {productListings.map((product) => (
+                                                <motion.div
+                                                    key={product._id}
+                                                    initial={{ opacity: 0, scale: 0.95 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group"
+                                                >
+                                                    <div className="relative h-48 overflow-hidden bg-slate-50">
+                                                        {product.image ? (
+                                                            <img 
+                                                                src={product.image} 
+                                                                alt={product.name} 
+                                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-gray-200">
+                                                                <FiPackage size={48} />
+                                                            </div>
+                                                        )}
+                                                        <div className="absolute top-4 left-4">
+                                                            <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-[10px] font-black uppercase rounded-lg shadow-sm border border-gray-100">
+                                                                {product.category}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="p-6">
+                                                        <h3 className="text-lg font-black text-slate-800 mb-4 truncate leading-tight">{product.name}</h3>
+                                                        
+                                                        <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl mb-6">
+                                                            <div className="text-center">
+                                                                <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Price</p>
+                                                                <p className="text-xs font-black text-slate-700">₹{product.price}</p>
+                                                            </div>
+                                                            <div className="text-center border-l border-slate-200">
+                                                                <p className="text-[8px] font-black text-slate-400 uppercase mb-1">MOQ</p>
+                                                                <p className="text-xs font-black text-slate-700">{product.moq} {product.unit}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                                                            <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg ${product.visibility === 'Visible' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
+                                                                {product.visibility}
+                                                            </span>
+                                                            <div className="flex items-center gap-2">
+                                                                <button 
+                                                                    onClick={() => navigate(`/b2b-vendor/products/edit/${product._id}`)} 
+                                                                    className="p-2.5 bg-slate-50 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
+                                                                >
+                                                                    <FiEdit size={16} />
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => setDeleteModal({ isOpen: true, productId: product._id })} 
+                                                                    className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                                                                >
+                                                                    <FiTrash2 size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            ))}
                                         </div>
-                                    )}
-                                    {productListings.length === 0 && (
-                                        <div className="text-center py-16 text-gray-400">
-                                            <FiPackage className="mx-auto text-5xl mb-4 opacity-30" />
-                                            <p className="font-bold uppercase tracking-widest text-sm">No listings found</p>
+                                    ) : (
+                                        <div className="bg-white rounded-[3rem] p-20 text-center border-2 border-dashed border-gray-100">
+                                            <FiPackage size={48} className="mx-auto text-gray-200 mb-4" />
+                                            <h3 className="text-xl font-bold text-slate-400 uppercase tracking-widest">No listings found</h3>
+                                            <p className="text-sm text-gray-400">Try adjusting your search or add a new listing.</p>
                                         </div>
                                     )}
                                 </div>

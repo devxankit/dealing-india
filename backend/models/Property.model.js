@@ -24,7 +24,11 @@ const propertySchema = new mongoose.Schema(
         propertyType: {
             type: String,
             required: true,
-            enum: ['Shop', 'Office', 'Showroom', 'Godown', 'Factory', 'Commercial Building', 'Flat', 'Villa', 'Plot'],
+            enum: [
+                'Shop', 'Office', 'Showroom', 'Godown', 'Factory', 'Commercial Building', 
+                'Flat', 'Villa', 'Plot', 'Industrial Shed', 'Warehouse',
+                'Shop/Showroom', 'Office Space', 'Penthouse', 'Other'
+            ],
         },
         listingType: {
             type: String,

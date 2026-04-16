@@ -588,8 +588,11 @@ class SubscriptionRulesService {
             // Check if admin hasn't configured any plans for this business type
             const shopCheck = await this.canListShop(vendorId);
 
-            return {
-                hasSubscription: (addonStats.products.total + addonStats.reels.total + addonStats.lot_slot.total) > 0 || shopCheck.allowed,
+        const hasAddons = (addonStats.products.total + addonStats.reels.total + addonStats.lot_slot.total + addonStats.property.total) > 0;
+
+        return {
+            isActive: hasAddons,
+            hasSubscription: hasAddons,
                 isEligibleForShopListing: shopCheck.allowed,
                 hasShop,
                 plan: { id: null, name: 'No Active Plan', type: 'none', expiresAt: null },
@@ -656,6 +659,7 @@ class SubscriptionRulesService {
         const shopSlideshow = !!plan.shopSlideshow;
 
         return {
+            isActive: true,
             hasSubscription: true,
             hasShop,
             plan: {

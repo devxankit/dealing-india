@@ -176,16 +176,16 @@ const ManageLotSlot = () => {
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tight">Manage Lots/Slots</h1>
-                    <p className="text-gray-500 font-medium">Control your bulk inventory and special offerings.</p>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="text-center md:text-left">
+                    <h1 className="text-2xl md:text-3xl font-black text-gray-900 uppercase tracking-tight">Manage Lots/Slots</h1>
+                    <p className="text-gray-500 font-medium font-medium">Control your bulk inventory and special offerings.</p>
                 </div>
                 {/* Wrapped with SubscriptionGate to enforce Diamond plan requirement */}
                 <SubscriptionGate action="lotslot" showLimitInfo={false}>
                     <button
                         onClick={() => navigate("/b2b-vendor/lotslot/add-lotslot")}
-                        className="flex items-center gap-3 px-6 py-3.5 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl shadow-primary-100"
+                        className="w-full md:w-auto flex items-center justify-center gap-3 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl whitespace-nowrap"
                     >
                         <FiPlus size={20} /> Publish New Lot
                     </button>
@@ -196,8 +196,8 @@ const ManageLotSlot = () => {
                 <QuotaBanner action="lotslot" className="mb-0" />
             </div>
 
-            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
-                <div className="mb-8 flex flex-col sm:flex-row gap-4">
+            <div className="relative">
+                <div className="mb-8 flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
                         <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
@@ -205,26 +205,95 @@ const ManageLotSlot = () => {
                             placeholder="Search by name or category..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-6 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-700"
+                            className="w-full pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-slate-900 outline-none transition-all font-bold text-gray-700 text-sm"
                         />
                     </div>
                 </div>
 
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 gap-4">
-                        <div className="w-12 h-12 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>
-                        <p className="text-gray-400 font-bold text-sm tracking-widest">LOADING CATALOG...</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[1, 2, 3].map(i => <div key={i} className="h-72 bg-gray-50 animate-pulse rounded-[2.5rem]" />)}
                     </div>
                 ) : (
-                    <DataTable
-                        data={lotSlots.filter(l =>
-                            l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            l.category?.toLowerCase().includes(searchQuery.toLowerCase())
-                        )}
-                        columns={columns}
-                        pagination={true}
-                        itemsPerPage={10}
-                    />
+                    <>
+                        {(() => {
+                            const filtered = lotSlots.filter(l =>
+                                (l.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                (l.category || '').toLowerCase().includes(searchQuery.toLowerCase())
+                            );
+
+                            return (
+                                <div className="space-y-8">
+                                    {filtered.length > 0 ? (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                                            {filtered.map((lot) => (
+                                                <motion.div
+                                                    key={lot._id}
+                                                    initial={{ opacity: 0, scale: 0.95 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group"
+                                                >
+                                                    <div className="relative h-48 overflow-hidden bg-slate-50">
+                                                        <img 
+                                                            src={lot.image || (Array.isArray(lot.images) && lot.images[0]) || 'https://via.placeholder.com/400x300'} 
+                                                            alt={lot.name} 
+                                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                                        />
+                                                        <div className="absolute top-4 left-4">
+                                                            <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-[10px] font-black uppercase rounded-lg shadow-sm border border-gray-100">
+                                                                {lot.category || 'Bulk Lot'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="p-6">
+                                                        <h3 className="text-lg font-black text-slate-800 mb-4 truncate leading-tight">{lot.name}</h3>
+                                                        
+                                                        <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl mb-6">
+                                                            <div className="text-center">
+                                                                <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Lot Price</p>
+                                                                <p className="text-xs font-black text-slate-700">₹{parseFloat(lot.price || 0).toLocaleString()}</p>
+                                                            </div>
+                                                            <div className="text-center border-l border-slate-200">
+                                                                <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Min. Order</p>
+                                                                <p className="text-xs font-black text-slate-700">{lot.moq} {lot.unit}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                                                            <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg ${lot.availability === 'In Stock' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'}`}>
+                                                                {lot.availability}
+                                                            </span>
+                                                            <div className="flex items-center gap-2">
+                                                                <button 
+                                                                    onClick={() => navigate(`/b2b-vendor/lotslot/edit/${lot._id}`)} 
+                                                                    className="p-2.5 bg-slate-50 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
+                                                                >
+                                                                    <FiEdit size={16} />
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => setDeleteModal({ isOpen: true, id: lot._id })} 
+                                                                    className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                                                                >
+                                                                    <FiTrash2 size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="bg-white rounded-[3rem] p-20 text-center border-2 border-dashed border-gray-100">
+                                            <FiBox size={48} className="mx-auto text-gray-200 mb-4" />
+                                            <h3 className="text-xl font-bold text-slate-400 uppercase tracking-widest">No lots found</h3>
+                                            <p className="text-sm text-gray-400">Try adjusting your search or publish a new lot.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+                    </>
                 )}
             </div>
 

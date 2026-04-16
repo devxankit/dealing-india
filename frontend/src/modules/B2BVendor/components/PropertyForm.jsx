@@ -24,7 +24,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
         return [];
     }); // { url, data, name }
 
-    const propertyTypeOptions = ["Shop", "Office", "Showroom", "Warehouse", "Industrial Shed", "Other"];
+    const propertyTypeOptions = ["Shop/Showroom", "Office Space", "Warehouse", "Industrial Shed", "Penthouse", "Flat", "Villa", "Plot"];
 
     const [formData, setFormData] = useState(() => {
         const defaultData = {
