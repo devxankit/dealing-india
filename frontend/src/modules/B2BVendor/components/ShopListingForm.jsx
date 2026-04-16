@@ -100,7 +100,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         // Don't save large base64 strings to localStorage to avoid quota exceeded error
         const cleanDraft = {
             ...draftData,
-            images: draftData.images.filter(img => img.startsWith('http')) 
+            images: draftData.images.filter(img => img.startsWith('http'))
         };
         localStorage.setItem('shop_listing_draft', JSON.stringify(cleanDraft));
     }, [formData]);
@@ -119,11 +119,11 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
     const cameraInputRef = useRef(null);
 
     const handleImageUpload = async (e, isCamera = false) => {
-        const files = Array.from(e.target.files);
-        console.log(`[ImageUpload] ${isCamera ? 'Camera' : 'File'} input triggered. Files found:`, files.length);
+        const files = Array.from(e.target.files || []);
+        console.log(`[ImageUpload] Triggered: ${isCamera ? 'Camera' : 'File'} input. Found ${files.length} files.`);
         
         if (files.length === 0) {
-            console.warn('[ImageUpload] No files selected');
+            console.warn('[ImageUpload] No files found in event');
             return;
         }
 
@@ -132,45 +132,52 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
             return;
         }
 
-        const toastId = toast.loading(isCamera ? 'Processing photo...' : 'Processing images...');
+        const toastId = toast.loading(isCamera ? 'Reading photo...' : 'Reading images...');
         setIsShopModified(true);
 
         try {
-            const processFile = async (file) => {
-                console.log(`[ImageUpload] Reading file: ${file.name} (${file.type}, ${Math.round(file.size / 1024)}KB)`);
-                
-                if (file.size === 0) {
-                    console.error('[ImageUpload] File is empty');
-                    return null;
-                }
-
-                if (!file.type.startsWith('image/')) {
-                    console.error('[ImageUpload] Invalid file type:', file.type);
-                    return null;
-                }
-                
-                try {
-                    // Start with original if compression is slow
-                    const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
-                    const compressed = await imageCompression(file, options);
-                    console.log(`[ImageUpload] Compressed: ${Math.round(compressed.size / 1024)}KB`);
+            const results = await Promise.all(
+                files.map(async (file) => {
+                    console.log(`[ImageUpload] Processing: ${file.name} (${file.type}, ${Math.round(file.size / 1024)}KB)`);
                     
-                    return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(compressed);
-                    });
-                } catch (err) {
-                    console.warn('[ImageUpload] Compression engine failed, using raw file:', err);
-                    return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(file);
-                    });
-                }
-            };
+                    if (!file || file.size === 0) {
+                        console.error('[ImageUpload] File is empty or null');
+                        return null;
+                    }
 
-            const base64Images = (await Promise.all(files.map(processFile))).filter(Boolean);
+                    // Strictness relaxation: if it's from a CAMERA input, treat as image even if type is empty
+                    const isImg = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name) || isCamera;
+                    if (!isImg) {
+                        console.error('[ImageUpload] Invalid mime type:', file.type);
+                        return null;
+                    }
+
+                    try {
+                        const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
+                        const compressed = await imageCompression(file, options);
+                        console.log(`[ImageUpload] Compression successful: ${Math.round(compressed.size / 1024)}KB`);
+                        
+                        return new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = (err) => reject(err);
+                            reader.onabort = () => reject(new Error('Read aborted'));
+                            reader.readAsDataURL(compressed);
+                        });
+                    } catch (err) {
+                        console.warn('[ImageUpload] Compression skipped due to error:', err);
+                        return new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = (err) => reject(err);
+                            reader.readAsDataURL(file);
+                        });
+                    }
+                })
+            );
+
+            const base64Images = results.filter(Boolean);
+            console.log(`[ImageUpload] Successfully processed ${base64Images.length} images`);
 
             if (base64Images.length > 0) {
                 setFormData(prev => ({
@@ -178,15 +185,14 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                     images: [...prev.images, ...base64Images]
                 }));
                 toast.success(isCamera ? 'Photo added' : 'Images added', { id: toastId });
-                console.log(`[ImageUpload] Successfully added ${base64Images.length} images`);
             } else {
-                toast.error('Could not process the selected file', { id: toastId });
+                toast.error('Could not process the captured image', { id: toastId });
             }
         } catch (error) {
-            console.error('[ImageUpload] Critical processing error:', error);
+            console.error('[ImageUpload] Critical failure:', error);
             toast.error('Failed to process images', { id: toastId });
         } finally {
-            // CRITICAL: Clear input value to allow re-selection of same file (important for mobile camera)
+            // CRITICAL for mobile: reset input value so re-taking photo works
             if (e.target) e.target.value = '';
         }
     };
@@ -326,25 +332,25 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                                     <label className="flex-1 aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group relative">
                                         <FiUpload size={20} className="group-hover:scale-110 transition-transform" />
                                         <span className="text-[10px] font-black uppercase tracking-wider">File</span>
-                                        <input 
-                                            type="file" 
-                                            multiple 
-                                            accept="image/*" 
-                                            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} 
-                                            onChange={(e) => handleImageUpload(e, false)} 
+                                        <input
+                                            type="file"
+                                            multiple
+                                            accept="image/*"
+                                            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                                            onChange={(e) => handleImageUpload(e, false)}
                                         />
                                     </label>
-                                    
+
                                     <div className="flex-1 relative">
-                                        <input 
+                                        <input
                                             ref={cameraInputRef}
-                                            type="file" 
-                                            accept="image/*" 
-                                            capture="environment" 
-                                            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} 
-                                            onChange={(e) => handleImageUpload(e, true)} 
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                                            onChange={(e) => handleImageUpload(e, true)}
                                         />
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={() => cameraInputRef.current?.click()}
                                             className="w-full aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group"
@@ -375,38 +381,38 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                             />
                         </div>
 
-                    <div className="space-y-2">
-                        <label className={labelStyle}>Business Category</label>
-                        <select
-                            value={formData.businessCategory}
-                            onChange={(e) => {
-                                setFormData({ ...formData, businessCategory: e.target.value });
-                                setIsShopModified(true);
-                            }}
-                            className={inputStyle}
-                        >
-                            <option value="">Select Business Category</option>
-                            {businessCategories.map((cat) => (
-                                <option key={cat} value={cat}>{cat}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className={labelStyle}>Location URL (Google Maps)</label>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="text"
-                                value={formData.mapUrl}
+                        <div className="space-y-2">
+                            <label className={labelStyle}>Business Category</label>
+                            <select
+                                value={formData.businessCategory}
                                 onChange={(e) => {
-                                    setFormData({ ...formData, mapUrl: e.target.value });
+                                    setFormData({ ...formData, businessCategory: e.target.value });
                                     setIsShopModified(true);
                                 }}
-                                placeholder="https://maps.google.com/..."
-                                className={`${inputStyle} flex-1`}
-                            />
+                                className={inputStyle}
+                            >
+                                <option value="">Select Business Category</option>
+                                {businessCategories.map((cat) => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
                         </div>
-                    </div>
+
+                        <div className="space-y-2">
+                            <label className={labelStyle}>Location URL (Google Maps)</label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={formData.mapUrl}
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, mapUrl: e.target.value });
+                                        setIsShopModified(true);
+                                    }}
+                                    placeholder="https://maps.google.com/..."
+                                    className={`${inputStyle} flex-1`}
+                                />
+                            </div>
+                        </div>
 
                         <div className="space-y-2">
                             <label className={labelStyle}>Manual Price Range <span className="text-red-500">*</span></label>
