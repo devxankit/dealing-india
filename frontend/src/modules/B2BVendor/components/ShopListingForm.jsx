@@ -121,7 +121,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
     const handleImageUpload = async (e, isCamera = false) => {
         const files = Array.from(e.target.files || []);
         console.log(`[ImageUpload] Triggered: ${isCamera ? 'Camera' : 'File'} input. Found ${files.length} files.`);
-        
+
         if (files.length === 0) {
             console.warn('[ImageUpload] No files found in event');
             return;
@@ -139,7 +139,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
             const results = await Promise.all(
                 files.map(async (file) => {
                     console.log(`[ImageUpload] Processing: ${file.name} (${file.type}, ${Math.round(file.size / 1024)}KB)`);
-                    
+
                     if (!file || file.size === 0) {
                         console.error('[ImageUpload] File is empty or null');
                         return null;
@@ -156,7 +156,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                         const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
                         const compressed = await imageCompression(file, options);
                         console.log(`[ImageUpload] Compression successful: ${Math.round(compressed.size / 1024)}KB`);
-                        
+
                         return new Promise((resolve, reject) => {
                             const reader = new FileReader();
                             reader.onload = () => resolve(reader.result);
@@ -303,7 +303,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                     {/* 1. Photo Upload Field */}
                     <div className="space-y-4">
                         <label className={labelStyle}>
-                            Photo Upload (Max {MAX_PHOTOS}) <span className="text-red-500">*</span>
+                            Photo Uploaddfgdfgdfgdfg (Max {MAX_PHOTOS}) <span className="text-red-500">*</span>
                         </label>
                         <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest -mt-3 mb-2 ml-1">Note: Please upload square images (1:1 ratio) for better display.</p>
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
