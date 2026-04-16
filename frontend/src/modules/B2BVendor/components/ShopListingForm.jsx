@@ -132,27 +132,25 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
             return;
         }
 
-        // Object URLs for immediate preview
-        const blobUrls = files.map(f => URL.createObjectURL(f));
-        const startCount = formData.images.length;
-        
-        setFormData(prev => ({
-            ...prev,
-            images: [...prev.images, ...blobUrls]
-        }));
-        setIsShopModified(true);
-
         const toastId = toast.loading(isCamera ? 'Processing photo...' : 'Processing images...');
+        setIsShopModified(true);
 
         try {
             const processFile = async (file) => {
-                console.log(`[ImageUpload] Processing file: ${file.name} (${file.type}, ${Math.round(file.size / 1024)}KB)`);
+                console.log(`[ImageUpload] Reading file: ${file.name} (${file.type}, ${Math.round(file.size / 1024)}KB)`);
+                
+                if (file.size === 0) {
+                    console.error('[ImageUpload] File is empty');
+                    return null;
+                }
+
                 if (!file.type.startsWith('image/')) {
                     console.error('[ImageUpload] Invalid file type:', file.type);
                     return null;
                 }
                 
                 try {
+                    // Start with original if compression is slow
                     const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
                     const compressed = await imageCompression(file, options);
                     console.log(`[ImageUpload] Compressed: ${Math.round(compressed.size / 1024)}KB`);
@@ -163,7 +161,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                         reader.readAsDataURL(compressed);
                     });
                 } catch (err) {
-                    console.error('[ImageUpload] Compression error:', err);
+                    console.warn('[ImageUpload] Compression engine failed, using raw file:', err);
                     return new Promise((resolve) => {
                         const reader = new FileReader();
                         reader.onloadend = () => resolve(reader.result);
@@ -174,24 +172,22 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
 
             const base64Images = (await Promise.all(files.map(processFile))).filter(Boolean);
 
-            setFormData(prev => {
-                const next = [...prev.images];
-                for (let i = 0; i < base64Images.length; i++) {
-                    next[startCount + i] = base64Images[i];
-                }
-                return { ...prev, images: next };
-            });
-
-            // Clear input value to allow re-selection of same file
-            e.target.value = '';
-            blobUrls.forEach(url => URL.revokeObjectURL(url));
-            toast.success(isCamera ? 'Photo added' : 'Images added', { id: toastId });
+            if (base64Images.length > 0) {
+                setFormData(prev => ({
+                    ...prev,
+                    images: [...prev.images, ...base64Images]
+                }));
+                toast.success(isCamera ? 'Photo added' : 'Images added', { id: toastId });
+                console.log(`[ImageUpload] Successfully added ${base64Images.length} images`);
+            } else {
+                toast.error('Could not process the selected file', { id: toastId });
+            }
         } catch (error) {
             console.error('[ImageUpload] Critical processing error:', error);
-            e.target.value = '';
-            blobUrls.forEach(url => URL.revokeObjectURL(url));
-            setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i < startCount) }));
             toast.error('Failed to process images', { id: toastId });
+        } finally {
+            // CRITICAL: Clear input value to allow re-selection of same file (important for mobile camera)
+            if (e.target) e.target.value = '';
         }
     };
 
@@ -327,25 +323,19 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                             </AnimatePresence>
                             {formData.images.length < MAX_PHOTOS && (
                                 <div className="flex gap-4 col-span-2 sm:col-span-1">
-                                    <label className="flex-1 aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group">
+                                    <label className="flex-1 aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group relative">
                                         <FiUpload size={20} className="group-hover:scale-110 transition-transform" />
                                         <span className="text-[10px] font-black uppercase tracking-wider">File</span>
                                         <input 
                                             type="file" 
                                             multiple 
                                             accept="image/*" 
-                                            className="hidden" 
+                                            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} 
                                             onChange={(e) => handleImageUpload(e, false)} 
                                         />
                                     </label>
                                     
-                                    <button 
-                                        type="button"
-                                        onClick={() => cameraInputRef.current?.click()}
-                                        className="flex-1 aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group"
-                                    >
-                                        <FiCamera size={20} className="group-hover:scale-110 transition-transform text-primary-500" />
-                                        <span className="text-[10px] font-black uppercase tracking-wider">Camera</span>
+                                    <div className="flex-1 relative">
                                         <input 
                                             ref={cameraInputRef}
                                             type="file" 
@@ -354,7 +344,15 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                                             style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} 
                                             onChange={(e) => handleImageUpload(e, true)} 
                                         />
-                                    </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => cameraInputRef.current?.click()}
+                                            className="w-full aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group"
+                                        >
+                                            <FiCamera size={20} className="group-hover:scale-110 transition-transform text-primary-500" />
+                                            <span className="text-[10px] font-black uppercase tracking-wider">Camera</span>
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
