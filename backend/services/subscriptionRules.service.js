@@ -183,25 +183,10 @@ class SubscriptionRulesService {
             const subData = await this.getActiveSubscription(vendorId);
             if (subData) return { allowed: true };
 
-            // 2. Special check: If admin hasn't configured any plans for this business type, allow listing shop for free
-            const settings = await BusinessTypeSettings.findOne({ 
-                $or: [
-                    { businessTypeId: vendor.businessTypeRef },
-                    { businessTypeSlug: vendor.businessType?.toLowerCase() }
-                ]
-            }).lean();
-
-            if (settings && Array.isArray(settings.allowedPlans) && settings.allowedPlans.length === 0) {
-                return { 
-                    allowed: true, 
-                    message: `No subscription required for ${vendor.businessType} vendors. Shop listing allowed.` 
-                };
-            }
-
+            // 3. New Policy: Allow shop listing for free for all vendors (as of April 2026)
             return { 
-                allowed: false, 
-                message: 'To list your shop, you need to purchase any subscription plan.',
-                subscriptionRequired: true
+                allowed: true, 
+                message: 'Shop listing is free for all vendors.' 
             };
         } catch (error) {
             console.error('Error in canListShop rule:', error);
@@ -710,29 +695,8 @@ class SubscriptionRulesService {
         try {
             const subData = await this.getActiveSubscription(vendorId);
 
-            if (!subData) {
-                // Check if they are eligible for shop listing anyway (no plans configured)
-                const eligibility = await this.canListShop(vendorId);
-                if (eligibility.allowed) {
-                    return { allowed: true };
-                }
-
-                return { 
-                    allowed: false, 
-                    message: 'An active subscription plan is required for shop slideshow.',
-                    subscriptionRequired: true
-                };
-            }
-
-            const plan = subData.plan;
-            if (plan && plan.shopSlideshow) {
-                return { allowed: true };
-            }
-
-            return { 
-                allowed: false, 
-                message: 'Shop slideshow is not included in your current plan. Please upgrade to use this feature.' 
-            };
+            // Allow shop slideshows for free to ensure all vendors can present their business identity
+            return { allowed: true };
         } catch (error) {
             console.error('Error in canUseShopSlideshow:', error);
             return { allowed: false, message: 'Access check failed.' };

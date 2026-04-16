@@ -32,31 +32,8 @@ const ShopListing = () => {
         );
     }
 
-    if (!hasActiveSubscription() && !status?.isEligibleForShopListing) {
-        return (
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center min-h-[500px] text-center p-8 bg-white rounded-[2.5rem] border border-dashed border-gray-200 shadow-sm max-w-2xl mx-auto"
-            >
-                <div className="w-24 h-24 bg-primary-50 rounded-full flex items-center justify-center mb-8 shadow-inner">
-                    <FiLock className="text-5xl text-primary-600" />
-                </div>
-                <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight mb-3">Subscription Needed</h2>
-                <p className="text-gray-500 mb-10 max-w-sm mx-auto font-medium text-lg leading-relaxed">
-                    To list your shop and showcase your business, you need an active subscription plan.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center gap-4 w-full px-8">
-                    <button
-                        onClick={() => navigate('/b2b-vendor/subscription')}
-                        className="flex-1 w-full flex items-center justify-center gap-2 px-8 py-4 bg-primary-600 text-white rounded-2xl font-bold hover:bg-primary-700 transition-all shadow-xl shadow-primary-200 uppercase tracking-widest text-sm"
-                    >
-                        Purchase A Plan <FiArrowRight />
-                    </button>
-                </div>
-            </motion.div>
-        );
-    }
+    // Removed subscription gate for Shop Listing to allow vendors to set up their shop profile first.
+    // Gating for products/properties will remain handled by SubscriptionGate components.
 
     const handleShopSubmit = async (payload) => {
         setSubmitting(true);
