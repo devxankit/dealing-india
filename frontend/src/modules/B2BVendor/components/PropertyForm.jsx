@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { FiArrowLeft, FiPlus, FiTrash2, FiCheck } from "react-icons/fi";
+import { useState, useEffect, useRef } from "react";
+import { FiArrowLeft, FiPlus, FiTrash2, FiCheck, FiCamera } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import toast from "../../../shared/utils/toast";
@@ -14,6 +14,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const [step, setStep] = useState(1);
+    const cameraInputRef = useRef(null);
     const [media, setMedia] = useState(() => {
         if (!isEdit) {
             const saved = localStorage.getItem(DRAFT_KEY);
@@ -165,27 +166,37 @@ const PropertyForm = ({ initialData, isEdit }) => {
         }));
     };
 
-    const handleImageUpload = async (e) => {
+    const handleImageUpload = async (e, isCamera = false) => {
         const files = Array.from(e.target.files);
+        console.log(`[PropertyImage] ${isCamera ? 'Camera' : 'File'} upload started:`, {
+            count: files.length,
+            types: files.map(f => f.type),
+            sizes: files.map(f => (f.size / 1024).toFixed(2) + 'KB')
+        });
 
         if (media.length + files.length > 100) {
             toast.error('Maximum 100 images allowed per property');
             return;
         }
 
-        const toastId = toast.loading('Processing images...');
+        const toastId = toast.loading(isCamera ? 'Processing photo...' : 'Processing images...');
         try {
             const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
             const results = await Promise.all(
                 files.map(async (file) => {
                     try {
                         const compressed = await imageCompression(file, options);
+                        console.log(`[PropertyImage] Compression success: ${file.name}`, {
+                            original: (file.size / 1024).toFixed(2) + 'KB',
+                            compressed: (compressed.size / 1024).toFixed(2) + 'KB'
+                        });
                         return new Promise((resolve) => {
                             const reader = new FileReader();
                             reader.onloadend = () => resolve({ data: reader.result, name: file.name });
                             reader.readAsDataURL(compressed);
                         });
                     } catch (err) {
+                        console.warn(`[PropertyImage] Compression failed for ${file.name}, using original:`, err);
                         return new Promise((resolve) => {
                             const reader = new FileReader();
                             reader.onloadend = () => resolve({ data: reader.result, name: file.name });
@@ -198,7 +209,10 @@ const PropertyForm = ({ initialData, isEdit }) => {
             setMedia(prev => [...prev, ...results]);
             toast.success(`${files.length} images added`, { id: toastId });
         } catch (error) {
+            console.error('[PropertyImage] Upload failed:', error);
             toast.error('Failed to process images', { id: toastId });
+        } finally {
+            if (e.target) e.target.value = '';
         }
     };
 
@@ -771,21 +785,40 @@ const PropertyForm = ({ initialData, isEdit }) => {
                             <div>
                                 <label className="label mb-4">Property Media <span className="text-red-500">*</span></label>
                                 <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest mb-3">Note: Please upload square images (1:1 ratio) for better display.</p>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {media.map((img, idx) => (
-                                        <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border-2 border-slate-100">
-                                            <img src={img.data || img.url} alt="preview" className="w-full h-full object-cover" />
-                                            <button onClick={() => removeImage(idx)} className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg">
-                                                <FiTrash2 size={14} />
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {media.map((img, idx) => (
+                                            <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border-2 border-slate-100">
+                                                <img src={img.data || img.url} alt="preview" className="w-full h-full object-cover" />
+                                                <button onClick={() => removeImage(idx)} className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg">
+                                                    <FiTrash2 size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <input
+                                            type="file"
+                                            ref={cameraInputRef}
+                                            accept="image/*"
+                                            capture="environment"
+                                            onChange={(e) => handleImageUpload(e, true)}
+                                            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                                        />
+                                        <div className="contents">
+                                            <button
+                                                type="button"
+                                                onClick={() => cameraInputRef.current?.click()}
+                                                className={`aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-primary-600`}
+                                            >
+                                                <FiCamera size={24} />
+                                                <span className="text-[10px] font-bold uppercase tracking-tight">Camera</span>
                                             </button>
+
+                                            <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-slate-400">
+                                                <input type="file" multiple accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="hidden" />
+                                                <FiPlus size={24} />
+                                                <span className="text-[10px] font-bold uppercase">Gallery</span>
+                                            </label>
                                         </div>
-                                    ))}
-                                    <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-slate-400">
-                                        <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
-                                        <FiPlus size={24} />
-                                        <span className="text-[10px] font-bold uppercase">Add Photo</span>
-                                    </label>
-                                </div>
+                                    </div>
                             </div>
                         </motion.div>
                     )}

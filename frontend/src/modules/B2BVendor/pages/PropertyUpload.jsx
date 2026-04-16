@@ -17,15 +17,38 @@ const PropertyUpload = () => {
         description: ''
     });
 
-    const handleImageUpload = (e) => {
+    const cameraInputRef = React.useRef(null);
+
+    const handleImageUpload = (e, isCamera = false) => {
         const files = Array.from(e.target.files);
+        console.log(`[PropertyImage] ${isCamera ? 'Camera' : 'File'} input triggered. Files:`, files.length);
+
+        const toastId = toast.loading(isCamera ? 'Reading photo...' : 'Reading images...');
+
+        let processedCount = 0;
         files.forEach(file => {
+            console.log(`[PropertyImage] Reading: ${file.name} (${file.type}, ${Math.round(file.size / 1024)}KB)`);
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImages(prev => [...prev, reader.result]);
+                processedCount++;
+                if (processedCount === files.length) {
+                    toast.success(isCamera ? 'Photo added' : 'Images added', { id: toastId });
+                    // Clear input to allow re-selection
+                    e.target.value = '';
+                }
+            };
+            reader.onerror = (err) => {
+                console.error('[PropertyImage] FileReader error:', err);
+                toast.error('Failed to read image', { id: toastId });
+                e.target.value = '';
             };
             reader.readAsDataURL(file);
         });
+        
+        if (files.length === 0) {
+            toast.dismiss(toastId);
+        }
     };
 
     const removeImage = (index) => {
@@ -75,19 +98,36 @@ const PropertyUpload = () => {
                                 {images.length < 10 && (
                                     <div className="grid grid-cols-2 col-span-2 sm:col-span-1 gap-3">
                                         <label className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 transition-all text-gray-400 group">
-                                            <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                            <input 
+                                                type="file" 
+                                                multiple 
+                                                accept="image/*" 
+                                                onChange={(e) => handleImageUpload(e, false)} 
+                                                className="hidden" 
+                                            />
                                             <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-primary-50 group-hover:text-primary-600 transition-all shadow-sm">
                                                 <FiPlus size={20} />
                                             </div>
                                             <span className="text-[8px] font-black uppercase tracking-widest text-center">Upload</span>
                                         </label>
-                                        <label className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 transition-all text-gray-400 group">
-                                            <input type="file" capture="environment" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                        <button 
+                                            type="button"
+                                            onClick={() => cameraInputRef.current?.click()}
+                                            className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 transition-all text-gray-400 group"
+                                        >
                                             <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-all shadow-sm">
                                                 <FiCamera size={18} />
                                             </div>
                                             <span className="text-[8px] font-black uppercase tracking-widest text-center">Camera</span>
-                                        </label>
+                                            <input 
+                                                ref={cameraInputRef}
+                                                type="file" 
+                                                capture="environment" 
+                                                accept="image/*" 
+                                                onChange={(e) => handleImageUpload(e, true)} 
+                                                style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                                            />
+                                        </button>
                                     </div>
                                 )}
                             </div>

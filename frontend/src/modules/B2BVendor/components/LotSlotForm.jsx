@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList, FiSearch, FiChevronDown } from "react-icons/fi";
+import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList, FiSearch, FiChevronDown, FiCamera } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import imageCompression from 'browser-image-compression';
@@ -41,6 +41,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     const [subcategorySearchQuery, setSubcategorySearchQuery] = useState("");
     const [isSubcategoryDropdownOpen, setIsSubcategoryDropdownOpen] = useState(false);
     const subcategoryDropdownRef = useRef(null);
+    const cameraInputRef = useRef(null);
     const [dynamicFields, setDynamicFields] = useState([]);
     const [dynamicValues, setDynamicValues] = useState(() => {
         if (!isEdit) {
@@ -257,25 +258,35 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
         setFormData(prev => ({ ...prev, bulkPricing: updated }));
     };
 
-    const handleMultipleImageUpload = async (e) => {
+    const handleMultipleImageUpload = async (e, isCamera = false) => {
         const files = Array.from(e.target.files);
         if (!files.length) return;
 
+        console.log(`[LotSlotImage] ${isCamera ? 'Camera' : 'File'} upload started:`, {
+            count: files.length,
+            types: files.map(f => f.type),
+            sizes: files.map(f => (f.size / 1024).toFixed(2) + 'KB')
+        });
+
         setIsUploading(true);
-        const toastId = toast.loading('Processing images...');
+        const toastId = toast.loading(isCamera ? 'Processing photo...' : 'Processing images...');
         try {
             const options = { maxSizeMB: 0.1, maxWidthOrHeight: 800, useWebWorker: true };
             const newImages = await Promise.all(
                 files.map(async (file) => {
                     try {
                         const compressed = await imageCompression(file, options);
+                        console.log(`[LotSlotImage] Compression success: ${file.name}`, {
+                            original: (file.size / 1024).toFixed(2) + 'KB',
+                            compressed: (compressed.size / 1024).toFixed(2) + 'KB'
+                        });
                         return new Promise((resolve) => {
                             const reader = new FileReader();
                             reader.onloadend = () => resolve(reader.result);
                             reader.readAsDataURL(compressed);
                         });
                     } catch (err) {
-                        console.error('Compression error:', err);
+                        console.warn(`[LotSlotImage] Compression failed for ${file.name}, using original:`, err);
                         return new Promise((resolve) => {
                             const reader = new FileReader();
                             reader.onloadend = () => resolve(reader.result);
@@ -291,9 +302,11 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
             }));
             toast.success(`${files.length} images added`, { id: toastId });
         } catch (error) {
+            console.error('[LotSlotImage] Upload failed:', error);
             toast.error("Failed to upload some images", { id: toastId });
         } finally {
             setIsUploading(false);
+            if (e.target) e.target.value = '';
         }
     };
 

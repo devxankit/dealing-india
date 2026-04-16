@@ -116,37 +116,54 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
     const canUseSlideshow = status?.limits?.shopSlideshow !== false;
     const MAX_PHOTOS = canUseSlideshow ? 5 : 1;
 
-    const handleImageUpload = async (e) => {
+    const cameraInputRef = useRef(null);
+
+    const handleImageUpload = async (e, isCamera = false) => {
         const files = Array.from(e.target.files);
+        console.log(`[ImageUpload] ${isCamera ? 'Camera' : 'File'} input triggered. Files found:`, files.length);
+        
+        if (files.length === 0) {
+            console.warn('[ImageUpload] No files selected');
+            return;
+        }
+
         if (formData.images.length + files.length > MAX_PHOTOS) {
             toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
             return;
         }
-        e.target.value = '';
 
+        // Object URLs for immediate preview
         const blobUrls = files.map(f => URL.createObjectURL(f));
         const startCount = formData.images.length;
+        
         setFormData(prev => ({
             ...prev,
             images: [...prev.images, ...blobUrls]
         }));
         setIsShopModified(true);
 
-        const toastId = toast.loading('Processing images...');
+        const toastId = toast.loading(isCamera ? 'Processing photo...' : 'Processing images...');
 
         try {
             const processFile = async (file) => {
-                if (!file.type.startsWith('image/')) return null;
+                console.log(`[ImageUpload] Processing file: ${file.name} (${file.type}, ${Math.round(file.size / 1024)}KB)`);
+                if (!file.type.startsWith('image/')) {
+                    console.error('[ImageUpload] Invalid file type:', file.type);
+                    return null;
+                }
+                
                 try {
                     const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
                     const compressed = await imageCompression(file, options);
+                    console.log(`[ImageUpload] Compressed: ${Math.round(compressed.size / 1024)}KB`);
+                    
                     return new Promise((resolve) => {
                         const reader = new FileReader();
                         reader.onloadend = () => resolve(reader.result);
                         reader.readAsDataURL(compressed);
                     });
                 } catch (err) {
-                    console.error('Compression error:', err);
+                    console.error('[ImageUpload] Compression error:', err);
                     return new Promise((resolve) => {
                         const reader = new FileReader();
                         reader.onloadend = () => resolve(reader.result);
@@ -165,10 +182,13 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                 return { ...prev, images: next };
             });
 
+            // Clear input value to allow re-selection of same file
+            e.target.value = '';
             blobUrls.forEach(url => URL.revokeObjectURL(url));
-            toast.success('Images added successfully', { id: toastId });
+            toast.success(isCamera ? 'Photo added' : 'Images added', { id: toastId });
         } catch (error) {
-            console.error('Error processing images:', error);
+            console.error('[ImageUpload] Critical processing error:', error);
+            e.target.value = '';
             blobUrls.forEach(url => URL.revokeObjectURL(url));
             setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i < startCount) }));
             toast.error('Failed to process images', { id: toastId });
@@ -310,14 +330,31 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                                     <label className="flex-1 aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group">
                                         <FiUpload size={20} className="group-hover:scale-110 transition-transform" />
                                         <span className="text-[10px] font-black uppercase tracking-wider">File</span>
-                                        <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                        <input 
+                                            type="file" 
+                                            multiple 
+                                            accept="image/*" 
+                                            className="hidden" 
+                                            onChange={(e) => handleImageUpload(e, false)} 
+                                        />
                                     </label>
                                     
-                                    <label className="flex-1 aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group">
+                                    <button 
+                                        type="button"
+                                        onClick={() => cameraInputRef.current?.click()}
+                                        className="flex-1 aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group"
+                                    >
                                         <FiCamera size={20} className="group-hover:scale-110 transition-transform text-primary-500" />
                                         <span className="text-[10px] font-black uppercase tracking-wider">Camera</span>
-                                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
-                                    </label>
+                                        <input 
+                                            ref={cameraInputRef}
+                                            type="file" 
+                                            accept="image/*" 
+                                            capture="environment" 
+                                            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} 
+                                            onChange={(e) => handleImageUpload(e, true)} 
+                                        />
+                                    </button>
                                 </div>
                             )}
                         </div>

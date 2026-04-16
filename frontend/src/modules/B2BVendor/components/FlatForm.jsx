@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { FiArrowLeft, FiPlus, FiTrash2, FiCheck } from "react-icons/fi";
+import { useEffect, useState, useRef } from "react";
+import { FiArrowLeft, FiPlus, FiTrash2, FiCheck, FiCamera } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import toast from "../../../shared/utils/toast";
@@ -12,6 +12,7 @@ const FlatForm = ({ initialData, isEdit }) => {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const [step, setStep] = useState(1);
+    const cameraInputRef = useRef(null);
     const DRAFT_KEY = "b2b_flat_add_draft";
 
     const [media, setMedia] = useState(() => {
@@ -250,30 +251,53 @@ const FlatForm = ({ initialData, isEdit }) => {
         }
     };
 
-    const handleImageUpload = async (e) => {
+    const handleImageUpload = async (e, isCamera = false) => {
         const files = Array.from(e.target.files);
+        console.log(`[FlatImage] ${isCamera ? 'Camera' : 'File'} upload started:`, {
+            count: files.length,
+            types: files.map(f => f.type),
+            sizes: files.map(f => (f.size / 1024).toFixed(2) + 'KB')
+        });
+
         if (media.length + files.length > 50) {
             toast.error('Maximum 50 images allowed');
             return;
         }
 
-        const toastId = toast.loading('Processing images...');
+        const toastId = toast.loading(isCamera ? 'Processing photo...' : 'Processing images...');
         try {
             const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
             const results = await Promise.all(
                 files.map(async (file) => {
-                    const compressed = await imageCompression(file, options);
-                    return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve({ data: reader.result, name: file.name });
-                        reader.readAsDataURL(compressed);
-                    });
+                    try {
+                        const compressed = await imageCompression(file, options);
+                        console.log(`[FlatImage] Compression success: ${file.name}`, {
+                            original: (file.size / 1024).toFixed(2) + 'KB',
+                            compressed: (compressed.size / 1024).toFixed(2) + 'KB'
+                        });
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve({ data: reader.result, name: file.name });
+                            reader.readAsDataURL(compressed);
+                        });
+                    } catch (compressionError) {
+                        console.warn(`[FlatImage] Compression failed for ${file.name}, using original:`, compressionError);
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve({ data: reader.result, name: file.name });
+                            reader.readAsDataURL(file);
+                        });
+                    }
                 })
             );
             setMedia(prev => [...prev, ...results]);
             toast.success(`${files.length} images added`, { id: toastId });
         } catch (error) {
+            console.error('[FlatImage] Upload failed:', error);
             toast.error('Failed to process images', { id: toastId });
+        } finally {
+            // CRITICAL: Clear the input value so the same file name (like camera's image.jpg) triggers onChange next time
+            if (e.target) e.target.value = '';
         }
     };
 
@@ -790,11 +814,32 @@ const FlatForm = ({ initialData, isEdit }) => {
                                             </div>
                                         ))}
                                         {media.length < 50 && (
-                                            <label className={`aspect-square rounded-2xl border-2 border-dashed ${errors.media ? 'border-red-500 bg-red-50' : 'border-slate-200'} flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 text-slate-400`}>
-                                                <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
-                                                <FiPlus size={24} />
-                                                <span className="text-[10px] font-bold uppercase">Add Photo</span>
-                                            </label>
+                                            <>
+                                            <input
+                                                type="file"
+                                                ref={cameraInputRef}
+                                                accept="image/*"
+                                                capture="environment"
+                                                onChange={(e) => handleImageUpload(e, true)}
+                                                style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                                            />
+                                            <div className="contents">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => cameraInputRef.current?.click()}
+                                                    className={`aspect-square rounded-2xl border-2 border-dashed ${errors.media ? 'border-red-500 bg-red-50' : 'border-slate-200'} flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-primary-600`}
+                                                >
+                                                    <FiCamera size={24} />
+                                                    <span className="text-[10px] font-black uppercase">Camera</span>
+                                                </button>
+
+                                                <label className={`aspect-square rounded-2xl border-2 border-dashed ${errors.media ? 'border-red-500 bg-red-50' : 'border-slate-200'} flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 text-slate-400`}>
+                                                    <input type="file" multiple accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="hidden" />
+                                                    <FiPlus size={24} />
+                                                    <span className="text-[10px] font-bold uppercase">Gallery</span>
+                                                </label>
+                                            </div>
+                                            </>
                                         )}
                                     </div>
                                     {errors.media && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.media}</p>}

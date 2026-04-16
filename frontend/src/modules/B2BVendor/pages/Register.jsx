@@ -125,27 +125,38 @@ const B2BVendorRegister = () => {
     const [businessLicense, setBusinessLicense] = useState(null);
     const [panCard, setPanCard] = useState(null);
 
-    const handleDocumentUpload = async (e, type) => {
+    const handleDocumentUpload = async (e, type, isCamera = false) => {
         const file = e.target.files[0];
-        if (!file) return;
+        console.log(`[KYCUpload] ${isCamera ? 'Camera' : 'File'} input triggered for ${type}. File:`, file?.name);
+        
+        if (!file) {
+            console.warn('[KYCUpload] No file picked');
+            return;
+        }
 
         setIsUploadingDocs(true);
         const isValid = file.type === 'application/pdf' || file.type.startsWith('image/');
         if (!isValid) {
+            console.error('[KYCUpload] Invalid type:', file.type);
             toast.error('Invalid file type. Please upload PDF or Image.');
             setIsUploadingDocs(false);
             return;
         }
 
+        const toastId = toast.loading(`Processing ${type === 'license' ? 'License' : 'PAN'}...`);
+
         try {
             let data = null;
             if (file.type.startsWith('image/')) {
+                console.log(`[KYCUpload] Compressing image: ${file.name} (${Math.round(file.size / 1024)}KB)`);
                 const options = {
                     maxSizeMB: 0.5, // 500KB is enough for documents
                     maxWidthOrHeight: 1600,
                     useWebWorker: true,
                 };
                 const compressed = await imageCompression(file, options);
+                console.log(`[KYCUpload] Compressed: ${Math.round(compressed.size / 1024)}KB`);
+                
                 data = await new Promise((resolve) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result);
@@ -153,6 +164,7 @@ const B2BVendorRegister = () => {
                 });
             } else {
                 // PDF or other files
+                console.log(`[KYCUpload] Reading PDF: ${file.name}`);
                 data = await new Promise((resolve) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result);
@@ -165,10 +177,14 @@ const B2BVendorRegister = () => {
             } else {
                 setPanCard({ name: file.name, data, type: file.type });
             }
-            toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} uploaded`);
+            
+            // Clear input value
+            e.target.value = '';
+            toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} added`, { id: toastId });
         } catch (error) {
-            console.error('Upload error:', error);
-            toast.error('Failed to process file');
+            console.error('[KYCUpload] Error:', error);
+            e.target.value = '';
+            toast.error('Failed to process file', { id: toastId });
         } finally {
             setIsUploadingDocs(false);
         }
@@ -538,7 +554,7 @@ const B2BVendorRegister = () => {
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="relative">
                                                 <input type="file" accept="image/*,video/*,application/pdf" onChange={(e) => {
-                                                    handleDocumentUpload(e, 'license');
+                                                    handleDocumentUpload(e, 'license', false);
                                                     if (errors.businessLicense) setErrors(prev => ({ ...prev, businessLicense: '' }));
                                                 }} className="hidden" id="license-upload" disabled={isUploadingDocs} />
                                                 <label htmlFor="license-upload" className={`flex flex-col items-center justify-center py-4 border-2 border-dashed ${errors.businessLicense ? 'border-red-500' : 'border-gray-200'} rounded-xl hover:bg-slate-50 cursor-pointer transition-all group`}>
@@ -548,9 +564,9 @@ const B2BVendorRegister = () => {
                                             </div>
                                             <div className="relative">
                                                 <input type="file" capture="environment" accept="image/*" onChange={(e) => {
-                                                    handleDocumentUpload(e, 'license');
+                                                    handleDocumentUpload(e, 'license', true);
                                                     if (errors.businessLicense) setErrors(prev => ({ ...prev, businessLicense: '' }));
-                                                }} className="hidden" id="license-camera" disabled={isUploadingDocs} />
+                                                }} style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} id="license-camera" disabled={isUploadingDocs} />
                                                 <label htmlFor="license-camera" className={`flex flex-col items-center justify-center py-4 border-2 border-dashed ${errors.businessLicense ? 'border-red-500' : 'border-gray-200'} rounded-xl hover:bg-slate-50 cursor-pointer transition-all group`}>
                                                     <FiCamera className="text-lg text-gray-400 mb-1 group-hover:text-primary-600" />
                                                     <span className="text-[8px] font-bold text-gray-500 group-hover:text-primary-600">CAMERA</span>
@@ -584,7 +600,7 @@ const B2BVendorRegister = () => {
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="relative">
                                                 <input type="file" accept="image/*,video/*,application/pdf" onChange={(e) => {
-                                                    handleDocumentUpload(e, 'pan');
+                                                    handleDocumentUpload(e, 'pan', false);
                                                     if (errors.panCard) setErrors(prev => ({ ...prev, panCard: '' }));
                                                 }} className="hidden" id="pan-upload" disabled={isUploadingDocs} />
                                                 <label htmlFor="pan-upload" className={`flex flex-col items-center justify-center py-4 border-2 border-dashed ${errors.panCard ? 'border-red-500' : 'border-gray-200'} rounded-xl hover:bg-slate-50 cursor-pointer transition-all group`}>
@@ -594,9 +610,9 @@ const B2BVendorRegister = () => {
                                             </div>
                                             <div className="relative">
                                                 <input type="file" capture="environment" accept="image/*" onChange={(e) => {
-                                                    handleDocumentUpload(e, 'pan');
+                                                    handleDocumentUpload(e, 'pan', true);
                                                     if (errors.panCard) setErrors(prev => ({ ...prev, panCard: '' }));
-                                                }} className="hidden" id="pan-camera" disabled={isUploadingDocs} />
+                                                }} style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} id="pan-camera" disabled={isUploadingDocs} />
                                                 <label htmlFor="pan-camera" className={`flex flex-col items-center justify-center py-4 border-2 border-dashed ${errors.panCard ? 'border-red-500' : 'border-gray-200'} rounded-xl hover:bg-slate-50 cursor-pointer transition-all group`}>
                                                     <FiCamera className="text-lg text-gray-400 mb-1 group-hover:text-primary-600" />
                                                     <span className="text-[8px] font-bold text-gray-500 group-hover:text-primary-600">CAMERA</span>

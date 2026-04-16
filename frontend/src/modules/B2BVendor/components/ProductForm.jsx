@@ -289,9 +289,14 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const productPermission = canCreateProduct();
     const MAX_PHOTOS = productPermission.maxImages !== undefined ? parseInt(productPermission.maxImages) : 5;
 
-    const handleMultipleImageUpload = async (e) => {
+    const handleMultipleImageUpload = async (e, isCamera = false) => {
         const files = Array.from(e.target.files);
-        if (!files.length) return;
+        console.log(`[ProductImage] ${isCamera ? 'Camera' : 'File'} input triggered. Files:`, files.length);
+        
+        if (!files.length) {
+            console.warn('[ProductImage] No files in event');
+            return;
+        }
 
         // Handle case where limit is -1 (unlimited) or high
         if (MAX_PHOTOS !== -1 && formData.images.length + files.length > MAX_PHOTOS) {
@@ -300,19 +305,22 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         }
 
         setIsUploading(true);
-        const toastId = toast.loading('Compressing images...');
+        const toastId = toast.loading(isCamera ? 'Processing photo...' : 'Compressing images...');
 
         try {
             const validFiles = [];
 
             for (const file of files) {
-                // Size check is less relevant now as we compress, but good to keep basic check or rely on compression
+                console.log(`[ProductImage] Received: ${file.name} (${file.type}, ${Math.round(file.size / 1024)}KB)`);
                 if (file.type.startsWith('image/')) {
                     validFiles.push(file);
+                } else {
+                    console.error('[ProductImage] Invalid type:', file.type);
                 }
             }
 
             if (validFiles.length === 0) {
+                console.warn('[ProductImage] No valid image files found');
                 setIsUploading(false);
                 toast.dismiss(toastId);
                 return;
@@ -326,9 +334,11 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                             maxWidthOrHeight: 800,
                             useWebWorker: true,
                         };
-                        return await imageCompression(file, options);
+                        const result = await imageCompression(file, options);
+                        console.log(`[ProductImage] Compressed ${file.name}: ${Math.round(result.size / 1024)}KB`);
+                        return result;
                     } catch (error) {
-                        console.error('Compression ended with error:', error);
+                        console.error('[ProductImage] Compression failed for', file.name, error);
                         return file; // Fallback
                     }
                 })
@@ -349,10 +359,13 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 images: [...prev.images, ...newImages]
             }));
 
-            toast.success(`${validFiles.length} images added`, { id: toastId });
+            // Clear input value to allow re-selection of same file
+            e.target.value = '';
+            toast.success(isCamera ? 'Photo added' : `${validFiles.length} images added`, { id: toastId });
         } catch (error) {
-            console.error('Upload error:', error);
-            toast.error("Failed to upload some images", { id: toastId });
+            console.error('[ProductImage] Critical error:', error);
+            e.target.value = '';
+            toast.error("Failed to process images", { id: toastId });
         } finally {
             setIsUploading(false);
         }
@@ -883,7 +896,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary-600 mt-2">Upload</span>
                                         <input 
                                             type="file" 
-                                            onChange={handleMultipleImageUpload} 
+                                            onChange={(e) => handleMultipleImageUpload(e, false)} 
                                             className="hidden" 
                                             multiple 
                                             accept="image/*" 
@@ -906,8 +919,8 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                             type="file"
                                             accept="image/*"
                                             capture="environment"
-                                            className="hidden"
-                                            onChange={handleMultipleImageUpload}
+                                            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                                            onChange={(e) => handleMultipleImageUpload(e, true)}
                                         />
                                     </button>
                                 </div>
