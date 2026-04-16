@@ -308,63 +308,60 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         const toastId = toast.loading(isCamera ? 'Processing photo...' : 'Compressing images...');
 
         try {
-            const validFiles = [];
+            const processedImages = await Promise.all(
+                files.map(async (file) => {
+                    console.log(`[ImageUpload] Processing: ${file.name} (${file.type}, ${Math.round(file.size / 1024)}KB)`);
 
-            for (const file of files) {
-                console.log(`[ProductImage] Received: ${file.name} (${file.type}, ${Math.round(file.size / 1024)}KB)`);
-                if (file.type.startsWith('image/')) {
-                    validFiles.push(file);
-                } else {
-                    console.error('[ProductImage] Invalid type:', file.type);
-                }
-            }
+                    if (!file || file.size === 0) {
+                        console.error('[ImageUpload] File is empty');
+                        return null;
+                    }
 
-            if (validFiles.length === 0) {
-                console.warn('[ProductImage] No valid image files found');
-                setIsUploading(false);
-                toast.dismiss(toastId);
-                return;
-            }
+                    // Strictness relaxation: if it's from a CAMERA input, treat as image even if type is empty
+                    const isImg = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name) || isCamera;
+                    if (!isImg) {
+                        console.error('[ImageUpload] Invalid type:', file.type, file.name);
+                        return null;
+                    }
 
-            const compressedFiles = await Promise.all(
-                validFiles.map(async (file) => {
                     try {
-                        const options = {
-                            maxSizeMB: 0.1, // Max size 0.1MB (100KB)
-                            maxWidthOrHeight: 800,
-                            useWebWorker: true,
-                        };
-                        const result = await imageCompression(file, options);
-                        console.log(`[ProductImage] Compressed ${file.name}: ${Math.round(result.size / 1024)}KB`);
-                        return result;
-                    } catch (error) {
-                        console.error('[ProductImage] Compression failed for', file.name, error);
-                        return file; // Fallback
+                        let blobToRead = file;
+                        try {
+                            const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
+                            blobToRead = await imageCompression(file, options);
+                        } catch (compErr) {
+                            console.warn('[ImageUpload] Compression error, using original:', compErr);
+                        }
+
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve({ data: reader.result, name: file.name });
+                            reader.onerror = () => { console.error('[ImageUpload] Reader error'); resolve(null); };
+                            reader.readAsDataURL(blobToRead);
+                        });
+                    } catch (err) {
+                        console.error('[ImageUpload] Processing failed:', err);
+                        return null;
                     }
                 })
             );
 
-            const newImages = await Promise.all(
-                compressedFiles.map(file => {
-                    return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(file);
-                    });
-                })
-            );
-
-            setFormData(prev => ({
-                ...prev,
-                images: [...prev.images, ...newImages]
-            }));
-
+            const newImagesList = processedImages.filter(Boolean);
+            if (newImagesList.length > 0) {
+                setFormData(prev => ({
+                    ...prev,
+                    images: [...prev.images, ...newImagesList.map(img => img.data)]
+                }));
+                toast.success(isCamera ? 'Photo added' : `${newImagesList.length} images added`, { id: toastId });
+                if (errors.images) setErrors(prev => ({ ...prev, images: null }));
+            } else {
+                toast.error("Failed to process the selected images", { id: toastId });
+            }
             // Clear input value to allow re-selection of same file
-            e.target.value = '';
-            toast.success(isCamera ? 'Photo added' : `${validFiles.length} images added`, { id: toastId });
+            if (e.target) e.target.value = '';
         } catch (error) {
             console.error('[ProductImage] Critical error:', error);
-            e.target.value = '';
+            if (e.target) e.target.value = '';
             toast.error("Failed to process images", { id: toastId });
         } finally {
             setIsUploading(false);

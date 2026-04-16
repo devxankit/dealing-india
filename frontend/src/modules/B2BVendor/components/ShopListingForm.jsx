@@ -136,57 +136,53 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         setIsShopModified(true);
 
         try {
-            const results = await Promise.all(
+            const processedImages = await Promise.all(
                 files.map(async (file) => {
                     console.log(`[ImageUpload] Processing: ${file.name} (${file.type}, ${Math.round(file.size / 1024)}KB)`);
 
                     if (!file || file.size === 0) {
-                        console.error('[ImageUpload] File is empty or null');
+                        console.error('[ImageUpload] File is empty');
                         return null;
                     }
 
                     // Strictness relaxation: if it's from a CAMERA input, treat as image even if type is empty
                     const isImg = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name) || isCamera;
                     if (!isImg) {
-                        console.error('[ImageUpload] Invalid mime type:', file.type);
+                        console.error('[ImageUpload] Invalid type:', file.type, file.name);
                         return null;
                     }
 
                     try {
-                        const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
-                        const compressed = await imageCompression(file, options);
-                        console.log(`[ImageUpload] Compression successful: ${Math.round(compressed.size / 1024)}KB`);
+                        let blobToRead = file;
+                        try {
+                            const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
+                            blobToRead = await imageCompression(file, options);
+                        } catch (compErr) {
+                            console.warn('[ImageUpload] Compression error, using original:', compErr);
+                        }
 
-                        return new Promise((resolve, reject) => {
+                        return new Promise((resolve) => {
                             const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result);
-                            reader.onerror = (err) => reject(err);
-                            reader.onabort = () => reject(new Error('Read aborted'));
-                            reader.readAsDataURL(compressed);
+                            reader.onloadend = () => resolve({ data: reader.result, name: file.name });
+                            reader.onerror = () => { console.error('[ImageUpload] Reader error'); resolve(null); };
+                            reader.readAsDataURL(blobToRead);
                         });
                     } catch (err) {
-                        console.warn('[ImageUpload] Compression skipped due to error:', err);
-                        return new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result);
-                            reader.onerror = (err) => reject(err);
-                            reader.readAsDataURL(file);
-                        });
+                        console.error('[ImageUpload] Processing failed:', err);
+                        return null;
                     }
                 })
             );
 
-            const base64Images = results.filter(Boolean);
-            console.log(`[ImageUpload] Successfully processed ${base64Images.length} images`);
-
-            if (base64Images.length > 0) {
+            const newImagesList = processedImages.filter(Boolean);
+            if (newImagesList.length > 0) {
                 setFormData(prev => ({
                     ...prev,
-                    images: [...prev.images, ...base64Images]
+                    images: [...prev.images, ...newImagesList.map(img => img.data)]
                 }));
-                toast.success(isCamera ? 'Photo added' : 'Images added', { id: toastId });
+                toast.success(isCamera ? 'Photo added' : `${newImagesList.length} images added`, { id: toastId });
             } else {
-                toast.error('Could not process the captured image', { id: toastId });
+                toast.error("Failed to process the selected images", { id: toastId });
             }
         } catch (error) {
             console.error('[ImageUpload] Critical failure:', error);
