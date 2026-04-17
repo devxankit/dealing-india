@@ -36,6 +36,7 @@ const vendorSubscriptionSchema = new mongoose.Schema(
     },
     usage: {
       lastResetDate: { type: Date, default: Date.now },
+      enquiriesUsed: { type: Number, default: 0 },
       // Future: Add B2B specific usage tracking here (e.g. productsCount if needed)
     },
     startDate: {

@@ -56,6 +56,28 @@ export const getProducts = async (req, res, next) => {
       dynamicFilters
     });
 
+    // Enrich products with vendor enquiry status
+    if (result.products && result.products.length > 0) {
+      const vendorIds = [...new Set(result.products.map(p => {
+          const vid = p.vendorId?._id || p.vendorId?.id || p.vendorId;
+          return vid ? vid.toString() : null;
+      }).filter(Boolean))];
+
+      const enquiryStatuses = await Promise.all(
+          vendorIds.map(id => subscriptionRulesService.getVendorEnquiryStatus(id))
+      );
+
+      const statusMap = new Map(vendorIds.map((id, index) => [id, enquiryStatuses[index]]));
+
+      result.products = result.products.map(p => {
+          const vid = (p.vendorId?._id || p.vendorId?.id || p.vendorId)?.toString();
+          return {
+              ...p,
+              enquiryStatus: statusMap.get(vid) || { canAcceptEnquiries: false, reason: 'UNKNOWN' }
+          };
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: 'Products retrieved successfully',
@@ -66,6 +88,8 @@ export const getProducts = async (req, res, next) => {
   }
 };
 
+import subscriptionRulesService from '../services/subscriptionRules.service.js';
+
 /**
  * Get public product by ID
  * GET /api/products/:id
@@ -75,10 +99,19 @@ export const getProduct = async (req, res, next) => {
     const { id } = req.params;
     const product = await getPublicProductById(id);
 
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    const enquiryStatus = await subscriptionRulesService.getVendorEnquiryStatus(product.vendorId._id || product.vendorId);
+
     res.status(200).json({
       success: true,
       message: 'Product retrieved successfully',
-      data: { product },
+      data: { 
+        product,
+        enquiryStatus // { canAcceptEnquiries, reason, message }
+      },
     });
   } catch (error) {
     next(error);

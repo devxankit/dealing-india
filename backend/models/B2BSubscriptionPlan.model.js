@@ -78,6 +78,15 @@ const b2bSubscriptionPlanSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed, // Number or 'unlimited'
       default: 5,
     },
+    enquiryLimit: {
+      type: mongoose.Schema.Types.Mixed, // Number or 'unlimited'
+      default: 0,
+    },
+    enquiryPrice: {
+      type: Number,
+      default: 0,
+      min: [0, 'Enquiry price cannot be negative'],
+    },
     shopSlideshow: {
       type: Boolean,
       default: false,

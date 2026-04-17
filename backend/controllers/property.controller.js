@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadBase64ToCloudinary, deleteFromCloudinary, isBase64DataUrl } from '../utils/cloudinary.util.js';
 import ShopUnit from '../models/ShopUnit.model.js';
 import vendorAddonService from '../services/vendorAddon.service.js';
+import subscriptionRulesService from '../services/subscriptionRules.service.js';
 
 const DEFAULT_FLAT_DETAILS = {
     flatType: '2BHK',
@@ -969,6 +970,20 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         }));
     }
 
+    // Enrich with vendor enquiry status
+    if (finalProperties.length > 0) {
+        const vendorIds = [...new Set(finalProperties.map(p => p.vendorId?._id?.toString()).filter(Boolean))];
+        const enquiryStatuses = await Promise.all(
+            vendorIds.map(id => subscriptionRulesService.getVendorEnquiryStatus(id))
+        );
+        const statusMap = new Map(vendorIds.map((id, index) => [id, enquiryStatuses[index]]));
+        
+        finalProperties = finalProperties.map(p => ({
+            ...p,
+            enquiryStatus: statusMap.get(p.vendorId?._id?.toString()) || { canAcceptEnquiries: false, reason: 'UNKNOWN' }
+        }));
+    }
+
     res.status(200).json({
         success: true,
         count: finalProperties.length,
@@ -1016,9 +1031,14 @@ export const getPublicPropertyById = asyncHandler(async (req, res) => {
         property.shopName = property.vendorId?.storeName;
     }
 
+    const enquiryStatus = await subscriptionRulesService.getVendorEnquiryStatus(property.vendorId?._id || property.vendorId);
+
     res.status(200).json({
         success: true,
-        data: property,
+        data: {
+            property,
+            enquiryStatus
+        },
     });
 });
 

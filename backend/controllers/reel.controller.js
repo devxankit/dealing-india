@@ -12,6 +12,7 @@ import { uploadToCloudinary, deleteFromCloudinary, uploadUrlToCloudinary } from 
 import { publishReelToYouTube, fetchPlaylistItems, fetchVideoById, deleteVideoFromYouTube } from '../services/youtubeReel.service.js';
 import notificationService from '../services/notification.service.js';
 import { ensureCategoryStructure } from '../services/categoryAutomation.service.js';
+import subscriptionRulesService from '../services/subscriptionRules.service.js';
 
 const REEL_ACTIVE_HOURS = 24; // kept for backwards compatibility only
 
@@ -884,7 +885,14 @@ export const getFeed = asyncHandler(async (req, res) => {
     })
       .select('phone storeName')
       .lean();
-    vendorMap = new Map(vendors.map((v) => [v._id.toString(), v]));
+    
+    // Enrich with enquiry status
+    const vendorStatusPromises = vendors.map(async (v) => {
+      const status = await subscriptionRulesService.getVendorEnquiryStatus(v._id);
+      return { ...v, enquiryStatus: status };
+    });
+    const enrichedVendors = await Promise.all(vendorStatusPromises);
+    vendorMap = new Map(enrichedVendors.map((v) => [v._id.toString(), v]));
   }
 
   const reelIds = reels.map((r) => r._id);
@@ -926,6 +934,7 @@ export const getFeed = asyncHandler(async (req, res) => {
       vendorStoreName: vendorInfo?.storeName || r.uploaderName || null,
       viewCount: typeof r.viewCount === 'number' ? r.viewCount : 0,
       vendorId: r.uploaderType === 'vendor' ? (vendorInfo?._id || null) : null,
+      enquiryStatus: vendorInfo?.enquiryStatus || null,
       price: r.price || 0,
     };
   }).filter(Boolean);
@@ -1013,6 +1022,7 @@ export const getReelById = asyncHandler(async (req, res) => {
     vendorStoreName: vendorInfo?.storeName || reel.uploaderName || null,
     viewCount: typeof reel.viewCount === 'number' ? reel.viewCount : 0,
     vendorId: reel.uploaderType === 'vendor' ? (vendorInfo?._id || null) : null,
+    enquiryStatus: vendorInfo ? (await subscriptionRulesService.getVendorEnquiryStatus(vendorInfo._id)) : null,
     price: reel.price || 0,
   };
 

@@ -117,7 +117,7 @@ const getTransporter = async () => {
 /**
  * Base Sending Function
  */
-const sendEmail = async (to, subject, html, text, attachments) => {
+export const sendEmail = async (to, subject, html, text, attachments) => {
   const mailTransporter = await getTransporter();
 
   if (!mailTransporter) {

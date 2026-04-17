@@ -2,6 +2,7 @@ import { getApprovedVendors, getVendorById } from '../services/vendorManagement.
 import Product from '../models/Product.model.js';
 import redisService from '../services/redis.service.js';
 import { getRatingSummaries, getRatingSummary } from '../services/rating.service.js';
+import subscriptionRulesService from '../services/subscriptionRules.service.js';
 
 /**
  * Get all approved B2B vendors (public endpoint)
@@ -58,7 +59,7 @@ export const getPublicVendors = async (req, res, next) => {
     const vendorIds = result.vendors.map(v => v._id);
     const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
 
-    const [productCounts, shopUnits, activeSubscriptions] = await Promise.all([
+    const [productCounts, shopUnits, activeSubscriptions, enquiryStatuses] = await Promise.all([
       Product.aggregate([
         { $match: { vendorId: { $in: vendorIds }, isActive: true } },
         { $group: { _id: '$vendorId', count: { $sum: 1 } } }
@@ -68,13 +69,15 @@ export const getPublicVendors = async (req, res, next) => {
         vendorId: { $in: vendorIds },
         status: 'active',
         endDate: { $gt: new Date() }
-      }).populate('planId').lean()
+      }).populate('planId').lean(),
+      Promise.all(vendorIds.map(id => subscriptionRulesService.getVendorEnquiryStatus(id.toString())))
     ]);
 
     // Create maps for O(1) lookup
     const productCountMap = new Map(productCounts.map(item => [item._id.toString(), item.count]));
     const shopUnitMap = new Map(shopUnits.map(unit => [unit.vendorId.toString(), unit]));
     const subscriptionMap = new Map(activeSubscriptions.map(sub => [sub.vendorId.toString(), sub]));
+    const enquiryStatusMap = new Map(vendorIds.map((id, index) => [id.toString(), enquiryStatuses[index]]));
 
     // Shop ratings (targetType 'shop', targetId = vendorId)
     const ratingMap = vendorIds.length > 0
@@ -116,6 +119,7 @@ export const getPublicVendors = async (req, res, next) => {
         averageRating: ratingSummary?.averageRating ?? 0,
         ratingCount: ratingSummary?.ratingCount ?? 0,
         hasSlideshow: !!subscriptionMap.get(idStr)?.planId?.shopSlideshow,
+        enquiryStatus: enquiryStatusMap.get(idStr) || { canAcceptEnquiries: false },
         joinDate: vendor.createdAt,
         createdAt: vendor.createdAt,
         updatedAt: vendor.updatedAt,
@@ -173,8 +177,11 @@ export const getPublicVendor = async (req, res, next) => {
     } catch (cacheError) {
       console.error('Redis GET error (getPublicVendor):', cacheError);
     }
-
-    const vendor = await getVendorById(id);
+    
+    const [vendor, enquiryStatus] = await Promise.all([
+      getVendorById(id),
+      subscriptionRulesService.getVendorEnquiryStatus(id)
+    ]);
 
     // STRICT CHECK: Ensure it is a B2B vendor
     if (!vendor || vendor.status !== 'approved' || vendor.isActive === false || vendor.vendorType !== 'b2b') {
@@ -239,6 +246,7 @@ export const getPublicVendor = async (req, res, next) => {
       shopUnit: shopUnit, // Include shop unit details
       averageRating: ratingSummary.averageRating,
       ratingCount: ratingSummary.ratingCount,
+      enquiryStatus: enquiryStatus, // { canAcceptEnquiries, reason, message }
     };
 
     // Cache the result for 1 hour

@@ -27,6 +27,8 @@ import VendorAddon from '../models/VendorAddon.model.js';
 import Property from '../models/Property.model.js';
 import vendorAddonService from './vendorAddon.service.js';
 import BusinessTypeSettings from '../models/BusinessTypeSettings.model.js';
+import vendorWalletService from './vendorWallet.service.js';
+import * as emailService from './email.service.js';
 
 // Plan type constants
 export const PLAN_TYPES = {
@@ -68,7 +70,7 @@ class SubscriptionRulesService {
                 subscription = await VendorSubscription.findById(vendor.currentSubscription)
                     .populate({
                         path: 'planId',
-                        select: 'name duration price features isActive productLimit propertyLimit reelsLimit lotSlotLimit imagesPerListing shopSlideshow'
+                        select: 'name duration price features isActive productLimit propertyLimit reelsLimit lotSlotLimit imagesPerListing enquiryLimit shopSlideshow'
                     })
                     .lean();
             }
@@ -81,7 +83,7 @@ class SubscriptionRulesService {
                 })
                     .populate({
                         path: 'planId',
-                        select: 'name duration price features isActive productLimit propertyLimit reelsLimit lotSlotLimit imagesPerListing shopSlideshow'
+                        select: 'name duration price features isActive productLimit propertyLimit reelsLimit lotSlotLimit imagesPerListing enquiryLimit shopSlideshow'
                     })
                     .sort({ createdAt: -1 })
                     .lean();
@@ -549,7 +551,8 @@ class SubscriptionRulesService {
             reels: { total: 0, remaining: 0 },
             products: { total: 0, remaining: 0 },
             lot_slot: { total: 0, remaining: 0 },
-            property: { total: 0, remaining: 0 }
+            property: { total: 0, remaining: 0 },
+            enquiry: { total: 0, remaining: 0 }
         });
 
         // For backward compatibility within some logic
@@ -557,7 +560,8 @@ class SubscriptionRulesService {
             reels: addonStats.reels.remaining,
             products: addonStats.products.remaining,
             lot_slot: addonStats.lot_slot.remaining,
-            property: addonStats.property.remaining
+            property: addonStats.property.remaining,
+            enquiry: addonStats.enquiry.remaining
         };
 
         if (!subData) {
@@ -611,6 +615,13 @@ class SubscriptionRulesService {
                         current: reelCount,
                         remaining: Math.max(0, addonStats.reels.total - reelCount),
                         hasAddon: addonStats.reels.total > 0
+                    },
+                    enquiry: {
+                        allowed: false,
+                        limit: 0,
+                        planLimit: 0,
+                        addonUnits: addonStats.enquiry.remaining,
+                        isUnlimited: false
                     }
                 },
                 addons: addonBalances
@@ -634,6 +645,7 @@ class SubscriptionRulesService {
         const subPropertyLimit = plan.propertyLimit === 'unlimited' ? -1 : (Number(plan.propertyLimit) || 0);
         const subLotSlotLimit = plan.lotSlotLimit === 'unlimited' ? -1 : (Number(plan.lotSlotLimit) || 0);
         const subReelLimit = plan.reelsLimit === 'unlimited' ? -1 : (Number(plan.reelsLimit) || 0);
+        const subEnquiryLimit = plan.enquiryLimit === 'unlimited' ? -1 : (Number(plan.enquiryLimit) || 0);
         
         const totalProductLimit = subProductLimit === -1 ? -1 : (subProductLimit + addonStats.products.total);
         const totalPropertyLimit = subPropertyLimit === -1 ? -1 : (subPropertyLimit + addonStats.property.total);
@@ -685,7 +697,17 @@ class SubscriptionRulesService {
                     remaining: totalReelLimit === -1 ? -1 : Math.max(0, totalReelLimit - reelCount),
                     hasAddon: addonStats.reels.total > 0
                 },
-                shopSlideshow: shopSlideshow
+                shopSlideshow: shopSlideshow,
+                enquiry: {
+                    // Plan-defined enquiry quota (per subscription cycle)
+                    // -1 = unlimited, 0 = not included, N = capped at N
+                    isUnlimited: subEnquiryLimit === -1,
+                    planLimit: subEnquiryLimit,
+                    addonUnits: addonStats.enquiry.remaining,
+                    // Effective: if plan says unlimited → unlimited; else plan + addon pool
+                    effectiveLimit: subEnquiryLimit === -1 ? -1 : (subEnquiryLimit + addonStats.enquiry.remaining),
+                    allowed: subEnquiryLimit !== 0 || addonStats.enquiry.remaining > 0
+                }
             },
             addons: addonBalances
         };
@@ -700,6 +722,154 @@ class SubscriptionRulesService {
         } catch (error) {
             console.error('Error in canUseShopSlideshow:', error);
             return { allowed: false, message: 'Access check failed.' };
+        }
+    }
+
+    /**
+     * Consume one enquiry unit
+     * Priority: 1. Subscription Plan Quota, 2. Add-on Quota, 3. Wallet Balance
+     * @param {String} vendorId 
+     * @returns {Promise<Boolean>} Success
+     */
+    async consumeEnquiry(vendorId) {
+        try {
+            const subData = await this.getActiveSubscription(vendorId);
+            
+            // 1. Check Plan Quota
+            if (subData && subData.plan) {
+                const plan = subData.plan;
+                const subLimit = plan.enquiryLimit === 'unlimited' ? -1 : (Number(plan.enquiryLimit) || 0);
+                const subDoc = await VendorSubscription.findById(subData.subscription._id);
+
+                if (subDoc) {
+                    const used = subDoc.usage?.enquiriesUsed || 0;
+                    
+                    if (subLimit === -1 || used < subLimit) {
+                        // Use plan quota
+                        subDoc.usage = {
+                            ...(subDoc.usage || {}),
+                            enquiriesUsed: used + 1
+                        };
+                        await subDoc.save();
+                        return true;
+                    }
+                }
+            }
+
+            // 2. Check Addon Quota
+            const addonConsumed = await vendorAddonService.consumeAddonUnit(vendorId, 'enquiry');
+            if (addonConsumed) return true;
+
+            // 3. Fallback: Wallet Deduction
+            // If plan has a price, use it. Otherwise use fallback ₹1 price to ensure icons work for everyone.
+            const price = (subData && subData.plan && subData.plan.enquiryPrice > 0) 
+                ? subData.plan.enquiryPrice 
+                : 1; 
+            
+            try {
+                await vendorWalletService.payViaWallet(
+                    vendorId,
+                    price,
+                    `Automatic Enquiry Unlock (Pay-per-use)`,
+                    `ENQ-${Date.now()}`,
+                    'enquiry_unlock'
+                );
+
+                // Notify vendor in background
+                this.notifyVendorOfWalletDeduction(vendorId, price).catch(err => {
+                    console.error('Failed to notify vendor of wallet deduction:', err);
+                });
+
+                return true;
+            } catch (walletError) {
+                console.warn(`Wallet deduction failed for vendor ${vendorId}:`, walletError.message);
+                return false;
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Error consuming enquiry:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Send notification to vendor about wallet deduction
+     */
+    async notifyVendorOfWalletDeduction(vendorId, amount) {
+        try {
+            const vendor = await Vendor.findById(vendorId);
+            if (!vendor) return;
+
+            // Send email
+            if (vendor.email) {
+                await emailService.sendEmail({
+                    to: vendor.email,
+                    subject: 'Wallet Deduction: Enquiry Unlock',
+                    text: `Dear ${vendor.businessName || 'Vendor'},\n\nYour wallet has been charged ₹${amount} for a new enquiry unlock, as your subscription quota was exhausted.\n\nYou can view your transaction history in your vendor dashboard.\n\nThank you for using Dealing India.`
+                });
+            }
+            
+            // Note: FCM or in-app notification could be added here
+        } catch (error) {
+            console.error('Notify vendor error:', error);
+        }
+    }
+
+    /**
+     * Get vendor's enquiry availability status for public display
+     * @param {String} vendorId 
+     * @returns {Promise<Object>} Status object
+     */
+    async getVendorEnquiryStatus(vendorId) {
+        try {
+            const subData = await this.getActiveSubscription(vendorId);
+            
+            // Default status if no plan
+            let canAcceptEnquiries = false;
+            let currentPrice = 1; // Default ₹1 fallback
+            let reason = 'QUOTA_EXHAUSTED';
+            let message = 'Subscription plan enquiry quota has been reached.';
+
+            if (subData && subData.plan) {
+                const plan = subData.plan;
+                const subLimit = plan.enquiryLimit === 'unlimited' ? -1 : (Number(plan.enquiryLimit) || 0);
+                
+                // 1. Check if Plan has quota
+                const subDoc = await VendorSubscription.findById(subData.subscription._id);
+                if (subDoc) {
+                    const used = subDoc.usage?.enquiriesUsed || 0;
+                    if (subLimit === -1 || used < subLimit) {
+                        return { canAcceptEnquiries: true, type: 'plan' };
+                    }
+                }
+
+                if (plan.enquiryPrice > 0) currentPrice = plan.enquiryPrice;
+            } else {
+                reason = 'NO_PLAN';
+                message = 'No active subscription plan found. Wallet balance will be used.';
+            }
+
+            // 2. Check if Addons have quota
+            const addonUnits = await vendorAddonService.getTotalAvailableAddonUnits(vendorId, 'enquiry');
+            if (addonUnits > 0) {
+                return { canAcceptEnquiries: true, type: 'addon' };
+            }
+
+            // 3. Check Wallet Balance (at least DEFAULT_PRICE or plan.enquiryPrice)
+            const wallet = await vendorWalletService.getOrCreateWallet(vendorId);
+            if (wallet.balance >= currentPrice) {
+                return { canAcceptEnquiries: true, type: 'wallet', price: currentPrice };
+            }
+
+            return { 
+                canAcceptEnquiries: false, 
+                reason: wallet.balance < currentPrice ? 'INSUFFICIENT_BALANCE' : reason,
+                message: wallet.balance < currentPrice ? 'Quota exhausted and insufficient wallet balance.' : message 
+            };
+        } catch (error) {
+            console.error('Error getting vendor enquiry status:', error);
+            return { canAcceptEnquiries: false, reason: 'ERROR' };
         }
     }
 }

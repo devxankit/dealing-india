@@ -199,6 +199,8 @@ class B2BSubscriptionPlanService {
         propertyLimit: planData.propertyLimit || 0,
         lotSlotLimit: planData.lotSlotLimit || 0,
         imagesPerListing: planData.imagesPerListing || 5,
+        enquiryLimit: planData.enquiryLimit || 0,
+        enquiryPrice: planData.enquiryPrice || 0,
         shopSlideshow: !!planData.shopSlideshow,
         isActive: true,
         razorpayPlanId
@@ -237,7 +239,7 @@ class B2BSubscriptionPlanService {
       }
  
       // 🔹 Validate structured numeric features if provided
-      const structuredNumericFields = ['reelsLimit', 'productLimit', 'propertyLimit', 'lotSlotLimit', 'imagesPerListing'];
+      const structuredNumericFields = ['reelsLimit', 'productLimit', 'propertyLimit', 'lotSlotLimit', 'imagesPerListing', 'enquiryLimit'];
       for (const field of structuredNumericFields) {
         if (updateData[field] !== undefined && updateData[field] !== 'unlimited') {
           const val = Number(updateData[field]);
@@ -349,11 +351,33 @@ class B2BSubscriptionPlanService {
       }
  
       // 🔹 Update Structured Features
-      if (updateData.reelsLimit !== undefined) plan.reelsLimit = updateData.reelsLimit;
-      if (updateData.productLimit !== undefined) plan.productLimit = updateData.productLimit;
-      if (updateData.propertyLimit !== undefined) plan.propertyLimit = updateData.propertyLimit;
-      if (updateData.lotSlotLimit !== undefined) plan.lotSlotLimit = updateData.lotSlotLimit;
-      if (updateData.imagesPerListing !== undefined) plan.imagesPerListing = updateData.imagesPerListing;
+      if (updateData.reelsLimit !== undefined) {
+        plan.reelsLimit = updateData.reelsLimit;
+        plan.markModified('reelsLimit');
+      }
+      if (updateData.productLimit !== undefined) {
+        plan.productLimit = updateData.productLimit;
+        plan.markModified('productLimit');
+      }
+      if (updateData.propertyLimit !== undefined) {
+        plan.propertyLimit = updateData.propertyLimit;
+        plan.markModified('propertyLimit');
+      }
+      if (updateData.lotSlotLimit !== undefined) {
+        plan.lotSlotLimit = updateData.lotSlotLimit;
+        plan.markModified('lotSlotLimit');
+      }
+      if (updateData.imagesPerListing !== undefined) {
+        plan.imagesPerListing = updateData.imagesPerListing;
+        plan.markModified('imagesPerListing');
+      }
+      if (updateData.enquiryLimit !== undefined) {
+        plan.enquiryLimit = updateData.enquiryLimit;
+        plan.markModified('enquiryLimit');
+      }
+      if (updateData.enquiryPrice !== undefined) {
+        plan.enquiryPrice = parseFloat(updateData.enquiryPrice) || 0;
+      }
       if (updateData.shopSlideshow !== undefined) plan.shopSlideshow = !!updateData.shopSlideshow;
 
       await plan.save();
@@ -399,9 +423,12 @@ class B2BSubscriptionPlanService {
             'Featured Store Badge',
             '24/7 Dedicated Support',
             'Bulk Order Management',
-            'Custom API Integration',
             'Personal Account Manager'
           ],
+          enquiryLimit: 100,
+          productLimit: 'unlimited',
+          reelsLimit: 'unlimited',
+          propertyLimit: 'unlimited',
         },
       ];
 

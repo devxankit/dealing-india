@@ -2,6 +2,7 @@ import Vendor from '../models/Vendor.model.js';
 import notificationService from '../services/notification.service.js';
 import VendorContactClick from '../models/VendorContactClick.model.js';
 import vendorAddonService from '../services/vendorAddon.service.js';
+import vendorWalletService from '../services/vendorWallet.service.js';
 import mongoose from 'mongoose';
 
 const getIndiaDateKey = (date = new Date()) => {
@@ -117,9 +118,10 @@ export const trackContactClick = async (req, res, next) => {
             }
         }
 
-        // --- STEP 3: Consume enquiry addon unit (if billable, not yet paid today, and userId exists) ---
+        // --- STEP 3: Consume enquiry unit (if billable, not yet paid today, and userId exists) ---
         if (isBillableClick && userId && !enquiryConsumed) {
-            enquiryConsumed = await vendorAddonService.consumeAddonUnit(vendorId, 'enquiry');
+            const { default: subscriptionRulesService } = await import('../services/subscriptionRules.service.js');
+            enquiryConsumed = await subscriptionRulesService.consumeEnquiry(vendorId);
         }
 
         res.status(200).json({
@@ -547,11 +549,47 @@ export const getEnquiryStats = async (req, res, next) => {
             dateKey: { $gte: monthStart },
         });
 
-        // Remaining enquiry addon quota
+        // 3. Remaining enquiry addon quota
         const addonQuotaRemaining = await vendorAddonService.getTotalAvailableAddonUnits(
             vendorId,
             'enquiry'
         );
+
+        // Fetch plan's enquiry limit and usage
+        let planEnquiryLimit = 0;
+        let planEnquiryIsUnlimited = false;
+        let planEnquiryUsed = 0;
+        
+        // 4. Wallet Balance and Units
+        let walletBalance = 0;
+        let enquiryPrice = 1; // Default fallback ₹1
+        try {
+            const wallet = await vendorWalletService.getOrCreateWallet(vendorId);
+            walletBalance = wallet.balance || 0;
+
+            const { default: subscriptionRulesService } = await import('../services/subscriptionRules.service.js');
+            
+            // Get Plan Limits
+            const status = await subscriptionRulesService.getSubscriptionStatus(vendorId);
+            const el = status?.limits?.enquiry;
+            if (el) {
+                planEnquiryLimit = el.planLimit ?? 0;
+                planEnquiryIsUnlimited = el.isUnlimited ?? false;
+            }
+
+            const subData = await subscriptionRulesService.getActiveSubscription(vendorId);
+            if (subData?.subscription) {
+                planEnquiryUsed = subData.subscription.usage?.enquiriesUsed || 0;
+            }
+            
+            if (subData?.plan?.enquiryPrice > 0) {
+                enquiryPrice = subData.plan.enquiryPrice;
+            }
+        } catch (e) {
+            console.error('Error fetching wallet/price for stats:', e?.message);
+        }
+
+        const walletUnits = Math.floor(walletBalance / enquiryPrice);
 
         res.status(200).json({
             success: true,
@@ -559,6 +597,14 @@ export const getEnquiryStats = async (req, res, next) => {
                 todayEnquiries,
                 monthlyEnquiries,
                 addonQuotaRemaining,
+                walletBalance,
+                enquiryPrice,
+                // Plan-level enquiry info
+                planEnquiryLimit,          // 0 = not included, -1 = unlimited, N = cap per cycle
+                planEnquiryIsUnlimited,    // true when plan gives unlimited enquiries
+                planEnquiryUsed,           // Units used from plan quota
+                // Effective remaining = (plan limit - used) + addon units + potential wallet units
+                effectiveQuota: planEnquiryIsUnlimited ? -1 : (Math.max(0, planEnquiryLimit - planEnquiryUsed) + addonQuotaRemaining + walletUnits),
             }
         });
     } catch (error) {
@@ -570,6 +616,7 @@ export const getEnquiryStats = async (req, res, next) => {
         });
     }
 };
+
 
 /**
  * Unlock a specific lead by consuming quota
@@ -603,8 +650,9 @@ export const unlockEnquiry = async (req, res, next) => {
             });
         }
 
-        // Try to consume 1 unit
-        const success = await vendorAddonService.consumeAddonUnit(vendorId, 'enquiry');
+        // Try to consume 1 unit (Plan first, then Addon)
+        const { default: subscriptionRulesService } = await import('../services/subscriptionRules.service.js');
+        const success = await subscriptionRulesService.consumeEnquiry(vendorId);
 
         if (!success) {
             return res.status(400).json({

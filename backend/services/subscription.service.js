@@ -916,16 +916,24 @@ class SubscriptionService {
       }
 
       const subscriptions = await VendorSubscription.find(query)
-        .populate('vendorId', 'businessName storeName email address')
+        .populate('vendorId', 'businessName storeName email address vendorType businessType')
         .populate('planId', 'name price duration')
-        .sort({ endDate: 1 }).lean();
+        .sort({ createdAt: -1 }).lean();
 
       return subscriptions.map(sub => ({
-        vendor: sub.vendorId?.businessName || sub.vendorId?.storeName || 'Unknown',
+        vendorName: sub.vendorId?.storeName || sub.vendorId?.businessName || sub.vendorId?.name || 'Unknown Vendor',
+        vendor: sub.vendorId?.businessName || sub.vendorId?.storeName || 'Unknown', // Keep for backward compatibility
         vendorId: sub.vendorId?._id,
-        status: sub.status,
-        plan: sub.planId?.name || 'Unknown',
+        status: sub.status ? (sub.status.charAt(0).toUpperCase() + sub.status.slice(1)) : 'Pending', // Capitalize for frontend comparison val === 'Active'
+        plan: sub.planId?.name || 'Unknown Plan',
+        planDuration: sub.planId?.duration || 0,
+        amount: sub.totalAmount || sub.planId?.price || 0,
+        billingCycle: sub.billingCycle 
+          ? (sub.billingCycle.charAt(0).toUpperCase() + sub.billingCycle.slice(1)) 
+          : (sub.planId?.duration ? `${sub.planId.duration} Months` : 'N/A'),
+        expiryDate: sub.endDate ? new Date(sub.endDate).toISOString().split('T')[0] : null,
         expiry: sub.endDate ? new Date(sub.endDate).toISOString().split('T')[0] : null,
+        businessType: sub.vendorId?.businessType || 'B2B Vendor',
         renew: sub.autoRenew,
         startDate: sub.startDate ? new Date(sub.startDate).toISOString().split('T')[0] : null,
         subscriptionId: sub._id,
