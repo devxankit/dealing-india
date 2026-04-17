@@ -186,43 +186,84 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
 
             {/* Enquiry Stats Banner — vendor mode only */}
             {mode === 'vendor' && (
-                <div className="grid grid-cols-3 gap-4 mb-2">
-                    <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 flex flex-col gap-1">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Today's Enquiries</p>
-                        <p className="text-3xl font-black text-slate-900">
-                            {loadingStats ? '—' : (enquiryStats?.todayEnquiries ?? 0)}
-                        </p>
-                        <p className="text-[9px] text-slate-400 font-bold">Unique users today</p>
-                    </div>
-                    <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 flex flex-col gap-1">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">This Month</p>
-                        <p className="text-3xl font-black text-slate-900">
-                            {loadingStats ? '—' : (enquiryStats?.monthlyEnquiries ?? 0)}
-                        </p>
-                        <p className="text-[9px] text-slate-400 font-bold">Total unique enquiries</p>
-                    </div>
-                    <div className={`rounded-[2rem] p-5 shadow-sm border flex flex-col gap-1 ${
-                        (enquiryStats?.addonQuotaRemaining ?? 0) === 0
-                            ? 'bg-red-50 border-red-100'
-                            : 'bg-purple-50 border-purple-100'
-                    }`}>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Enquiry Quota Left</p>
-                        <p className={`text-3xl font-black ${
-                            (enquiryStats?.addonQuotaRemaining ?? 0) === 0 ? 'text-red-600' : 'text-purple-700'
+                <div className="space-y-3 mb-2">
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 flex flex-col gap-1">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Today's Enquiries</p>
+                            <p className="text-3xl font-black text-slate-900">
+                                {loadingStats ? '—' : (enquiryStats?.todayEnquiries ?? 0)}
+                            </p>
+                            <p className="text-[9px] text-slate-400 font-bold">Unique users today</p>
+                        </div>
+                        <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 flex flex-col gap-1">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">This Month</p>
+                            <p className="text-3xl font-black text-slate-900">
+                                {loadingStats ? '—' : (enquiryStats?.monthlyEnquiries ?? 0)}
+                            </p>
+                            <p className="text-[9px] text-slate-400 font-bold">Total unique enquiries</p>
+                        </div>
+                        <div className={`rounded-[2rem] p-5 shadow-sm border flex flex-col gap-1 ${
+                            (enquiryStats?.effectiveQuota ?? 0) <= 0 && !(enquiryStats?.planEnquiryIsUnlimited)
+                                ? 'bg-red-50 border-red-100'
+                                : 'bg-purple-50 border-purple-100'
                         }`}>
-                            {loadingStats ? '—' : (enquiryStats?.addonQuotaRemaining ?? 0)}
-                        </p>
-                        <p 
-                            onClick={() => (enquiryStats?.addonQuotaRemaining ?? 0) === 0 && navigate('/b2b-vendor/subscription?feature=enquiry')}
-                            className={`text-[9px] font-bold ${(enquiryStats?.addonQuotaRemaining ?? 0) === 0 ? 'cursor-pointer hover:underline' : ''}`}
-                        >
-                            {(enquiryStats?.addonQuotaRemaining ?? 0) === 0
-                                ? '⚠️ Low balance. Buy enquiry add-on'
-                                : 'Units remaining'}
-                        </p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Addon Quota Left</p>
+                            <p className={`text-3xl font-black ${
+                                (enquiryStats?.effectiveQuota ?? 0) <= 0 && !(enquiryStats?.planEnquiryIsUnlimited) ? 'text-red-600' : 'text-purple-700'
+                            }`}>
+                                {loadingStats ? '—' : enquiryStats?.planEnquiryIsUnlimited ? '∞' : (enquiryStats?.addonQuotaRemaining ?? 0)}
+                            </p>
+                            <p
+                                onClick={() => (enquiryStats?.addonQuotaRemaining ?? 0) === 0 && !enquiryStats?.planEnquiryIsUnlimited && navigate('/b2b-vendor/subscription?feature=enquiry')}
+                                className={`text-[9px] font-bold ${(enquiryStats?.addonQuotaRemaining ?? 0) === 0 && !enquiryStats?.planEnquiryIsUnlimited ? 'cursor-pointer hover:underline text-red-500' : 'text-slate-400'}`}
+                            >
+                                {enquiryStats?.planEnquiryIsUnlimited
+                                    ? 'Unlimited by plan'
+                                    : (enquiryStats?.addonQuotaRemaining ?? 0) === 0
+                                        ? (enquiryStats?.walletBalance ?? 0) >= (enquiryStats?.enquiryPrice ?? 1)
+                                            ? 'Auto-unlock via wallet active'
+                                            : '⚠️ Low balance. Buy enquiry add-on'
+                                        : 'Add-on units remaining'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Plan Enquiry Allowance Banner */}
+                    <div className={`rounded-2xl px-5 py-3 border flex items-center justify-between gap-4 ${
+                        enquiryStats?.planEnquiryIsUnlimited
+                            ? 'bg-emerald-50 border-emerald-100'
+                            : (enquiryStats?.planEnquiryLimit ?? 0) > 0
+                                ? 'bg-blue-50 border-blue-100'
+                                : 'bg-amber-50 border-amber-100'
+                    }`}>
+                        <div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Plan Enquiry Allowance</p>
+                            <p className={`text-lg font-black mt-0.5 ${
+                                enquiryStats?.planEnquiryIsUnlimited ? 'text-emerald-700' :
+                                (enquiryStats?.planEnquiryLimit ?? 0) > 0 ? 'text-blue-700' : 'text-amber-700'
+                            }`}>
+                                {loadingStats ? '—' :
+                                    enquiryStats?.planEnquiryIsUnlimited ? 'Unlimited by Plan' :
+                                    (enquiryStats?.planEnquiryLimit ?? 0) > 0 ? `${enquiryStats.planEnquiryLimit} per subscription cycle` :
+                                    'Not included in current plan'
+                                }
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Effective Total</p>
+                            <p className="text-lg font-black text-slate-800">
+                                {loadingStats ? '—' :
+                                    enquiryStats?.planEnquiryIsUnlimited ? '∞' :
+                                    enquiryStats?.effectiveQuota === -1 ? '∞' :
+                                    (enquiryStats?.effectiveQuota ?? 0)
+                                }
+                            </p>
+                            <p className="text-[9px] text-slate-400 font-bold">Plan + Add-on + Wallet pool</p>
+                        </div>
                     </div>
                 </div>
             )}
+
 
             <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 shadow-sm border border-slate-100">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

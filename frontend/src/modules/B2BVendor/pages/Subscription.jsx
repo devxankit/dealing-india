@@ -718,8 +718,11 @@ const B2BVendorSubscription = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
                     {availablePlans.map((plan, index) => {
                     const planId = plan._id || plan.id;
-                    const isCurrentPlan = currentSubscription?.planId === planId;
-                    const hasActiveSubscription = !!currentSubscription;
+                    const currentPlanId = currentSubscription?.planId?._id || currentSubscription?.planId;
+                    const isCurrentPlan = currentPlanId?.toString() === planId?.toString();
+                    const hasActiveSubscription = currentSubscription?.status === 'active';
+                    const isPendingPlan = currentSubscription?.status === 'pending' && isCurrentPlan;
+                    
                     const isProcessing = processingPlanId === planId;
                     const isRecommended = plan.duration === 6;
 
@@ -796,13 +799,26 @@ const B2BVendorSubscription = () => {
                             </ul>
 
                             {/* Action Button */}
-                            {isCurrentPlan ? (
+                            {isCurrentPlan && hasActiveSubscription ? (
                                 <button
                                     disabled
                                     className="w-full py-4 rounded-2xl font-bold bg-green-600 text-white cursor-not-allowed"
                                 >
                                     Current Plan
                                 </button>
+                            ) : isPendingPlan ? (
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => handleSubscribe(planId)} // Retries purchase flow
+                                        className="w-full py-4 rounded-2xl font-bold bg-yellow-600 text-white hover:bg-yellow-700 shadow-lg shadow-yellow-100 flex items-center justify-center gap-2"
+                                    >
+                                        <FiClock />
+                                        Complete Payment
+                                    </button>
+                                    <p className="text-xs text-center text-yellow-600">
+                                        Subscription is waiting for payment
+                                    </p>
+                                </div>
                             ) : isUpgrade ? (
                                 <button
                                     onClick={() => handleUpgrade(planId)}
@@ -834,18 +850,6 @@ const B2BVendorSubscription = () => {
                                     </button>
                                     <p className="text-xs text-center text-gray-500">
                                         You can change plan after expiry
-                                    </p>
-                                </div>
-                            ) : hasActiveSubscription ? (
-                                <div className="space-y-2">
-                                    <button
-                                        disabled
-                                        className="w-full py-4 rounded-2xl font-bold bg-gray-200 text-gray-400 cursor-not-allowed"
-                                    >
-                                        Not Available
-                                    </button>
-                                    <p className="text-xs text-center text-gray-500">
-                                        Available after current plan expires
                                     </p>
                                 </div>
                             ) : (

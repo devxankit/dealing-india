@@ -56,6 +56,10 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
     const hasEmail = Boolean(vendor?.email);
     const hasMobile = Boolean(vendor?.phone);
 
+    const enquiryStatus = product.enquiryStatus || { canAcceptEnquiries: true };
+    const canAcceptEnquiries = enquiryStatus.canAcceptEnquiries;
+    const isOwner = user?.id === vendorIdStr || user?.vendorId === vendorIdStr;
+
     const redirectToLoginIfRequired = (event) => {
         if (requireAuthForActions && !isAuthenticated) {
             if (event) {
@@ -294,8 +298,15 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                         </div>
                     </div>
                 </div>
-                <AnimatePresence>
-                </AnimatePresence>
+                
+                {/* Quota warning - Only show for the vendor themselves */}
+                {!canAcceptEnquiries && isOwner && (
+                    <div className="mx-1 mt-1 p-2 bg-red-50 rounded-lg border border-red-100">
+                        <p className="text-[8px] font-black text-red-600 uppercase tracking-tight">
+                            Enquiry Gated: Recharge wallet or purchase plan to enable contact icons
+                        </p>
+                    </div>
+                )}
 
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                     {vendor?.phone ? (
@@ -317,25 +328,33 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                 })()}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                onClick={(e) => {
-                                    if (redirectToLoginIfRequired(e)) return;
-                                    e.stopPropagation();
-                                    if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'whatsapp', getTrackingContext());
-                                }}
-                                className="flex-1 h-10 md:h-11 bg-green-50 text-[#25D366] rounded-xl hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center shadow-sm"
-                                title="WhatsApp"
+                                className={`flex-1 h-10 md:h-11 rounded-xl transition-all border flex items-center justify-center shadow-sm ${
+                                    !canAcceptEnquiries 
+                                        ? 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed grayscale' 
+                                        : 'bg-green-50 text-[#25D366] hover:bg-[#25D366] hover:text-white border-green-100'
+                                }`}
+                                title={!canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "WhatsApp"}
                             >
                                 <FaWhatsapp size={16} />
                             </a>
                             <a
-                                href={`tel:${vendor.phone}`}
+                                href={!canAcceptEnquiries ? "#" : `tel:${vendor.phone}`}
                                 onClick={(e) => {
+                                    if (!canAcceptEnquiries) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        return;
+                                    }
                                     if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
                                     if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'call', getTrackingContext());
                                 }}
-                                className="flex-1 h-10 md:h-11 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center shadow-sm"
-                                title="Call Vendor"
+                                className={`flex-1 h-10 md:h-11 rounded-xl transition-all border flex items-center justify-center shadow-sm ${
+                                    !canAcceptEnquiries 
+                                        ? 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed grayscale' 
+                                        : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border-blue-100'
+                                }`}
+                                title={!canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "Call Vendor"}
                             >
                                 <FiPhone size={16} />
                             </a>

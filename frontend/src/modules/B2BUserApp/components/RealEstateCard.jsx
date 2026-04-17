@@ -241,6 +241,16 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                 </div>
             </div>
 
+            {/* Quota warning - Only show for the vendor themselves */}
+            {property.enquiryStatus && !property.enquiryStatus.canAcceptEnquiries && 
+                (user?.id === (property.vendorId?._id || property.vendorId) || user?.vendorId === (property.vendorId?._id || property.vendorId)) && (
+                <div className="mx-3 mt-1 p-2 bg-red-50 rounded-lg border border-red-100">
+                    <p className="text-[8px] font-black text-red-600 uppercase tracking-tight">
+                        Enquiry Gated: Recharge wallet or purchase plan to enable contact icons
+                    </p>
+                </div>
+            )}
+
             {/* Content Body */}
             <div className="p-3 flex flex-col gap-2.5 flex-1">
                 <div className="min-w-0">
@@ -342,24 +352,40 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => {
+                            if (property.enquiryStatus && !property.enquiryStatus.canAcceptEnquiries) {
+                                e.preventDefault();
+                                return;
+                            }
                             if (redirectToLoginIfRequired(e)) return;
                             e.stopPropagation();
                             trackContactClick(property.vendorId?._id, 'whatsapp', getTrackingContext());
                         }}
-                        className="flex-1 h-10 md:h-11 bg-green-50 text-[#25D366] rounded-xl hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center shadow-sm"
-                        title="WhatsApp"
+                        className={`flex-1 h-10 md:h-11 rounded-xl transition-all border flex items-center justify-center shadow-sm ${
+                            property.enquiryStatus && !property.enquiryStatus.canAcceptEnquiries
+                                ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed grayscale'
+                                : 'bg-green-50 text-[#25D366] hover:bg-[#25D366] hover:text-white border-green-100'
+                        }`}
+                        title={property.enquiryStatus && !property.enquiryStatus.canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "WhatsApp"}
                     >
                         <FaWhatsapp size={16} />
                     </a>
                     <a
-                        href={`tel:+91${sellerPhone}`}
+                        href={property.enquiryStatus && !property.enquiryStatus.canAcceptEnquiries ? "#" : `tel:+91${sellerPhone}`}
                         onClick={(e) => {
+                            if (property.enquiryStatus && !property.enquiryStatus.canAcceptEnquiries) {
+                                e.preventDefault();
+                                return;
+                            }
                             if (redirectToLoginIfRequired(e)) return;
                             e.stopPropagation();
                             trackContactClick(property.vendorId?._id, 'call', getTrackingContext());
                         }}
-                        className="flex-1 h-10 md:h-11 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center shadow-sm"
-                        title="Call"
+                        className={`flex-1 h-10 md:h-11 rounded-xl transition-all border flex items-center justify-center shadow-sm ${
+                            property.enquiryStatus && !property.enquiryStatus.canAcceptEnquiries
+                                ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed grayscale'
+                                : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border-blue-100'
+                        }`}
+                        title={property.enquiryStatus && !property.enquiryStatus.canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "Call"}
                     >
                         <FiPhone size={16} />
                     </a>

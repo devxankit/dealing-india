@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX, FiShoppingBag, FiDownload, FiHome } from "react-icons/fi";
+import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX, FiShoppingBag, FiDownload, FiHome, FiMail } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import { getB2BPlans, updateB2BPlan, createB2BPlan, initializeDefaultPlans } from "../../../../shared/utils/b2bPlanManager";
@@ -131,6 +131,7 @@ const Subscriptions = () => {
                     lotSlotLimit: editingPlan.lotSlotLimit,
                     imagesPerListing: editingPlan.imagesPerListing,
                     propertyLimit: editingPlan.propertyLimit,
+                    enquiryLimit: editingPlan.enquiryLimit,
                     shopSlideshow: editingPlan.shopSlideshow,
                 });
                 toast.success('Plan updated successfully');
@@ -149,6 +150,7 @@ const Subscriptions = () => {
                     lotSlotLimit: editingPlan.lotSlotLimit,
                     imagesPerListing: editingPlan.imagesPerListing,
                     propertyLimit: editingPlan.propertyLimit,
+                    enquiryLimit: editingPlan.enquiryLimit,
                     shopSlideshow: editingPlan.shopSlideshow,
                 });
                 toast.success('Plan created successfully');
@@ -696,7 +698,8 @@ const Subscriptions = () => {
                                         { id: 'propertyLimit', label: 'Property Listings', icon: FiHome },
                                         { id: 'reelsLimit', label: 'Video Reels', icon: FiActivity },
                                         { id: 'lotSlotLimit', label: 'Lot/Slot Pack', icon: FiPlus },
-                                        { id: 'imagesPerListing', label: 'Images per Listing', icon: FiSettings }
+                                        { id: 'imagesPerListing', label: 'Images per Listing', icon: FiSettings },
+                                        { id: 'enquiryLimit', label: 'Enquiries per Cycle', icon: FiMail },
                                     ].map(feat => {
                                         const val = editingPlan[feat.id];
                                         const isEnabled = val !== 0 && val !== false;
@@ -760,6 +763,32 @@ const Subscriptions = () => {
                                             </div>
                                         );
                                     })}
+
+                                    {/* Additional Feature Settings: Enquiry Price */}
+                                    {editingPlan.enquiryLimit !== 0 && editingPlan.enquiryLimit !== 'unlimited' && (
+                                        <div className="bg-primary-50 p-4 rounded-2xl border border-primary-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                                    <FiTrendingUp className="text-primary-600 text-lg" />
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-sm text-slate-800">Price per Enquiry (Wallet)</span>
+                                                    <p className="text-[10px] text-primary-600 font-medium uppercase tracking-tight">Applied after plan limit is reached</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg font-bold text-slate-400">₹</span>
+                                                <input 
+                                                    type="number"
+                                                    value={editingPlan.enquiryPrice || 0}
+                                                    onChange={(e) => setEditingPlan({ ...editingPlan, enquiryPrice: parseFloat(e.target.value) || 0 })}
+                                                    className="w-32 px-4 py-3 bg-white border-2 border-primary-100 rounded-xl font-black text-left focus:border-primary-500 text-slate-800"
+                                                    placeholder="e.g. 5"
+                                                    min="0"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Boolean Feature: Shop Slideshow */}
                                     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">

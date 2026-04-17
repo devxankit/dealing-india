@@ -630,9 +630,24 @@ export default function ReelFeed() {
                   <span className="text-xs">Report</span>
                 </button>
                 {(currentReel || initialMetadata)?.vendorPhone && (
-                  <button onClick={handleWhatsApp} className="flex flex-col items-center text-[#25D366]">
-                    <FaWhatsapp className="text-3xl" />
-                  </button>
+                  <div className="flex flex-col items-center">
+                    <button 
+                      onClick={handleWhatsApp} 
+                      disabled={currentReel?.enquiryStatus && !currentReel.enquiryStatus.canAcceptEnquiries}
+                      className={`flex flex-col items-center transition-all ${
+                        currentReel?.enquiryStatus && !currentReel.enquiryStatus.canAcceptEnquiries
+                          ? "grayscale opacity-50 cursor-not-allowed"
+                          : "text-[#25D366] hover:scale-110 active:scale-95"
+                      }`}
+                    >
+                      <FaWhatsapp className="text-3xl" />
+                    </button>
+                    {currentReel?.enquiryStatus && !currentReel.enquiryStatus.canAcceptEnquiries && (
+                      <p className="text-[7px] text-white/40 font-bold uppercase tracking-tighter mt-1 text-center bg-black/40 px-1 rounded">
+                        Gated
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </motion.div>

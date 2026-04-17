@@ -201,23 +201,41 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => {
+                                    if (vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries) {
+                                        e.preventDefault();
+                                        return;
+                                    }
                                     if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
                                     if (trackContactClick) trackContactClick(vendorIdStr, 'whatsapp', getTrackingContext());
                                 }}
-                                className="flex-1 min-w-[30%] py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                className={`flex-1 min-w-[30%] py-1.5 rounded-lg transition-all border flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider ${
+                                    vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries
+                                        ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed grayscale'
+                                        : 'bg-green-50 text-[#25D366] hover:bg-[#25D366] hover:text-white border-green-100'
+                                }`}
+                                title={vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "WhatsApp"}
                             >
                                 <FaWhatsapp size={12} />
                                 {!compact && <span className="hidden md:inline">WhatsApp</span>}
                             </a>
                             <a
-                                href={`tel:${vendor.phone}`}
+                                href={vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries ? "#" : `tel:${vendor.phone}`}
                                 onClick={(e) => {
+                                    if (vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries) {
+                                        e.preventDefault();
+                                        return;
+                                    }
                                     if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
                                     if (trackContactClick) trackContactClick(vendorIdStr, 'call', getTrackingContext());
                                 }}
-                                className="flex-1 min-w-[30%] py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                className={`flex-1 min-w-[30%] py-1.5 rounded-lg transition-all border flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider ${
+                                    vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries
+                                        ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed grayscale'
+                                        : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border-blue-100'
+                                }`}
+                                title={vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "Call"}
                             >
                                 <FiPhone size={12} />
                                 {!compact && <span className="hidden md:inline">Call</span>}

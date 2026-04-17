@@ -490,6 +490,15 @@ const B2BVendorStore = () => {
 
                         {/* Action Buttons */}
                         <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[240px] pt-4 md:pt-0">
+                            {/* Quota warning - Only show for the vendor themselves */}
+                            {vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries && 
+                                (user?.id === (vendor._id || vendor.id) || user?.vendorId === (vendor._id || vendor.id)) && (
+                                <div className="p-4 bg-red-50 rounded-2xl border border-red-100 mb-2">
+                                    <p className="text-[10px] md:text-xs font-black text-red-600 uppercase tracking-wide">
+                                        Enquiry Gated: Recharge wallet or purchase plan to enable contact icons
+                                    </p>
+                                </div>
+                            )}
                             {vendor.phone && (
                                 <p className="text-[12px] md:text-sm font-black text-gray-900 uppercase tracking-widest text-center md:text-right px-4 mb-1">
                                     PH: +91 {maskPhone(vendor.phone, 2)}
@@ -510,8 +519,18 @@ const B2BVendorStore = () => {
                                     })()}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    onClick={() => trackContactClick(vendor._id || vendor.id, 'whatsapp', getTrackingContext())}
-                                    className="w-full px-8 py-5 md:py-6 bg-[#25D366] text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-[#128C7E] transition-all shadow-xl shadow-green-100/50 flex items-center justify-center gap-3 active:scale-95"
+                                    onClick={(e) => {
+                                        if (vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries) {
+                                            e.preventDefault();
+                                            return;
+                                        }
+                                        trackContactClick(vendor._id || vendor.id, 'whatsapp', getTrackingContext());
+                                    }}
+                                    className={`w-full px-8 py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95 ${
+                                        vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries
+                                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed grayscale shadow-none'
+                                            : 'bg-[#25D366] text-white hover:bg-[#128C7E] shadow-green-100/50'
+                                    }`}
                                 >
                                     <FaWhatsapp size={20} />
                                     WhatsApp Inquiry

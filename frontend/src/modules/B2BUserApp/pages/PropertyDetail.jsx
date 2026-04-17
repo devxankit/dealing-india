@@ -23,6 +23,7 @@ const PropertyDetail = () => {
     const [property, setProperty] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(0);
+    const [enquiryStatus, setEnquiryStatus] = useState({ canAcceptEnquiries: true });
 
     useEffect(() => {
         const fetchPropertyDetails = async () => {
@@ -30,7 +31,13 @@ const PropertyDetail = () => {
             try {
                 const response = await api.get(`/property/public/details/${id}`);
                 if (response?.success) {
-                    setProperty(response.data);
+                    const data = response.data;
+                    if (data.property) {
+                        setProperty(data.property);
+                        if (data.enquiryStatus) setEnquiryStatus(data.enquiryStatus);
+                    } else {
+                        setProperty(data);
+                    }
                 } else {
                     toast.error('Property not found');
                 }
@@ -147,9 +154,11 @@ const PropertyDetail = () => {
         }
     };
 
-    const handleWhatsAppClick = () => {
-        trackContactClick('whatsapp');
-        const cleanedPhone = (sellerPhone || '').replace(/\D/g, '');
+ 
+     const handleWhatsAppClick = () => {
+        if (!enquiryStatus.canAcceptEnquiries) return;
+         trackContactClick('whatsapp');
+         const cleanedPhone = (sellerPhone || '').replace(/\D/g, '');
         const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
 
         const baseMsg = `🏠 *I'm interested in this property!*\n\n` +
@@ -163,9 +172,11 @@ const PropertyDetail = () => {
         window.open(`https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`, '_blank');
     };
 
-    const handleCallClick = () => {
-        trackContactClick('call');
-        window.open(`tel:+91${sellerPhone}`, '_self');
+ 
+     const handleCallClick = () => {
+        if (!enquiryStatus.canAcceptEnquiries) return;
+         trackContactClick('call');
+         window.open(`tel:+91${sellerPhone}`, '_self');
     };
 
     return (
@@ -472,16 +483,34 @@ const PropertyDetail = () => {
                                     )}
                                 </div>
 
-                                <div className="mt-8 md:mt-10 space-y-3 md:space-y-4">
+                                 <div className="mt-8 md:mt-10 space-y-3 md:space-y-4">
+                                    {/* Quota warning - Only show for the vendor themselves */}
+                                    {!enquiryStatus.canAcceptEnquiries && user?.id === (property.vendorId?._id || property.vendorId) && (
+                                        <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
+                                            <p className="text-[10px] md:text-sm font-black text-red-600 uppercase tracking-wide">
+                                                Enquiry Gated: Recharge wallet or purchase plan to enable contact icons
+                                            </p>
+                                        </div>
+                                    )}
                                     <button
                                         onClick={handleWhatsAppClick}
-                                        className="w-full py-4 md:py-6 bg-[#25D366] text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-[#128C7E] transition-all flex items-center justify-center gap-3"
+                                        disabled={!enquiryStatus.canAcceptEnquiries}
+                                        className={`w-full py-4 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-[0.2em] shadow-xl transition-all flex items-center justify-center gap-3 ${
+                                            !enquiryStatus.canAcceptEnquiries
+                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale shadow-none'
+                                                : 'bg-[#25D366] text-white hover:bg-[#128C7E]'
+                                        }`}
                                     >
                                         <FaWhatsapp size={20} /> Negotiate Offer
                                     </button>
                                     <button
                                         onClick={handleCallClick}
-                                        className="w-full py-4 md:py-6 bg-gray-900 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all flex items-center justify-center gap-3"
+                                        disabled={!enquiryStatus.canAcceptEnquiries}
+                                        className={`w-full py-4 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-[0.2em] shadow-xl transition-all flex items-center justify-center gap-3 ${
+                                            !enquiryStatus.canAcceptEnquiries
+                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale shadow-none'
+                                                : 'bg-gray-900 text-white hover:bg-black'
+                                        }`}
                                     >
                                         <FiPhone size={20} /> Connect Instant
                                     </button>

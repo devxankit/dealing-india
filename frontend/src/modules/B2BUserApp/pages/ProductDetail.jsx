@@ -25,6 +25,7 @@ const B2BProductDetail = () => {
     const [showInquiryModal, setShowInquiryModal] = useState(false);
     const [inquiryAttachment, setInquiryAttachment] = useState(null);
     const [hasInquiry, setHasInquiry] = useState(false);
+    const [enquiryStatus, setEnquiryStatus] = useState({ canAcceptEnquiries: true });
 
     useEffect(() => {
         fetchProductDetails();
@@ -46,6 +47,9 @@ const B2BProductDetail = () => {
                 }
 
                 setProduct(productData);
+                if (response.data.enquiryStatus) {
+                    setEnquiryStatus(response.data.enquiryStatus);
+                }
                 if (productData.moq) {
                     setQuantity(Number(productData.moq));
                 }
@@ -61,7 +65,9 @@ const B2BProductDetail = () => {
     // Track vendor contact clicks (call or whatsapp)
 
 
-    const handleWhatsAppClick = () => {
+ 
+     const handleWhatsAppClick = () => {
+        if (!enquiryStatus.canAcceptEnquiries) return;
         trackContactClick('whatsapp');
         const cleanedPhone = (product.vendorId?.phone || '').replace(/\D/g, '');
         const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
@@ -333,17 +339,35 @@ const B2BProductDetail = () => {
                                 )}
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-6 md:pt-8 border-t border-gray-50">
+                                    {/* Quota warning - Only show for the vendor themselves */}
+                                    {!enquiryStatus.canAcceptEnquiries && user?.id === (product.vendorId?._id || product.vendorId) && (
+                                        <div className="col-span-full mb-4 p-4 bg-red-50 rounded-2xl border border-red-100">
+                                            <p className="text-[10px] md:text-xs font-black text-red-600 uppercase tracking-wide">
+                                                Enquiry Gated: Recharge wallet or purchase plan to enable contact icons
+                                            </p>
+                                        </div>
+                                    )}
                                     {product.vendorId?.phone && (
                                         <>
                                             <button
                                                 onClick={handleWhatsAppClick}
-                                                className="py-3 md:py-4 px-3 md:px-4 bg-[#25D366] text-white rounded-xl md:rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wide shadow-lg shadow-green-100/50 hover:bg-[#128C7E] transition-all active:scale-95 flex items-center justify-center gap-1.5 md:gap-2"
+                                                disabled={!enquiryStatus.canAcceptEnquiries}
+                                                className={`py-3 md:py-4 px-3 md:px-4 rounded-xl md:rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wide shadow-lg transition-all active:scale-95 flex items-center justify-center gap-1.5 md:gap-2 ${
+                                                    !enquiryStatus.canAcceptEnquiries 
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale shadow-none' 
+                                                        : 'bg-[#25D366] text-white shadow-green-100/50 hover:bg-[#128C7E]'
+                                                }`}
                                             >
                                                 <FaWhatsapp className="text-base md:text-lg shrink-0" /> WhatsApp
                                             </button>
                                             <button
                                                 onClick={handleCallClick}
-                                                className="py-3 md:py-4 px-3 md:px-4 bg-gray-900 text-white rounded-xl md:rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wide shadow-lg shadow-gray-200/50 hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-1.5 md:gap-2"
+                                                disabled={!enquiryStatus.canAcceptEnquiries}
+                                                className={`py-3 md:py-4 px-3 md:px-4 rounded-xl md:rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wide shadow-lg transition-all active:scale-95 flex items-center justify-center gap-1.5 md:gap-2 ${
+                                                    !enquiryStatus.canAcceptEnquiries 
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale shadow-none' 
+                                                        : 'bg-gray-900 text-white shadow-gray-200/50 hover:bg-black'
+                                                }`}
                                             >
                                                 <FiPhone className="text-base md:text-lg shrink-0" /> Call
                                             </button>
