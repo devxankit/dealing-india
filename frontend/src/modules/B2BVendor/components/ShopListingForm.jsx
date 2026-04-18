@@ -51,8 +51,6 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         };
     });
 
-    const { vendor } = useB2BVendorAuthStore();
-
     const businessCategories = useMemo(() => {
         const vendorType = (vendor?.businessType || "").toString().trim().toLowerCase().replace(/\s+/g, " ");
         const restrictedTypes = ["developer", "property broker"];
