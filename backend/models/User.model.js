@@ -59,6 +59,15 @@ const userSchema = new mongoose.Schema(
                 pincode: { type: String, trim: true }
             }
         },
+        state: {
+            type: String,
+            trim: true,
+        },
+        language: {
+            type: String,
+            trim: true,
+            default: 'English',
+        },
         addresses: [{
             streetAddress: { type: String, required: true },
             city: { type: String, required: true },

@@ -16,6 +16,11 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
         (vendor.businessType || '').toLowerCase().includes('broker') ||
         vendor.isRealEstate;
     const vendorLabel = isRealEstate ? 'Office' : 'Store';
+    
+    // Gating logic
+    const enquiryStatus = vendor.enquiryStatus || vendor.vendorId?.enquiryStatus || { canAcceptEnquiries: false };
+    const canAcceptEnquiries = enquiryStatus.canAcceptEnquiries;
+    const isOwner = user?.id === vendorIdStr || user?.vendorId === vendorIdStr;
 
     // Gallery logic matching Product Card
     // If user doesn't have slideshow permission, they only get a single static image (logo or first image)
@@ -187,7 +192,7 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                     {vendor.phone ? (
                         <>
                             <a
-                                href={(() => {
+                                href={!canAcceptEnquiries ? "#" : (() => {
                                     const cleanedPhone = (vendor.phone || '').replace(/\D/g, '');
                                     const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
                                     const baseMsg = `👋 *I'm interested in your business services!*\n\n` +
@@ -198,11 +203,12 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                                     const message = encodeURIComponent(baseMsg);
                                     return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`;
                                 })()}
-                                target="_blank"
+                                target={!canAcceptEnquiries ? "_self" : "_blank"}
                                 rel="noopener noreferrer"
                                 onClick={(e) => {
-                                    if (vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries) {
+                                    if (!canAcceptEnquiries) {
                                         e.preventDefault();
+                                        e.stopPropagation();
                                         return;
                                     }
                                     if (redirectToLoginIfRequired(e)) return;
@@ -210,20 +216,21 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                                     if (trackContactClick) trackContactClick(vendorIdStr, 'whatsapp', getTrackingContext());
                                 }}
                                 className={`flex-1 min-w-[30%] py-1.5 rounded-lg transition-all border flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider ${
-                                    vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries
+                                    !canAcceptEnquiries
                                         ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed grayscale'
                                         : 'bg-green-50 text-[#25D366] hover:bg-[#25D366] hover:text-white border-green-100'
-                                }`}
-                                title={vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "WhatsApp"}
+                                    }`}
+                                title={!canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "WhatsApp"}
                             >
                                 <FaWhatsapp size={12} />
                                 {!compact && <span className="hidden md:inline">WhatsApp</span>}
                             </a>
-                            <a
-                                href={vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries ? "#" : `tel:${vendor.phone}`}
+                             <a
+                                href={!canAcceptEnquiries ? "#" : `tel:${vendor.phone}`}
                                 onClick={(e) => {
-                                    if (vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries) {
+                                    if (!canAcceptEnquiries) {
                                         e.preventDefault();
+                                        e.stopPropagation();
                                         return;
                                     }
                                     if (redirectToLoginIfRequired(e)) return;
@@ -231,17 +238,22 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                                     if (trackContactClick) trackContactClick(vendorIdStr, 'call', getTrackingContext());
                                 }}
                                 className={`flex-1 min-w-[30%] py-1.5 rounded-lg transition-all border flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider ${
-                                    vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries
+                                    !canAcceptEnquiries
                                         ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed grayscale'
                                         : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border-blue-100'
                                 }`}
-                                title={vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "Call"}
+                                title={!canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "Call"}
                             >
                                 <FiPhone size={12} />
                                 {!compact && <span className="hidden md:inline">Call</span>}
                             </a>
                             <button
                                 onClick={(e) => {
+                                    if (!canAcceptEnquiries) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        return;
+                                    }
                                     if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
                                     const mapsUrl = getGoogleMapsUrl(vendor);
@@ -252,7 +264,12 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                                         toast.error('Location details not provided');
                                     }
                                 }}
-                                className="flex-1 min-w-[30%] py-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-600 hover:text-white transition-all border border-orange-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                className={`flex-1 min-w-[30%] py-1.5 rounded-lg transition-all border flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider ${
+                                    !canAcceptEnquiries
+                                        ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed grayscale'
+                                        : 'bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white border-orange-100'
+                                }`}
+                                title={!canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "Map"}
                             >
                                 <FiMapPin size={12} />
                                 {!compact && <span className="hidden md:inline">Map</span>}

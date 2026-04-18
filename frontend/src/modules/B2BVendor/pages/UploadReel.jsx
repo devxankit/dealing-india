@@ -17,7 +17,7 @@ const MAX_DESC = 500;
 export default function UploadReel() {
   const navigate = useNavigate();
   const { categories: allCategories, initialize: fetchB2BCategories } = useB2BCategoryStore();
-  const { status, canUploadReel } = useSubscriptionStore();
+  const { status, canUploadReel, refreshStatus } = useSubscriptionStore();
   const [loading, setLoading] = useState(false);
   const [canUploadDaily, setCanUploadDaily] = useState(true);
   const [dailyStatusLoading, setDailyStatusLoading] = useState(true);
@@ -179,6 +179,7 @@ export default function UploadReel() {
       const res = await api.post('/reels', fd);
       if (res.success) {
         toast.success('Reel submitted for moderation. It will go live after admin approval.');
+        try { await refreshStatus(); } catch (e) { console.error("Refresh status failed", e); }
         navigate('/b2b-vendor/reels');
       }
     } catch (err) {

@@ -64,6 +64,7 @@ const B2BVendorRegister = () => {
                 country: 'India',
                 mapUrl: '',
             },
+            agreedToTerms: false,
         };
 
         if (savedData) {
@@ -242,7 +243,7 @@ const B2BVendorRegister = () => {
                 address: { ...prev.address, [field]: cleanedValue }
             }));
         } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
+            setFormData(prev => ({ ...prev, [name]: e.target.type === 'checkbox' ? e.target.checked : value }));
         }
     };
 
@@ -346,6 +347,10 @@ const B2BVendorRegister = () => {
             }
         }
 
+        if (!formData.agreedToTerms) {
+            newErrors.agreedToTerms = 'You must agree to the Terms & Conditions';
+        }
+
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
             // Scroll to first error
@@ -356,6 +361,7 @@ const B2BVendorRegister = () => {
         }
 
         setErrors({});
+        setLocalLoading(true);
         try {
             // Complete Registration
             const registrationData = {
@@ -374,7 +380,8 @@ const B2BVendorRegister = () => {
                 documents: {
                     panCard: panCard ? { data: panCard.data, name: panCard.name, type: panCard.type } : {},
                     businessLicense: businessLicense ? { data: businessLicense.data, name: businessLicense.name, type: businessLicense.type } : {}
-                }
+                },
+                agreedToTerms: formData.agreedToTerms
             };
 
             const response = await api.post('/auth/vendor/register', registrationData);
@@ -723,6 +730,26 @@ const B2BVendorRegister = () => {
                                 {errors.confirmPassword && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.confirmPassword}</p>}
                             </div>
                         </div>
+                    </div>
+
+                    {/* Terms and Conditions Checkbox */}
+                    <div className="flex flex-col gap-1 px-1">
+                        <label className="flex items-start gap-3 cursor-pointer group">
+                            <div className="relative flex items-center mt-1">
+                                <input
+                                    type="checkbox"
+                                    name="agreedToTerms"
+                                    checked={formData.agreedToTerms}
+                                    onChange={handleChange}
+                                    className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border-2 border-gray-300 transition-all checked:border-primary-600 checked:bg-primary-600 focus:outline-none"
+                                />
+                                <FiCheck className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none text-xs" />
+                            </div>
+                            <span className="text-sm text-gray-600 leading-tight">
+                                I agree to the <Link to="/terms?type=vendor" target="_blank" className="text-primary-600 font-bold hover:underline">Terms & Conditions</Link>
+                            </span>
+                        </label>
+                        {errors.agreedToTerms && <p className="text-red-500 text-[10px] ml-8">{errors.agreedToTerms}</p>}
                     </div>
 
                     <button

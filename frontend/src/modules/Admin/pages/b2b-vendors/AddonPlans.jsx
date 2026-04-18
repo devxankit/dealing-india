@@ -19,9 +19,45 @@ const AddonPlans = () => {
         isActive: true
     });
 
+    const [globalSettings, setGlobalSettings] = useState(null);
+    const [updatingSettings, setUpdatingSettings] = useState(false);
+
     useEffect(() => {
         loadPlans();
+        loadGlobalSettings();
     }, []);
+
+    const loadGlobalSettings = async () => {
+        try {
+            const response = await api.get('/admin/b2b-settings?forceRefresh=true');
+            if (response.success && response.data) {
+                console.log('[AddonPlans] Loaded settings:', response.data);
+                setGlobalSettings(response.data);
+            } else {
+                // Fallback to default if record missing or unsuccessful
+                setGlobalSettings({ defaultEnquiryPrice: 1 });
+            }
+        } catch (error) {
+            console.error('Failed to load B2B global settings');
+            setGlobalSettings({ defaultEnquiryPrice: 1 });
+        }
+    };
+
+    const handleUpdateGlobalSettings = async () => {
+        try {
+            setUpdatingSettings(true);
+            const response = await api.post('/admin/b2b-settings', globalSettings);
+            if (response.success) {
+                toast.success('Global B2B settings updated');
+                // Refresh to ensure we have the latest version from server
+                loadGlobalSettings();
+            }
+        } catch (error) {
+            toast.error('Failed to update global settings');
+        } finally {
+            setUpdatingSettings(false);
+        }
+    };
 
 
     const loadPlans = async () => {
@@ -105,6 +141,48 @@ const AddonPlans = () => {
                 >
                     <FiPlus /> New Add-on
                 </button>
+            </div>
+
+            {/* Global Settings Section */}
+            <div className="bg-white rounded-[2rem] p-6 border-2 border-gray-100 shadow-sm">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
+                            <FiDollarSign />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-800 tracking-tight">Global Enquiry Settings</h2>
+                            <p className="text-xs text-gray-500 font-medium">Set the fallback price per enquiry unlock when quota is exceeded.</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">₹</span>
+                            <input 
+                                type="number" 
+                                min="0"
+                                step="any"
+                                value={globalSettings ? globalSettings.defaultEnquiryPrice : ''}
+                                placeholder="Loading..."
+                                onChange={(e) => {
+                                    const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                                    setGlobalSettings({ ...globalSettings, defaultEnquiryPrice: val });
+                                }}
+                                className="pl-8 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white outline-none font-bold text-sm w-32"
+                            />
+                        </div>
+                        <button
+                            onClick={handleUpdateGlobalSettings}
+                            disabled={updatingSettings}
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${
+                                updatingSettings ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-white hover:bg-black shadow-lg shadow-gray-200'
+                            }`}
+                        >
+                            {updatingSettings ? <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" /> : <FiSave />}
+                            Save
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {loading ? (

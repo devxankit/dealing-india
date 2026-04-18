@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { FiArrowLeft, FiPhone, FiMessageSquare, FiMapPin, FiUsers, FiAlertCircle, FiPackage, FiX, FiPlusCircle } from "react-icons/fi";
+import { FiArrowLeft, FiPhone, FiMessageSquare, FiMapPin, FiUsers, FiAlertCircle, FiPackage, FiX, FiPlusCircle, FiCreditCard } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../../../shared/utils/api";
 import toast from "react-hot-toast";
 import subscriptionService from "../services/subscriptionService";
 import vendorWalletService from "../services/vendorWalletService";
+import { useSubscriptionStore } from "../store/subscriptionStore";
 
 const CLICK_TYPES = {
     call: {
@@ -49,6 +50,9 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
     const [enquiryPlans, setEnquiryPlans] = useState([]);
     const [walletBalance, setWalletBalance] = useState(0);
     const [isPurchasing, setIsPurchasing] = useState(false);
+    
+    // Get full subscription status from store
+    const { status: subStatus } = useSubscriptionStore();
 
     useEffect(() => {
         if (clickType !== normalizedType) {
@@ -163,6 +167,31 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
 
     return (
         <div className="max-w-[1200px] mx-auto px-4 sm:px-0 pb-20 pt-6 space-y-6">
+            {/* Promotional Growth Alert */}
+            {mode === 'vendor' && walletBalance === 0 && (!subStatus || subStatus.length === 0) && (
+                <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-amber-50 border border-amber-100 p-6 rounded-[2rem] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center flex-shrink-0">
+                            <FiCreditCard size={24} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-black text-slate-800 leading-tight">Boost your business!</p>
+                            <p className="text-xs font-bold text-slate-600 mt-1">You have no active plan and ₹0 balance. Recharge or purchase a plan now to start receiving business enquiries.</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => navigate('/b2b-vendor/wallet')}
+                        className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg flex-shrink-0"
+                    >
+                        Recharge Wallet
+                    </button>
+                </motion.div>
+            )}
+
             <div className="flex items-center justify-between mb-4">
                 <button
                     type="button"

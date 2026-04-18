@@ -142,6 +142,15 @@ const vendorSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    state: {
+      type: String,
+      trim: true,
+    },
+    language: {
+      type: String,
+      trim: true,
+      default: 'English',
+    },
 
     // Analytics for tracking user engagement
     analytics: {
@@ -172,6 +181,10 @@ const vendorSchema = new mongoose.Schema(
     location: {
       type: { type: String, enum: ['Point'], default: 'Point' },
       coordinates: { type: [Number], index: '2dsphere', default: [0, 0] } // [lng, lat]
+    },
+    agreedToTerms: {
+      type: Boolean,
+      default: false,
     },
   },
   {

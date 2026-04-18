@@ -17,6 +17,8 @@
  */
 
 import Vendor from '../models/Vendor.model.js';
+import B2BAddonPlan from '../models/B2BAddonPlan.model.js';
+import B2BSettings from '../models/B2BSettings.model.js';
 import VendorSubscription from '../models/VendorSubscription.model.js';
 import B2BSubscriptionPlan from '../models/B2BSubscriptionPlan.model.js';
 import Product from '../models/Product.model.js';
@@ -539,20 +541,21 @@ class SubscriptionRulesService {
 
         const hasShop = !!shop;
 
-        // 🔹 Correct Addon Stats: Calculate BOTH Total Capacity and Remaining Units
+        // 🔹 Correct Addon Stats: Calculate Total Capacity, Remaining Units, and Historical Usage
         const addonStats = addons.reduce((acc, a) => {
             const ft = a.featureType;
             if (acc[ft]) {
                 acc[ft].total += a.totalQuantity;
-                acc[ft].remaining += Math.max(0, a.totalQuantity - a.usedCount);
+                acc[ft].used += (a.usedCount || 0);
+                acc[ft].remaining += Math.max(0, a.totalQuantity - (a.usedCount || 0));
             }
             return acc;
         }, {
-            reels: { total: 0, remaining: 0 },
-            products: { total: 0, remaining: 0 },
-            lot_slot: { total: 0, remaining: 0 },
-            property: { total: 0, remaining: 0 },
-            enquiry: { total: 0, remaining: 0 }
+            reels: { total: 0, used: 0, remaining: 0 },
+            products: { total: 0, used: 0, remaining: 0 },
+            lot_slot: { total: 0, used: 0, remaining: 0 },
+            property: { total: 0, used: 0, remaining: 0 },
+            enquiry: { total: 0, used: 0, remaining: 0 }
         });
 
         // For backward compatibility within some logic
@@ -590,30 +593,30 @@ class SubscriptionRulesService {
                     products: { 
                         allowed: addonStats.products.total > 0, 
                         limit: addonStats.products.total, 
-                        current: productCount, 
-                        remaining: Math.max(0, addonStats.products.total - productCount),
+                        current: productCount + addonStats.products.used, 
+                        remaining: Math.max(0, addonStats.products.total - (productCount + addonStats.products.used)),
                         hasAddon: addonStats.products.total > 0
                     },
                     lotSlot: { 
                         allowed: addonStats.lot_slot.total > 0, 
                         limit: addonStats.lot_slot.total,
-                        current: lotSlotCount, 
-                        remaining: Math.max(0, addonStats.lot_slot.total - lotSlotCount),
+                        current: lotSlotCount + addonStats.lot_slot.used, 
+                        remaining: Math.max(0, addonStats.lot_slot.total - (lotSlotCount + addonStats.lot_slot.used)),
                         hasAddon: addonStats.lot_slot.total > 0
                     },
                     properties: { 
                         allowed: addonStats.property.total > 0, 
                         limit: addonStats.property.total,
-                        current: propertyCount,
-                        remaining: Math.max(0, addonStats.property.total - propertyCount),
+                        current: propertyCount + addonStats.property.used,
+                        remaining: Math.max(0, addonStats.property.total - (propertyCount + addonStats.property.used)),
                         hasAddon: addonStats.property.total > 0,
                         maxImages: 50 
                     },
                     reels: { 
                         allowed: addonStats.reels.total > 0, 
                         limit: addonStats.reels.total, 
-                        current: reelCount,
-                        remaining: Math.max(0, addonStats.reels.total - reelCount),
+                        current: reelCount + addonStats.reels.used,
+                        remaining: Math.max(0, addonStats.reels.total - (reelCount + addonStats.reels.used)),
                         hasAddon: addonStats.reels.total > 0
                     },
                     enquiry: {
@@ -670,31 +673,31 @@ class SubscriptionRulesService {
                 products: {
                     allowed: totalProductLimit !== 0,
                     limit: totalProductLimit,
-                    current: productCount,
-                    remaining: totalProductLimit === -1 ? -1 : Math.max(0, totalProductLimit - productCount),
+                    current: productCount + addonStats.products.used,
+                    remaining: totalProductLimit === -1 ? -1 : Math.max(0, totalProductLimit - (productCount + addonStats.products.used)),
                     hasAddon: addonStats.products.total > 0,
                     maxImages: imagesPerListing
                 },
                 lotSlot: {
                     allowed: totalLotSlotLimit !== 0,
                     limit: totalLotSlotLimit,
-                    current: lotSlotCount,
-                    remaining: totalLotSlotLimit === -1 ? -1 : Math.max(0, totalLotSlotLimit - lotSlotCount),
+                    current: lotSlotCount + addonStats.lot_slot.used,
+                    remaining: totalLotSlotLimit === -1 ? -1 : Math.max(0, totalLotSlotLimit - (lotSlotCount + addonStats.lot_slot.used)),
                     hasAddon: addonStats.lot_slot.total > 0
                 },
                 properties: {
                     allowed: totalPropertyLimit !== 0 || addonStats.property.total > 0,
                     limit: totalPropertyLimit,
-                    current: propertyCount,
-                    remaining: totalPropertyLimit === -1 ? -1 : Math.max(0, totalPropertyLimit - propertyCount),
+                    current: propertyCount + addonStats.property.used,
+                    remaining: totalPropertyLimit === -1 ? -1 : Math.max(0, totalPropertyLimit - (propertyCount + addonStats.property.used)),
                     hasAddon: addonStats.property.total > 0,
                     maxImages: imagesPerListing || 50
                 },
                 reels: {
                     allowed: true,
                     limit: totalReelLimit,
-                    current: reelCount,
-                    remaining: totalReelLimit === -1 ? -1 : Math.max(0, totalReelLimit - reelCount),
+                    current: reelCount + addonStats.reels.used,
+                    remaining: totalReelLimit === -1 ? -1 : Math.max(0, totalReelLimit - (reelCount + addonStats.reels.used)),
                     hasAddon: addonStats.reels.total > 0
                 },
                 shopSlideshow: shopSlideshow,
@@ -761,10 +764,13 @@ class SubscriptionRulesService {
             if (addonConsumed) return true;
 
             // 3. Fallback: Wallet Deduction
-            // If plan has a price, use it. Otherwise use fallback ₹1 price to ensure icons work for everyone.
+            // If plan has a price, use it. Otherwise use global default from settings.
+            const b2bSettings = await B2BSettings.findOne().lean();
+            const defaultPrice = b2bSettings?.defaultEnquiryPrice ?? 1;
+
             const price = (subData && subData.plan && subData.plan.enquiryPrice > 0) 
                 ? subData.plan.enquiryPrice 
-                : 1; 
+                : defaultPrice; 
             
             try {
                 await vendorWalletService.payViaWallet(
@@ -826,8 +832,11 @@ class SubscriptionRulesService {
             const subData = await this.getActiveSubscription(vendorId);
             
             // Default status if no plan
+            const b2bSettings = await B2BSettings.findOne().lean();
+            const defaultPrice = b2bSettings?.defaultEnquiryPrice ?? 1;
+            
             let canAcceptEnquiries = false;
-            let currentPrice = 1; // Default ₹1 fallback
+            let currentPrice = defaultPrice; // Use global default
             let reason = 'QUOTA_EXHAUSTED';
             let message = 'Subscription plan enquiry quota has been reached.';
 

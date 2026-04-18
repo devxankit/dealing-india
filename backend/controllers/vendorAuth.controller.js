@@ -39,7 +39,7 @@ const clearVendorCache = async (vendorId = null) => {
  */
 export const register = async (req, res, next) => {
   try {
-  const { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan, mfgOfWork } = req.body;
+  const { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan, mfgOfWork, agreedToTerms } = req.body;
 
     const result = await registerVendor({
       name,
@@ -58,6 +58,7 @@ export const register = async (req, res, next) => {
       subscriptionPlan,
       
       mfgOfWork,
+      agreedToTerms,
     });
 
     res.status(201).json({
@@ -207,7 +208,12 @@ export const verifyEmail = async (req, res, next) => {
       },
     });
   } catch (error) {
-    next(error);
+    const statusCode = error.statusCode || error.status || 500;
+    const message = error.message || 'Email verification failed';
+    return res.status(statusCode).json({
+      success: false,
+      message,
+    });
   }
 };
 

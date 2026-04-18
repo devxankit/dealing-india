@@ -308,16 +308,8 @@ const B2BVendorLogin = () => {
                                 <FiShoppingBag /> Login as Buyer
                             </Link>
                         </div>
-                        <div className="pt-2">
-                             <p className="text-[10px] text-gray-400">
-                                 By signing in, you agree to our{' '}
-                                 <Link to="/terms?type=vendor" className="text-primary-600 font-bold hover:underline">
-                                     Terms & Conditions
-                                 </Link>
-                             </p>
-                         </div>
-                     </div>
-                 </form>
+                    </div>
+                </form>
 
                 {/* Subscription Plans Section - Only shown when expired */}
                 <AnimatePresence>

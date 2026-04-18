@@ -113,6 +113,7 @@ const ProductCatalog = () => {
   const [citySearchQuery, setCitySearchQuery] = useState("");
   const [areaSearchQuery, setAreaSearchQuery] = useState("");
   const [marketSearchQuery, setMarketSearchQuery] = useState("");
+  const [businessTypeSearchQuery, setBusinessTypeSearchQuery] = useState("");
   const cityDropdownRef = useRef(null);
   const areaDropdownRef = useRef(null);
   const marketDropdownRef = useRef(null);
@@ -2152,6 +2153,20 @@ const ProductCatalog = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             className="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden">
+            <div className="p-3 border-b border-gray-50 bg-gray-50/50">
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="SEARCH BUSINESS TYPE..."
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-gray-100 rounded-lg text-[10px] font-black uppercase tracking-wider focus:ring-1 focus:ring-primary-500 outline-none"
+                  value={businessTypeSearchQuery}
+                  onChange={(e) => setBusinessTypeSearchQuery(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            </div>
             <div className="p-2 space-y-1 max-h-80 overflow-y-auto custom-scrollbar">
               <button
                 onClick={() => {
@@ -2179,6 +2194,11 @@ const ProductCatalog = () => {
                     name === "PACKING MATERIAL"
                   )
                     return false;
+
+                  // Apply search filter
+                  if (businessTypeSearchQuery.trim()) {
+                    return name.includes(businessTypeSearchQuery.toUpperCase());
+                  }
 
                   return true;
                 })

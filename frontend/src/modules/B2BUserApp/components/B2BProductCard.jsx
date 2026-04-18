@@ -56,7 +56,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
     const hasEmail = Boolean(vendor?.email);
     const hasMobile = Boolean(vendor?.phone);
 
-    const enquiryStatus = product.enquiryStatus || { canAcceptEnquiries: true };
+    const enquiryStatus = product.enquiryStatus || product.vendorId?.enquiryStatus || { canAcceptEnquiries: false };
     const canAcceptEnquiries = enquiryStatus.canAcceptEnquiries;
     const isOwner = user?.id === vendorIdStr || user?.vendorId === vendorIdStr;
 
@@ -312,7 +312,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                     {vendor?.phone ? (
                         <>
                             <a
-                                href={(() => {
+                                href={!canAcceptEnquiries ? "#" : (() => {
                                     const cleanedPhone = (vendor?.phone || '').replace(/\D/g, '');
                                     const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
                                     const baseMsg = `🛒 *I'm interested in this product!*\n\n` +
@@ -326,8 +326,18 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                     const message = encodeURIComponent(baseMsg);
                                     return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`;
                                 })()}
-                                target="_blank"
+                                target={!canAcceptEnquiries ? "_self" : "_blank"}
                                 rel="noopener noreferrer"
+                                onClick={(e) => {
+                                    if (!canAcceptEnquiries) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        return;
+                                    }
+                                    if (redirectToLoginIfRequired(e)) return;
+                                    e.stopPropagation();
+                                    if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'whatsapp', getTrackingContext());
+                                }}
                                 className={`flex-1 h-10 md:h-11 rounded-xl transition-all border flex items-center justify-center shadow-sm ${
                                     !canAcceptEnquiries 
                                         ? 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed grayscale' 
@@ -360,6 +370,11 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                             </a>
                             <button
                                 onClick={(e) => {
+                                    if (!canAcceptEnquiries) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        return;
+                                    }
                                     if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
                                     const mapTarget = product.shopUnit?.mapUrl
@@ -373,8 +388,12 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                         toast.error('Location details not provided');
                                     }
                                 }}
-                                className="flex-1 h-10 md:h-11 bg-orange-50 text-orange-600 rounded-xl hover:bg-orange-600 hover:text-white transition-all border border-orange-100 flex items-center justify-center shadow-sm"
-                                title="Shop Location"
+                                className={`flex-1 h-10 md:h-11 rounded-xl transition-all border flex items-center justify-center shadow-sm ${
+                                    !canAcceptEnquiries 
+                                        ? 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed grayscale' 
+                                        : 'bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white border-orange-100'
+                                }`}
+                                title={!canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "Shop Location"}
                             >
                                 <FiMapPin size={16} />
                             </button>

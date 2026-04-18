@@ -773,14 +773,43 @@ const B2BVendorSubscription = () => {
                                     {getPlanIcon(plan.duration)}
                                 </div>
                                 <h3 className="text-2xl font-bold text-gray-800 mb-2">{plan.name}</h3>
-                                <div className="flex items-baseline gap-1">
-                                    <span className="text-4xl font-extrabold text-gray-900">
-                                        ₹{plan.price?.toLocaleString('en-IN') || '0'}
-                                    </span>
-                                </div>
-                                <p className="text-sm text-gray-500 mt-2">
-                                    {plan.duration} Months Duration
-                                </p>
+                                {plan.discount > 0 ? (
+                                    <div className="space-y-2 mb-6">
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Original</span>
+                                                <span className="text-base font-bold text-gray-300 line-through decoration-red-400/50 decoration-2">
+                                                    ₹{plan.price?.toLocaleString('en-IN')}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-4xl font-black text-primary-600 tracking-tighter">
+                                                    ₹{(plan.price - plan.discount).toLocaleString('en-IN')}
+                                                </span>
+                                                <span className="text-sm font-bold text-gray-400 lowercase">
+                                                    /{plan.duration === 12 ? 'yr' : plan.duration + 'mo'}
+                                                </span>
+                                                <span className="ml-2 px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-black uppercase tracking-widest rounded-md border border-green-100">
+                                                    Save ₹{plan.discount?.toLocaleString('en-IN')}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-4xl font-extrabold text-gray-900">
+                                                ₹{plan.price?.toLocaleString('en-IN') || '0'}
+                                            </span>
+                                            <span className="text-sm font-bold text-gray-400 lowercase">
+                                                /{plan.duration === 12 ? 'yr' : plan.duration + 'mo'}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-500 mt-2">
+                                            {plan.duration} Months Duration
+                                        </p>
+                                    </>
+                                )}
                             </div>
 
                             {/* Features */}
@@ -1398,7 +1427,7 @@ const B2BVendorSubscription = () => {
                                             </div>
                                             <div className="text-right">
                                                 <span className="text-xl font-black text-indigo-600">
-                                                    ₹{(payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0)).toLocaleString('en-IN')}
+                                                    ₹{((payModalData.basePrice || 0) - (payModalData.discount || 0)).toLocaleString('en-IN')}
                                                 </span>
                                             </div>
                                         </div>
@@ -1424,7 +1453,7 @@ const B2BVendorSubscription = () => {
                                     </button>
                                 )}
 
-                                {walletBalance < (payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0)) ? (
+                                {walletBalance < ((payModalData.basePrice || 0) - (payModalData.discount || 0)) ? (
                                     <div className="space-y-4">
                                         <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4">
                                             <div className="flex items-center gap-3 mb-3">
@@ -1452,7 +1481,7 @@ const B2BVendorSubscription = () => {
 
                                             <button
                                                 onClick={() => {
-                                                    const deficit = Math.max(100, Math.ceil((payModalData.type === 'upgrade' ? payModalData.netBase : (payModalData.basePrice || payModalData.originalPrice || 0) - (payModalData.discount || 0)) - walletBalance));
+                                                    const deficit = Math.max(100, Math.ceil(((payModalData.basePrice || 0) - (payModalData.discount || 0)) - walletBalance));
                                                     setRechargeAmountInput(deficit);
                                                     setShowAddMoneyModal(true);
                                                 }}

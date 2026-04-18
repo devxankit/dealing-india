@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
     FiArrowLeft,
@@ -15,9 +15,10 @@ import {
     FiUserPlus,
     FiUserCheck,
     FiVideo,
+    FiSearch,
 } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import B2BHeader from "../components/Layout/B2BHeader";
 import B2BBottomNav from "../components/Layout/B2BBottomNav";
 import B2BProductCard from "../components/B2BProductCard";
@@ -53,6 +54,19 @@ const B2BVendorStore = () => {
     const [categorySearch, setCategorySearch] = useState("");
     const [debouncedCategorySearch, setDebouncedCategorySearch] = useState("");
     const { categories: allCategories, initialize: fetchB2BCategories } = useB2BCategoryStore();
+    const [isReelCategoryDropdownOpen, setIsReelCategoryDropdownOpen] = useState(false);
+    const reelCategoryDropdownRef = useRef(null);
+
+    // Click outside handler for category dropdown
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (reelCategoryDropdownRef.current && !reelCategoryDropdownRef.current.contains(event.target)) {
+                setIsReelCategoryDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     // Debounce category search
     useEffect(() => {
@@ -539,6 +553,10 @@ const B2BVendorStore = () => {
                             {vendor.phone && (
                                 <button
                                     onClick={() => {
+                                        if (vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries) {
+                                            toast.error("Contact Disabled (Insufficient Quota)");
+                                            return;
+                                        }
                                         const mapsUrl = getGoogleMapsUrl(shopListing?.mapUrl ? { mapUrl: shopListing.mapUrl } : (vendor.shopUnit || vendor));
                                         if (mapsUrl) {
                                             trackContactClick(vendor._id || vendor.id, 'map', getTrackingContext());
@@ -546,7 +564,12 @@ const B2BVendorStore = () => {
                                         }
                                         else toast.error('Location details not provided');
                                     }}
-                                    className="w-full px-8 py-5 md:py-6 bg-orange-600 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-orange-700 transition-all shadow-xl shadow-orange-100/50 flex items-center justify-center gap-3 active:scale-95"
+                                    className={`w-full px-8 py-5 md:py-6 rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95 ${
+                                        vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries
+                                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed grayscale shadow-none'
+                                            : 'bg-orange-600 text-white hover:bg-orange-700 shadow-orange-100/50'
+                                    }`}
+                                    title={vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "View Shop Location"}
                                 >
                                     <FiMapPin size={20} />
                                     View Shop Location
@@ -606,7 +629,7 @@ const B2BVendorStore = () => {
                                             <div className="flex items-center gap-3">
                                                 <p className="text-[11px] font-bold text-gray-500">+91 {maskPhone(contact.mobile, 2)}</p>
                                                 <a
-                                                    href={(() => {
+                                                    href={vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries ? "#" : (() => {
                                                         const cleanedPhone = String(contact.mobile || '').replace(/\D/g, '');
                                                         const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : `91${cleanedPhone}`;
                                                         const baseMsg = `👋 *I'm interested in your business services!*\n\n` +
@@ -618,13 +641,24 @@ const B2BVendorStore = () => {
                                                         const message = encodeURIComponent(baseMsg);
                                                         return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`;
                                                     })()}
-                                                    target="_blank"
+                                                    target={vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries ? "_self" : "_blank"}
                                                     rel="noopener noreferrer"
-                                                    className="p-2 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all active:scale-90"
-                                                    onClick={() => trackContactClick(vendor._id || vendor.id, 'whatsapp', {
-                                                        ...getTrackingContext(),
-                                                        category: `${vendor?.businessType || 'Vendor'} - ${contact.name || contact.post}`
-                                                    })}
+                                                    className={`p-2 rounded-lg transition-all active:scale-90 ${
+                                                        vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries
+                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale'
+                                                            : 'bg-green-50 text-[#25D366] hover:bg-[#25D366] hover:text-white'
+                                                    }`}
+                                                    onClick={(e) => {
+                                                        if (vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries) {
+                                                            e.preventDefault();
+                                                            return;
+                                                        }
+                                                        trackContactClick(vendor._id || vendor.id, 'whatsapp', {
+                                                            ...getTrackingContext(),
+                                                            category: `${vendor?.businessType || 'Vendor'} - ${contact.name || contact.post}`
+                                                        });
+                                                    }}
+                                                    title={vendor.enquiryStatus && !vendor.enquiryStatus.canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "WhatsApp"}
                                                 >
                                                     <FaWhatsapp size={14} />
                                                 </a>
@@ -690,49 +724,83 @@ const B2BVendorStore = () => {
 
                     {/* Reels Tab Category Filter */}
                     {activeTab === "reels" && hasReels && (
-                        <div className="flex flex-col md:flex-row items-center gap-4">
-                            <div className="relative group w-full md:w-64">
-                                <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-600 transition-colors" />
-                                <select
-                                    value={reelCategoryFilter}
-                                    onChange={(e) => setReelCategoryFilter(e.target.value)}
-                                    className="w-full pl-10 pr-6 py-3 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-800 outline-none focus:border-primary-200 transition-all appearance-none shadow-sm"
+                        <div className="flex items-center gap-4">
+                            <div className="relative w-full md:w-80" ref={reelCategoryDropdownRef}>
+                                <button
+                                    onClick={() => setIsReelCategoryDropdownOpen(!isReelCategoryDropdownOpen)}
+                                    className="w-full pl-10 pr-10 py-3 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-800 outline-none focus:border-primary-200 transition-all shadow-sm flex items-center justify-between text-left"
                                 >
-                                    <option value=""> {reelCategoryFilter || "Select Category"} </option>
-                                    <option value="">All Categories</option>
-                                    {playlistCategories.map((name) => (
-                                        <option key={name} value={name}>
-                                            {name}
-                                        </option>
-                                    ))}
-                                    {playlistCategories.length === 0 && debouncedCategorySearch && (
-                                        <option disabled>No categories found</option>
-                                    )}
-                                </select>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                    <FiChevronDown />
-                                </div>
-                            </div>
+                                    <div className="flex items-center gap-3 truncate">
+                                        <FiFilter className={reelCategoryFilter ? "text-primary-600" : "text-gray-400"} />
+                                        <span className="truncate">{reelCategoryFilter || "SELECT CATEGORY"}</span>
+                                    </div>
+                                    <FiChevronDown className={`text-gray-400 transition-transform ${isReelCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+                                </button>
 
-                            <div className="relative w-full md:w-64">
-                                <input
-                                    type="text"
-                                    value={categorySearch}
-                                    onChange={(e) => setCategorySearch(e.target.value)}
-                                    placeholder="Search category..."
-                                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-500 outline-none focus:border-primary-200 transition-all shadow-sm"
-                                />
-                                <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85Zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
-                                </svg>
+                                <AnimatePresence>
+                                    {isReelCategoryDropdownOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl z-[150] overflow-hidden"
+                                        >
+                                            <div className="p-3 border-b border-gray-50 bg-gray-50/50">
+                                                <div className="relative">
+                                                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                                                    <input
+                                                        type="text"
+                                                        value={categorySearch}
+                                                        onChange={(e) => setCategorySearch(e.target.value)}
+                                                        placeholder="Search categories..."
+                                                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-800 outline-none focus:border-primary-200 transition-all"
+                                                        autoFocus
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="max-h-72 overflow-y-auto custom-scrollbar p-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setReelCategoryFilter("");
+                                                        setIsReelCategoryDropdownOpen(false);
+                                                        setCategorySearch("");
+                                                    }}
+                                                    className={`w-full text-left px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!reelCategoryFilter ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                >
+                                                    All Categories
+                                                </button>
+                                                {playlistCategories.map((name) => (
+                                                    <button
+                                                        key={name}
+                                                        onClick={() => {
+                                                            setReelCategoryFilter(name);
+                                                            setIsReelCategoryDropdownOpen(false);
+                                                            setCategorySearch("");
+                                                        }}
+                                                        className={`w-full text-left px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${reelCategoryFilter === name ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                                    >
+                                                        {name}
+                                                    </button>
+                                                ))}
+                                                {playlistCategories.length === 0 && (
+                                                    <div className="px-4 py-8 text-center">
+                                                        <FiSearch className="mx-auto text-gray-200 mb-2" size={24} />
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No matching categories</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
 
                             {reelCategoryFilter && (
                                 <button
                                     onClick={() => setReelCategoryFilter("")}
-                                    className="text-xs font-bold text-primary-600 hover:text-primary-700 uppercase tracking-widest"
+                                    className="text-[10px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest px-4 py-2 bg-primary-50 rounded-lg border border-primary-100 transition-all hover:scale-105 active:scale-95"
                                 >
-                                    Clear Filter
+                                    Clear
                                 </button>
                             )}
                         </div>

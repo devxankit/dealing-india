@@ -7,6 +7,7 @@ import Notification from '../models/Notification.model.js';
 import Vendor from '../models/Vendor.model.js';
 import ShopUnit from '../models/ShopUnit.model.js';
 import SecureDeal from '../models/SecureDeal.model.js';
+import VendorWallet from '../models/VendorWallet.model.js';
 
 /**
  * Get B2B Vendor Dashboard Data
@@ -26,7 +27,8 @@ export const getDashboardData = async (req, res, next) => {
             notifications,
             vendorAnalytics,
             shop,
-            pendingSecureDeals
+            pendingSecureDeals,
+            wallet
         ] = await Promise.all([
             Product.countDocuments({ vendorId }),
             Product.countDocuments({ vendorId, isActive: true }),
@@ -39,12 +41,14 @@ export const getDashboardData = async (req, res, next) => {
             Notification.find({ recipient: vendorId, recipientType: 'vendor' }).sort({ createdAt: -1 }).limit(5).lean(),
             Vendor.findById(vendorId).select('analytics').lean(),
             ShopUnit.findOne({ vendorId }).select('_id').lean(),
-            SecureDeal.countDocuments({ sellerId: vendorId, status: 'pending' })
+            SecureDeal.countDocuments({ sellerId: vendorId, status: 'pending' }),
+            VendorWallet.findOne({ vendorId }).select('balance').lean()
         ]);
 
         // Format Data for Frontend
         const dashboardData = {
             hasShop: !!shop,
+            walletBalance: wallet?.balance || 0,
             overview: {
                 bannerClicks: 0, 
                 callClicks: vendorAnalytics?.analytics?.callClicks || 0,

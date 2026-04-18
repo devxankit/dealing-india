@@ -37,7 +37,13 @@ const TermsAndConditions = () => {
             <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
                 <div className="max-w-3xl mx-auto px-4 h-16 flex items-center gap-4">
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={() => {
+                            if (type === 'vendor') {
+                                navigate('/b2b-vendor/register');
+                            } else {
+                                navigate('/b2b/register');
+                            }
+                        }}
                         className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                     >
                         <FiChevronLeft size={24} className="text-gray-600" />

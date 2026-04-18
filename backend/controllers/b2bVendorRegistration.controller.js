@@ -25,6 +25,7 @@ export const register = async (req, res, next) => {
       gstNumber,
       businessType,
       businessTypeRef,
+      agreedToTerms,
     } = req.body;
 
     // Validate required fields
@@ -49,6 +50,7 @@ export const register = async (req, res, next) => {
       gstNumber,
       businessType,
       businessTypeRef,
+      agreedToTerms,
     });
 
     res.status(201).json({
@@ -98,6 +100,7 @@ export const registerWithPayment = async (req, res, next) => {
       gstNumber,
       businessType,
       businessTypeRef,
+      agreedToTerms,
       subscriptionPlan,
       paymentData, // { razorpayOrderId, razorpayPaymentId, razorpaySignature }
     } = req.body;
@@ -149,6 +152,7 @@ export const registerWithPayment = async (req, res, next) => {
         gstNumber,
         businessType,
         businessTypeRef,
+        agreedToTerms,
       },
       subscriptionPlan,
       paymentData

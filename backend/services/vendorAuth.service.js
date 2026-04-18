@@ -19,7 +19,7 @@ import { ensureReferralCodeForOwner } from './referral.service.js';
  */
 export const registerVendor = async (vendorData) => {
   try {
-    let { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan, selectedSubTypes, mfgOfWork } = vendorData;
+    let { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan, selectedSubTypes, mfgOfWork, agreedToTerms } = vendorData;
 
     // Fix address fields for model compatibility (zipCode -> pincode)
     if (address && address.zipCode && !address.pincode) {
@@ -196,6 +196,7 @@ export const registerVendor = async (vendorData) => {
         }),
         documents: processedDocuments, // Store processed documents
         vendorType: vendorType,
+        agreedToTerms: !!agreedToTerms,
         // B2B-specific fields
         businessTypes: businessTypes && Array.isArray(businessTypes) ? businessTypes.map(bt => bt.trim()) : undefined,
         businessType: businessType || 'Textile',
@@ -578,6 +579,7 @@ export const verifyVendorEmail = async (email, otp) => {
       isActive: true,
       role: 'vendor',
       vendorType: tempRegistration.registrationData.vendorType || 'b2b',
+      agreedToTerms: tempRegistration.registrationData.agreedToTerms || false,
     };
 
     // Ensure pincode is correctly mapped from zipCode if missing

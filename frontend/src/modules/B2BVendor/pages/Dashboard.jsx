@@ -12,7 +12,8 @@ import {
     FiHome,
     FiCalendar,
     FiMapPin,
-    FiArrowUpRight
+    FiArrowUpRight,
+    FiCreditCard
 } from "react-icons/fi";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../hooks/useVendorSettings";
@@ -36,6 +37,7 @@ const B2BVendorDashboard = () => {
     // Use fetched data or fallback to zeros if data haven't arrived yet
     const dashboard = {
         overview: dashboardData?.overview || { bannerClicks: 0, callClicks: 0, whatsappClicks: 0, mapClicks: 0 },
+        walletBalance: dashboardData?.walletBalance || 0,
         counts: {
             products: dashboardData?.counts?.products || { total: 0, approved: 0, pending: 0 },
             lotSlot: dashboardData?.counts?.lotSlot || { total: 0, approved: 0, pending: 0 },
@@ -58,6 +60,34 @@ const B2BVendorDashboard = () => {
         // Add to the beginning of alerts
         if (!dashboard.alerts.some(a => a.id === 'shop-required')) {
             dashboard.alerts.unshift(shopAlert);
+        }
+    }
+
+    // Add Wallet Empty Alert (Only if NO plan and NO balance)
+    if (dashboardData && dashboard.walletBalance === 0 && dashboard.subscriptions.length === 0) {
+        const walletAlert = {
+            id: 'wallet-empty',
+            type: 'warning',
+            message: 'Boost your business! You have no active plan and ₹0 balance. Recharge or purchase a plan now to start receiving business enquiries.',
+            actionLink: '/b2b-vendor/wallet'
+        };
+        if (!dashboard.alerts.some(a => a.id === 'wallet-empty')) {
+            dashboard.alerts.push(walletAlert);
+        }
+    }
+
+    // Add Subscription Required Alert (Moved logic inside to avoid duplicate calls to action if both are missing)
+    // If wallet is empty and no plan, the above alert covers it. 
+    // If they have wallet but no plan, show this.
+    if (dashboardData && dashboard.subscriptions.length === 0 && dashboard.walletBalance > 0) {
+        const subAlert = {
+            id: 'no-subscription',
+            type: 'info',
+            message: 'You have wallet balance but no active plan. Purchase a plan to maximize your lead generation and product visibility.',
+            actionLink: '/b2b-vendor/subscription'
+        };
+        if (!dashboard.alerts.some(a => a.id === 'no-subscription')) {
+            dashboard.alerts.push(subAlert);
         }
     }
 
@@ -165,16 +195,17 @@ const B2BVendorDashboard = () => {
                 SECTION 2: COMMON OVERVIEW CARDS (STATS)
             ------------------------------------------ */}
             {config.widgets.includes('stats') && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
                         { label: 'Total Call Inquiries', value: dashboard.overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50', analyticsType: 'call' },
                         { label: 'Total WhatsApp Clicks', value: dashboard.overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50', analyticsType: 'whatsapp' },
+                        { label: 'Wallet Balance', value: `₹${dashboard.walletBalance.toLocaleString('en-IN')}`, icon: FiCreditCard, color: 'text-blue-600', bg: 'bg-blue-50', action: () => navigate('/b2b-vendor/wallet') },
                     ].map((stat, i) => (
                         <button
                             key={i}
                             type="button"
-                            onClick={() => stat.analyticsType && navigate(`/b2b-vendor/analytics/clicks?type=${stat.analyticsType}`)}
-                            className={`bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-6 group hover:shadow-lg transition-all text-left ${stat.analyticsType ? 'cursor-pointer' : 'cursor-default'}`}
+                            onClick={() => stat.action ? stat.action() : (stat.analyticsType && navigate(`/b2b-vendor/analytics/clicks?type=${stat.analyticsType}`))}
+                            className={`bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-6 group hover:shadow-lg transition-all text-left ${stat.analyticsType || stat.action ? 'cursor-pointer' : 'cursor-default'}`}
                         >
                             <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform`}>
                                 <stat.icon />

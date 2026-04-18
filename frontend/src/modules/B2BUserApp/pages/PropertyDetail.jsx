@@ -576,10 +576,22 @@ const PropertyDetail = () => {
 
                                     <button
                                         onClick={() => {
+                                            if (!enquiryStatus.canAcceptEnquiries) {
+                                                toast.error("Contact Disabled (Insufficient Quota)");
+                                                return;
+                                            }
                                             const mapsUrl = getGoogleMapsUrl(property);
-                                            if (mapsUrl) window.open(mapsUrl, '_blank');
+                                            if (mapsUrl) {
+                                                trackContactClick('map');
+                                                window.open(mapsUrl, '_blank');
+                                            }
                                         }}
-                                        className="w-full mt-4 py-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-600 hover:text-white transition-all flex items-center justify-center gap-2 border border-primary-100"
+                                        className={`w-full mt-4 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 border ${
+                                            !enquiryStatus.canAcceptEnquiries
+                                                ? 'bg-gray-100 text-gray-400 border-gray-100 cursor-not-allowed grayscale'
+                                                : 'bg-primary-50 text-primary-600 border-primary-100 hover:bg-primary-600 hover:text-white'
+                                        }`}
+                                        title={!enquiryStatus.canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "View Shop Location"}
                                     >
                                         <FiMapPin /> View Shop Location
                                     </button>

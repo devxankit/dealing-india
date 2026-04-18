@@ -136,6 +136,7 @@ export const registerB2BVendor = async (vendorData) => {
       businessType: businessType || 'Textile',
       businessTypeRef: businessTypeRef || undefined,
       selectedSubTypes: selectedSubTypes || [],
+      agreedToTerms: !!vendorData.agreedToTerms,
     };
 
     try {
@@ -224,7 +225,8 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       commissionRate: 0,
       businessType: businessType || 'Textile',
       businessTypeRef: businessTypeRef || undefined,
-      selectedSubTypes: selectedSubTypes || []
+      selectedSubTypes: selectedSubTypes || [],
+      agreedToTerms: !!vendorData.agreedToTerms,
     };
 
     const vendor = await Vendor.create([newVendorData], { session });

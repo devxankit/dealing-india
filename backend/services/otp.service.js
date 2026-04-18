@@ -65,7 +65,11 @@ export const verifyOTP = async (identifier, code, type) => {
   try {
     if (!identifier || !code || !type) throw new Error('Params missing');
 
-    if (!isValidOTP(code)) throw new Error('Invalid OTP format');
+    if (!isValidOTP(code)) {
+      const error = new Error('Invalid OTP format');
+      error.statusCode = 400;
+      throw error;
+    }
 
     const normalizedIdentifier = identifier.toLowerCase().trim();
     const otpKey = `otp:${type}:${normalizedIdentifier}`;
@@ -74,8 +78,16 @@ export const verifyOTP = async (identifier, code, type) => {
     let otpData = await redisService.get(otpKey);
 
     if (otpData) {
-      if (otpData.isUsed) throw new Error('OTP already used');
-      if (otpData.code !== code) throw new Error('Invalid OTP');
+      if (otpData.isUsed) {
+        const error = new Error('OTP already used');
+        error.statusCode = 400;
+        throw error;
+      }
+      if (otpData.code !== code) {
+        const error = new Error('Invalid OTP');
+        error.statusCode = 400;
+        throw error;
+      }
 
       // Mark as used or delete
       await redisService.del(otpKey);
@@ -91,7 +103,11 @@ export const verifyOTP = async (identifier, code, type) => {
       expiresAt: { $gt: new Date() },
     });
 
-    if (!otp) throw new Error('Invalid or expired OTP');
+    if (!otp) {
+      const error = new Error('Invalid or expired OTP');
+      error.statusCode = 400;
+      throw error;
+    }
 
     otp.isUsed = true;
     await otp.save();

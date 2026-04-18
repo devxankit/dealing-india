@@ -47,8 +47,9 @@ const B2BProductDetail = () => {
                 }
 
                 setProduct(productData);
-                if (response.data.enquiryStatus) {
-                    setEnquiryStatus(response.data.enquiryStatus);
+                const status = response.data.enquiryStatus || productData.vendorId?.enquiryStatus;
+                if (status) {
+                    setEnquiryStatus(status);
                 }
                 if (productData.moq) {
                     setQuantity(Number(productData.moq));
@@ -361,7 +362,13 @@ const B2BProductDetail = () => {
                                                 <FaWhatsapp className="text-base md:text-lg shrink-0" /> WhatsApp
                                             </button>
                                             <button
-                                                onClick={handleCallClick}
+                                                onClick={() => {
+                                                    if (!enquiryStatus.canAcceptEnquiries) {
+                                                        toast.error("Contact Disabled (Insufficient Quota)");
+                                                        return;
+                                                    }
+                                                    handleCallClick();
+                                                }}
                                                 disabled={!enquiryStatus.canAcceptEnquiries}
                                                 className={`py-3 md:py-4 px-3 md:px-4 rounded-xl md:rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wide shadow-lg transition-all active:scale-95 flex items-center justify-center gap-1.5 md:gap-2 ${
                                                     !enquiryStatus.canAcceptEnquiries 
@@ -373,6 +380,10 @@ const B2BProductDetail = () => {
                                             </button>
                                             <button
                                                 onClick={() => {
+                                                    if (!enquiryStatus.canAcceptEnquiries) {
+                                                        toast.error("Contact Disabled (Insufficient Quota)");
+                                                        return;
+                                                    }
                                                     const mapsUrl = getGoogleMapsUrl(product.vendorId);
                                                     if (mapsUrl) {
                                                         trackContactClick('map');
@@ -381,7 +392,12 @@ const B2BProductDetail = () => {
                                                         toast.error('Location details not provided');
                                                     }
                                                 }}
-                                                className="py-3 md:py-4 px-3 md:px-4 bg-orange-600 text-white rounded-xl md:rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wide shadow-lg shadow-orange-100/50 hover:bg-orange-700 transition-all active:scale-95 flex items-center justify-center gap-1.5 md:gap-2"
+                                                className={`py-3 md:py-4 px-3 md:px-4 rounded-xl md:rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wide shadow-lg transition-all active:scale-95 flex items-center justify-center gap-1.5 md:gap-2 ${
+                                                    !enquiryStatus.canAcceptEnquiries
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed grayscale shadow-none'
+                                                        : 'bg-orange-600 text-white shadow-orange-100/50 hover:bg-orange-700'
+                                                }`}
+                                                title={!enquiryStatus.canAcceptEnquiries ? "Contact Disabled (Insufficient Quota)" : "Map"}
                                             >
                                                 <FiMapPin className="text-base md:text-lg shrink-0" /> Map
                                             </button>
