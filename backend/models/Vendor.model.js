@@ -142,15 +142,6 @@ const vendorSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    state: {
-      type: String,
-      trim: true,
-    },
-    language: {
-      type: String,
-      trim: true,
-      default: 'English',
-    },
 
     // Analytics for tracking user engagement
     analytics: {

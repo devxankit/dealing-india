@@ -541,6 +541,26 @@ class SubscriptionRulesService {
 
         const hasShop = !!shop;
 
+        /**
+         * calculateFeatureUsage helper
+         * Safely calculates combined limit, current usage, and remaining balance
+         * preventing double counting between plan slots and global addons.
+         */
+        const calculateFeatureUsage = (subLimit, countInDb, featAddonStats) => {
+            const totalLimit = subLimit === -1 ? -1 : (subLimit + featAddonStats.total);
+            if (totalLimit === -1) return { limit: -1, current: countInDb, remaining: -1 };
+
+            // Total Remaining = (Units left in Plan Slots) + (Units left in Addon Pool)
+            // Units left in Plan = max(0, subLimit - countInDb)
+            const planRemaining = Math.max(0, subLimit - countInDb);
+            const totalRemaining = planRemaining + featAddonStats.remaining;
+
+            // Current used = TotalLimit - TotalRemaining
+            const current = Math.max(0, totalLimit - totalRemaining);
+
+            return { limit: totalLimit, current, remaining: totalRemaining };
+        };
+
         // 🔹 Correct Addon Stats: Calculate Total Capacity, Remaining Units, and Historical Usage
         const addonStats = addons.reduce((acc, a) => {
             const ft = a.featureType;
@@ -582,6 +602,11 @@ class SubscriptionRulesService {
 
         const hasAddons = (addonStats.products.total + addonStats.reels.total + addonStats.lot_slot.total + addonStats.property.total) > 0;
 
+        const productUsage = calculateFeatureUsage(0, productCount, addonStats.products);
+        const lotSlotUsage = calculateFeatureUsage(0, lotSlotCount, addonStats.lot_slot);
+        const propertyUsage = calculateFeatureUsage(0, propertyCount, addonStats.property);
+        const reelUsage = calculateFeatureUsage(0, reelCount, addonStats.reels);
+
         return {
             isActive: hasAddons,
             hasSubscription: hasAddons,
@@ -591,32 +616,32 @@ class SubscriptionRulesService {
                 businessType: businessType || 'textile',
                 limits: {
                     products: { 
-                        allowed: addonStats.products.total > 0, 
-                        limit: addonStats.products.total, 
-                        current: productCount + addonStats.products.used, 
-                        remaining: Math.max(0, addonStats.products.total - (productCount + addonStats.products.used)),
+                        allowed: productUsage.limit !== 0, 
+                        limit: productUsage.limit, 
+                        current: productUsage.current, 
+                        remaining: productUsage.remaining,
                         hasAddon: addonStats.products.total > 0
                     },
                     lotSlot: { 
-                        allowed: addonStats.lot_slot.total > 0, 
-                        limit: addonStats.lot_slot.total,
-                        current: lotSlotCount + addonStats.lot_slot.used, 
-                        remaining: Math.max(0, addonStats.lot_slot.total - (lotSlotCount + addonStats.lot_slot.used)),
+                        allowed: lotSlotUsage.limit !== 0, 
+                        limit: lotSlotUsage.limit,
+                        current: lotSlotUsage.current, 
+                        remaining: lotSlotUsage.remaining,
                         hasAddon: addonStats.lot_slot.total > 0
                     },
                     properties: { 
-                        allowed: addonStats.property.total > 0, 
-                        limit: addonStats.property.total,
-                        current: propertyCount + addonStats.property.used,
-                        remaining: Math.max(0, addonStats.property.total - (propertyCount + addonStats.property.used)),
+                        allowed: propertyUsage.limit !== 0, 
+                        limit: propertyUsage.limit,
+                        current: propertyUsage.current,
+                        remaining: propertyUsage.remaining,
                         hasAddon: addonStats.property.total > 0,
                         maxImages: 50 
                     },
                     reels: { 
-                        allowed: addonStats.reels.total > 0, 
-                        limit: addonStats.reels.total, 
-                        current: reelCount + addonStats.reels.used,
-                        remaining: Math.max(0, addonStats.reels.total - (reelCount + addonStats.reels.used)),
+                        allowed: reelUsage.limit !== 0, 
+                        limit: reelUsage.limit, 
+                        current: reelUsage.current,
+                        remaining: reelUsage.remaining,
                         hasAddon: addonStats.reels.total > 0
                     },
                     enquiry: {
@@ -649,11 +674,11 @@ class SubscriptionRulesService {
         const subLotSlotLimit = plan.lotSlotLimit === 'unlimited' ? -1 : (Number(plan.lotSlotLimit) || 0);
         const subReelLimit = plan.reelsLimit === 'unlimited' ? -1 : (Number(plan.reelsLimit) || 0);
         const subEnquiryLimit = plan.enquiryLimit === 'unlimited' ? -1 : (Number(plan.enquiryLimit) || 0);
-        
-        const totalProductLimit = subProductLimit === -1 ? -1 : (subProductLimit + addonStats.products.total);
-        const totalPropertyLimit = subPropertyLimit === -1 ? -1 : (subPropertyLimit + addonStats.property.total);
-        const totalLotSlotLimit = subLotSlotLimit === -1 ? -1 : (subLotSlotLimit + addonStats.lot_slot.total);
-        const totalReelLimit = subReelLimit === -1 ? -1 : (subReelLimit + addonStats.reels.total);
+
+        const productUsage = calculateFeatureUsage(subProductLimit, productCount, addonStats.products);
+        const lotSlotUsage = calculateFeatureUsage(subLotSlotLimit, lotSlotCount, addonStats.lot_slot);
+        const propertyUsage = calculateFeatureUsage(subPropertyLimit, propertyCount, addonStats.property);
+        const reelUsage = calculateFeatureUsage(subReelLimit, reelCount, addonStats.reels);
 
         const imagesPerListing = plan.imagesPerListing === 'unlimited' ? -1 : (Number(plan.imagesPerListing) || 0);
         const shopSlideshow = !!plan.shopSlideshow;
@@ -671,33 +696,33 @@ class SubscriptionRulesService {
             businessType: subData.vendor?.businessType,
             limits: {
                 products: {
-                    allowed: totalProductLimit !== 0,
-                    limit: totalProductLimit,
-                    current: productCount + addonStats.products.used,
-                    remaining: totalProductLimit === -1 ? -1 : Math.max(0, totalProductLimit - (productCount + addonStats.products.used)),
+                    allowed: productUsage.limit !== 0,
+                    limit: productUsage.limit,
+                    current: productUsage.current,
+                    remaining: productUsage.remaining,
                     hasAddon: addonStats.products.total > 0,
                     maxImages: imagesPerListing
                 },
                 lotSlot: {
-                    allowed: totalLotSlotLimit !== 0,
-                    limit: totalLotSlotLimit,
-                    current: lotSlotCount + addonStats.lot_slot.used,
-                    remaining: totalLotSlotLimit === -1 ? -1 : Math.max(0, totalLotSlotLimit - (lotSlotCount + addonStats.lot_slot.used)),
+                    allowed: lotSlotUsage.limit !== 0,
+                    limit: lotSlotUsage.limit,
+                    current: lotSlotUsage.current,
+                    remaining: lotSlotUsage.remaining,
                     hasAddon: addonStats.lot_slot.total > 0
                 },
                 properties: {
-                    allowed: totalPropertyLimit !== 0 || addonStats.property.total > 0,
-                    limit: totalPropertyLimit,
-                    current: propertyCount + addonStats.property.used,
-                    remaining: totalPropertyLimit === -1 ? -1 : Math.max(0, totalPropertyLimit - (propertyCount + addonStats.property.used)),
+                    allowed: propertyUsage.limit !== 0 || addonStats.property.total > 0,
+                    limit: propertyUsage.limit,
+                    current: propertyUsage.current,
+                    remaining: propertyUsage.remaining,
                     hasAddon: addonStats.property.total > 0,
                     maxImages: imagesPerListing || 50
                 },
                 reels: {
-                    allowed: true,
-                    limit: totalReelLimit,
-                    current: reelCount + addonStats.reels.used,
-                    remaining: totalReelLimit === -1 ? -1 : Math.max(0, totalReelLimit - (reelCount + addonStats.reels.used)),
+                    allowed: subReelLimit !== 0 || addonStats.reels.total > 0,
+                    limit: reelUsage.limit,
+                    current: reelUsage.current,
+                    remaining: reelUsage.remaining,
                     hasAddon: addonStats.reels.total > 0
                 },
                 shopSlideshow: shopSlideshow,

@@ -20,9 +20,9 @@ import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
  */
 
 const BROKER_BUSINESS_TYPES = [
-    'property broker', 
-    'gray market / gray broker', 
-    'agency/ agent( broker)', 
+    'property broker',
+    'gray market / gray broker',
+    'agency/ agent( broker)',
     'support & services'
 ];
 
@@ -129,7 +129,7 @@ const B2BVendorRegister = () => {
     const handleDocumentUpload = async (e, type, isCamera = false) => {
         const file = e.target.files[0];
         console.log(`[KYCUpload] ${isCamera ? 'Camera' : 'File'} input triggered for ${type}. File:`, file?.name);
-        
+
         if (!file) {
             console.warn('[KYCUpload] No file picked');
             return;
@@ -157,7 +157,7 @@ const B2BVendorRegister = () => {
                 };
                 const compressed = await imageCompression(file, options);
                 console.log(`[KYCUpload] Compressed: ${Math.round(compressed.size / 1024)}KB`);
-                
+
                 data = await new Promise((resolve) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result);
@@ -178,7 +178,7 @@ const B2BVendorRegister = () => {
             } else {
                 setPanCard({ name: file.name, data, type: file.type });
             }
-            
+
             // Clear input value
             e.target.value = '';
             toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} added`, { id: toastId });
@@ -193,7 +193,7 @@ const B2BVendorRegister = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        
+
         // Clear error for the field being changed
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: '' }));
@@ -220,7 +220,7 @@ const B2BVendorRegister = () => {
         }
         if (name.startsWith('address.')) {
             const field = name.split('.')[1];
-            
+
             // Clear address field error
             if (errors[name]) {
                 setErrors(prev => ({ ...prev, [name]: '' }));
@@ -232,7 +232,7 @@ const B2BVendorRegister = () => {
             if (field === 'city' || field === 'state') {
                 cleanedValue = value.replace(/[^a-zA-Z\s]/g, '');
             }
-            
+
             // Validation: Pin Code should take only numbers and limit to 6 digits
             if (field === 'pincode') {
                 cleanedValue = value.replace(/\D/g, '').slice(0, 6);
@@ -301,7 +301,7 @@ const B2BVendorRegister = () => {
         // Address Validations
         if (!formData.address.street.trim()) newErrors['address.street'] = 'Street Address is required';
         if (!formData.address.area.trim()) newErrors['address.area'] = 'Area/Locality is required';
-        
+
         if (!formData.address.city.trim()) {
             newErrors['address.city'] = 'City is required';
         } else {
@@ -332,7 +332,7 @@ const B2BVendorRegister = () => {
         if (!isBrokerType) {
             if (!businessLicense) newErrors.businessLicense = 'Business License is required';
             if (!panCard) newErrors.panCard = 'PAN Card is required';
-            
+
             if (!formData.gstNumber || !formData.gstNumber.trim()) {
                 newErrors.gstNumber = 'GST Number is required';
             }
@@ -462,7 +462,8 @@ const B2BVendorRegister = () => {
                     </div>
                     <h1 className="text-2xl font-extrabold text-gray-800 mb-1">B2B Vendor Registration</h1>
                     <p className="text-sm text-gray-600">Join our B2B network as a verified Partner</p>
-                </div>                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                     {/* Section 1: Contact Person */}
                     <div className="bg-white/50 p-4 rounded-xl border border-gray-100 shadow-sm">
                         <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">

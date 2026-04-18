@@ -202,7 +202,7 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
     if (!plan || !plan.isActive) throw new Error('Invalid or inactive plan');
 
     const hashedPassword = await hashPassword(password);
-    
+
     // Process documents (re-using logic or simplifying)
     let processedDocuments = [];
     // ... doc processing simplified for context ...

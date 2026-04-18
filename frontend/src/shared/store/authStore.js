@@ -93,16 +93,16 @@ export const useAuthStore = create(
             const { user, token } = response.data;
 
             const userData = {
-               id: user._id || user.id,
-               _id: user._id,
-               name: user.name,
-               email: user.email,
-               phone: user.phone || '',
-               avatar: user.avatar || null,
-               isEmailVerified: user.isEmailVerified || false,
-               role: user.role || 'user',
-               currentMarketplace: user.currentMarketplace || 'b2b',
-               businessInfo: user.businessInfo || null,
+              id: user._id || user.id,
+              _id: user._id,
+              name: user.name,
+              email: user.email,
+              phone: user.phone || '',
+              avatar: user.avatar || null,
+              isEmailVerified: user.isEmailVerified || false,
+              role: user.role || 'user',
+              currentMarketplace: user.currentMarketplace || 'b2b',
+              businessInfo: user.businessInfo || null,
             };
 
             set({
@@ -115,7 +115,7 @@ export const useAuthStore = create(
             });
 
             localStorage.setItem('token', token);
-            try { await registerFCMToken(true); } catch (e) {}
+            try { await registerFCMToken(true); } catch (e) { }
 
             return { success: true, user: userData };
           } else {
@@ -144,16 +144,16 @@ export const useAuthStore = create(
           if (response.success && response.data) {
             const { user, token } = response.data;
             const userData = {
-               id: user._id || user.id,
-               _id: user._id,
-               name: user.name,
-               email: user.email,
-               phone: user.phone || '',
-               avatar: user.avatar || null,
-               isEmailVerified: user.isEmailVerified || false,
-               role: user.role || 'user',
-               currentMarketplace: user.currentMarketplace || 'b2b',
-               businessInfo: user.businessInfo || null,
+              id: user._id || user.id,
+              _id: user._id,
+              name: user.name,
+              email: user.email,
+              phone: user.phone || '',
+              avatar: user.avatar || null,
+              isEmailVerified: user.isEmailVerified || false,
+              role: user.role || 'user',
+              currentMarketplace: user.currentMarketplace || 'b2b',
+              businessInfo: user.businessInfo || null,
             };
 
             set({

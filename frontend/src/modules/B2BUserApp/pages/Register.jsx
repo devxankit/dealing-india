@@ -141,8 +141,8 @@ const B2BUserRegister = () => {
             );
 
             if (result.success) {
-                const successMsg = result.otp 
-                    ? `Registration successful! Your OTP is ${result.otp}` 
+                const successMsg = result.otp
+                    ? `Registration successful! Your OTP is ${result.otp}`
                     : 'Registration successful! Please verify your email.';
                 toast.success(successMsg, { duration: 6000 });
                 navigate('/b2b/verification', { state: { email: formData.email } });
@@ -202,9 +202,8 @@ const B2BUserRegister = () => {
                                 value={formData.name}
                                 onChange={handleChange}
                                 placeholder="John Doe"
-                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${
-                                    errors.name ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
-                                }`}
+                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${errors.name ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                    }`}
                             />
                         </div>
                         {errors.name && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors.name}</p>}
@@ -220,9 +219,8 @@ const B2BUserRegister = () => {
                                 value={formData.email}
                                 onChange={handleChange}
                                 placeholder="name@business.com"
-                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${
-                                    errors.email ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
-                                }`}
+                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${errors.email ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                    }`}
                             />
                         </div>
                         {errors.email && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors.email}</p>}
@@ -238,9 +236,8 @@ const B2BUserRegister = () => {
                                 value={formData.phone}
                                 onChange={handleChange}
                                 placeholder="9876543210"
-                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${
-                                    errors.phone ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
-                                }`}
+                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${errors.phone ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                    }`}
                             />
                         </div>
                         {errors.phone && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors.phone}</p>}
@@ -256,9 +253,8 @@ const B2BUserRegister = () => {
                                 value={formData.password}
                                 onChange={handleChange}
                                 placeholder="••••••••"
-                                className={`w-full pl-10 pr-10 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${
-                                    errors.password ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
-                                }`}
+                                className={`w-full pl-10 pr-10 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${errors.password ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                    }`}
                             />
                             <button
                                 type="button"
@@ -281,9 +277,8 @@ const B2BUserRegister = () => {
                                 value={formData.address.city}
                                 onChange={handleChange}
                                 placeholder="Surat"
-                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${
-                                    errors['address.city'] ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
-                                }`}
+                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${errors['address.city'] ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                    }`}
                             />
                         </div>
                         {errors['address.city'] && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors['address.city']}</p>}
