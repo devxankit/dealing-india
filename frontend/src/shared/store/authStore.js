@@ -14,7 +14,7 @@ export const useAuthStore = create(
       isHydrated: false,
 
       // Register action
-      register: async (name, email, password, phone, userType = 'b2b', businessInfo = null, referralCode = '') => {
+      register: async (name, email, password, phone, userType = 'b2b', businessInfo = null, referralCode = '', agreedToTerms = false) => {
         set({ isLoading: true });
         try {
           const response = await api.post('/auth/user/register', {
@@ -24,7 +24,8 @@ export const useAuthStore = create(
             phone,
             userType,
             businessInfo,
-            referralCode
+            referralCode,
+            agreedToTerms
           });
 
           if (response.success) {

@@ -399,7 +399,6 @@ const B2BVendorRegister = () => {
                 sessionStorage.removeItem('b2b_registration_data'); // Added this line
                 localStorage.removeItem('b2b_paid_plan_id');
                 localStorage.removeItem('b2b_subscription_id');
-                localStorage.removeItem('shop_listing_draft');
                 localStorage.removeItem('b2b_payment_email');
                 localStorage.removeItem('b2b_payment_phone');
 
@@ -747,7 +746,7 @@ const B2BVendorRegister = () => {
                                 <FiCheck className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none text-xs" />
                             </div>
                             <span className="text-sm text-gray-600 leading-tight">
-                                I agree to the <Link to="/terms?type=vendor" target="_blank" className="text-primary-600 font-bold hover:underline">Terms & Conditions</Link>
+                                I agree to the <Link to="/terms?type=vendor" className="text-primary-600 font-bold hover:underline">Terms & Conditions</Link>
                             </span>
                         </label>
                         {errors.agreedToTerms && <p className="text-red-500 text-[10px] ml-8">{errors.agreedToTerms}</p>}

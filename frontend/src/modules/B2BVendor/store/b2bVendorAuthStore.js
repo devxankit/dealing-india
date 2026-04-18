@@ -121,7 +121,6 @@ export const useB2BVendorAuthStore = create(
                     // Clear any stale state from previous sessions
                     useSubscriptionStore.getState().clearStatus();
                     useDashboardStore.getState().clearDashboard();
-                    localStorage.removeItem('shop_listing_draft');
 
                     console.log('[B2B Vendor Login] Token in localStorage after set:', localStorage.getItem('b2b-vendor-token') ? 'Yes' : 'No');
 
@@ -158,7 +157,6 @@ export const useB2BVendorAuthStore = create(
                 // Clear all vendor related stores
                 useSubscriptionStore.getState().clearStatus();
                 useDashboardStore.getState().clearDashboard();
-                localStorage.removeItem('shop_listing_draft');
 
                 set({
                     vendor: null,

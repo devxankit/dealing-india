@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiBriefcase, FiMapPin, FiArrowLeft } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiBriefcase, FiMapPin, FiArrowLeft, FiCheck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
@@ -13,15 +13,30 @@ const B2BUserRegister = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState({});
 
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: '',
-        password: '',
-        address: {
-            city: '',
+    const [formData, setFormData] = useState(() => {
+        const saved = localStorage.getItem('b2b_user_register_draft');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.error('Failed to parse draft', e);
+            }
         }
+        return {
+            name: '',
+            email: '',
+            phone: '',
+            password: '',
+            address: {
+                city: '',
+            },
+            agreedToTerms: false
+        };
     });
+
+    useEffect(() => {
+        localStorage.setItem('b2b_user_register_draft', JSON.stringify(formData));
+    }, [formData]);
     const referralCode = new URLSearchParams(location.search).get('ref') || '';
 
     const handleChange = (e) => {
@@ -103,6 +118,11 @@ const B2BUserRegister = () => {
             newErrors['address.city'] = 'City is required';
         }
 
+        // 6. Terms Agreement
+        if (!formData.agreedToTerms) {
+            newErrors.agreedToTerms = 'You must agree to the Terms & Conditions';
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -137,7 +157,8 @@ const B2BUserRegister = () => {
                 payload.phone,
                 payload.userType,
                 payload.businessInfo,
-                referralCode
+                referralCode,
+                formData.agreedToTerms
             );
 
             if (result.success) {
@@ -145,6 +166,7 @@ const B2BUserRegister = () => {
                     ? `Registration successful! Your OTP is ${result.otp}`
                     : 'Registration successful! Please verify your email.';
                 toast.success(successMsg, { duration: 6000 });
+                localStorage.removeItem('b2b_user_register_draft');
                 navigate('/b2b/verification', { state: { email: formData.email } });
             } else {
                 toast.error(result.message || 'Registration failed');
@@ -282,6 +304,25 @@ const B2BUserRegister = () => {
                             />
                         </div>
                         {errors['address.city'] && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors['address.city']}</p>}
+                    </div>
+
+                    <div className="md:col-span-2 flex flex-col gap-1 px-1">
+                        <label className="flex items-start gap-3 cursor-pointer group">
+                            <div className="relative flex items-center mt-0.5">
+                                <input
+                                    type="checkbox"
+                                    name="agreedToTerms"
+                                    checked={formData.agreedToTerms}
+                                    onChange={handleChange}
+                                    className="peer h-4 w-4 cursor-pointer appearance-none rounded border-2 border-gray-300 transition-all checked:border-primary-600 checked:bg-primary-600 focus:outline-none"
+                                />
+                                <FiCheck className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none text-[10px]" />
+                            </div>
+                            <span className="text-xs text-gray-600 leading-tight">
+                                I agree to the <Link to="/terms?type=user" className="text-primary-600 font-bold hover:underline">Terms & Conditions</Link>
+                            </span>
+                        </label>
+                        {errors.agreedToTerms && <p className="text-rose-500 text-[10px] ml-7 font-bold">{errors.agreedToTerms}</p>}
                     </div>
 
                     <div className="md:col-span-2 pt-4">

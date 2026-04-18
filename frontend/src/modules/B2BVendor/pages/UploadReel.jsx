@@ -8,6 +8,9 @@ import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
 import SubscriptionGate from '../components/SubscriptionGate';
 import QuotaBanner from '../components/QuotaBanner';
 import { useSubscriptionStore } from '../store/subscriptionStore';
+import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
+
+const DRAFT_KEY = "b2b_reel_add_draft";
 
 const MAX_VIDEO_MB = 100;
 const MAX_DURATION_SECONDS = 60;
@@ -21,7 +24,7 @@ export default function UploadReel() {
   const [loading, setLoading] = useState(false);
   const [canUploadDaily, setCanUploadDaily] = useState(true);
   const [dailyStatusLoading, setDailyStatusLoading] = useState(true);
-  const [form, setForm] = useState({
+  const defaultForm = {
     title: '',
     description: '',
     categoryId: '',
@@ -29,6 +32,21 @@ export default function UploadReel() {
     categoryName: '',
     price: '',
     minimum: '',
+  };
+
+  const { vendor } = useB2BVendorAuthStore();
+  const vendorId = vendor?._id || vendor?.id || "anonymous";
+  const USER_DRAFT_KEY = `${DRAFT_KEY}_${vendorId}`;
+
+  const [form, setForm] = useState(() => {
+    const saved = localStorage.getItem(USER_DRAFT_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...defaultForm, ...parsed.form };
+      } catch (e) { console.error("Reel draft load failed", e); }
+    }
+    return defaultForm;
   });
   const [submissionType, setSubmissionType] = useState('file'); // 'file' or 'link'
   const [videoLink, setVideoLink] = useState('');
@@ -72,6 +90,13 @@ export default function UploadReel() {
     };
     checkDailyStatus();
   }, []);
+
+  // Auto-save draft
+  useEffect(() => {
+    if (vendorId !== "anonymous") {
+      localStorage.setItem(USER_DRAFT_KEY, JSON.stringify({ form }));
+    }
+  }, [form, USER_DRAFT_KEY, vendorId]);
 
   // Build the flat list of unique subcategory names across all B2B categories
   // and append extra playlist categories for properties.
@@ -178,6 +203,7 @@ export default function UploadReel() {
 
       const res = await api.post('/reels', fd);
       if (res.success) {
+        localStorage.removeItem(USER_DRAFT_KEY);
         toast.success('Reel submitted for moderation. It will go live after admin approval.');
         try { await refreshStatus(); } catch (e) { console.error("Refresh status failed", e); }
         navigate('/b2b-vendor/reels');

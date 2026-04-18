@@ -6,6 +6,7 @@ import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useSubscriptionStore } from "../store/subscriptionStore";
+import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 
 const FlatForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
@@ -13,7 +14,9 @@ const FlatForm = ({ initialData, isEdit }) => {
     const [errors, setErrors] = useState({});
     const [step, setStep] = useState(1);
     const cameraInputRef = useRef(null);
-    const DRAFT_KEY = "b2b_flat_add_draft";
+    const { vendor } = useB2BVendorAuthStore();
+    const vendorId = vendor?._id || vendor?.id || "anonymous";
+    const DRAFT_KEY = `b2b_flat_add_draft_${vendorId}`;
 
     const [media, setMedia] = useState(() => {
         if (!isEdit) {
@@ -91,12 +94,12 @@ const FlatForm = ({ initialData, isEdit }) => {
 
     // Auto-save draft
     useEffect(() => {
-        if (!isEdit) {
+        if (!isEdit && vendorId !== "anonymous") {
             localStorage.setItem(DRAFT_KEY, JSON.stringify({ formData, flatVariants, media }));
-        } else {
+        } else if (isEdit) {
             localStorage.removeItem(DRAFT_KEY);
         }
-    }, [formData, flatVariants, media, isEdit]);
+    }, [formData, flatVariants, media, isEdit, DRAFT_KEY, vendorId]);
 
     useEffect(() => {
         // keep primary flatDetails in sync with first variant

@@ -11,9 +11,14 @@ const ALL_BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Sem
 const DEVELOPER_BUSINESS_CATEGORIES = ['Developer', 'Property'];
 
 const ShopListingForm = ({ onSubmit, isLoading = false }) => {
+    const { vendor } = useB2BVendorAuthStore();
+    const vendorId = vendor?._id || vendor?.id || "anonymous";
+    const DRAFT_KEY = "shop_listing_draft";
+    const USER_DRAFT_KEY = `${DRAFT_KEY}_${vendorId}`;
+
     const [formData, setFormData] = useState(() => {
         // Try to load draft from localStorage on initial load
-        const savedDraft = localStorage.getItem('shop_listing_draft');
+        const savedDraft = localStorage.getItem(USER_DRAFT_KEY);
         if (savedDraft) {
             try {
                 const parsed = JSON.parse(savedDraft);
@@ -96,14 +101,15 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
 
     // Save to localStorage whenever formData changes (Draft Persistence)
     useEffect(() => {
+        if (vendorId === "anonymous") return;
         const { shopUnitId, ...draftData } = formData;
         // Don't save large base64 strings to localStorage to avoid quota exceeded error
         const cleanDraft = {
             ...draftData,
             images: draftData.images.filter(img => img.startsWith('http'))
         };
-        localStorage.setItem('shop_listing_draft', JSON.stringify(cleanDraft));
-    }, [formData]);
+        localStorage.setItem(USER_DRAFT_KEY, JSON.stringify(cleanDraft));
+    }, [formData, USER_DRAFT_KEY, vendorId]);
 
     // When vendor is Developer, ensure selected businessCategory is in allowed list
     useEffect(() => {
@@ -228,7 +234,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         };
 
         // Clear draft on successful submit
-        localStorage.removeItem('shop_listing_draft');
+        localStorage.removeItem(USER_DRAFT_KEY);
         onSubmit(payload);
     };
 

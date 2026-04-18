@@ -15,7 +15,7 @@ import {
  * Register a new user
  */
 export const registerUser = async (userData) => {
-    const { name, email, password, phone, userType, businessInfo, referralCode } = userData;
+    const { name, email, password, phone, userType, businessInfo, referralCode, agreedToTerms } = userData;
     const normalizedReferralCode = String(referralCode || '').trim().toUpperCase();
 
     if (normalizedReferralCode) {
@@ -47,6 +47,7 @@ export const registerUser = async (userData) => {
                 businessInfo,
                 role: 'user',
                 referralCode: normalizedReferralCode || undefined,
+                agreedToTerms: !!agreedToTerms
             },
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
             isVerified: false

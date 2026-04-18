@@ -20,13 +20,15 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const [loading, setLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const { vendor } = useB2BVendorAuthStore();
+    const vendorId = vendor?._id || vendor?.id || "anonymous";
+    const USER_DRAFT_KEY = `${DRAFT_KEY}_${vendorId}`;
     const cameraInputRef = useRef(null);
     const [errors, setErrors] = useState({});
 
     const [formData, setFormData] = useState(() => {
         if (initialData) return initialData;
         if (!isEdit) {
-            const saved = localStorage.getItem(DRAFT_KEY);
+            const saved = localStorage.getItem(USER_DRAFT_KEY);
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
@@ -62,7 +64,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     // Initialize dynamic values and custom inputs from draft
     const [dynamicValues, setDynamicValues] = useState(() => {
         if (!isEdit) {
-            const saved = localStorage.getItem(DRAFT_KEY);
+            const saved = localStorage.getItem(USER_DRAFT_KEY);
             if (saved) {
                 try { return JSON.parse(saved).dynamicValues || {}; } catch (e) { }
             }
@@ -72,7 +74,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
     const [customMultiInputs, setCustomMultiInputs] = useState(() => {
         if (!isEdit) {
-            const saved = localStorage.getItem(DRAFT_KEY);
+            const saved = localStorage.getItem(USER_DRAFT_KEY);
             if (saved) {
                 try { return JSON.parse(saved).customMultiInputs || {}; } catch (e) { }
             }
@@ -82,17 +84,17 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
     // Auto-save draft
     useEffect(() => {
-        if (!isEdit) {
-            localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        if (!isEdit && vendorId !== "anonymous") {
+            localStorage.setItem(USER_DRAFT_KEY, JSON.stringify({
                 formData,
                 dynamicValues,
                 customMultiInputs
             }));
-        } else {
-            // If editing, clear any stale add drafts to prevent overlap
-            localStorage.removeItem(DRAFT_KEY);
+        } else if (isEdit) {
+            // If editing, clear any stale add drafts for this user to prevent overlap
+            localStorage.removeItem(USER_DRAFT_KEY);
         }
-    }, [formData, dynamicValues, customMultiInputs, isEdit]);
+    }, [formData, dynamicValues, customMultiInputs, isEdit, USER_DRAFT_KEY, vendorId]);
 
     useEffect(() => {
         if (!categoriesCache) {
@@ -488,7 +490,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
             }
 
             // Clear draft on success
-            localStorage.removeItem(DRAFT_KEY);
+            localStorage.removeItem(USER_DRAFT_KEY);
 
             // Important: refresh subscription status so counts update immediately across the app
             try { await refreshStatus(); } catch (e) { console.error("Refresh status failed", e); }

@@ -6,6 +6,7 @@ import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useSubscriptionStore } from "../store/subscriptionStore";
+import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 
 const DRAFT_KEY = "b2b_property_add_draft";
 
@@ -15,9 +16,13 @@ const PropertyForm = ({ initialData, isEdit }) => {
     const [errors, setErrors] = useState({});
     const [step, setStep] = useState(1);
     const cameraInputRef = useRef(null);
+    const { vendor } = useB2BVendorAuthStore();
+    const vendorId = vendor?._id || vendor?.id || "anonymous";
+    const USER_DRAFT_KEY = `${DRAFT_KEY}_${vendorId}`;
+
     const [media, setMedia] = useState(() => {
         if (!isEdit) {
-            const saved = localStorage.getItem(DRAFT_KEY);
+            const saved = localStorage.getItem(USER_DRAFT_KEY);
             if (saved) {
                 try { return JSON.parse(saved).media || []; } catch(e) {}
             }
@@ -42,7 +47,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
 
         if (initialData) return defaultData; // Will be hydrated by useEffect below
         if (!isEdit) {
-            const saved = localStorage.getItem(DRAFT_KEY);
+            const saved = localStorage.getItem(USER_DRAFT_KEY);
             if (saved) {
                 try { return JSON.parse(saved).formData || defaultData; } catch(e) {}
             }
@@ -52,12 +57,12 @@ const PropertyForm = ({ initialData, isEdit }) => {
 
     // Auto-save draft
     useEffect(() => {
-        if (!isEdit) {
-            localStorage.setItem(DRAFT_KEY, JSON.stringify({ formData, media }));
-        } else {
-            localStorage.removeItem(DRAFT_KEY);
+        if (!isEdit && vendorId !== "anonymous") {
+            localStorage.setItem(USER_DRAFT_KEY, JSON.stringify({ formData, media }));
+        } else if (isEdit) {
+            localStorage.removeItem(USER_DRAFT_KEY);
         }
-    }, [formData, media, isEdit]);
+    }, [formData, media, isEdit, USER_DRAFT_KEY, vendorId]);
 
     useEffect(() => {
         if (initialData) {
@@ -277,7 +282,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 : await api.post('/property/add', payload);
 
             if (response.success) {
-                localStorage.removeItem(DRAFT_KEY);
+                localStorage.removeItem(USER_DRAFT_KEY);
                 toast.success(isEdit ? 'Property updated successfully!' : 'Property listed successfully!');
                 // Refresh subscription status to update counts
                 try {

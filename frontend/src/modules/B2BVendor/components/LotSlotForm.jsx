@@ -14,7 +14,8 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     const [errors, setErrors] = useState({});
     const [isUploading, setIsUploading] = useState(false);
     const { vendor } = useB2BVendorAuthStore();
-    const DRAFT_KEY = "b2b_lotslot_add_draft";
+    const vendorId = vendor?._id || vendor?.id || "anonymous";
+    const DRAFT_KEY = `b2b_lotslot_add_draft_${vendorId}`;
 
     const [formData, setFormData] = useState(() => {
         const defaultData = {
@@ -65,16 +66,16 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
 
     // Auto-save draft
     useEffect(() => {
-        if (!isEdit) {
+        if (!isEdit && vendorId !== "anonymous") {
             localStorage.setItem(DRAFT_KEY, JSON.stringify({
                 formData,
                 dynamicValues,
                 customMultiInputs
             }));
-        } else {
+        } else if (isEdit) {
             localStorage.removeItem(DRAFT_KEY);
         }
-    }, [formData, dynamicValues, customMultiInputs, isEdit]);
+    }, [formData, dynamicValues, customMultiInputs, isEdit, DRAFT_KEY, vendorId]);
 
     const filteredSubcategories = useMemo(() => {
         return (subcategories || []).filter(sub => {

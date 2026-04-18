@@ -77,6 +77,10 @@ const userSchema = new mongoose.Schema(
             type: [String],
             default: []
         },
+        agreedToTerms: {
+            type: Boolean,
+            default: false,
+        },
     },
     {
         timestamps: true,

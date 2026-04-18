@@ -1055,6 +1055,9 @@ class SubscriptionService {
 
     // Process Subscriptions
     for (const sub of subs) {
+      // B2B: Only show plans paid via external methods (not wallet)
+      if (sub.paymentMethod === 'wallet') continue;
+
       if (sub.lastPaymentDate || sub.status === 'active' || sub.status === 'expired') {
         history.push({
           id: sub._id.toString(),
@@ -1069,7 +1072,11 @@ class SubscriptionService {
       }
     }
 
-    // Process Addons
+    /* 
+       Process Addons - REMOVED as per user requirement to only show "Billing" (Recharges/Direct Plans)
+       Add-ons are internal wallet debits and shouldn't appear in the main accounting billing section.
+    */
+    /*
     for (const addon of addons) {
       history.push({
         id: addon._id.toString(),
@@ -1082,9 +1089,13 @@ class SubscriptionService {
         zohoInvoiceId: addon.zohoInvoiceId
       });
     }
+    */
 
     // Process Banner Bookings
     for (const booking of bannerBookings) {
+      // B2B: Banner bookings paid via wallet are internal, skip them on Billing page
+      if (booking.paymentMethod === 'wallet') continue;
+
       history.push({
         id: booking._id.toString(),
         transactionCode: booking.referenceId || booking.razorpayOrderId || `BANNER-${booking._id}`,
@@ -1094,17 +1105,14 @@ class SubscriptionService {
         date: booking.createdAt,
         planName: booking.title ? `Banner: ${booking.title}` : 'Banner Booking',
         zohoInvoiceId: booking.zohoInvoiceId,
-        // Extra info useful for display
         bannerType: booking.bannerType,
         startDate: booking.startDate,
         endDate: booking.endDate
       });
     }
     
-    // Process Wallet Recharges
+    // Process Wallet Recharges - These are external payments, Keep them!
     for (const recharge of walletRecharges) {
-      // Re-calculate total amount (inclusive of GST) if not stored in metadata
-      // Since it's credit, recharge.amount is the base amount credited (net)
       const totalPaid = recharge.metadata?.totalAmount || Math.round(recharge.amount * 1.18);
       
       history.push({
