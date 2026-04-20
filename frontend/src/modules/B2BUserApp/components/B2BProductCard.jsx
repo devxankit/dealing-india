@@ -184,15 +184,23 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
 
             {/* Content Body - Ultra Compact */}
             <div className={`p-2.5 flex flex-col gap-2 ${viewMode === 'list' ? 'flex-1 justify-center' : 'flex-1'}`}>
-                <div className="h-[50px] md:h-[60px] flex flex-col justify-center">
+                <div className="h-[55px] md:h-[65px] flex flex-col justify-center gap-0.5">
                     <h3 className="text-[12px] font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase leading-tight">
                         {product.formType === 'shop-listing' && product.items?.length > 0
                             ? (product.items[0].itemName || product.items[0].name || 'Item')
                             : product.name}
                     </h3>
-                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate mt-0.5">
+                    
+                    {vendor?.address?.city && (
+                        <div className="flex items-center gap-1 text-[9px] font-black text-primary-600 uppercase tracking-tight truncate">
+                             <FiMapPin className="text-primary-500" size={10} />
+                             <span>{vendor.address.city}</span>
+                        </div>
+                    )}
+
+                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
                         <span className="text-gray-500">Mfg:</span>{' '}
-                        {vendor?.mfgOfWork ? vendor.mfgOfWork : '—'}
+                        {vendor?.mfgOfWork ? vendor.mfgOfWork : (product.category || '—')}
                     </p>
                 </div>
 

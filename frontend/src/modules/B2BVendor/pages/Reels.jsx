@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiVideo, FiPlus, FiClock, FiCheck, FiX, FiPlay, FiTrash2, FiMusic, FiAlertTriangle, FiRefreshCw } from 'react-icons/fi';
+import { FiVideo, FiPlus, FiClock, FiCheck, FiX, FiPlay, FiTrash2, FiMusic, FiAlertTriangle, FiRefreshCw, FiSearch, FiChevronDown } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import { getSocket } from '../../../shared/utils/socket';
+import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
 import dayjs from 'dayjs';
 
 export default function Reels() {
@@ -15,9 +16,18 @@ export default function Reels() {
   const [total, setTotal] = useState(0);
   const [previewReel, setPreviewReel] = useState(null);
   const [replacingReel, setReplacingReel] = useState(null);
+  const [replacingId, setReplacingId] = useState(null);
   const [approvedMusic, setApprovedMusic] = useState([]);
   const [musicLoading, setMusicLoading] = useState(false);
   const [reelTypeFilter, setReelTypeFilter] = useState('link'); // Default to Links
+
+  const { categories: allCategories, initialize: fetchB2BCategories } = useB2BCategoryStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = React.useRef(null);
+  const [selectedCategoryName, setSelectedCategoryName] = useState('');
 
   const getReelYoutubeId = (reel) => {
     if (!reel) return null;
@@ -31,7 +41,11 @@ export default function Reels() {
   const fetchReels = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/reels/my?page=${page}&limit=12&reelType=${reelTypeFilter}`);
+      const params = new URLSearchParams({ page, limit: 12, reelType: reelTypeFilter });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (selectedCategoryName) params.set('categoryName', selectedCategoryName);
+      
+      const res = await api.get(`/reels/my?${params}`);
       if (res.success) {
         setReels(res.data.reels || []);
         setTotal(res.pagination?.total || 0);
@@ -90,9 +104,68 @@ export default function Reels() {
   }, [replacingReel]);
 
 
+  // Handle click outside for category dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Compute the same standardized category list used by vendors/buyers
+  const playlistCategories = React.useMemo(() => {
+    const subs = allCategories.flatMap((cat) => cat.subcategories || []);
+    const subNames = subs
+      .map((s) => (typeof s === 'string' ? s : s?.name))
+      .filter(Boolean);
+
+    // Also include main category names if they have no subcategories
+    const catNames = allCategories
+      .filter(cat => !cat.subcategories || cat.subcategories.length === 0)
+      .map(cat => cat.name);
+
+    const extra = ['Flat Properties', 'Villa / Row house Properties', 'Commercial Properties'];
+    const merged = [...subNames, ...catNames, ...extra];
+
+    const unique = Array.from(
+      new Map(
+        merged
+          .map((name) => (name || '').trim())
+          .filter(Boolean)
+          .map((name) => [name.toLowerCase(), name])
+      ).values()
+    );
+
+    return unique.sort((a, b) => a.localeCompare(b));
+  }, [allCategories]);
+
+  const filteredPlaylistCategories = React.useMemo(() => {
+    if (!categorySearchQuery.trim()) return playlistCategories;
+    const query = categorySearchQuery.toLowerCase();
+    return playlistCategories.filter(name => 
+      (name || '').toLowerCase().includes(query)
+    );
+  }, [playlistCategories, categorySearchQuery]);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    fetchB2BCategories();
+  }, [fetchB2BCategories]);
+
   useEffect(() => {
     fetchReels();
-  }, [page, reelTypeFilter]);
+  }, [page, reelTypeFilter, debouncedSearch, selectedCategoryName]);
 
   // Real-time update listener for reel status changes
   useEffect(() => {
@@ -133,30 +206,136 @@ export default function Reels() {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex p-1 bg-gray-100/80 backdrop-blur-sm rounded-2xl w-fit mb-8 gap-1">
-        <button
-          onClick={() => { setReelTypeFilter('link'); setPage(1); }}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
-            reelTypeFilter === 'link' 
-              ? 'bg-white text-primary-600 shadow-sm ring-1 ring-black/[0.05]' 
-              : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
-          }`}
-        >
-          <FiPlay size={16} />
-          Video Links
-        </button>
-        <button
-          onClick={() => { setReelTypeFilter('upload'); setPage(1); }}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
-            reelTypeFilter === 'upload' 
-              ? 'bg-white text-primary-600 shadow-sm ring-1 ring-black/[0.05]' 
-              : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
-          }`}
-        >
-          <FiVideo size={16} />
-          Uploaded Videos
-        </button>
+      {/* Tabs and Filters */}
+      <div className="flex flex-wrap items-center gap-4 mb-8">
+        <div className="flex p-1 bg-gray-100/80 backdrop-blur-sm rounded-2xl w-fit gap-1">
+          <button
+            onClick={() => { setReelTypeFilter('link'); setPage(1); }}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
+              reelTypeFilter === 'link' 
+                ? 'bg-white text-primary-600 shadow-sm ring-1 ring-black/[0.05]' 
+                : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+            }`}
+          >
+            <FiPlay size={16} />
+            Video Links
+          </button>
+          <button
+            onClick={() => { setReelTypeFilter('upload'); setPage(1); }}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
+              reelTypeFilter === 'upload' 
+                ? 'bg-white text-primary-600 shadow-sm ring-1 ring-black/[0.05]' 
+                : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+            }`}
+          >
+            <FiVideo size={16} />
+            Uploaded Videos
+          </button>
+        </div>
+
+        {/* Global Search */}
+        <div className="relative flex-1 min-w-[240px]">
+          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by title, description..."
+            className="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all shadow-sm"
+          />
+        </div>
+
+        {/* Category Filter */}
+        <div className="relative" ref={categoryDropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+            className={`w-[220px] px-4 py-2.5 border rounded-2xl flex items-center justify-between bg-white text-sm font-medium transition-all hover:border-primary-400 shadow-sm ${
+              isCategoryDropdownOpen ? 'border-primary-500 ring-2 ring-primary-500/10' : 'border-gray-200'
+            }`}
+          >
+            <span className={selectedCategoryName ? 'text-gray-900' : 'text-gray-500'}>
+              {selectedCategoryName || 'All Categories'}
+            </span>
+            <FiChevronDown className={`transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          <AnimatePresence>
+            {isCategoryDropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                className="absolute z-50 right-0 mt-2 w-64 bg-white border border-gray-100 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[400px]"
+              >
+                <div className="p-3 border-b border-gray-50 bg-gray-50/50 sticky top-0">
+                  <div className="relative">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      autoFocus
+                      type="text"
+                      className="w-full pl-9 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                      placeholder="Search category..."
+                      value={categorySearchQuery}
+                      onChange={(e) => setCategorySearchQuery(e.target.value)}
+                    />
+                    {categorySearchQuery && (
+                      <button
+                        onClick={() => setCategorySearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <FiX size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="overflow-y-auto p-1.5 custom-scrollbar">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategoryName('');
+                      setIsCategoryDropdownOpen(false);
+                      setPage(1);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-colors ${
+                      selectedCategoryName === '' 
+                      ? 'bg-primary-50 text-primary-700 font-bold' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    All Categories
+                  </button>
+                  {filteredPlaylistCategories.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategoryName(name);
+                        setIsCategoryDropdownOpen(false);
+                        setCategorySearchQuery('');
+                        setPage(1);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 rounded-xl flex items-center justify-between text-sm transition-colors ${
+                        selectedCategoryName === name 
+                        ? 'bg-primary-50 text-primary-700 font-bold' 
+                        : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span>{name}</span>
+                      {selectedCategoryName === name && <FiCheck className="text-primary-600" />}
+                    </button>
+                  ))}
+                  {filteredPlaylistCategories.length === 0 && (
+                    <div className="p-4 text-center text-gray-400 text-xs">
+                      No matching categories
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {loading ? (

@@ -163,14 +163,12 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                     <h3 className="text-[11px] font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase leading-tight">
                         {displayStoreName}
                     </h3>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate max-w-[70%]">
-                            {vendor.businessType || ''}
-                        </p>
-                        {vendor.address?.city && (
-                            <span className="text-[8px] text-gray-500 font-bold">• {vendor.address.city}</span>
-                        )}
-                    </div>
+                    {vendor.address?.city && (
+                        <div className="flex items-center gap-1 mt-0.5 text-[9px] font-black text-primary-600 uppercase tracking-tight truncate">
+                             <FiMapPin className="text-primary-500" size={10} />
+                             <span>{vendor.address.city}</span>
+                        </div>
+                    )}
                     <p className="text-[9px] text-gray-600 font-medium line-clamp-2 mt-1 leading-tight h-[24px]">
                         <span className="text-gray-500 font-bold uppercase tracking-tighter">Mfg:</span>{' '}
                         {vendor.mfgOfWork || '—'}

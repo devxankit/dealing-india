@@ -215,7 +215,7 @@ export const getMyReels = asyncHandler(async (req, res) => {
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
   const skip = (page - 1) * limit;
 
-  const { reelType } = req.query;
+  const { reelType, search, categoryName } = req.query;
   const query = { 
     uploaderId,
     $nor: [ 
@@ -223,6 +223,13 @@ export const getMyReels = asyncHandler(async (req, res) => {
     ]
   };
   if (reelType) query.reelType = reelType;
+  if (categoryName) query.categoryName = new RegExp(categoryName, 'i');
+  if (search) {
+    query.$or = [
+      { title: new RegExp(search, 'i') },
+      { description: new RegExp(search, 'i') }
+    ];
+  }
 
   const [reels, total] = await Promise.all([
     Reel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),

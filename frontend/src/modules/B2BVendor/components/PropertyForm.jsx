@@ -24,13 +24,14 @@ const PropertyForm = ({ initialData, isEdit }) => {
         if (!isEdit) {
             const saved = localStorage.getItem(USER_DRAFT_KEY);
             if (saved) {
-                try { return JSON.parse(saved).media || []; } catch(e) {}
+                try { return JSON.parse(saved).media || []; } catch (e) { }
             }
         }
         return [];
     }); // { url, data, name }
 
-    const propertyTypeOptions = ["Shop/Showroom", "Office Space", "Warehouse", "Industrial Shed", "Penthouse", "Flat", "Villa", "Plot"];
+    // const propertyTypeOptions = ["Shop/Showroom", "Office Space", "Warehouse", "Industrial Shed", "Penthouse", "Flat", "Villa", "Plot"];
+    const propertyTypeOptions = ["Shop", "Office", "Showroom", "Warehouse", "Industrial Shed", "Other"];
 
     const [formData, setFormData] = useState(() => {
         const defaultData = {
@@ -49,7 +50,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
         if (!isEdit) {
             const saved = localStorage.getItem(USER_DRAFT_KEY);
             if (saved) {
-                try { return JSON.parse(saved).formData || defaultData; } catch(e) {}
+                try { return JSON.parse(saved).formData || defaultData; } catch (e) { }
             }
         }
         return defaultData;
@@ -674,8 +675,8 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                             <label
                                                 key={type}
                                                 className={`flex-1 py-3 px-1 rounded-xl text-center text-[10px] font-black border-2 cursor-pointer transition-all ${(Array.isArray(formData.facilities.waterSupply) ? formData.facilities.waterSupply : [formData.facilities.waterSupply]).includes(type)
-                                                        ? 'bg-primary-600 text-white border-primary-600'
-                                                        : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
+                                                    ? 'bg-primary-600 text-white border-primary-600'
+                                                    : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
                                                     }`}>
                                                 <input
                                                     type="checkbox"
@@ -790,40 +791,40 @@ const PropertyForm = ({ initialData, isEdit }) => {
                             <div>
                                 <label className="label mb-4">Property Media <span className="text-red-500">*</span></label>
                                 <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest mb-3">Note: Please upload square images (1:1 ratio) for better display.</p>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                        {media.map((img, idx) => (
-                                            <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border-2 border-slate-100">
-                                                <img src={img.data || img.url} alt="preview" className="w-full h-full object-cover" />
-                                                <button onClick={() => removeImage(idx)} className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg">
-                                                    <FiTrash2 size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        <input
-                                            type="file"
-                                            ref={cameraInputRef}
-                                            accept="image/*"
-                                            capture="environment"
-                                            onChange={(e) => handleImageUpload(e, true)}
-                                            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
-                                        />
-                                        <div className="contents">
-                                            <button
-                                                type="button"
-                                                onClick={() => cameraInputRef.current?.click()}
-                                                className={`aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-primary-600`}
-                                            >
-                                                <FiCamera size={24} />
-                                                <span className="text-[10px] font-bold uppercase tracking-tight">Camera</span>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {media.map((img, idx) => (
+                                        <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border-2 border-slate-100">
+                                            <img src={img.data || img.url} alt="preview" className="w-full h-full object-cover" />
+                                            <button onClick={() => removeImage(idx)} className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg">
+                                                <FiTrash2 size={14} />
                                             </button>
-
-                                            <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-slate-400">
-                                                <input type="file" multiple accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="hidden" />
-                                                <FiPlus size={24} />
-                                                <span className="text-[10px] font-bold uppercase">Gallery</span>
-                                            </label>
                                         </div>
+                                    ))}
+                                    <input
+                                        type="file"
+                                        ref={cameraInputRef}
+                                        accept="image/*"
+                                        capture="environment"
+                                        onChange={(e) => handleImageUpload(e, true)}
+                                        style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                                    />
+                                    <div className="contents">
+                                        <button
+                                            type="button"
+                                            onClick={() => cameraInputRef.current?.click()}
+                                            className={`aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-primary-600`}
+                                        >
+                                            <FiCamera size={24} />
+                                            <span className="text-[10px] font-bold uppercase tracking-tight">Camera</span>
+                                        </button>
+
+                                        <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-slate-400">
+                                            <input type="file" multiple accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="hidden" />
+                                            <FiPlus size={24} />
+                                            <span className="text-[10px] font-bold uppercase">Gallery</span>
+                                        </label>
                                     </div>
+                                </div>
                             </div>
                         </motion.div>
                     )}
