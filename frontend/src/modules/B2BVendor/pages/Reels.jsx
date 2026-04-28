@@ -361,7 +361,10 @@ export default function Reels() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {reels.map((reel) => (
               <div key={reel._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
-                <div className="w-full h-[400px] bg-gray-900 relative overflow-hidden group">
+                <div 
+                  className="w-full h-[400px] bg-gray-900 relative overflow-hidden group cursor-pointer"
+                  onClick={() => setPreviewReel(reel)}
+                >
                   {getReelYoutubeId(reel) ? (
                     <img
                       src={`https://img.youtube.com/vi/${getReelYoutubeId(reel)}/hqdefault.jpg`}
@@ -381,7 +384,7 @@ export default function Reels() {
                   )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button
-                      onClick={() => setPreviewReel(reel)}
+                      onClick={(e) => { e.stopPropagation(); setPreviewReel(reel); }}
                       className="p-3 rounded-full bg-white/90 text-gray-900 hover:bg-white transition-colors"
                     >
                       <FiPlay fill="currentColor" />

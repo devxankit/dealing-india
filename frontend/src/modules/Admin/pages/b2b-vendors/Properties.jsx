@@ -163,10 +163,8 @@ const B2BVendorProperties = () => {
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Property Management</h1>
-                    <p className="text-gray-500">View and manage all B2B vendor Properties.</p>
-                </div>
+                <div></div>
+
                 <div className="flex gap-4">
                     {/* Business Type Filter */}
                     <div className="relative">

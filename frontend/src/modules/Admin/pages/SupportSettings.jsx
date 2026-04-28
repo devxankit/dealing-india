@@ -113,10 +113,8 @@ const SupportSettings = () => {
                 >
                     <FiChevronLeft size={24} />
                 </button>
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Support Settings</h1>
-                    <p className="text-sm text-gray-500">Manage contact information and FAQs for the B2B Support page</p>
-                </div>
+                <div></div>
+
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-8">

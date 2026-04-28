@@ -37,7 +37,44 @@ const AdminHeader = ({ onMenuClick }) => {
 
   // Get page name from pathname
   const getPageName = (pathname) => {
+    // Handle B2B sub-routes specifically
+    if (pathname.includes('/admin/b2b-vendors')) {
+      if (pathname.includes('/banner-bookings/details')) return 'Banner Booking Details';
+      if (pathname.includes('/banner-bookings')) return 'Banner Bookings';
+      if (pathname.includes('/manage')) return 'Manage B2B Vendors';
+      if (pathname.includes('/analytics')) return 'B2B Analytics';
+      if (pathname.includes('/wallet')) return 'B2B Wallet';
+      if (pathname.includes('/subscriptions')) return 'B2B Subscriptions';
+      if (pathname.includes('/categories')) return 'B2B Categories';
+      if (pathname.includes('/product-listings') || pathname.includes('/products')) return 'B2B Products';
+      if (pathname.includes('/properties')) return 'B2B Properties';
+      if (pathname.includes('/business-types') || pathname.includes('/business-type-config')) return 'Business Types';
+      if (pathname.includes('/pending-approvals') || pathname.includes('/pending')) return 'Pending Approvals';
+      if (pathname.includes('/secure-deals')) return 'Secure Deals';
+      if (pathname.includes('/addon-plans')) return 'Add-on Plans';
+      if (pathname.includes('/lot-slots')) return 'Lot/Slot Management';
+      if (pathname.includes('/subscription-wallet')) return 'Subscription Wallet';
+      if (pathname.includes('/default-banners')) return 'Default Banners';
+      
+      return 'B2B Vendor Management';
+    }
+
+
+
     const path = pathname.split('/').pop() || 'dashboard';
+    
+    // If path looks like an ID (long hex string), don't use it
+    if (/^[0-9a-fA-F]{24}$/.test(path)) {
+      // Try to get the second to last part
+      const parts = pathname.split('/');
+      const parentPath = parts[parts.length - 2];
+      if (parentPath === 'details') {
+        const grandParentPath = parts[parts.length - 3];
+        return grandParentPath.charAt(0).toUpperCase() + grandParentPath.slice(1) + ' Details';
+      }
+      return 'Details';
+    }
+
     const pageNames = {
       dashboard: 'Dashboard',
       products: 'Products',
@@ -55,8 +92,9 @@ const AdminHeader = ({ onMenuClick }) => {
       settings: 'Settings',
       more: 'More',
     };
-    return pageNames[path] || path.charAt(0).toUpperCase() + path.slice(1);
+    return pageNames[path] || path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, ' ');
   };
+
 
   const pageName = getPageName(location.pathname);
 

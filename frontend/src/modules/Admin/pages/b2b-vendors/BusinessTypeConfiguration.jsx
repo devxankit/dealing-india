@@ -215,10 +215,8 @@ const BusinessTypeConfiguration = () => {
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-10">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Business Type Configuration</h1>
-                    <p className="text-gray-500 text-sm">Manage features and limits for different business categories.</p>
-                </div>
+                <div></div>
+
                 <button
                     onClick={() => {
                         setNewType({ name: '', description: '' });

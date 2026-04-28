@@ -132,22 +132,8 @@ const Dashboard = () => {
       animate={{ opacity: 1 }}
       className="space-y-8 p-2 lg:p-6 bg-gray-50/30 min-h-screen"
     >
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">System Overview</h1>
-          <p className="text-gray-500 font-medium">Real-time B2B Platform Analytics (Live View)</p>
-        </div>
-        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl shadow-sm border border-gray-100">
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-          </span>
-          <span className="text-sm font-bold text-gray-700">System Live</span>
-        </div>
-      </div>
-
       {/* Section 1: Top Summary Cards */}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {summary.map((item, idx) => (
           <motion.div

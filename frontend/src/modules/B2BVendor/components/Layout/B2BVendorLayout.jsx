@@ -19,24 +19,8 @@ const B2BVendorLayout = () => {
 
     // Check if current route is allowed based on enabled modules
     const isRouteAllowed = () => {
-        if (loading || !settings || !settings.enabledModules) return true;
-
-        const path = location.pathname;
-        const allowedPropertyForms = Array.isArray(settings.propertyForms)
-            ? settings.propertyForms.map((f) => String(f).toLowerCase().trim())
-            : [];
-        if (path.includes('/b2b-vendor/products') && !settings.enabledModules.includes('product')) return false;
-        if (path.includes('/b2b-vendor/shop-listing') && !settings.enabledModules.includes('shop-listing')) return false;
-        if (path.includes('/b2b-vendor/properties') && !settings.enabledModules.includes('property')) return false;
-        if (path.includes('/b2b-vendor/properties/add-commercial') && !allowedPropertyForms.includes('property')) return false;
-        if (path.includes('/b2b-vendor/properties/add-flat') && !allowedPropertyForms.includes('flat')) return false;
-        if (path.includes('/b2b-vendor/properties/add-villa') && !allowedPropertyForms.includes('villa')) return false;
-        if (path.includes('/b2b-vendor/lotslot') && !settings.enabledModules.includes('lotslot')) return false;
-        if (path.includes('/b2b-vendor/subscription') && !settings.enabledModules.includes('subscription')) return false;
-        if (path.includes('/b2b-vendor/banner-booking') && !settings.enabledModules.includes('banner')) return false;
-        if (path.includes('/b2b-vendor/notifications') && !settings.enabledModules.includes('notifications')) return false;
-        if (path.includes('/b2b-vendor/settings') && !settings.enabledModules.includes('settings') && !settings.enabledModules.includes('profile')) return false;
-
+        // We defer to SubscriptionGate or specific page logic to handle unauthorized access
+        // instead of abruptly redirecting to the dashboard here.
         return true;
     };
 
@@ -56,13 +40,15 @@ const B2BVendorLayout = () => {
 
                 {/* Page Content */}
                 <main
-                    className={`flex-1 p-3 sm:p-4 lg:p-6 ${isChatPage ? 'overflow-hidden' : 'overflow-y-auto'} overflow-x-hidden lg:pb-6 lg:pt-24 scrollbar-admin w-full min-w-0`}
+                    className={`flex-1 p-6 sm:p-10 lg:p-8 xl:p-16 ${isChatPage ? 'overflow-hidden' : 'overflow-y-auto'} overflow-x-hidden lg:pb-12 lg:pt-24 scrollbar-admin w-full min-w-0`}
+
                     style={{
                         paddingTop: `${Math.max(topPadding, 80)}px`,
                         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
                     }}
                 >
                     <div className={`w-full max-w-full overflow-x-hidden min-w-0 pb-20 lg:pb-0 ${isChatPage ? 'h-full' : ''}`}>
+
                         <Suspense fallback={
                             <div className="flex items-center justify-center h-full min-h-[400px]">
                                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>

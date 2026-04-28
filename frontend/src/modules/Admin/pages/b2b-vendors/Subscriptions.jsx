@@ -401,10 +401,8 @@ const Subscriptions = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-10">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Subscription Management</h1>
-                    <p className="text-gray-500 text-sm">Monitor and manage B2B vendor subscription plans and cycles.</p>
-                </div>
+                <div></div>
+
                 <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
                         <select

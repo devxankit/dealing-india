@@ -60,18 +60,28 @@ const WalletPage = () => {
                 order_id: order.id,
                 handler: async (response) => {
                     try {
+                        setRechargeModalOpen(false);
+                        toast.loading('Verifying payment...', { id: 'wallet-recharge' });
+                        
+                        // Optimistic update for immediate feedback
+                        setWallet(prev => prev ? {
+                            ...prev,
+                            balance: prev.balance + baseAmount
+                        } : prev);
+
                         await verifyRecharge({
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
                             amount: totalPayable
                         });
-                        toast.success('Wallet recharged successfully!');
-                        setRechargeModalOpen(false);
+                        
+                        toast.success('Wallet recharged successfully!', { id: 'wallet-recharge' });
                         setRechargeAmount('');
                         fetchWallet();
                     } catch (error) {
-                        toast.error(error.message || 'Verification failed');
+                        toast.error(error.message || 'Verification failed', { id: 'wallet-recharge' });
+                        fetchWallet(); // Refetch to revert optimistic update if failed
                     }
                 },
                 modal: {
@@ -189,20 +199,20 @@ const WalletPage = () => {
                     </button>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                    <table className="w-full text-left whitespace-nowrap">
                         <thead>
                             <tr className="bg-gray-50 text-gray-400 text-[10px] uppercase tracking-widest">
-                                <th className="px-6 py-4">Transaction Details</th>
-                                <th className="px-6 py-4">Date</th>
-                                <th className="px-6 py-4 text-right">Amount</th>
+                                <th className="px-4 sm:px-6 py-4">Transaction Details</th>
+                                <th className="px-4 sm:px-6 py-4">Date</th>
+                                <th className="px-4 sm:px-6 py-4 text-right">Amount</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {wallet?.transactions?.length > 0 ? (
                                 wallet.transactions.map((tx) => (
                                     <tr key={tx._id} className="hover:bg-gray-50/50 transition-colors group">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-4">
+                                        <td className="px-4 sm:px-6 py-4">
+                                            <div className="flex items-center gap-3 sm:gap-4">
                                                 <div className={`p-2 rounded-xl bg-gray-50 group-hover:bg-white transition-colors`}>
                                                     {getTransactionIcon(tx.type, tx.referenceType)}
                                                 </div>
@@ -214,7 +224,7 @@ const WalletPage = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-xs text-gray-500">
+                                        <td className="px-4 sm:px-6 py-4 text-xs text-gray-500">
                                             {new Date(tx.createdAt).toLocaleDateString('en-IN', {
                                                 day: 'numeric',
                                                 month: 'short',
@@ -223,7 +233,7 @@ const WalletPage = () => {
                                                 minute: '2-digit'
                                             })}
                                         </td>
-                                        <td className="px-6 py-4 text-right">
+                                        <td className="px-4 sm:px-6 py-4 text-right">
                                             <span className={`text-sm font-black ${tx.type === 'credit' ? 'text-green-600' : 'text-slate-900'}`}>
                                                 {tx.type === 'credit' ? '+' : '-'} ₹{tx.amount?.toLocaleString('en-IN')}
                                             </span>
@@ -232,7 +242,7 @@ const WalletPage = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="3" className="px-6 py-12 text-center text-gray-400">
+                                    <td colSpan="3" className="px-4 sm:px-6 py-12 text-center text-gray-400">
                                         <div className="flex flex-col items-center gap-2">
                                             <FiClock className="text-2xl opacity-20" />
                                             <p className="text-sm">No transactions yet</p>

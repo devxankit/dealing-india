@@ -4,6 +4,7 @@ import {
   Route,
   Navigate,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 import React, { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
@@ -317,6 +318,32 @@ const RealEstatePropertyUpload = lazyWithRetry(
 const RegisterRedirect = () => {
   const location = useLocation();
   return <Navigate to={`/b2b/register${location.search || ""}`} replace />;
+};
+
+const ForegroundNotificationHandler = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!ENABLE_FCM) return;
+
+    return setupForegroundNotificationHandler((payload) => {
+      if (payload?.data?.link && payload?.data?.type !== "test") {
+        let link = payload.data.link;
+        // Convert full URL to relative path if it belongs to this site
+        try {
+          const url = new URL(link);
+          if (url.origin === window.location.origin) {
+            link = url.pathname + url.search + url.hash;
+          }
+        } catch (e) {
+          // Not a full URL, use as is
+        }
+        navigate(link);
+      }
+    });
+  }, [navigate]);
+
+  return null;
 };
 
 const AppRoutes = () => {
@@ -685,11 +712,7 @@ function App() {
 
     initializePushNotifications();
     console.log("[@App] Initialized push notifications");
-    setupForegroundNotificationHandler((payload) => {
-      if (payload?.data?.link && payload?.data?.type !== "test") {
-        window.location.href = payload.data.link;
-      }
-    });
+    
     try {
       const hasAuth =
         localStorage.getItem("token") ||
@@ -719,6 +742,7 @@ function App() {
             v7_relativeSplatPath: true,
           }}>
           <ScrollToTop />
+          <ForegroundNotificationHandler />
           <Suspense
             fallback={
               <div className="flex items-center justify-center min-h-screen bg-[#121212]">

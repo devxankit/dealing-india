@@ -54,8 +54,8 @@ export const API_BASE_URL = getBackendURL();
 export const SOCKET_URL = getSocketURL();
 
 // App Constants
-export const APP_NAME = 'Appzeto multi vendor E-commerce';
-export const APP_DESCRIPTION = 'Multi Vendor E-commerce Platform';
+export const APP_NAME = 'Dealing India';
+export const APP_DESCRIPTION = 'Join India\'s premiere B2B marketplace';
 
 // Animation Durations
 export const ANIMATION_DURATION = {

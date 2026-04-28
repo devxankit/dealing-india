@@ -236,19 +236,8 @@ const AdminTransactions = () => {
 
   return (
     <div className="space-y-8 p-4 lg:p-8 bg-gray-50/30 min-h-screen">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Transaction History</h1>
-          <p className="text-gray-500 font-medium mt-1">All platform payments — subscriptions, banners & add-ons</p>
-        </div>
-        <button onClick={fetchData}
-          className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-100 rounded-2xl text-gray-600 font-bold text-sm shadow-sm hover:bg-gray-50 transition-all">
-          <FiRefreshCw size={16} /> Refresh
-        </button>
-      </div>
-
       {/* Revenue Summary Cards */}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {[
           { label: 'Total Revenue', value: revenue.grand, icon: FiTrendingUp, color: 'emerald', sub: `${(revenue.subscription?.count || 0) + (revenue.banner?.count || 0) + (revenue.addon?.count || 0) + (revenue.wallet?.count || 0)} transactions` },
@@ -486,7 +475,7 @@ const AdminTransactions = () => {
         </div>
       )}
     </div>
-
+ 
       {/* Detail Modal */ }
   {
     selectedTxn && (

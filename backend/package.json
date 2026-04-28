@@ -1,7 +1,7 @@
 {
-  "name": "appzeto-backend",
+  "name": "dealing-india-backend",
   "version": "1.0.0",
-  "description": "Backend API for Appzeto multi-vendor e-commerce platform",
+  "description": "Backend API for Dealing India B2B marketplace",
   "main": "server.js",
   "type": "module",
   "scripts": {

@@ -280,23 +280,21 @@ const B2BVendorPendingApprovals = () => {
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-800">Pending</h1>
-                <p className="text-gray-500">Review and verify new B2B vendor applications.</p>
-            </div>
-
             {/* Search Bar + Filters */}
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4">
-                <div className="relative">
-                    <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search by name, email, or company..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="relative flex-1">
+                        <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search by name, email, or company..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                        />
+                    </div>
                 </div>
+
 
                 <div className="flex flex-wrap items-center gap-4">
                     <div className="flex flex-wrap items-center gap-3">

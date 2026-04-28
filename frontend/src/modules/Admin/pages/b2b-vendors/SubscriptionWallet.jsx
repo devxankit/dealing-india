@@ -71,8 +71,8 @@ const SubscriptionWallet = () => {
                         <FiArrowLeft className="text-xl" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-black text-gray-900 uppercase">Subscription Wallet</h1>
-                        <p className="text-gray-500 text-sm font-medium">Detailed revenue logs from all B2B vendor subscriptions</p>
+                        <h1 className="lg:hidden text-2xl font-black text-gray-900 uppercase">Subscription Wallet</h1>
+                        <p className="text-gray-500 text-sm font-medium">Manage and monitor B2B subscription payments</p>
                     </div>
                 </div>
             </div>

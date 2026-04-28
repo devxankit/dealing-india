@@ -144,24 +144,23 @@ export const verifyUserEmail = async (email, otp) => {
  * Login user
  */
 export const loginUser = async (identifier, password) => {
-    // Clean identifier (e.g. remove +91 prefix if phone)
-    let searchConditions = [
-        { email: identifier },
-        { phone: identifier }
-    ];
-
-    if (identifier.startsWith('+91')) {
-        const phoneWithoutPrefix = identifier.replace('+91', '');
-        searchConditions.push({ phone: phoneWithoutPrefix });
-    } else {
-        // Just in case user enters without +91 but DB has +91 (less likely but possible)
-        searchConditions.push({ phone: '+91' + identifier });
-    }
-
-    // Find user by email or phone (multiple formats)
-    const user = await User.findOne({
-        $or: searchConditions
+    // 1. Try exact match first
+    let user = await User.findOne({
+        $or: [{ email: identifier }, { phone: identifier }]
     }).select('+password');
+
+    // 2. Try variations if exact match not found
+    if (!user && identifier) {
+        let fallbackConditions = [];
+        if (identifier.startsWith('+91')) {
+            fallbackConditions.push({ phone: identifier.replace('+91', '') });
+        } else {
+            fallbackConditions.push({ phone: '+91' + identifier });
+        }
+        if (fallbackConditions.length > 0) {
+            user = await User.findOne({ $or: fallbackConditions }).select('+password');
+        }
+    }
 
     if (!user) {
         throw new Error('user not found please register');
@@ -284,41 +283,70 @@ export const addUserAddress = async (userId, addressData) => {
     return user.addresses;
 };
 
-/**
- * Forgot password - Send OTP
- */
-export const forgotUserPassword = async (email) => {
-    // Check if user exists
-    const user = await User.findOne({ email });
-    if (!user) {
-        // We return success to not leak email existence, but log it
-        // Or you can throw error as per requirement. User asked "Validate email exists".
-        // Let's assume user-facing error IS desired for UX
-        throw new Error('User with this email not found');
+export const forgotUserPassword = async (identifier) => {
+    // 1. Try exact match first
+    let user = await User.findOne({
+        $or: [{ email: identifier }, { phone: identifier }]
+    });
+
+    // 2. Try variations if exact match not found
+    if (!user && identifier) {
+        let fallbackConditions = [];
+        if (identifier.startsWith('+91')) {
+            fallbackConditions.push({ phone: identifier.replace('+91', '') });
+        } else {
+            fallbackConditions.push({ phone: '+91' + identifier });
+        }
+        if (fallbackConditions.length > 0) {
+            user = await User.findOne({ $or: fallbackConditions });
+        }
     }
 
-    const otp = await generateOTP(email, 'password_reset');
-    sendPasswordResetEmail(email, otp).catch(e => console.error('BG Email Error:', e.message));
-
-    // Removed await on emailResult, background sending is enough.
-    console.log(`Forgot password OTP generated for ${email}: ${otp}`);
-
-    return { message: 'Password reset OTP sent to your email', otp }; // Return OTP for dev purposes if needed, but usually kept secret
-};
-
-/**
- * Reset User Password
- */
-export const resetUserPassword = async (email, otp, newPassword) => {
-    // Verify OTP
-    const isOTPValid = await verifyOTP(email, otp, 'password_reset');
-    if (!isOTPValid) {
-        throw new Error('Invalid or expired OTP');
-    }
-
-    const user = await User.findOne({ email });
     if (!user) {
         throw new Error('User not found');
+    }
+
+    const otp = await generateOTP(user.email, 'password_reset');
+    sendPasswordResetEmail(user.email, otp).catch(e => console.error('BG Email Error:', e.message));
+
+    console.log(`Forgot password OTP generated for ${user.email}: ${otp}`);
+
+    const [namePart, domain] = user.email.split('@');
+    const maskedEmail = namePart.substring(0, 2) + '*'.repeat(namePart.length > 2 ? 4 : 2) + '@' + domain;
+
+    return { 
+        message: `Password reset OTP sent to registered email ${maskedEmail}`, 
+        email: user.email 
+    }; 
+};
+
+export const resetUserPassword = async (identifier, otp, newPassword) => {
+    // 1. Try exact match first
+    let user = await User.findOne({
+        $or: [{ email: identifier }, { phone: identifier }]
+    });
+
+    // 2. Try variations if exact match not found
+    if (!user && identifier) {
+        let fallbackConditions = [];
+        if (identifier.startsWith('+91')) {
+            fallbackConditions.push({ phone: identifier.replace('+91', '') });
+        } else {
+            fallbackConditions.push({ phone: '+91' + identifier });
+        }
+        if (fallbackConditions.length > 0) {
+            user = await User.findOne({ $or: fallbackConditions });
+        }
+    }
+
+    if (!user) {
+        throw new Error('User not found');
+    }
+
+    // Verify OTP
+    const isOTPValid = await verifyOTP(user.email, otp, 'password_reset');
+    if (!isOTPValid) {
+        throw new Error('Invalid or expired OTP');
     }
 
     // Hash password (normalized rounds)

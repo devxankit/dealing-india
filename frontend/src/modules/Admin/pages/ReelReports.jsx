@@ -101,23 +101,18 @@ export default function ReelReports() {
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <FiAlertTriangle className="text-amber-500" />
-            Reel Reports
-          </h1>
-          <p className="text-slate-400 mt-1">Review and manage reported video content</p>
-        </div>
+        <div></div>
 
-        <div className="flex items-center gap-2 bg-slate-800/50 p-1 rounded-xl border border-slate-700">
+
+        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
           {["pending", "resolved", "dismissed", ""].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
                 filter === f 
-                  ? "bg-primary-600 text-white shadow-lg shadow-primary-900/20" 
-                  : "text-slate-400 hover:text-white hover:bg-slate-700"
+                  ? "bg-primary-600 text-white shadow-md" 
+                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"
               }`}
             >
               {f || "All"}
@@ -132,12 +127,12 @@ export default function ReelReports() {
           <p className="text-slate-400 font-medium animate-pulse">Loading reports...</p>
         </div>
       ) : reports.length === 0 ? (
-        <div className="bg-slate-900/50 border border-dashed border-slate-700 rounded-3xl py-20 text-center">
-          <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
-            <FiCheckCircle className="text-slate-600 text-4xl" />
+        <div className="bg-white border border-dashed border-slate-300 rounded-3xl py-20 text-center">
+          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <FiCheckCircle className="text-slate-400 text-4xl" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">Clear Skies!</h3>
-          <p className="text-slate-400">No reports found for the selected filter.</p>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">Clear Skies!</h3>
+          <p className="text-slate-500">No reports found for the selected filter.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -152,7 +147,10 @@ export default function ReelReports() {
                 className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:border-slate-700 transition-all group"
               >
                 {/* Reel Preview Header */}
-                <div className="relative aspect-video bg-black overflow-hidden">
+                <div 
+                  className="relative aspect-video bg-black overflow-hidden cursor-pointer"
+                  onClick={() => setPreviewReel(report.reelId)}
+                >
                   {report.reelId?.thumbnailUrl ? (
                     <img 
                       src={report.reelId.thumbnailUrl} 

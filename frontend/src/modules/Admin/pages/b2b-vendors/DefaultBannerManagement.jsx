@@ -103,10 +103,11 @@ const DefaultBannerManagement = () => {
     return (
         <div className="p-6">
             <div className="flex justify-between items-start mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Default Admin Banners</h1>
-                    <p className="text-gray-500">These banners appear ONLY when no Vendor banners are active.</p>
+                <div className="flex-1">
+                    <h1 className="lg:hidden text-2xl font-bold text-gray-900">Default Admin Banners</h1>
+                    <p className="text-gray-500 text-sm font-medium">Manage default fallback banners for the platform</p>
                 </div>
+
                 <button
                     onClick={() => setShowAddModal(true)}
                     className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg hover:shadow-primary-200"
@@ -235,7 +236,7 @@ const DefaultBannerManagement = () => {
                                         id="banner-file"
                                         type="file"
                                         className="hidden"
-                                        accept="image/*"
+                                        accept="image/png, image/jpeg, image/webp"
                                         onChange={handleFileChange}
                                     />
                                 </div>

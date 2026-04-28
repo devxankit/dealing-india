@@ -65,10 +65,8 @@ const More = () => {
       className="space-y-5 sm:space-y-6"
     >
       {/* Header */}
-      <div className="px-1">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1.5">More</h1>
-        <p className="text-sm sm:text-base text-gray-500">Access additional admin features</p>
-      </div>
+      <div className="px-1"></div>
+
 
       {/* Grid Layout */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">

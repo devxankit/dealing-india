@@ -243,8 +243,8 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                                                 if (window.innerWidth < 1024) onClose();
                                             }}
                                             className={({ isActive }) => `block px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer ${isActive ? "bg-primary-500/20 text-white font-medium" : "text-gray-400 hover:bg-slate-700"
-                                                }`}
-                                        >
+                                                 }`}
+                                         >
                                             {child}
                                         </NavLink>
                                     );

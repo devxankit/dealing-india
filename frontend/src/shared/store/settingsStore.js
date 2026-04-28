@@ -6,7 +6,7 @@ import api from "../utils/api";
 
 const defaultSettings = {
   general: {
-    storeName: "Appzeto E-commerce",
+    storeName: "Dealing India",
     storeLogo: logoImage,
     favicon: logoImage,
     contactEmail: "contact@example.com",
@@ -117,7 +117,7 @@ const defaultSettings = {
     smtpUser: "",
     smtpPassword: "",
     fromEmail: "noreply@example.com",
-    fromName: "Appzeto Store",
+    fromName: "Dealing India",
   },
   notifications: {
     email: {
@@ -133,9 +133,9 @@ const defaultSettings = {
     },
   },
   seo: {
-    metaTitle: "Appzeto E-commerce - Shop Online",
-    metaDescription: "Shop the latest trends and products",
-    metaKeywords: "ecommerce, shopping, online store",
+    metaTitle: "Dealing India - Join & Earn Reward Points",
+    metaDescription: "Join India's premiere B2B marketplace",
+    metaKeywords: "ecommerce, shopping, online store, b2b",
     ogImage: logoImage,
     canonicalUrl: "",
   },

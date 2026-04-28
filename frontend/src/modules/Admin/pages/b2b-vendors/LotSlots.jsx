@@ -108,9 +108,9 @@ const B2BVendorLotSlots = () => {
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Lot/Slot Management</h1>
-                    <p className="text-gray-500">View and manage all B2B vendor Lot/Slots.</p>
+                <div className="flex-1">
+                    <h1 className="lg:hidden text-2xl font-bold text-gray-800">Lot/Slot Management</h1>
+                    <p className="text-gray-500 text-sm">Manage advertising slots for B2B vendors</p>
                 </div>
                 <div className="relative w-80">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

@@ -41,8 +41,7 @@ const B2BBannerManagement = () => {
         bookingWindowDays: 30,
         minDurationHours: 24,
         maxDurationHours: 720,
-        defaultPricePerDay: 2999,
-        pricingStructure: {}
+        defaultPricePerDay: 2999
     });
     const [revenueStats, setRevenueStats] = useState({
         totalRevenue: 28995,
@@ -59,18 +58,13 @@ const B2BBannerManagement = () => {
         bookingWindowDays: 30,
         minDurationHours: 24,
         maxDurationHours: 720,
-        defaultPricePerDay: 2999,
-        pricingStructure: {}
+        defaultPricePerDay: 2999
     });
 
     const [slotForm, setSlotForm] = useState({
-        price: "",
-        dayPrice: "",
-        weekPrice: ""
+        price: ""
     });
 
-    // Pricing structure editor state
-    const [newPricingEntry, setNewPricingEntry] = useState({ hours: "", price: "" });
 
     // Prevent duplicate API calls in React StrictMode
     const hasLoadedData = useRef(false);
@@ -108,22 +102,15 @@ const B2BBannerManagement = () => {
                 setSlots(slotsList);
 
                 if (slotsData.settings) {
-                    setSettings({
+                    const newSettings = {
                         universalDisplayTime: slotsData.settings?.universalDisplayTime || 3000,
                         bookingWindowDays: slotsData.settings?.bookingWindowDays || 30,
                         minDurationHours: slotsData.settings?.minDurationHours || 24,
                         maxDurationHours: slotsData.settings?.maxDurationHours || 720,
-                        defaultPricePerDay: slotsData.settings?.defaultPricePerDay || 2999,
-                        pricingStructure: slotsData.settings?.pricingStructure || {}
-                    });
-                    setSettingsForm({
-                        universalDisplayTime: slotsData.settings?.universalDisplayTime || 3000,
-                        bookingWindowDays: slotsData.settings?.bookingWindowDays || 30,
-                        minDurationHours: slotsData.settings?.minDurationHours || 24,
-                        maxDurationHours: slotsData.settings?.maxDurationHours || 720,
-                        defaultPricePerDay: slotsData.settings?.defaultPricePerDay || 2999,
-                        pricingStructure: slotsData.settings?.pricingStructure || {}
-                    });
+                        defaultPricePerDay: slotsData.settings?.defaultPricePerDay || 2999
+                    };
+                    setSettings(newSettings);
+                    setSettingsForm(newSettings);
                 }
             }
 
@@ -197,33 +184,15 @@ const B2BBannerManagement = () => {
             return;
         }
 
-        const dayPrice = slotForm.dayPrice !== "" ? parseFloat(slotForm.dayPrice) : null;
-        const weekPrice = slotForm.weekPrice !== "" ? parseFloat(slotForm.weekPrice) : null;
-
-        if (slotForm.dayPrice !== "" && (isNaN(dayPrice) || dayPrice < 0)) {
-            toast.error("Invalid day price");
-            return;
-        }
-        if (slotForm.weekPrice !== "" && (isNaN(weekPrice) || weekPrice < 0)) {
-            toast.error("Invalid week price");
-            return;
-        }
-
-        const updatedPricingStructure = {};
-        if (dayPrice !== null) updatedPricingStructure['24'] = dayPrice;
-        if (weekPrice !== null) updatedPricingStructure['168'] = weekPrice;
-
         try {
             await updateBannerSlot(slotId, {
-                price: basePrice,
-                pricingStructure: updatedPricingStructure
+                price: basePrice
             });
 
             // Update local state
             setSlots(slots.map(s => s._id === slotId ? {
                 ...s,
-                price: basePrice,
-                pricingStructure: updatedPricingStructure
+                price: basePrice
             } : s));
 
             setEditingSlotId(null);
@@ -318,43 +287,6 @@ const B2BBannerManagement = () => {
         }
     };
 
-    const handleAddPricingEntry = () => {
-        const hours = parseInt(newPricingEntry.hours);
-        const price = parseFloat(newPricingEntry.price);
-
-        if (isNaN(hours) || hours < 1) {
-            toast.error("Please enter a valid number of hours");
-            return;
-        }
-        if (isNaN(price) || price < 0) {
-            toast.error("Please enter a valid price");
-            return;
-        }
-        if (hours < settingsForm.minDurationHours || hours > settingsForm.maxDurationHours) {
-            toast.error(`Hours must be between ${settingsForm.minDurationHours} and ${settingsForm.maxDurationHours}`);
-            return;
-        }
-
-        const newStructure = { ...settingsForm.pricingStructure };
-        newStructure[hours.toString()] = price;
-
-        setSettingsForm({
-            ...settingsForm,
-            pricingStructure: newStructure
-        });
-
-        setNewPricingEntry({ hours: "", price: "" });
-    };
-
-    const handleRemovePricingEntry = (hours) => {
-        const newStructure = { ...settingsForm.pricingStructure };
-        delete newStructure[hours.toString()];
-
-        setSettingsForm({
-            ...settingsForm,
-            pricingStructure: newStructure
-        });
-    };
 
     const formatDuration = (hours) => {
         if (hours < 24) return `${hours}h`;
@@ -497,10 +429,8 @@ const B2BBannerManagement = () => {
     return (
         <div className="p-6" >
             <div className="flex justify-between items-start mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">B2B Banner Management</h1>
-                    <p className="text-gray-500">Manage B2B marketplace banner slots, bookings, and display settings</p>
-                </div>
+                <div></div>
+
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-6">
                     <div className="flex items-center gap-3">
@@ -656,127 +586,7 @@ const B2BBannerManagement = () => {
                                         <p className="mt-1 text-xs text-gray-500">Used when no specific pricing entry exists for a duration</p>
                                     </div>
                                 </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                                        Pricing Structure & Discounts
-                                        <div className="group relative inline-block ml-2">
-                                            <FiInfo className="text-gray-400 cursor-help" />
-                                            <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg z-20">
-                                                Define fixed prices for specific durations to offer bulk discounts for B2B vendors. <br />
-                                                For example, set "168 hours (1 week)" to a lower price than "7 x Daily Rate".
-                                            </div>
-                                        </div>
-                                    </label>
-
-                                    <div className="border border-gray-200 rounded-lg overflow-hidden">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full">
-                                                <thead className="bg-gray-50">
-                                                    <tr>
-                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Duration</th>
-                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Price (₹)</th>
-                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Effective Rate</th>
-                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-200">
-                                                    {Object.entries(settingsForm.pricingStructure || {})
-                                                        .sort(([a], [b]) => parseInt(a) - parseInt(b))
-                                                        .map(([hours, price]) => {
-                                                            const hoursNum = parseInt(hours);
-                                                            const dailyRate = price / (hoursNum / 24);
-                                                            const isDiscounted = dailyRate < settingsForm.defaultPricePerDay;
-
-                                                            return (
-                                                                <tr key={hours} className="hover:bg-gray-50">
-                                                                    <td className="px-4 py-2 text-sm">
-                                                                        <span className="font-medium">{formatDuration(hoursNum)}</span>
-                                                                        <span className="text-xs text-gray-500 ml-1">({hours}h)</span>
-                                                                    </td>
-                                                                    <td className="px-4 py-2 text-sm font-medium">{formatPrice(price)}</td>
-                                                                    <td className="px-4 py-2 text-sm">
-                                                                        <span className={`text-xs ${isDiscounted ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
-                                                                            {formatPrice(Math.round(dailyRate))}/day
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="px-4 py-2">
-                                                                        <button
-                                                                            onClick={() => handleRemovePricingEntry(hours)}
-                                                                            className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                                                            title="Remove"
-                                                                        >
-                                                                            <FiTrash2 className="text-sm" />
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    {Object.keys(settingsForm.pricingStructure || {}).length === 0 && (
-                                                        <tr>
-                                                            <td colSpan="4" className="px-4 py-4 text-center text-sm text-gray-500">
-                                                                No custom rates defined. Standard daily rate ({formatPrice(settingsForm.defaultPricePerDay)}/day) applies to all.
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-
-                                        <div className="p-4 bg-gray-50 border-t border-gray-200">
-                                            <div className="flex gap-2 mb-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setNewPricingEntry({ hours: "24", price: "" })}
-                                                    className="px-3 py-1 bg-white border border-gray-300 rounded-full text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-                                                >
-                                                    + 1 Day Rate
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setNewPricingEntry({ hours: "168", price: "" })}
-                                                    className="px-3 py-1 bg-white border border-gray-300 rounded-full text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-                                                >
-                                                    + 1 Week Rate
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setNewPricingEntry({ hours: "720", price: "" })}
-                                                    className="px-3 py-1 bg-white border border-gray-300 rounded-full text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-                                                >
-                                                    + 1 Month Rate
-                                                </button>
-                                            </div>
-                                            <div className="flex gap-3">
-                                                <input
-                                                    type="number"
-                                                    placeholder="Hours"
-                                                    min={settingsForm.minDurationHours}
-                                                    max={settingsForm.maxDurationHours}
-                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                                                    value={newPricingEntry.hours}
-                                                    onChange={(e) => setNewPricingEntry({ ...newPricingEntry, hours: e.target.value })}
-                                                />
-                                                <input
-                                                    type="number"
-                                                    placeholder="Price (₹)"
-                                                    min="0"
-                                                    step="0.01"
-                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                                                    value={newPricingEntry.price}
-                                                    onChange={(e) => setNewPricingEntry({ ...newPricingEntry, price: e.target.value })}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={handleAddPricingEntry}
-                                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 text-sm"
-                                                >
-                                                    <FiPlus /> Add Rate
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                 {/* Pricing Structure section removed */}
 
                                 {/* Save Button */}
                                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
@@ -870,11 +680,8 @@ const B2BBannerManagement = () => {
                                                     setEditingSlotId(null);
                                                 } else {
                                                     setEditingSlotId(slot._id);
-                                                    const structure = slot.pricingStructure || {};
                                                     setSlotForm({
-                                                        price: slot.price,
-                                                        dayPrice: structure['24'] || "",
-                                                        weekPrice: structure['168'] || ""
+                                                        price: slot.price
                                                     });
                                                 }
                                             }}
@@ -884,12 +691,6 @@ const B2BBannerManagement = () => {
                                             <FiSettings size={14} />
                                         </button>
                                     </div>
-                                    {slot.pricingStructure && Object.keys(slot.pricingStructure).length > 0 && (
-                                        <p className="text-[10px] text-green-600 font-medium mt-1">
-                                            <FiCheckCircle className="inline mr-1" />
-                                            Custom Rates ({Object.keys(slot.pricingStructure).length})
-                                        </p>
-                                    )}
                                 </div>
 
                                 <AnimatePresence>
@@ -913,33 +714,6 @@ const B2BBannerManagement = () => {
                                                     />
                                                 </div>
 
-                                                {/* Custom Rates Inputs */}
-                                                <div>
-                                                    <label className="text-[10px] font-bold text-gray-500 uppercase mb-2 block">Discounted Rates</label>
-
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <div>
-                                                            <label className="text-[9px] text-gray-400 block mb-0.5">1 Day (24h)</label>
-                                                            <input
-                                                                type="number"
-                                                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                                                placeholder="Default"
-                                                                value={slotForm.dayPrice}
-                                                                onChange={(e) => setSlotForm({ ...slotForm, dayPrice: e.target.value })}
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[9px] text-gray-400 block mb-0.5">1 Week (168h)</label>
-                                                            <input
-                                                                type="number"
-                                                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                                                placeholder="Default"
-                                                                value={slotForm.weekPrice}
-                                                                onChange={(e) => setSlotForm({ ...slotForm, weekPrice: e.target.value })}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
 
                                                 {/* Save Button */}
                                                 <button

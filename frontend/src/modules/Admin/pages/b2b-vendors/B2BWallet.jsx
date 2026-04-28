@@ -68,7 +68,7 @@ const B2BWallet = () => {
             <FiArrowLeft className="text-xl" />
           </button>
           <div>
-            <h1 className="text-2xl font-black text-gray-900">B2B Banner Payments</h1>
+            <h1 className="lg:hidden text-2xl font-black text-gray-900">B2B Banner Payments</h1>
             <p className="text-gray-500 text-sm font-medium">Manage and track all B2B Banner booking transactions</p>
           </div>
         </div>

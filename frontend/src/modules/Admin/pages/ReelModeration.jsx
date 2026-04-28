@@ -324,13 +324,8 @@ export default function ReelModeration() {
       className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto"
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <FiVideo className="text-primary-600" />
-            Reel Moderation
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">Review and approve short videos before they go live.</p>
-        </div>
+        <div></div>
+
         <div className="flex items-center gap-3">
           {statusFilter === 'pending' && reels.some(r => r.status === 'pending') && (
             <button
@@ -571,7 +566,10 @@ export default function ReelModeration() {
                 layout
                 className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
-                <div className="w-full h-[400px] bg-gray-900 relative group overflow-hidden">
+                <div 
+                  className="w-full h-[400px] bg-gray-900 relative group overflow-hidden cursor-pointer"
+                  onClick={() => setPreviewReel(reel)}
+                >
                   {reel.status === 'pending' && (
                     <div className="absolute top-3 left-3 z-20">
                       <input
@@ -609,7 +607,7 @@ export default function ReelModeration() {
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setPreviewReel(reel)}
+                      onClick={(e) => { e.stopPropagation(); setPreviewReel(reel); }}
                       className="p-3 rounded-full bg-white/90 text-gray-900 hover:bg-white transition-colors"
                       title="Preview"
                     >
@@ -619,7 +617,7 @@ export default function ReelModeration() {
                       <>
                         <button
                           type="button"
-                          onClick={() => handleApprove(reel)}
+                          onClick={(e) => { e.stopPropagation(); handleApprove(reel); }}
                           disabled={actionLoading === reel._id}
                           className="p-3 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50"
                           title="Approve"
@@ -632,7 +630,7 @@ export default function ReelModeration() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setShowRejectModal(reel)}
+                          onClick={(e) => { e.stopPropagation(); setShowRejectModal(reel); }}
                           className="p-3 rounded-full bg-red-500 text-white hover:bg-red-600"
                           title="Reject"
                         >
@@ -640,7 +638,7 @@ export default function ReelModeration() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(reel)}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(reel); }}
                           disabled={actionLoading === reel._id}
                           className="p-3 rounded-full bg-gray-600 text-white hover:bg-gray-700"
                           title="Delete"
@@ -652,7 +650,7 @@ export default function ReelModeration() {
 
                     <button
                       type="button"
-                      onClick={() => setReplacingReel(reel)}
+                      onClick={(e) => { e.stopPropagation(); setReplacingReel(reel); }}
                       className="p-3 rounded-full bg-indigo-500 text-white hover:bg-indigo-600"
                       title="Replace Song"
                     >

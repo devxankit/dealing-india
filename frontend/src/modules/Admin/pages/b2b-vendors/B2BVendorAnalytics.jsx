@@ -85,10 +85,8 @@ const AdminB2BVendorAnalytics = () => {
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">B2B Vendor Analytics</h1>
-                    <p className="text-gray-500">Monitor B2B ecosystem growth and performance.</p>
-                </div>
+                <div></div>
+
                 <div className="flex items-center gap-3">
                     <TimePeriodFilter selectedPeriod={period} onPeriodChange={setPeriod} isLoading={loading} />
                 </div>

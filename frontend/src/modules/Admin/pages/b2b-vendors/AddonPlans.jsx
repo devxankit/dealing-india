@@ -132,9 +132,10 @@ const AddonPlans = () => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-black text-gray-800 uppercase tracking-tight">Add-on Plans</h1>
+                    <h1 className="lg:hidden text-2xl font-black text-gray-800 uppercase tracking-tight">Add-on Plans</h1>
                     <p className="text-gray-500 text-sm">Manage extra feature unit packs for vendors.</p>
                 </div>
+
                 <button
                     onClick={() => { setEditingPlan(null); setShowForm(true); }}
                     className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-100"

@@ -104,13 +104,13 @@ const AdminB2BBannerDetail = () => {
             <div className="flex flex-col md:flex-row gap-6 mb-8 items-start justify-between">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
-                        <h1 className="text-2xl font-bold text-gray-900">B2B Banner Booking Details</h1>
                         <Badge variant={booking.status === "active" ? "success" : booking.status === "pending" ? "warning" : "error"}>
                             {booking.status.toUpperCase()}
                         </Badge>
                     </div>
                     <p className="text-gray-500">Reference: {booking.referenceId}</p>
                 </div>
+
 
                 {booking.status === "pending" && booking.paymentStatus === "paid" && (
                     <div className="flex gap-3">

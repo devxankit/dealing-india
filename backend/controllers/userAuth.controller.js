@@ -162,20 +162,15 @@ export const addAddress = asyncHandler(async (req, res) => {
     });
 });
 
-/**
- * Forgot Password
- * POST /api/auth/user/forgot-password
- */
 export const forgotPassword = asyncHandler(async (req, res) => {
-    const { email } = req.body;
-    const result = await forgotUserPassword(email);
+    const { identifier, email } = req.body;
+    const lookupId = identifier || email;
+    const result = await forgotUserPassword(lookupId);
     res.status(200).json({
         success: true,
-        message: 'Password reset OTP sent to your email',
+        message: result.message,
         data: {
-            email,
-            // For dev ease, we can include OTP here if needed, or remove before prod
-            // otp: result.otp 
+            email: result.email
         }
     });
 });
@@ -185,8 +180,9 @@ export const forgotPassword = asyncHandler(async (req, res) => {
  * POST /api/auth/user/reset-password
  */
 export const resetPassword = asyncHandler(async (req, res) => {
-    const { email, otp, newPassword } = req.body;
-    await resetUserPassword(email, otp, newPassword);
+    const { identifier, email, otp, newPassword } = req.body;
+    const lookupId = identifier || email;
+    await resetUserPassword(lookupId, otp, newPassword);
     res.status(200).json({
         success: true,
         message: 'Password reset successfully'

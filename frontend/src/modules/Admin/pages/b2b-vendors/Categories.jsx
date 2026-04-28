@@ -285,10 +285,8 @@ const B2BCategories = () => {
         <div className="p-6 space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-800">B2B Categories</h1>
-                    <p className="text-gray-500 mt-1">Manage categories and subcategories with dynamic fields</p>
-                </div>
+                <div></div>
+
                 <button
                     onClick={() => {
                         setFields([{ label: "", type: "text", options: [], required: false }]);

@@ -159,13 +159,14 @@ const AdminSecureDeals = () => {
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-black text-gray-800 uppercase tracking-tight flex items-center gap-3">
-                        <FiShield className="text-primary-600" />
-                        Platform Secure Deals
+                <div className="flex-1">
+                    <h1 className="lg:hidden text-2xl font-black text-gray-800 uppercase tracking-tight flex items-center gap-3">
+                        <FiCheckCircle className="text-blue-600" />
+                        Secure Deals
                     </h1>
-                    <p className="text-sm text-gray-500 font-medium mt-1">Monitor and audit all escrow transactions and verified settlements.</p>
+                    <p className="text-gray-500 text-sm font-medium">Verify and manage B2B transaction settlements</p>
                 </div>
+
                 <div className="relative w-80">
                     <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input

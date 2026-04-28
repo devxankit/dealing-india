@@ -465,6 +465,9 @@ const B2BVendorSubscription = () => {
 
             toast.loading('Verifying recharge...', { id: 'wallet-recharge' });
 
+            // Optimistic update for immediate feedback
+            setWalletBalance(prev => prev + amount);
+
             const verifyData = {
                 ...handlePaymentSuccess(paymentResponse),
                 amount: totalToPay
@@ -479,6 +482,7 @@ const B2BVendorSubscription = () => {
         } catch (err) {
             console.error('Recharge error:', err);
             toast.error(err.message || 'Payment cancelled or recharge failed', { id: 'wallet-recharge' });
+            await loadWalletData(); // Refetch to revert optimistic update
         } finally {
             setIsRecharging(false);
         }
@@ -569,7 +573,8 @@ const B2BVendorSubscription = () => {
     }
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto">
+
             {/* Header */}
             <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -598,7 +603,8 @@ const B2BVendorSubscription = () => {
                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
 
                     <div className="relative z-10">
-                        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+                        <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6">
+
                             <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
@@ -715,7 +721,8 @@ const B2BVendorSubscription = () => {
             </div>
 
             {availablePlans.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8 mb-10">
+
                     {availablePlans.map((plan, index) => {
                     const planId = plan._id || plan.id;
                     const currentPlanId = currentSubscription?.planId?._id || currentSubscription?.planId;
@@ -923,8 +930,9 @@ const B2BVendorSubscription = () => {
                         Your business type (<span className="font-black text-primary-600 uppercase bg-primary-50 px-3 py-1 rounded-lg border border-primary-100">{vendor?.businessType || 'N/A'}</span>) currently doesn't require a monthly subscription.
                     </p>
                     <p className="text-gray-400 max-w-xl mx-auto mb-10 relative z-10 leading-relaxed text-sm">
-                        You can still **list your shop** for free and purchase individual **Feature Packs** (Products, Reels, etc.) from the section below using your wallet balance.
+                        You can still <span className="font-black text-gray-700">list your shop</span> for free and purchase individual <span className="font-black text-gray-700">Feature Packs</span> (Products, Reels, etc.) from the section below using your wallet balance.
                     </p>
+
                     
                     <div className="flex flex-col items-center gap-4 relative z-10">
                         <button 
@@ -979,13 +987,14 @@ const B2BVendorSubscription = () => {
                 </div>
 
                 {loadingAddons ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16 px-2 sm:px-0 animate-pulse">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8 mb-16 px-2 sm:px-0 animate-pulse">
                         {[1, 2, 3, 4].map(i => (
                             <div key={i} className="bg-gray-100 h-64 rounded-3xl"></div>
                         ))}
                     </div>
                 ) : availableAddons.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2 sm:px-0" id="addon-packs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6 px-2 sm:px-0" id="addon-packs">
+
                     {availableAddons
                         .filter(addon => {
                             const params = new URLSearchParams(window.location.search);
@@ -1075,53 +1084,58 @@ const B2BVendorSubscription = () => {
                         </div>
                     </div>
                     
-                    <div className="bg-white border-2 border-gray-50 rounded-[2.5rem] overflow-hidden shadow-sm">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gray-50/50">
-                                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Date</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {addonHistory.map((item) => (
-                                    <tr key={item._id} className="hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${
-                                                    item.featureType === 'reels' ? 'bg-rose-100 text-rose-600' :
-                                                    item.featureType === 'products' ? 'bg-blue-100 text-blue-600' :
-                                                    'bg-amber-100 text-amber-600'
-                                                }`}>
-                                                    {item.featureType === 'reels' ? <FiPackage /> : item.featureType === 'products' ? <FiPlusCircle /> : item.featureType === 'property' ? <FiHome /> : <FiGrid />}
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-gray-800 text-sm leading-tight">{item.addonPlanId?.name || 'Custom Pack'}</p>
-                                                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5 tracking-tighter">Feature: {item.featureType?.replace('_', ' ')}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className="text-sm font-bold text-gray-500 tabular-nums">{formatDate(item.createdAt)}</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                                item.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 
-                                                item.status === 'consumed' ? 'bg-slate-100 text-slate-400' : 
-                                                'bg-rose-100 text-rose-600 shadow-sm'
-                                            }`}>
-                                                {item.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <span className="font-black text-gray-900 text-sm tabular-nums">₹{item.addonPlanId?.price || '0'}</span>
-                                        </td>
+                    <div className="bg-white border-2 border-gray-50 rounded-[2.5rem] shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full text-left border-collapse min-w-[600px] md:min-w-0">
+                                <thead>
+                                    <tr className="bg-gray-50/50">
+                                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center hidden md:table-cell">Date</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {addonHistory.map((item) => (
+                                        <tr key={item._id} className="hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm flex-shrink-0 ${
+                                                        item.featureType === 'reels' ? 'bg-rose-100 text-rose-600' :
+                                                        item.featureType === 'products' ? 'bg-blue-100 text-blue-600' :
+                                                        'bg-amber-100 text-amber-600'
+                                                    }`}>
+                                                        {item.featureType === 'reels' ? <FiPackage /> : item.featureType === 'products' ? <FiPlusCircle /> : item.featureType === 'property' ? <FiHome /> : <FiGrid />}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-gray-800 text-sm leading-tight truncate">{item.addonPlanId?.name || 'Custom Pack'}</p>
+                                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Feature: {item.featureType?.replace('_', ' ')}</p>
+                                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter md:hidden">• {formatDate(item.createdAt)}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center hidden md:table-cell">
+                                                <span className="text-sm font-bold text-gray-500 tabular-nums whitespace-nowrap">{formatDate(item.createdAt)}</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap ${
+                                                    item.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 
+                                                    item.status === 'consumed' ? 'bg-slate-100 text-slate-400' : 
+                                                    'bg-rose-100 text-rose-600 shadow-sm'
+                                                }`}>
+                                                    {item.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <span className="font-black text-gray-900 text-sm tabular-nums whitespace-nowrap">₹{item.addonPlanId?.price || '0'}</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}

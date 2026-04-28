@@ -185,7 +185,7 @@ const AdminVendorDashboardView = () => {
                     </div>
                     <div>
                         <div className="flex items-center gap-2 mb-2">
-                            <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-baseline gap-3">
+                            <h1 className="lg:hidden text-3xl font-black text-slate-800 tracking-tight flex items-baseline gap-3">
                                 {vendor?.name}
                                 {vendor?.storeName && (
                                     <span className="text-primary-600 font-extrabold text-xl px-3 py-1 bg-primary-50 rounded-xl border border-primary-100 shadow-sm">
@@ -197,18 +197,18 @@ const AdminVendorDashboardView = () => {
                                 {vendor?.businessType}
                             </span>
                         </div>
-                        <p className="text-slate-400 font-medium flex items-center gap-2">
+                        <p className="text-slate-400 font-medium flex items-center gap-2 text-left">
                             <FiCheckCircle className="text-emerald-500" /> Account Dashboard Overview
                         </p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 lg:w-96">
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-left">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Email Address</p>
                         <p className="text-sm font-black text-slate-800 truncate">{vendor?.email}</p>
                     </div>
-                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 text-left">
                         <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Nearest Expiry</p>
                         <p className="text-sm font-black text-amber-700">
                             {subscriptions.length > 0
@@ -245,7 +245,7 @@ const AdminVendorDashboardView = () => {
                                 <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform`}>
                                     <stat.icon />
                                 </div>
-                                <div>
+                                <div className="text-left">
                                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</h3>
                                     <p className="text-2xl font-black text-slate-900">{stat.value}</p>
                                 </div>
@@ -262,10 +262,10 @@ const AdminVendorDashboardView = () => {
                     {/* Inventory */}
                     {config.widgets.includes('listings_overview') && (
                         <div>
-                            <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 ml-2">Vendor Inventory</h2>
+                            <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 ml-2 text-left">Vendor Inventory</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 {config.enableProductListing && (
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden text-left">
                                         <div className="flex justify-between items-start mb-6">
                                             <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><FiPackage size={24} /></div>
                                         </div>
@@ -281,7 +281,7 @@ const AdminVendorDashboardView = () => {
                                 )}
 
                                 {config.enablePropertyListing && (
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden text-left">
                                         <div className="flex justify-between items-start mb-6">
                                             <div className="p-3 bg-purple-100 text-purple-600 rounded-xl"><FiHome size={24} /></div>
                                         </div>
@@ -297,7 +297,7 @@ const AdminVendorDashboardView = () => {
                                 )}
 
                                 {config.enableLotSlotListing && (
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden text-left">
                                         <div className="flex justify-between items-start mb-6">
                                             <div className="p-3 bg-amber-100 text-amber-600 rounded-xl"><FiHash size={24} /></div>
                                         </div>
@@ -317,10 +317,10 @@ const AdminVendorDashboardView = () => {
                     {/* Subscriptions */}
                     {config.widgets.includes('subscription_status') && (
                         <div>
-                            <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 ml-2">Subscription History</h2>
+                            <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 ml-2 text-left">Subscription History</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 {subscriptions.map((sub, i) => (
-                                    <div key={i} className="bg-slate-900 rounded-[2rem] p-8 text-white group overflow-hidden relative">
+                                    <div key={i} className="bg-slate-900 rounded-[2rem] p-8 text-white group overflow-hidden relative text-left">
                                         <div className="flex items-center justify-between mb-8">
                                             <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-primary-400">
                                                 <FiCreditCard size={20} />
@@ -343,7 +343,7 @@ const AdminVendorDashboardView = () => {
 
                     {/* Billing History & Invoices */}
                     <div>
-                        <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 ml-2">Billing & Invoices</h2>
+                        <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 ml-2 text-left">Billing & Invoices</h2>
                         <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm overflow-hidden">
                             {billingHistory.length > 0 ? (
                                 <div className="overflow-x-auto">
@@ -364,7 +364,7 @@ const AdminVendorDashboardView = () => {
                                                         {new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                                                     </td>
                                                     <td className="py-5">
-                                                        <div className="flex flex-col">
+                                                        <div className="flex flex-col text-left">
                                                             <span className="text-sm font-black text-slate-800">{item.planName}</span>
                                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">#{item.transactionCode}</span>
                                                         </div>
@@ -396,7 +396,7 @@ const AdminVendorDashboardView = () => {
                                     </table>
                                 </div>
                             ) : (
-                                <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                                <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-left">
                                     <FiFileText className="mx-auto text-3xl text-slate-300 mb-3" />
                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No billing history found</p>
                                 </div>
@@ -444,7 +444,7 @@ const AdminVendorDashboardView = () => {
                 <div className="lg:col-span-4 space-y-10">
                     {/* Alerts */}
                     {config.widgets.includes('alerts') && (
-                        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+                        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 text-left">
                             <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 px-2">Action Items</h2>
                             <div className="space-y-4">
                                 {alerts.length > 0 ? alerts.map((alert, idx) => (
@@ -453,7 +453,7 @@ const AdminVendorDashboardView = () => {
                                             <FiAlertCircle size={16} />
                                         </div>
                                         <div>
-                                            <p className="text-xs font-bold text-slate-700 leading-relaxed">{alert.message}</p>
+                                            <p className="text-xs font-bold text-slate-700 leading-relaxed text-left">{alert.message}</p>
                                         </div>
                                     </div>
                                 )) : (
@@ -467,7 +467,7 @@ const AdminVendorDashboardView = () => {
 
                     {/* Banners */}
                     {config.widgets.includes('banner_promo') && config.enableBanner && (
-                        <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-200">
+                        <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-200 text-left">
                             <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 ml-2">Active Banners</h2>
                             <div className="space-y-6">
                                 {banners.length > 0 ? banners.map((banner, i) => (
@@ -475,7 +475,7 @@ const AdminVendorDashboardView = () => {
                                         <div className="w-16 h-16 bg-slate-900 rounded-xl flex items-center justify-center text-primary-400 flex-shrink-0">
                                             <FiImage size={24} />
                                         </div>
-                                        <div>
+                                        <div className="text-left">
                                             <h4 className="text-sm font-black text-slate-800">{banner.title}</h4>
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-tight mb-2">{banner.type} • Ads</p>
                                             <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600">

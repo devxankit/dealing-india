@@ -171,7 +171,7 @@ const VendorNotifications = () => {
                         <div className="w-12 h-12 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>
                         <p className="text-gray-400 font-bold mt-4 text-sm">Loading notifications...</p>
                     </div>
-                ) : notifications.length === 0 ? (
+                ) : !notifications || notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-gray-400">
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                             <FiInbox size={28} className="opacity-40" />
@@ -181,7 +181,7 @@ const VendorNotifications = () => {
                     </div>
                 ) : (
                     <AnimatePresence>
-                        {notifications.map((notification, index) => (
+                        {notifications?.map((notification, index) => (
                             <motion.div
                                 key={notification._id}
                                 initial={{ opacity: 0, y: 10 }}
@@ -245,7 +245,7 @@ const VendorNotifications = () => {
             </div>
 
             {/* Pagination */}
-            {pagination.totalPages > 1 && (
+            {pagination?.totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 mt-6">
                     <button
                         onClick={() => fetchNotifications(pagination.page - 1)}

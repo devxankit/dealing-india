@@ -53,10 +53,8 @@ const B2BVendors = () => {
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-800">B2B Vendor Management</h1>
-                <p className="text-gray-500">Oversee the B2B ecosystem and B2B vendor operations.</p>
-            </div>
+            <div></div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {menuItems.map((item, index) => (

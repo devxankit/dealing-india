@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList, FiSearch, FiChevronDown, FiCamera } from "react-icons/fi";
+import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList, FiSearch, FiChevronDown, FiCamera, FiCheck } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import imageCompression from 'browser-image-compression';
@@ -30,7 +31,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                 try {
                     const parsed = JSON.parse(saved);
                     return parsed.formData || defaultData;
-                } catch (e) {}
+                } catch (e) { }
             }
         }
         return defaultData;
@@ -41,14 +42,16 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     const [categoriesLoading, setCategoriesLoading] = useState(true);
     const [subcategorySearchQuery, setSubcategorySearchQuery] = useState("");
     const [isSubcategoryDropdownOpen, setIsSubcategoryDropdownOpen] = useState(false);
+    const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
     const subcategoryDropdownRef = useRef(null);
+    const unitDropdownRef = useRef(null);
     const cameraInputRef = useRef(null);
     const [dynamicFields, setDynamicFields] = useState([]);
     const [dynamicValues, setDynamicValues] = useState(() => {
         if (!isEdit) {
             const saved = localStorage.getItem(DRAFT_KEY);
             if (saved) {
-                try { return JSON.parse(saved).dynamicValues || {}; } catch(e) {}
+                try { return JSON.parse(saved).dynamicValues || {}; } catch (e) { }
             }
         }
         return {};
@@ -58,7 +61,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
         if (!isEdit) {
             const saved = localStorage.getItem(DRAFT_KEY);
             if (saved) {
-                try { return JSON.parse(saved).customMultiInputs || {}; } catch(e) {}
+                try { return JSON.parse(saved).customMultiInputs || {}; } catch (e) { }
             }
         }
         return {};
@@ -175,7 +178,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                 const fields = sub.fields || [];
                 setDynamicFields(fields);
 
-                // Initialize dynamic values from existing specifications (including custom for select/multi-select)
                 setDynamicValues(prev => {
                     const newVals = { ...prev };
                     const opts = (o) => (Array.isArray(o) ? o : (o ? [o] : [])).map(String);
@@ -211,7 +213,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
             setDynamicFields([]);
             setDynamicValues({});
         }
-    }, [formData.category, formData.subcategory, categories]); // Removed initialData dependency and fixed logic to match ProductForm
+    }, [formData.category, formData.subcategory, categories]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -263,12 +265,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
         const files = Array.from(e.target.files);
         if (!files.length) return;
 
-        console.log(`[LotSlotImage] ${isCamera ? 'Camera' : 'File'} upload started:`, {
-            count: files.length,
-            types: files.map(f => f.type),
-            sizes: files.map(f => (f.size / 1024).toFixed(2) + 'KB')
-        });
-
         setIsUploading(true);
         const toastId = toast.loading(isCamera ? 'Processing photo...' : 'Processing images...');
         try {
@@ -277,17 +273,12 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                 files.map(async (file) => {
                     try {
                         const compressed = await imageCompression(file, options);
-                        console.log(`[LotSlotImage] Compression success: ${file.name}`, {
-                            original: (file.size / 1024).toFixed(2) + 'KB',
-                            compressed: (compressed.size / 1024).toFixed(2) + 'KB'
-                        });
                         return new Promise((resolve) => {
                             const reader = new FileReader();
                             reader.onloadend = () => resolve(reader.result);
                             reader.readAsDataURL(compressed);
                         });
                     } catch (err) {
-                        console.warn(`[LotSlotImage] Compression failed for ${file.name}, using original:`, err);
                         return new Promise((resolve) => {
                             const reader = new FileReader();
                             reader.onloadend = () => resolve(reader.result);
@@ -303,7 +294,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
             }));
             toast.success(`${files.length} images added`, { id: toastId });
         } catch (error) {
-            console.error('[LotSlotImage] Upload failed:', error);
             toast.error("Failed to upload some images", { id: toastId });
         } finally {
             setIsUploading(false);
@@ -345,8 +335,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                 if (f.type === 'select') {
                     if (value === '__OTHER__') value = dynamicValues[`${key}_custom`] || '';
                 }
-                
-                // 🔹 Fix: Handle multi-select arrays for string-type backend
+
                 if (Array.isArray(value)) {
                     value = value.join(', ');
                 }
@@ -355,8 +344,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                 return { name: key, value: String(value) };
             }).filter(Boolean);
 
-            // Filter out any dynamic fields that might already exist in specifications to avoid duplicates
-            // This is the CRITICAL fix for the duplication issue
             const genericSpecs = formData.specifications.filter(spec =>
                 spec.name && spec.value &&
                 !dynamicFields.some(df => df.label?.toLowerCase() === spec.name?.toLowerCase())
@@ -386,7 +373,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
 
             localStorage.removeItem(DRAFT_KEY);
 
-            // Refresh subscription status to update counts
             try {
                 await useSubscriptionStore.getState().refreshStatus();
             } catch (e) {
@@ -395,7 +381,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
 
             navigate("/b2b-vendor/lotslot/manage-lots");
         } catch (error) {
-            console.error('Error saving lot/slot:', error);
             const errorMessage = error.response?.data?.message || error.message || "Failed to save listing";
             toast.error(errorMessage);
         } finally {
@@ -406,9 +391,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     return (
         <form onSubmit={handleSubmit} noValidate className="max-w-7xl mx-auto space-y-6 pb-20">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Left Section: Details */}
                 <div className="lg:col-span-8 space-y-6">
-                    {/* Basic Info */}
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -517,7 +500,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                 </div>
                             </div>
 
-                            {/* Dynamic Fields Rendering Section */}
                             {dynamicFields.length > 0 && (
                                 <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-primary-50/30 rounded-2xl border border-primary-100/50">
                                     <div className="md:col-span-2 flex items-center gap-2 mb-1">
@@ -644,13 +626,13 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                                                 {dynamicValues[f.label].filter(v => !(f.options || []).includes(v)).map((customVal, idx) => (
                                                                     <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-[10px] font-bold border border-gray-200">
                                                                         {customVal}
-                                                                        <button 
-                                                                            type="button" 
+                                                                        <button
+                                                                            type="button"
                                                                             onClick={() => {
                                                                                 const currentVals = [...(dynamicValues[f.label] || [])];
                                                                                 const filtered = currentVals.filter(c => c !== customVal);
                                                                                 setDynamicValues(p => ({ ...p, [f.label]: filtered }));
-                                                                            }} 
+                                                                            }}
                                                                             className="text-gray-400 hover:text-red-600 ml-1 leading-none"
                                                                         >
                                                                             &times;
@@ -692,12 +674,9 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                     <option value="Available on Order">Available on Order</option>
                                 </select>
                             </div>
-
-
                         </div>
                     </motion.div>
 
-                    {/* Description */}
                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                         <div className="flex items-center gap-2 mb-5">
                             <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm">
@@ -716,7 +695,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                         {errors.description && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.description}</p>}
                     </div>
 
-                    {/* Specifications */}
                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-2">
@@ -737,7 +715,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                         <div className="space-y-3">
                             <AnimatePresence>
                                 {formData.specifications.map((spec, index) => {
-                                    // Hide specs that are already shown as dynamic fields to avoid visual confusion
                                     if (dynamicFields.some(df => df.label?.toLowerCase() === spec.name?.toLowerCase())) {
                                         return null;
                                     }
@@ -786,9 +763,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                     </div>
                 </div>
 
-                {/* Right Section: Pricing & Images */}
                 <div className="lg:col-span-4 space-y-6">
-                    {/* Media Gallery */}
                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                         <div className="flex items-center justify-between mb-5">
                             <div className="flex items-center gap-2">
@@ -799,7 +774,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                             {formData.images.map((img, index) => (
                                 <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 group">
                                     <img src={img} alt="" className="w-full h-full object-cover" />
@@ -819,12 +794,44 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                     )}
                                 </div>
                             ))}
-                            <label className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed ${errors.images ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-xl hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-all group`}>
-                                <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-purple-600 transition-all">
-                                    {isUploading ? <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div> : <FiPlus />}
-                                </div>
-                                <input type="file" onChange={handleMultipleImageUpload} className="hidden" multiple accept="image/*" disabled={isUploading} />
-                            </label>
+
+                            <div className="col-span-2 grid grid-cols-2 gap-4">
+                                <label className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed ${errors.images ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-2xl hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-all group`}>
+                                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-purple-600 transition-all shadow-sm mb-1">
+                                        {isUploading ? <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div> : <FiPlus size={20} />}
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-purple-600">Gallery</span>
+                                    <input
+                                        type="file"
+                                        onChange={(e) => handleMultipleImageUpload(e, false)}
+                                        className="hidden"
+                                        multiple
+                                        accept="image/png, image/jpeg, image/webp"
+                                        disabled={isUploading}
+                                    />
+                                </label>
+
+                                <button
+                                    type="button"
+                                    onClick={() => cameraInputRef.current?.click()}
+                                    disabled={isUploading}
+                                    className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-gray-200 rounded-2xl hover:bg-indigo-50 hover:border-indigo-200 cursor-pointer transition-all group"
+                                >
+                                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-indigo-600 transition-all shadow-sm mb-1">
+                                        <FiCamera size={20} />
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-indigo-600">Camera</span>
+                                    <input
+                                        type="file"
+                                        ref={cameraInputRef}
+                                        capture="environment"
+                                        accept="image/*"
+                                        onChange={(e) => handleMultipleImageUpload(e, true)}
+                                        className="hidden"
+                                        disabled={isUploading}
+                                    />
+                                </button>
+                            </div>
                         </div>
                         {errors.images && <p className="text-[10px] text-red-500 font-bold mb-2 ml-1">{errors.images}</p>}
                         <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
@@ -832,8 +839,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                         </p>
                     </div>
 
-                    {/* Pricing */}
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                    <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
                         <div className="flex items-center gap-2 mb-6">
                             <div className="p-1.5 bg-green-50 text-green-600 rounded-lg text-sm">
                                 <FiDollarSign />
@@ -860,52 +866,123 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
 
                             <div>
                                 <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Min. Order (MOQ) <span className="text-red-500">*</span></label>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 min-w-0">
                                     <input
                                         type="number"
                                         name="moq"
                                         value={formData.moq}
                                         onChange={handleChange}
                                         required
-                                        className="flex-1 px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                        className="min-w-0 flex-1 px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
                                         placeholder="1"
                                     />
-                                    <select
-                                        name="unit"
-                                        value={formData.unit}
-                                        onChange={handleChange}
-                                        className="w-28 px-2 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none font-bold text-gray-700 text-xs"
-                                    >
-                                        <option value="">Unit</option>
-                                        <option value="Lot">Lot</option>
-                                        <option value="Slot">Slot</option>
-                                        <option value="pieces">Pieces</option>
-                                        <option value="pcs">PCS</option>
-                                        <option value="nos">NOS</option>
-                                        <option value="kg">Kilogram (Kg)</option>
-                                        <option value="gram">Gram (g)</option>
-                                        <option value="ton">Ton</option>
-                                        <option value="meter">Meter (m)</option>
-                                        <option value="cm">Centimeter (cm)</option>
-                                        <option value="feet">Feet (ft)</option>
-                                        <option value="yard">Yard</option>
-                                        <option value="litre">Litre (L)</option>
-                                        <option value="ml">Milliliter (ml)</option>
-                                        <option value="gallon">Gallon</option>
-                                        <option value="box">Box</option>
-                                        <option value="pack">Pack</option>
-                                        <option value="set">Set</option>
-                                        <option value="pair">Pair</option>
-                                        <option value="dozen">Dozen</option>
-                                        <option value="carton">Carton</option>
-                                        <option value="bundle">Bundle</option>
-                                        <option value="roll">Roll</option>
-                                        <option value="sheet">Sheet</option>
-                                        <option value="sqft">Square Feet (sqft)</option>
-                                        <option value="sqm">Square Meter (sqm)</option>
-                                        <option value="Container">Container</option>
-                                        <option value="Night">Night</option>
-                                    </select>
+                                    <div className="relative w-24 xs:w-28 shrink-0" ref={unitDropdownRef}>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsUnitDropdownOpen(true);
+                                            }}
+                                            className="w-full px-2 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none font-bold text-gray-700 text-xs text-left flex items-center justify-between"
+                                        >
+                                            <span className="truncate">{formData.unit || "Unit"}</span>
+                                            <div className="text-gray-400">
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                        </button>
+
+                                        {createPortal(
+                                            <AnimatePresence>
+                                                {isUnitDropdownOpen && (
+                                                    <div className="fixed inset-0 z-[9999] flex items-end justify-center">
+                                                        <motion.div
+                                                            initial={{ opacity: 0 }}
+                                                            animate={{ opacity: 1 }}
+                                                            exit={{ opacity: 0 }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setIsUnitDropdownOpen(false);
+                                                            }}
+                                                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                                                        />
+                                                        <motion.div
+                                                            initial={{ y: "100%" }}
+                                                            animate={{ y: 0 }}
+                                                            exit={{ y: "100%" }}
+                                                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                                                            className="relative w-full max-w-lg bg-white rounded-t-[2.5rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
+                                                        >
+                                                            <div className="w-full flex justify-center pt-4 pb-2">
+                                                                <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
+                                                            </div>
+                                                            <div className="px-8 py-4 border-b border-gray-50 flex items-center justify-between">
+                                                                <div>
+                                                                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Select Unit</h3>
+                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Choose the measurement unit</p>
+                                                                </div>
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setIsUnitDropdownOpen(false);
+                                                                    }}
+                                                                    className="p-3 bg-gray-50 hover:bg-gray-100 rounded-full transition-all"
+                                                                >
+                                                                    <FiX size={20} className="text-gray-400" />
+                                                                </button>
+                                                            </div>
+                                                            <div className="overflow-y-auto px-4 py-6 custom-scrollbar grid grid-cols-2 gap-3">
+                                                                {[
+                                                                    "Lot", "Slot", "pieces", "pcs", "nos", "kg", "gram", "ton", "meter", "cm", "feet", "yard", "litre", "ml", "gallon", "box", "pack", "set", "pair", "dozen", "carton", "bundle", "roll", "sheet", "sqft", "sqm", "Night"
+                                                                ].map((u) => (
+                                                                    <button
+                                                                        key={u}
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setFormData(prev => ({ ...prev, unit: u }));
+                                                                            setIsUnitDropdownOpen(false);
+                                                                        }}
+                                                                        className={`group relative overflow-hidden px-5 py-4 rounded-2xl text-left transition-all border-2 ${formData.unit === u
+                                                                            ? 'bg-primary-600 border-primary-600 shadow-lg shadow-primary-100'
+                                                                            : 'bg-slate-50 border-transparent hover:bg-white hover:border-primary-100'
+                                                                            }`}
+                                                                    >
+                                                                        <div className={`text-xs font-black uppercase tracking-wider ${formData.unit === u ? 'text-white' : 'text-gray-600'}`}>
+                                                                            {u}
+                                                                        </div>
+                                                                        {formData.unit === u && (
+                                                                            <motion.div
+                                                                                layoutId="activeUnit"
+                                                                                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center"
+                                                                            >
+                                                                                <FiCheck className="text-white" size={14} />
+                                                                            </motion.div>
+                                                                        )}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                            <div className="p-6 bg-gray-50/50 border-t border-gray-50">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setIsUnitDropdownOpen(false);
+                                                                    }}
+                                                                    className="w-full py-4 bg-white border-2 border-gray-100 text-gray-500 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-gray-50 transition-all"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </motion.div>
+                                                    </div>
+                                                )}
+                                            </AnimatePresence>,
+                                            document.body
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

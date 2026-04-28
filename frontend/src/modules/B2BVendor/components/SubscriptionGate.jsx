@@ -156,6 +156,9 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             });
 
             toast.loading('Verifying recharge...', { id: 'wallet-gate-recharge' });
+            
+            // Optimistic update for immediate UI feedback
+            setWalletBalance(prev => prev + amount);
 
             const verifyData = {
                 ...handlePaymentSuccess(paymentResponse),
@@ -166,12 +169,16 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             
             toast.success(`Wallet recharged with ₹${amount}!`, { id: 'wallet-gate-recharge' });
             
-            // Refresh balance
+            // Refresh balance with actual data
             const walletData = await getMyWallet();
             setWalletBalance(walletData.balance || 0);
         } catch (err) {
             console.error('Recharge error:', err);
             toast.error(err.message || 'Payment cancelled or recharge failed', { id: 'wallet-gate-recharge' });
+            // Refetch to revert optimistic update if needed
+            const { getMyWallet } = await import('../services/vendorWalletService');
+            const walletData = await getMyWallet();
+            setWalletBalance(walletData.balance || 0);
         } finally {
             setIsRecharging(false);
         }

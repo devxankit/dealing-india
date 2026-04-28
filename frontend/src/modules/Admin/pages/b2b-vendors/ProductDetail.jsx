@@ -127,7 +127,7 @@ const AdminB2BProductDetail = () => {
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded">{product.brandName || 'Brand Not specified'}</span>
                                 </div>
-                                <h1 className="text-3xl font-black text-gray-900 leading-tight mb-2">{product.name}</h1>
+                                <h1 className="lg:hidden text-3xl font-black text-gray-900 leading-tight mb-2">{product.name}</h1>
                                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1">
                                     <FiTag /> SKU: {product.sku || 'N/A'}
                                 </p>

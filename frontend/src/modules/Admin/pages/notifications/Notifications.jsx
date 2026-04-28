@@ -102,11 +102,11 @@ const Notifications = () => {
         >
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Notifications</h1>
                     <p className="text-sm sm:text-base text-gray-600">
                         You have {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
                     </p>
                 </div>
+
                 <div className="flex gap-2">
                     <button
                         onClick={markAllAsRead}

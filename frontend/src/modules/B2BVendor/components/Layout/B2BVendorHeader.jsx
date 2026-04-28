@@ -28,9 +28,19 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                 setShowUserMenu(false);
             }
         };
+
+        // Listen for openNotifications query parameter
+        const params = new URLSearchParams(location.search);
+        if (params.get('openNotifications') === 'true') {
+            setShowNotifications(true);
+            // Clean up the URL by removing the param without refreshing
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+        }
+
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+    }, [location.search]);
 
     const handleLogout = () => {
         logout();

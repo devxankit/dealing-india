@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { FiMail, FiLock, FiArrowLeft, FiCheck } from 'react-icons/fi';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { FiMail, FiLock, FiArrowLeft, FiCheck, FiSmartphone } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
@@ -9,37 +9,36 @@ import api from '../../../shared/utils/api'; // Direct API usage or add to store
 
 const ForgotPassword = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [step, setStep] = useState(1); // 1: Email, 2: OTP & Password
     const [isLoading, setIsLoading] = useState(false);
 
     // Form States
-    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState(location.state?.phone || '');
+    const [countryCode, setCountryCode] = useState(location.state?.countryCode || '+91');
+    const [maskedEmail, setMaskedEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
     const handleSendOTP = async (e) => {
         e.preventDefault();
-        if (!email) {
-            toast.error('Please enter your email');
+        if (!phone || phone.length !== 10) {
+            toast.error('Please enter a valid 10-digit phone number');
             return;
         }
 
         setIsLoading(true);
         try {
-            // Check for success in response.data or response
-            const response = await api.post('/auth/user/forgot-password', { email });
+            const identifier = `${countryCode}${phone}`;
+            const response = await api.post('/auth/user/forgot-password', { identifier });
 
-            // The api utility unwraps response.data, so 'response' here IS the body.
-            // However, the body ALSO has a 'data' property { email }.
-            // This causes 'response.data || response' to return the inner data object, which loses the 'success' flag.
-
-            // Correct logic: Check if the returned object ITSELF has success.
             const isSuccess = response.success || response.data?.success;
             const message = response.message || response.data?.message;
 
             if (isSuccess) {
-                toast.success(message || 'OTP sent to your email!');
+                toast.success(message || 'OTP sent to your registered email!');
+                setMaskedEmail(response.data?.email || response.data?.data?.email || '');
                 setStep(2);
             } else {
                 toast.error(message || 'Failed to send OTP');
@@ -71,8 +70,9 @@ const ForgotPassword = () => {
 
         setIsLoading(true);
         try {
+            const identifier = `${countryCode}${phone}`;
             const response = await api.post('/auth/user/reset-password', {
-                email,
+                identifier,
                 otp,
                 newPassword
             });
@@ -120,27 +120,41 @@ const ForgotPassword = () => {
                     <h1 className="text-2xl font-extrabold text-gray-800 mb-1">
                         {step === 1 ? 'Forgot Password?' : 'Reset Password'}
                     </h1>
-                    <p className="text-sm text-gray-500 font-medium tracking-tight">
+                    <p className="text-xs text-gray-500 font-medium tracking-tight px-4 mt-2">
                         {step === 1
-                            ? 'Enter verify your email to receive an OTP'
-                            : 'Enter the OTP and your new password'}
+                            ? 'Enter your phone number to receive an OTP on your registered email'
+                            : maskedEmail ? `Enter the OTP sent to ${maskedEmail} and your new password` : 'Enter the OTP and your new password'}
                     </p>
                 </div>
 
                 {step === 1 ? (
                     <form onSubmit={handleSendOTP} className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-700 ml-1">Email Address</label>
-                            <div className="relative group">
-                                <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
-                                <input
-                                    type="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="vendor@company.com"
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
-                                />
+                            <label className="text-xs font-bold text-gray-700 ml-1">Phone Number</label>
+                            <div className="flex gap-2">
+                                <select
+                                    name="countryCode"
+                                    value={countryCode}
+                                    onChange={(e) => setCountryCode(e.target.value)}
+                                    className="w-20 px-2 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-gray-900 appearance-none cursor-pointer text-sm"
+                                >
+                                    <option value="+91">+91</option>
+                                    <option value="+880">+880</option>
+                                    <option value="+1">+1</option>
+                                    <option value="+44">+44</option>
+                                </select>
+                                <div className="relative flex-1 group">
+                                    <FiSmartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                                    <input
+                                        type="tel"
+                                        required
+                                        readOnly={!!location.state?.phone}
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                                        placeholder="10 digit number"
+                                        className={`w-full pl-10 pr-4 py-3 border-2 border-transparent rounded-xl focus:border-primary-500 transition-all font-medium text-sm ${!!location.state?.phone ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-gray-50 focus:bg-white'}`}
+                                    />
+                                </div>
                             </div>
                         </div>
 

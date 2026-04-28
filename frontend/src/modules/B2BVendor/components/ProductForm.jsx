@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList, FiCamera } from "react-icons/fi";
+import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList, FiCamera, FiCheck } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
@@ -24,6 +25,8 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const USER_DRAFT_KEY = `${DRAFT_KEY}_${vendorId}`;
     const cameraInputRef = useRef(null);
     const [errors, setErrors] = useState({});
+    const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
+    const unitDropdownRef = useRef(null);
 
     const [formData, setFormData] = useState(() => {
         if (initialData) return initialData;
@@ -102,6 +105,16 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         } else {
             setCategoriesLoading(false);
         }
+    }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (unitDropdownRef.current && !unitDropdownRef.current.contains(event.target)) {
+                setIsUnitDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
     const fetchCategories = async () => {
@@ -888,17 +901,17 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
                                 {/* Action Buttons */}
                                 <div className="col-span-2 flex gap-3">
-                                    <label className="flex-1 flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-2xl hover:bg-primary-50 hover:border-primary-200 cursor-pointer transition-all group relative overflow-hidden">
-                                        <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-primary-600 transition-all shadow-sm">
-                                            {isUploading ? <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div> : <FiPlus />}
+                                    <label className="flex-1 flex flex-col items-center justify-center py-10 px-5 border-2 border-dashed border-gray-200 rounded-3xl hover:bg-primary-50 hover:border-primary-200 cursor-pointer transition-all group relative overflow-hidden">
+                                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-primary-600 transition-all shadow-sm mb-1">
+                                            {isUploading ? <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div> : <FiPlus size={24} />}
                                         </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary-600 mt-2">Upload</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-primary-600">Gallery</span>
                                         <input
                                             type="file"
                                             onChange={(e) => handleMultipleImageUpload(e, false)}
                                             className="hidden"
                                             multiple
-                                            accept="image/*"
+                                            accept="image/png, image/jpeg, image/webp"
                                             disabled={isUploading}
                                         />
                                     </label>
@@ -907,19 +920,20 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         type="button"
                                         onClick={() => cameraInputRef.current?.click()}
                                         disabled={isUploading}
-                                        className="flex-1 flex flex-col items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-2xl hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group relative overflow-hidden"
+                                        className="flex-1 flex flex-col items-center justify-center py-8 px-4 border-2 border-dashed border-gray-200 rounded-3xl hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group relative overflow-hidden"
                                     >
-                                        <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-blue-600 transition-all shadow-sm">
-                                            <FiCamera size={18} />
+                                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-blue-600 transition-all shadow-sm mb-1">
+                                            <FiCamera size={22} />
                                         </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-blue-600 mt-2">Camera</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-blue-600">Camera</span>
                                         <input
                                             ref={cameraInputRef}
                                             type="file"
-                                            accept="image/*"
                                             capture="environment"
-                                            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                                            accept="image/*"
                                             onChange={(e) => handleMultipleImageUpload(e, true)}
+                                            className="hidden"
+                                            disabled={isUploading}
                                         />
                                     </button>
                                 </div>
@@ -935,7 +949,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                     </div>
 
                     {/* Pricing */}
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                    <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
                         <div className="flex items-center gap-2 mb-6">
                             <div className="p-1.5 bg-green-50 text-green-600 rounded-lg text-sm">
                                 <FiDollarSign />
@@ -963,48 +977,123 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
                             <div>
                                 <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Min. Order (MOQ) <span className="text-red-500">*</span></label>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 min-w-0">
                                     <input
                                         type="number"
                                         name="moq"
                                         value={formData.moq}
                                         onChange={handleChange}
-                                        className={`flex-1 px-4 py-2.5 bg-slate-50 border ${errors.moq ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none`}
+                                        className={`min-w-0 flex-1 px-4 py-2.5 bg-slate-50 border ${errors.moq ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none`}
                                         placeholder="100"
                                     />
-                                    <select
-                                        name="unit"
-                                        value={formData.unit}
-                                        onChange={handleChange}
-                                        className={`w-28 px-2 py-2.5 bg-slate-50 border ${errors.unit ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none font-bold text-gray-700 text-xs`}
-                                    >
-                                        <option value="">Unit</option>
-                                        <option value="pieces">Pieces</option>
-                                        <option value="pcs">PCS</option>
-                                        <option value="nos">NOS</option>
-                                        <option value="kg">Kilogram (Kg)</option>
-                                        <option value="gram">Gram (g)</option>
-                                        <option value="ton">Ton</option>
-                                        <option value="meter">Meter (m)</option>
-                                        <option value="cm">Centimeter (cm)</option>
-                                        <option value="feet">Feet (ft)</option>
-                                        <option value="yard">Yard</option>
-                                        <option value="litre">Litre (L)</option>
-                                        <option value="ml">Milliliter (ml)</option>
-                                        <option value="gallon">Gallon</option>
-                                        <option value="box">Box</option>
-                                        <option value="pack">Pack</option>
-                                        <option value="set">Set</option>
-                                        <option value="pair">Pair</option>
-                                        <option value="dozen">Dozen</option>
-                                        <option value="carton">Carton</option>
-                                        <option value="bundle">Bundle</option>
-                                        <option value="roll">Roll</option>
-                                        <option value="sheet">Sheet</option>
-                                        <option value="sqft">Square Feet (sqft)</option>
-                                        <option value="sqm">Square Meter (sqm)</option>
-                                        <option value="Night">Night</option>
-                                    </select>
+                                    <div className="relative w-24 xs:w-28 shrink-0" ref={unitDropdownRef}>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsUnitDropdownOpen(true);
+                                            }}
+                                            className={`w-full px-2 py-2.5 bg-slate-50 border ${errors.unit ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none font-bold text-gray-700 text-xs text-left flex items-center justify-between`}
+                                        >
+                                            <span className="truncate">{formData.unit || "Unit"}</span>
+                                            <div className="text-gray-400">
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                        </button>
+
+                                        {createPortal(
+                                            <AnimatePresence>
+                                                {isUnitDropdownOpen && (
+                                                    <div className="fixed inset-0 z-[9999] flex items-end justify-center">
+                                                        <motion.div
+                                                            initial={{ opacity: 0 }}
+                                                            animate={{ opacity: 1 }}
+                                                            exit={{ opacity: 0 }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setIsUnitDropdownOpen(false);
+                                                            }}
+                                                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                                                        />
+                                                        <motion.div
+                                                            initial={{ y: "100%" }}
+                                                            animate={{ y: 0 }}
+                                                            exit={{ y: "100%" }}
+                                                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                                                            className="relative w-full max-w-lg bg-white rounded-t-[2.5rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
+                                                        >
+                                                            <div className="w-full flex justify-center pt-4 pb-2">
+                                                                <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
+                                                            </div>
+                                                            <div className="px-8 py-4 border-b border-gray-50 flex items-center justify-between">
+                                                                <div>
+                                                                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Select Unit</h3>
+                                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Choose the measurement unit</p>
+                                                                </div>
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setIsUnitDropdownOpen(false);
+                                                                    }}
+                                                                    className="p-3 bg-gray-50 hover:bg-gray-100 rounded-full transition-all"
+                                                                >
+                                                                    <FiX size={20} className="text-gray-400" />
+                                                                </button>
+                                                            </div>
+                                                            <div className="overflow-y-auto px-4 py-6 custom-scrollbar grid grid-cols-2 gap-3">
+                                                                {[
+                                                                    "pieces", "pcs", "nos", "kg", "gram", "ton", "meter", "cm", "feet", "yard", "litre", "ml", "gallon", "box", "pack", "set", "pair", "dozen", "carton", "bundle", "roll", "sheet", "sqft", "sqm", "Night"
+                                                                ].map((u) => (
+                                                                    <button
+                                                                        key={u}
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setFormData(prev => ({ ...prev, unit: u }));
+                                                                            setIsUnitDropdownOpen(false);
+                                                                            if (errors.unit) setErrors(prev => ({ ...prev, unit: null }));
+                                                                        }}
+                                                                        className={`group relative overflow-hidden px-5 py-4 rounded-2xl text-left transition-all border-2 ${formData.unit === u
+                                                                            ? 'bg-primary-600 border-primary-600 shadow-lg shadow-primary-100'
+                                                                            : 'bg-slate-50 border-transparent hover:bg-white hover:border-primary-100'
+                                                                            }`}
+                                                                    >
+                                                                        <div className={`text-xs font-black uppercase tracking-wider ${formData.unit === u ? 'text-white' : 'text-gray-600'}`}>
+                                                                            {u}
+                                                                        </div>
+                                                                        {formData.unit === u && (
+                                                                            <motion.div
+                                                                                layoutId="activeUnit"
+                                                                                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center"
+                                                                            >
+                                                                                <FiCheck className="text-white" size={14} />
+                                                                            </motion.div>
+                                                                        )}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                            <div className="p-6 bg-gray-50/50 border-t border-gray-50">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setIsUnitDropdownOpen(false);
+                                                                    }}
+                                                                    className="w-full py-4 bg-white border-2 border-gray-100 text-gray-500 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-gray-50 transition-all"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </motion.div>
+                                                    </div>
+                                                )}
+                                            </AnimatePresence>,
+                                            document.body
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex gap-2">
                                     {errors.moq && <p className="flex-1 text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.moq}</p>}

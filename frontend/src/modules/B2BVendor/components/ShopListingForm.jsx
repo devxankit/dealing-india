@@ -208,6 +208,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
+        // 1. Basic Validations
         if (!formData.shopName || !formData.description || !formData.minPrice || !formData.maxPrice) {
             return toast.error("Please fill all required fields");
         }
@@ -216,9 +217,28 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
             return toast.error("Max Price cannot be less than Min Price");
         }
 
+        // 2. Image Validation
         if (formData.images.length === 0 && (!hasExistingUnit || isShopModified)) {
             return toast.error("Please upload at least one photo");
         }
+
+        // 3. Validate Staff Details
+        const validDetails = formData.details.filter(d => d.name.trim() || d.post.trim() || d.mobile.trim());
+        for (const detail of validDetails) {
+            if (!detail.name.trim()) {
+                return toast.error("Staff name is required for all added contact rows");
+            }
+            if (!/^[a-zA-Z\s]+$/.test(detail.name)) {
+                return toast.error(`Staff name "${detail.name}" should only contain alphabets`);
+            }
+            if (!detail.mobile.trim()) {
+                return toast.error(`Mobile number is required for "${detail.name}"`);
+            }
+            if (!/^\d{10}$/.test(detail.mobile)) {
+                return toast.error(`Mobile number for "${detail.name}" must be exactly 10 digits`);
+            }
+        }
+
 
         const payload = {
             name: formData.shopName.trim(),
@@ -228,13 +248,14 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
             minPrice: String(formData.minPrice),
             maxPrice: String(formData.maxPrice),
             images: formData.images,
-            details: formData.details.filter(d => d.name || d.post || d.mobile),
+            details: validDetails,
         };
 
         // Clear draft on successful submit
         localStorage.removeItem(USER_DRAFT_KEY);
         onSubmit(payload);
     };
+
 
     // Styling constants matching ProductForm.jsx
     const inputStyle = "w-full px-4 py-3 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none font-medium text-gray-700 placeholder:text-gray-400 shadow-sm";
@@ -329,13 +350,13 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                             </AnimatePresence>
                             {formData.images.length < MAX_PHOTOS && (
                                 <div className="flex gap-4 col-span-2 sm:col-span-1">
-                                    <label className="flex-1 aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group relative">
-                                        <FiUpload size={20} className="group-hover:scale-110 transition-transform" />
-                                        <span className="text-[10px] font-black uppercase tracking-wider">File</span>
+                                     <label className="flex-1 aspect-square rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center p-6 gap-2 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group relative">
+                                        <FiPlus size={24} className="group-hover:scale-110 transition-transform" />
+                                        <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">Gallery</span>
                                         <input
                                             type="file"
                                             multiple
-                                            accept="image/*"
+                                            accept="image/png, image/jpeg, image/webp"
                                             style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
                                             onChange={(e) => handleImageUpload(e, false)}
                                         />
@@ -353,10 +374,10 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                                         <button
                                             type="button"
                                             onClick={() => cameraInputRef.current?.click()}
-                                            className="w-full aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group"
+                                            className="w-full aspect-square rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center p-6 gap-2 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group"
                                         >
-                                            <FiCamera size={20} className="group-hover:scale-110 transition-transform text-primary-500" />
-                                            <span className="text-[10px] font-black uppercase tracking-wider">Camera</span>
+                                            <FiCamera size={24} className="group-hover:scale-110 transition-transform text-primary-500" />
+                                            <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">Camera</span>
                                         </button>
                                     </div>
                                 </div>
@@ -496,14 +517,16 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                                             type="text"
                                             value={detail.name}
                                             onChange={(e) => {
+                                                const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
                                                 const newDetails = [...formData.details];
-                                                newDetails[idx].name = e.target.value;
+                                                newDetails[idx].name = val;
                                                 setFormData({ ...formData, details: newDetails });
                                                 setIsShopModified(true);
                                             }}
                                             placeholder="Enter Name"
                                             className={inputStyle.replace("py-3", "py-2.5 text-sm")}
                                         />
+
                                     </div>
                                     <div className="sm:col-span-4 space-y-1.5">
                                         <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Post / Role</label>
@@ -523,17 +546,20 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                                     <div className="sm:col-span-3 space-y-1.5">
                                         <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Mobile</label>
                                         <input
-                                            type="text"
+                                            type="tel"
+                                            maxLength={10}
                                             value={detail.mobile}
                                             onChange={(e) => {
+                                                const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
                                                 const newDetails = [...formData.details];
-                                                newDetails[idx].mobile = e.target.value;
+                                                newDetails[idx].mobile = val;
                                                 setFormData({ ...formData, details: newDetails });
                                                 setIsShopModified(true);
                                             }}
                                             placeholder="Mobile No."
                                             className={inputStyle.replace("py-3", "py-2.5 text-sm")}
                                         />
+
                                     </div>
                                     <div className="sm:col-span-1 pb-1">
                                         <button

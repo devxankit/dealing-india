@@ -315,26 +315,21 @@ const ManageB2BVendors = () => {
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Manage B2B Vendors</h1>
-                    <p className="text-gray-500">Search and manage all B2B vendors on the platform.</p>
-                </div>
-                <div className="relative w-80">
+            {/* Search & Filters */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-wrap items-center gap-4">
+                <div className="relative w-full sm:w-80">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                         type="text"
                         placeholder="Search B2B vendors..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none transition-all shadow-sm focus:shadow-md"
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-primary-500 outline-none transition-all"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-            </div>
-
-            {/* City & Business Type Filters + Summary */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-wrap items-center gap-4">
+                
                 <div className="flex flex-wrap items-center gap-3">
+
                     {/* Searchable City Dropdown */}
                     <div className="relative" ref={cityDropdownRef}>
                         <button

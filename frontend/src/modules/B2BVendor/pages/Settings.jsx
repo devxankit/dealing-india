@@ -77,6 +77,20 @@ const B2BVendorSettings = () => {
                 ...prev,
                 [name]: cleaned
             }));
+        } else if (name === 'name') {
+            // Only allow alphabets and spaces
+            const cleaned = value.replace(/[^a-zA-Z\s]/g, '');
+            setFormData(prev => ({
+                ...prev,
+                [name]: cleaned
+            }));
+        } else if (name === 'phone') {
+            // Only allow 10 digits
+            const cleaned = value.replace(/[^0-9]/g, '').slice(0, 10);
+            setFormData(prev => ({
+                ...prev,
+                [name]: cleaned
+            }));
         } else {
             setFormData(prev => ({
                 ...prev,
@@ -84,6 +98,7 @@ const B2BVendorSettings = () => {
             }));
         }
     };
+
 
     const handleSave = async () => {
         if (!vendor) {
@@ -100,6 +115,12 @@ const B2BVendorSettings = () => {
             toast.error("Company Name is required");
             return;
         }
+
+        if (formData.phone && !/^\d{10}$/.test(formData.phone)) {
+            toast.error("Phone number must be exactly 10 digits");
+            return;
+        }
+
 
         // GST Validation
         if (formData.gstNumber) {

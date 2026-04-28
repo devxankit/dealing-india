@@ -819,7 +819,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         </button>
 
                                         <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-slate-400">
-                                            <input type="file" multiple accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="hidden" />
+                                            <input type="file" multiple accept="image/png, image/jpeg, image/webp" onChange={(e) => handleImageUpload(e, false)} className="hidden" />
                                             <FiPlus size={24} />
                                             <span className="text-[10px] font-bold uppercase">Gallery</span>
                                         </label>

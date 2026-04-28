@@ -142,7 +142,7 @@ const B2BVendorDashboard = () => {
             {/* ------------------------------------------
                 SECTION 1: HEADER (ALWAYS VISIBLE)
             ------------------------------------------ */}
-            <header className="bg-white rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-10 shadow-sm border border-slate-100 flex flex-col lg:flex-row justify-between gap-6 sm:gap-8">
+            <header className="bg-white rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-10 shadow-sm border border-slate-100 flex flex-col xl:flex-row justify-between gap-6 sm:gap-8">
                 <div className="flex flex-col sm:flex-row items-center sm:items-start lg:items-center gap-4 sm:gap-6 text-center sm:text-left">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-900 rounded-2xl sm:rounded-[2rem] flex items-center justify-center shadow-2xl flex-shrink-0">
                         <span className="text-white text-2xl sm:text-3xl font-black">{vendor?.name?.charAt(0)}</span>
@@ -167,7 +167,7 @@ const B2BVendorDashboard = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:w-96">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 xl:w-96">
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex sm:flex-col justify-between sm:justify-start items-center sm:items-start">
                         <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0 sm:mb-1">Overall Status</p>
                         <p className="text-sm font-black text-slate-800">Operational</p>
@@ -195,7 +195,7 @@ const B2BVendorDashboard = () => {
                 SECTION 2: COMMON OVERVIEW CARDS (STATS)
             ------------------------------------------ */}
             {config.widgets.includes('stats') && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {[
                         { label: 'Total Call Inquiries', value: dashboard.overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50', analyticsType: 'call' },
                         { label: 'Total WhatsApp Clicks', value: dashboard.overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50', analyticsType: 'whatsapp' },
@@ -219,9 +219,9 @@ const B2BVendorDashboard = () => {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
                 {/* LEFT COLUMN: LISTINGS & SUBSCRIPTIONS */}
-                <div className="lg:col-span-8 space-y-10">
+                <div className="xl:col-span-8 space-y-10">
 
                     {/* ------------------------------------------
                         SECTION 3: CONFIG-BASED LISTING OVERVIEW
@@ -333,7 +333,7 @@ const B2BVendorDashboard = () => {
                 </div>
 
                 {/* RIGHT COLUMN: BANNERS & ALERTS */}
-                <div className="lg:col-span-4 space-y-10">
+                <div className="xl:col-span-4 space-y-10">
 
                     {/* ------------------------------------------
                         SECTION 6: ALERT & ACTION PANEL

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FiArrowLeft, FiCheckCircle, FiXCircle, FiHome, FiMapPin, FiCalendar, FiUser, FiMaximize2, FiDollarSign } from "react-icons/fi";
+import { FiArrowLeft, FiCheckCircle, FiXCircle, FiHome, FiMapPin, FiCalendar, FiUser, FiMaximize2, FiDollarSign, FiTag } from "react-icons/fi";
 import { motion } from "framer-motion";
 import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
@@ -118,6 +118,13 @@ const PropertyDetail = () => {
                         }`}>
                         {property.isActive ? 'Active' : 'Inactive'}
                     </span>
+                    <button
+                        onClick={toggleStatus}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${property.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'
+                            }`}
+                    >
+                        {property.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
                 </div>
             </div>
 
@@ -163,7 +170,7 @@ const PropertyDetail = () => {
                         {/* Title & Price */}
                         <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                             <div>
-                                <h1 className="text-3xl font-bold text-gray-900 mb-2">{property.title}</h1>
+                                <h1 className="lg:hidden text-3xl font-bold text-gray-900 mb-2">{property.title}</h1>
                                 <div className="flex flex-wrap gap-2 text-gray-500 text-sm">
                                     <div className="flex items-center gap-1">
                                         <FiMapPin className="text-primary-500" />
@@ -314,7 +321,7 @@ const PropertyDetail = () => {
                                 <FacilityItem label="Lift" value={facilities.lift} />
                                 <FacilityItem label="Power Backup" value={facilities.powerBackup} />
                                 <FacilityItem label="Water Supply" value={facilities.waterSupply} />
-                                <FacilityItem label="Washroom" value={facilities.washroom} />
+                                <FacilityItem label="Washroom" value={facilities.washroom} isArray />
                                 <FacilityItem label="Fire Safety" value={facilities.fireSafety} />
                             </div>
                         </div>

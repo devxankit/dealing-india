@@ -20,13 +20,11 @@ const B2BBanner = () => {
                 console.log('🖼️ Loading B2B banners...');
                 const response = await getActiveBanners('b2b');
 
-                console.log('🖼️ B2B banners API response:', response);
-
                 if (response.success && response.data) {
                     const bannerData = response.data.banners || [];
-                    console.log('🖼️ Banners received:', bannerData.length, bannerData);
-
+                    
                     // Transform API data to component format
+
                     const transformedBanners = bannerData.map(banner => {
                         const rawImage = banner.bannerImage || banner.image;
                         // Handle local paths by ensuring they point to the backend 
@@ -44,8 +42,8 @@ const B2BBanner = () => {
                         };
                     });
 
-                    console.log('🖼️ Transformed banners:', transformedBanners.length, transformedBanners);
                     setBanners(transformedBanners);
+
 
                     // Get display time from settings if available
                     if (response.data.settings?.displayTime) {
@@ -112,11 +110,9 @@ const B2BBanner = () => {
     }
 
     if (banners.length === 0) {
-        console.log('⚠️ No active B2B banners to display');
         return null;
     }
 
-    console.log('✅ Displaying', banners.length, 'B2B banners');
 
     return (
         <div

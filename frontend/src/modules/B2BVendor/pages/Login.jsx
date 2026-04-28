@@ -268,6 +268,7 @@ const B2BVendorLogin = () => {
                         </label>
                         <Link
                             to="/b2b-vendor/forgot-password"
+                            state={{ email: formData.email }}
                             className="text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
                         >
                             Forgot Password?

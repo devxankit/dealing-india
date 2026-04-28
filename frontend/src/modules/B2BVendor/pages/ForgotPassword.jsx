@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiMail, FiLock, FiArrowLeft, FiCheck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
@@ -7,12 +7,13 @@ import toast from 'react-hot-toast';
 
 const ForgotPassword = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { forgotPassword, resetPassword } = useB2BVendorAuthStore();
     const [step, setStep] = useState(1); // 1: Email, 2: OTP & Password
     const [isLoading, setIsLoading] = useState(false);
 
     // Form States
-    const [email, setEmail] = useState('');
+    const [email, setEmail] = useState(location.state?.email || '');
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -117,10 +118,11 @@ const ForgotPassword = () => {
                                 <input
                                     type="email"
                                     required
+                                    readOnly={!!location.state?.email}
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="vendor@company.com"
-                                    className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
+                                    className={`w-full pl-11 pr-4 py-2.5 border-2 border-transparent rounded-xl focus:border-primary-500 transition-all font-medium text-sm ${!!location.state?.email ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-gray-50 focus:bg-white'}`}
                                 />
                             </div>
                         </div>

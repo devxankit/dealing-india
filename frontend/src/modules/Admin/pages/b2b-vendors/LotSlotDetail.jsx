@@ -62,7 +62,8 @@ const LotSlotDetail = () => {
                         <FiArrowLeft size={20} />
                     </button>
                     <div>
-                        <h1 className="text-xl font-black text-gray-900 uppercase tracking-wider tabular-nums">LS-{lotSlot._id.slice(-6)}</h1>
+                        <h1 className="lg:hidden text-xl font-black text-gray-900 uppercase tracking-wider tabular-nums">LS-{lotSlot._id.slice(-6)}</h1>
+                        <p className="text-gray-500 text-sm">Lot/Slot Booking Details</p>
                         <div className="flex items-center gap-2 mt-0.5">
                             <span className={`w-2 h-2 rounded-full ${lotSlot.isActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">

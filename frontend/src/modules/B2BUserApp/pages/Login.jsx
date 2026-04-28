@@ -177,6 +177,7 @@ const B2BUserLogin = () => {
                         </label>
                         <Link
                             to="/b2b/forgot-password"
+                            state={{ phone: formData.phone, countryCode: formData.countryCode }}
                             className="text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
                         >
                             Forgot Password?

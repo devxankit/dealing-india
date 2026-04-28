@@ -525,7 +525,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                           <div className="relative">
                             <input
                               type="file"
-                              accept="image/*"
+                              accept="image/png, image/jpeg, image/webp"
                               onChange={handleImageUpload}
                               className="hidden"
                               id="main-image-upload-modal"
@@ -576,7 +576,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                           <div className="relative">
                             <input
                               type="file"
-                              accept="image/*"
+                              accept="image/png, image/jpeg, image/webp"
                               multiple
                               onChange={handleGalleryUpload}
                               className="hidden"

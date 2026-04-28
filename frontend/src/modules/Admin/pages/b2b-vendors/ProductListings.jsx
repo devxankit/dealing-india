@@ -129,10 +129,8 @@ const B2BVendorProductListings = () => {
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">B2B Product Management</h1>
-                    <p className="text-gray-500">Manage and filter products across all B2B vendors.</p>
-                </div>
+                <div></div>
+
                 
                 <div className="flex flex-wrap items-center gap-3">
                     {/* Category Filter */}

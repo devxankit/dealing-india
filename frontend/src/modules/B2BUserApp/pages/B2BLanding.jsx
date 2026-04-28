@@ -85,6 +85,13 @@ const B2BLanding = () => {
     const headerRef = useRef(null);
     const toolbarRef = useRef(null);
     const [headerHeight, setHeaderHeight] = useState(72); // Default fallback: 4.5rem = 72px
+    const premiumSuppliersScrollRef = useRef(null);
+    const isAutoScrollPaused = useRef(false);
+    const resumeTimeoutRef = useRef(null);
+    const lastAutoScrollTime = useRef(0);
+
+
+
 
     const [citySearchQuery, setCitySearchQuery] = useState('');
     const [categorySearchQuery, setCategorySearchQuery] = useState('');
@@ -164,6 +171,86 @@ const B2BLanding = () => {
             return true;
         });
     }, [allVendors]);
+
+    // Auto-scroll logic for Premium Suppliers that allows manual scrolling
+    useEffect(() => {
+        const container = premiumSuppliersScrollRef.current;
+        if (!container || vendorsWithShop.length === 0) return;
+
+        let animationFrameId;
+        let lastTimestamp = 0;
+        const speed = 150; // Balanced fast speed
+
+        let currentScroll = container.scrollLeft;
+        const step = (timestamp) => {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            // Cap delta to 0.1s (100ms) to prevent massive jumps after browser lag/tab switching
+            const delta = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
+            lastTimestamp = timestamp;
+
+            if (!isAutoScrollPaused.current && container) {
+                currentScroll += speed * delta;
+
+                // Seamless loop logic (Bi-directional)
+                const numCopies = Math.max(2, Math.ceil(24 / (vendorsWithShop.length || 1)));
+                const oneSetWidth = container.scrollWidth / numCopies;
+                
+                if (oneSetWidth > 0) {
+                    if (currentScroll >= oneSetWidth) {
+                        currentScroll -= oneSetWidth;
+                    } else if (currentScroll < 0) {
+                        currentScroll += oneSetWidth;
+                    }
+                }
+                
+                lastAutoScrollTime.current = Date.now();
+                container.scrollLeft = currentScroll;
+            } else {
+                // Keep sync if manually scrolled
+                currentScroll = container.scrollLeft;
+            }
+            animationFrameId = requestAnimationFrame(step);
+        };
+
+
+        animationFrameId = requestAnimationFrame(step);
+        return () => cancelAnimationFrame(animationFrameId);
+    }, [vendorsWithShop]);
+
+    // Helpers for controlling the auto-scroll without triggering re-renders
+    const pauseAutoScroll = () => {
+        if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+        isAutoScrollPaused.current = true;
+    };
+
+    const resumeAutoScroll = (delay = 2000) => {
+        if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+        resumeTimeoutRef.current = setTimeout(() => {
+            isAutoScrollPaused.current = false;
+        }, delay);
+    };
+
+    // Robust manual scroll detection
+    useEffect(() => {
+        const container = premiumSuppliersScrollRef.current;
+        if (!container) return;
+
+        const handleNativeScroll = () => {
+            // If a scroll occurs that wasn't triggered by our auto-scroll logic (within a threshold)
+            // we treat it as a manual user scroll and pause the auto-scroller.
+            if (Date.now() - lastAutoScrollTime.current > 100) {
+                pauseAutoScroll();
+                resumeAutoScroll(2000);
+            }
+        };
+
+        container.addEventListener('scroll', handleNativeScroll, { passive: true });
+        return () => container.removeEventListener('scroll', handleNativeScroll);
+    }, []);
+
+
+
+
 
     const uniqueCities = useMemo(() => {
         const citiesList = (availableStates || []).flatMap(state => state.cities || []);
@@ -1523,8 +1610,18 @@ const B2BLanding = () => {
                         <p className="text-gray-500 text-sm md:text-base font-medium">No shops listed yet. Check back soon or explore categories above.</p>
                     </div>
                 ) : (
-                    <div className="relative group overflow-hidden">
-                        <div className="flex gap-4 md:gap-6 py-3 px-4 md:px-8 animate-scroll hover:pause-scroll">
+                    <div className="relative group">
+                        <div
+                            ref={premiumSuppliersScrollRef}
+                            className="flex gap-4 md:gap-6 py-3 px-4 md:px-8 overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing"
+                            onMouseEnter={pauseAutoScroll}
+                            onMouseLeave={() => resumeAutoScroll(500)}
+                            onTouchStart={pauseAutoScroll}
+                            onTouchMove={pauseAutoScroll}
+                            onTouchEnd={() => resumeAutoScroll(2000)}
+
+                        >
+
                             {/* Seamless loop logic: Ensure enough items to cover the screen twice */}
                             {(vendorsWithShop.length > 0 ? (
                                 [...Array(Math.max(2, Math.ceil(24 / vendorsWithShop.length)))].flatMap((_, i) => vendorsWithShop).map((vendor, idx) => (
@@ -1544,29 +1641,16 @@ const B2BLanding = () => {
                             ) : null)}
                         </div>
                         <style>{`
-                            @keyframes scroll {
-                                0% { transform: translateX(0); }
-                                100% { transform: translateX(calc(-140px * ${vendorsWithShop.length} - 1rem * ${vendorsWithShop.length})); }
-                            }
-                            @media (min-width: 768px) {
-                                @keyframes scroll {
-                                    0% { transform: translateX(0); }
-                                    100% { transform: translateX(calc(-160px * ${vendorsWithShop.length} - 1.5rem * ${vendorsWithShop.length})); }
-                                }
-                            }
-                            .animate-scroll {
-                                display: flex;
-                                width: max-content;
-                                animation: scroll 40s linear infinite;
-                            }
-                            .pause-scroll:hover {
-                                animation-play-state: paused;
+                            .no-scrollbar {
+                                -ms-overflow-style: none;
+                                scrollbar-width: none;
                             }
                             .no-scrollbar::-webkit-scrollbar {
                                 display: none;
                             }
                         `}</style>
                     </div>
+
                 )}
             </section>
 

@@ -349,7 +349,8 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
                         <div className="space-y-3">
                             {items.map((row, idx) => (
                                 <div
-                                    key={`${row?.dateKey || "date"}-${row?.user?._id || idx}`}
+                                    key={`${row?.dateKey || "date"}-${row?.user?._id || "user"}-${idx}`}
+
                                     className={`p-4 rounded-3xl border transition-all ${
                                         row.user?.isLocked 
                                         ? 'border-red-100 bg-red-50/30 hover:bg-red-50/50' 

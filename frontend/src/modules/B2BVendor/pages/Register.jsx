@@ -40,6 +40,15 @@ const B2BVendorRegister = () => {
     const [businessTypes, setBusinessTypes] = useState([]);
     const [selectedBusinessType, setSelectedBusinessType] = useState(null);
 
+    const [businessLicense, setBusinessLicense] = useState(() => {
+        const saved = sessionStorage.getItem('b2b_registration_license');
+        return saved ? JSON.parse(saved) : null;
+    });
+    const [panCard, setPanCard] = useState(() => {
+        const saved = sessionStorage.getItem('b2b_registration_pan');
+        return saved ? JSON.parse(saved) : null;
+    });
+
     const [formData, setFormData] = useState(() => {
         const savedData = sessionStorage.getItem('b2b_registration_data');
         const defaultData = {
@@ -70,7 +79,7 @@ const B2BVendorRegister = () => {
         if (savedData) {
             try {
                 const parsed = JSON.parse(savedData);
-                return { ...defaultData, ...parsed, password: '', confirmPassword: '' };
+                return { ...defaultData, ...parsed };
             } catch (e) {
                 return defaultData;
             }
@@ -78,11 +87,26 @@ const B2BVendorRegister = () => {
         return defaultData;
     });
 
-    // Persist form data to sessionStorage (excluding passwords)
+    // Persist form data and documents to sessionStorage
     useEffect(() => {
-        const { password, confirmPassword, ...persistData } = formData;
-        sessionStorage.setItem('b2b_registration_data', JSON.stringify(persistData));
+        sessionStorage.setItem('b2b_registration_data', JSON.stringify(formData));
     }, [formData]);
+
+    useEffect(() => {
+        if (businessLicense) {
+            sessionStorage.setItem('b2b_registration_license', JSON.stringify(businessLicense));
+        } else {
+            sessionStorage.removeItem('b2b_registration_license');
+        }
+    }, [businessLicense]);
+
+    useEffect(() => {
+        if (panCard) {
+            sessionStorage.setItem('b2b_registration_pan', JSON.stringify(panCard));
+        } else {
+            sessionStorage.removeItem('b2b_registration_pan');
+        }
+    }, [panCard]);
 
     const { logout, isAuthenticated } = useB2BVendorAuthStore();
     useEffect(() => {
@@ -98,15 +122,23 @@ const B2BVendorRegister = () => {
                 const response = await api.get('/business-types');
                 if (response.success) {
                     setBusinessTypes(response.data);
-                    // Set default if available
-                    const textile = response.data.find(t => t.name === 'Textile');
-                    if (textile) {
-                        setFormData(prev => ({
-                            ...prev,
-                            businessType: textile.name,
-                            businessTypeRef: textile._id
-                        }));
-                        setSelectedBusinessType(textile);
+                    // Set default if available AND no saved data exists
+                    const hasSavedData = sessionStorage.getItem('b2b_registration_data');
+                    if (!hasSavedData) {
+                        const textile = response.data.find(t => t.name === 'Textile');
+                        if (textile) {
+                            setFormData(prev => ({
+                                ...prev,
+                                businessType: textile.name,
+                                businessTypeRef: textile._id
+                            }));
+                            setSelectedBusinessType(textile);
+                        }
+                    } else {
+                        // Restore selected business type ref for UI selection
+                        const parsed = JSON.parse(hasSavedData);
+                        const savedType = response.data.find(t => t._id === parsed.businessTypeRef);
+                        if (savedType) setSelectedBusinessType(savedType);
                     }
                 }
             } catch (error) {
@@ -123,8 +155,7 @@ const B2BVendorRegister = () => {
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [businessLicense, setBusinessLicense] = useState(null);
-    const [panCard, setPanCard] = useState(null);
+
 
     const handleDocumentUpload = async (e, type, isCamera = false) => {
         const file = e.target.files[0];
@@ -446,7 +477,8 @@ const B2BVendorRegister = () => {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass-card rounded-2xl p-5 sm:p-6 w-full max-w-2xl shadow-2xl max-h-[92vh] overflow-y-auto relative"
+                className="glass-card rounded-[2rem] p-8 sm:p-12 w-full max-w-2xl shadow-2xl max-h-[92vh] overflow-y-auto relative"
+
             >
                 {/* Back Button */}
                 <button
@@ -560,24 +592,27 @@ const B2BVendorRegister = () => {
                                     <div className="space-y-3">
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="relative">
-                                                <input type="file" accept="image/*,video/*,application/pdf" onChange={(e) => {
+                                                <input type="file" accept="image/png, image/jpeg, image/webp, video/*, application/pdf" onChange={(e) => {
                                                     handleDocumentUpload(e, 'license', false);
                                                     if (errors.businessLicense) setErrors(prev => ({ ...prev, businessLicense: '' }));
                                                 }} className="hidden" id="license-upload" disabled={isUploadingDocs} />
-                                                <label htmlFor="license-upload" className={`flex flex-col items-center justify-center py-4 border-2 border-dashed ${errors.businessLicense ? 'border-red-500' : 'border-gray-200'} rounded-xl hover:bg-slate-50 cursor-pointer transition-all group`}>
-                                                    <FiUpload className="text-lg text-gray-400 mb-1 group-hover:text-primary-600" />
-                                                    <span className="text-[8px] font-bold text-gray-500 group-hover:text-primary-600">UPLOAD</span>
+                                                <label htmlFor="license-upload" className={`flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.businessLicense ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}>
+                                                    <FiPlus className="text-xl text-gray-400 mb-3 group-hover:text-primary-600" />
+                                                    <span className="text-xs font-black text-gray-500 group-hover:text-primary-600 uppercase tracking-widest">GALLERY</span>
                                                 </label>
+
+
                                             </div>
                                             <div className="relative">
-                                                <input type="file" capture="environment" accept="image/*" onChange={(e) => {
+                                                <input type="file" capture="environment" accept="image/png, image/jpeg, image/webp, video/*, application/pdf" onChange={(e) => {
                                                     handleDocumentUpload(e, 'license', true);
                                                     if (errors.businessLicense) setErrors(prev => ({ ...prev, businessLicense: '' }));
                                                 }} style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} id="license-camera" disabled={isUploadingDocs} />
-                                                <label htmlFor="license-camera" className={`flex flex-col items-center justify-center py-4 border-2 border-dashed ${errors.businessLicense ? 'border-red-500' : 'border-gray-200'} rounded-xl hover:bg-slate-50 cursor-pointer transition-all group`}>
-                                                    <FiCamera className="text-lg text-gray-400 mb-1 group-hover:text-primary-600" />
-                                                    <span className="text-[8px] font-bold text-gray-500 group-hover:text-primary-600">CAMERA</span>
+                                                <label htmlFor="license-camera" className={`flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.businessLicense ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}>
+                                                    <FiCamera className="text-xl text-gray-400 mb-3 group-hover:text-primary-600" />
+                                                    <span className="text-xs font-black text-gray-500 group-hover:text-primary-600 uppercase tracking-widest">CAMERA</span>
                                                 </label>
+
                                             </div>
                                         </div>
                                         {errors.businessLicense && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.businessLicense}</p>}
@@ -606,24 +641,27 @@ const B2BVendorRegister = () => {
                                     <div className="space-y-3">
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="relative">
-                                                <input type="file" accept="image/*,video/*,application/pdf" onChange={(e) => {
+                                                <input type="file" accept="image/png, image/jpeg, image/webp, video/*, application/pdf" onChange={(e) => {
                                                     handleDocumentUpload(e, 'pan', false);
                                                     if (errors.panCard) setErrors(prev => ({ ...prev, panCard: '' }));
                                                 }} className="hidden" id="pan-upload" disabled={isUploadingDocs} />
-                                                <label htmlFor="pan-upload" className={`flex flex-col items-center justify-center py-4 border-2 border-dashed ${errors.panCard ? 'border-red-500' : 'border-gray-200'} rounded-xl hover:bg-slate-50 cursor-pointer transition-all group`}>
-                                                    <FiUpload className="text-lg text-gray-400 mb-1 group-hover:text-primary-600" />
-                                                    <span className="text-[8px] font-bold text-gray-500 group-hover:text-primary-600">UPLOAD</span>
+                                                <label htmlFor="pan-upload" className={`flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.panCard ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}>
+                                                    <FiPlus className="text-xl text-gray-400 mb-3 group-hover:text-primary-600" />
+                                                    <span className="text-xs font-black text-gray-500 group-hover:text-primary-600 uppercase tracking-widest">GALLERY</span>
                                                 </label>
+
+
                                             </div>
                                             <div className="relative">
-                                                <input type="file" capture="environment" accept="image/*" onChange={(e) => {
+                                                <input type="file" capture="environment" accept="image/png, image/jpeg, image/webp, video/*, application/pdf" onChange={(e) => {
                                                     handleDocumentUpload(e, 'pan', true);
                                                     if (errors.panCard) setErrors(prev => ({ ...prev, panCard: '' }));
                                                 }} style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} id="pan-camera" disabled={isUploadingDocs} />
-                                                <label htmlFor="pan-camera" className={`flex flex-col items-center justify-center py-4 border-2 border-dashed ${errors.panCard ? 'border-red-500' : 'border-gray-200'} rounded-xl hover:bg-slate-50 cursor-pointer transition-all group`}>
-                                                    <FiCamera className="text-lg text-gray-400 mb-1 group-hover:text-primary-600" />
-                                                    <span className="text-[8px] font-bold text-gray-500 group-hover:text-primary-600">CAMERA</span>
+                                                <label htmlFor="pan-camera" className={`flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.panCard ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}>
+                                                    <FiCamera className="text-xl text-gray-400 mb-3 group-hover:text-primary-600" />
+                                                    <span className="text-xs font-black text-gray-500 group-hover:text-primary-600 uppercase tracking-widest">CAMERA</span>
                                                 </label>
+
                                             </div>
                                         </div>
                                         {errors.panCard && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.panCard}</p>}
