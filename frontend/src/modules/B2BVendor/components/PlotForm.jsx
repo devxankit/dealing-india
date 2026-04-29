@@ -38,7 +38,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
             rentDetails: { monthlyRent: '', rentUnit: 'Thousand', depositAmount: '', depositUnit: 'Thousand', maintenance: 'Excluded', veraBill: 'Excluded' },
             leaseDetails: { monthlyLeaseRate: '', leaseUnit: 'Lakh', depositAmount: '', depositUnit: 'Thousand', leaseDurationYears: '' },
             plotDetails: {
-                plotArea: '', plotAreaUnit: 'Sq. Ft.', builtUpArea: '', commonArea: '', possessionType: 'Ready to Move', builtUpAreaUnit: 'Sq. Ft.', floors: 'G+1', masterRoom: 'No', bedrooms: '', bathrooms: '', balcony: '', terrace: 'No', furnishing: 'Unfurnished', ageOfProperty: '',
+                plotArea: '', plotAreaUnit: 'Sq. Ft.', builtUpArea: '', commonArea: '', possessionType: 'Ready to Move', builtUpAreaUnit: 'Sq. Ft.', floors: 'G+1', masterRoom: 'No', bedrooms: '', bathrooms: '', balcony: '', furnishing: 'Unfurnished', ageOfProperty: '',
                 privateFacilities: { privateParking: 'No', gardenArea: 'No', personalBorewell: 'No', solarSystem: 'No', storeRoom: 'No', servantRoom: 'No' },
                 amenities: { parking: ['Ground Parking'], security: 'No', cctv: 'No', powerBackup: 'No', waterSupply: ['Municipal'], gasPipeline: 'No', swimmingPool: 'No', gym: 'No', garden: 'No', childrenPlayArea: 'No', clubHouse: 'No', temple: 'No', societyOffice: 'No', gameZone: 'No' },
                 legal: { loanAvailable: 'No', reraApproved: 'No', reraNumber: '' }
@@ -99,13 +99,10 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                     [parent]: { ...prev[parent], [child]: value }
                 }));
             } else if (parts.length === 3) {
-                const [grandparent, parent, child] = parts;
+                const [p1, p2, p3] = parts;
                 setFormData(prev => ({
                     ...prev,
-                    [grandparent]: {
-                        ...prev[grandparent],
-                        [parent]: { ...prev[grandparent][parent], [child]: value }
-                    }
+                    [p1]: { ...prev[p1], [p2]: { ...prev[p1][p2], [p3]: value } }
                 }));
             } else if (parts.length === 4) {
                 const [gp, p, c, gc] = parts;
@@ -122,6 +119,34 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
             }
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
+        }
+    };
+
+    const handleNumberKeyPress = (e, allowDot = false) => {
+        const charCode = e.which ? e.which : e.keyCode;
+        if (allowDot && charCode === 46) {
+            if (e.target.value.includes('.')) e.preventDefault();
+            return;
+        }
+        if (charCode < 48 || charCode > 57) e.preventDefault();
+    };
+
+    const handleAlphabetKeyPress = (e) => {
+        const charCode = e.which ? e.which : e.keyCode;
+        if ((charCode < 65 || charCode > 90) && (charCode < 97 || charCode > 122) && charCode !== 32) {
+            e.preventDefault();
+        }
+    };
+
+    const handleFocus = (e) => {
+        if (e.target.value === '0') {
+            const { name } = e.target;
+            if (name.includes('.')) {
+                const [parent, child] = name.split('.');
+                setFormData(prev => ({ ...prev, [parent]: { ...prev[parent], [child]: '' } }));
+            } else {
+                setFormData(prev => ({ ...prev, [name]: '' }));
+            }
         }
     };
 
@@ -159,17 +184,10 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
 
     const handleImageUpload = async (e, isCamera = false) => {
         const files = Array.from(e.target.files);
-        console.log(`[PlotImage] ${isCamera ? 'Camera' : 'File'} upload started:`, {
-            count: files.length,
-            types: files.map(f => f.type),
-            sizes: files.map(f => (f.size / 1024).toFixed(2) + 'KB')
-        });
-
         if (media.length + files.length > 50) {
             toast.error('Maximum 50 images allowed');
             return;
         }
-
         const toastId = toast.loading(isCamera ? 'Processing photo...' : 'Processing images...');
         try {
             const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
@@ -177,17 +195,12 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                 files.map(async (file) => {
                     try {
                         const compressed = await imageCompression(file, options);
-                        console.log(`[PlotImage] Compression success: ${file.name}`, {
-                            original: (file.size / 1024).toFixed(2) + 'KB',
-                            compressed: (compressed.size / 1024).toFixed(2) + 'KB'
-                        });
                         return new Promise((resolve) => {
                             const reader = new FileReader();
                             reader.onloadend = () => resolve({ data: reader.result, name: file.name });
                             reader.readAsDataURL(compressed);
                         });
                     } catch (compressionError) {
-                        console.warn(`[PlotImage] Compression failed for ${file.name}, using original:`, compressionError);
                         return new Promise((resolve) => {
                             const reader = new FileReader();
                             reader.onloadend = () => resolve({ data: reader.result, name: file.name });
@@ -199,7 +212,6 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
             setMedia(prev => [...prev, ...results]);
             toast.success(`${files.length} images added`, { id: toastId });
         } catch (error) {
-            console.error('[PlotImage] Upload failed:', error);
             toast.error('Failed to process images', { id: toastId });
         } finally {
             if (e.target) e.target.value = '';
@@ -219,14 +231,23 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
         }
         if (currentStep === 2) {
             if (!formData.plotDetails.plotArea) newErrors['plotDetails.plotArea'] = "Area is required";
+            if (formData.propertyType === 'Villa') {
+                if (!formData.plotDetails.bedrooms) newErrors['plotDetails.bedrooms'] = "Bedrooms are required";
+                if (!formData.plotDetails.bathrooms) newErrors['plotDetails.bathrooms'] = "Bathrooms are required";
+                if (!formData.plotDetails.balcony) newErrors['plotDetails.balcony'] = "Balcony is required";
+            }
         }
         if (currentStep === 3) {
             if (formData.listingType === 'Sale' && !formData.saleDetails.priceMin) newErrors['saleDetails.priceMin'] = "Price is required";
             if (formData.listingType === 'Rent' && !formData.rentDetails.monthlyRent) newErrors['rentDetails.monthlyRent'] = "Rent is required";
         }
         if (currentStep === 5) {
+            if (formData.plotDetails.legal.reraApproved === 'Yes' && !formData.plotDetails.legal.reraNumber) {
+                newErrors['plotDetails.legal.reraNumber'] = "RERA number is required";
+            }
             if (!formData.location.address?.trim()) newErrors['location.address'] = "Address is required";
             if (!formData.location.city?.trim()) newErrors['location.city'] = "City is required";
+            if (!formData.location.state?.trim()) newErrors['location.state'] = "State is required";
             if (media.length === 0) newErrors.media = "At least one photo is required";
         }
 
@@ -242,17 +263,13 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
 
     const handleSubmit = async () => {
         if (!validateStep(5)) return;
-
         const parseNumber = (val) => {
             if (!val) return null;
             const parsed = parseFloat(String(val).replace(/[^0-9.]/g, ''));
             return isNaN(parsed) ? null : parsed;
         };
-
         try {
             setLoading(true);
-
-            // Deep copy and format numerical fields
             const payload = {
                 ...formData,
                 plotDetails: {
@@ -266,20 +283,13 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                 },
                 media: media.map(m => ({ url: m.data }))
             };
-
             const response = isEdit
                 ? await api.put(`/property/update/${initialData._id}`, payload)
                 : await api.post('/property/add', payload);
-
             if (response.success) {
                 localStorage.removeItem(DRAFT_KEY);
                 toast.success(`${formType} listed successfully!`);
-                // Refresh subscription status to update counts
-                try {
-                    await useSubscriptionStore.getState().refreshStatus();
-                } catch (e) {
-                    console.error("Refresh status failed", e);
-                }
+                try { await useSubscriptionStore.getState().refreshStatus(); } catch (e) {}
                 navigate('/b2b-vendor/properties/manage-properties');
             }
         } catch (error) {
@@ -316,9 +326,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
     );
 
     return (
-        <>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-5xl mx-auto p-4 md:p-6 space-y-6 md:space-y-8 pb-20">
-            {/* Header */}
             <div className="flex items-center gap-4">
                 <button onClick={() => navigate(-1)} className="p-3 bg-white hover:bg-slate-100 rounded-full shadow-sm transition-all">
                     <FiArrowLeft size={20} />
@@ -329,7 +337,6 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                 </div>
             </div>
 
-            {/* Stepper */}
             <div className="flex justify-between items-center bg-white p-3 md:p-6 rounded-3xl shadow-sm border border-gray-50 overflow-x-auto gap-1 md:gap-4">
                 {steps.map((s, idx) => (
                     <div key={s.id} className="flex items-center flex-1 min-w-0">
@@ -344,7 +351,6 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                 ))}
             </div>
 
-            {/* Form Content */}
             <div className="bg-white rounded-[2.5rem] p-6 md:p-10 shadow-xl border border-gray-50 min-h-[500px]">
                 <AnimatePresence mode="wait">
                     {step === 1 && (
@@ -377,7 +383,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                 <div>
                                     <label className="text-[10px] font-black uppercase">Plot Area <span className="text-red-500">*</span></label>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <input type="text" name="plotDetails.plotArea" value={formData.plotDetails.plotArea} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['plotDetails.plotArea'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold`} placeholder="E.g. 2000" />
+                                        <input type="text" name="plotDetails.plotArea" value={formData.plotDetails.plotArea} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['plotDetails.plotArea'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold`} placeholder="E.g. 2000" />
                                         <select name="plotDetails.plotAreaUnit" value={formData.plotDetails.plotAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
                                             {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
                                         </select>
@@ -387,7 +393,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                 <div>
                                     <label className="text-[10px] font-black uppercase">Built-up Area</label>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <input type="text" name="plotDetails.builtUpArea" value={formData.plotDetails.builtUpArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1500" />
+                                        <input type="text" name="plotDetails.builtUpArea" value={formData.plotDetails.builtUpArea} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1500" />
                                         <select name="plotDetails.builtUpAreaUnit" value={formData.plotDetails.builtUpAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
                                             {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
                                         </select>
@@ -395,7 +401,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-black uppercase">Common Area (CAP %)</label>
-                                    <input type="text" name="plotDetails.commonArea" value={formData.plotDetails.commonArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 15" />
+                                    <input type="text" name="plotDetails.commonArea" value={formData.plotDetails.commonArea} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 15" />
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-black uppercase">Possession Type</label>
@@ -403,39 +409,30 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                         {['Ready to Move', 'Under Construction'].map(t => <option key={t} value={t}>{t}</option>)}
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Floors</label>
-                                    <select name="plotDetails.floors" value={formData.plotDetails.floors} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
-                                        {['Ground', 'G+1', 'G+2'].map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-[10px] font-black uppercase">Master Room</span>
                                     <div className="w-32">{renderToggle('plotDetails.masterRoom', formData.plotDetails.masterRoom)}</div>
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black uppercase">Bedrooms</label>
-                                    <input type="text" name="plotDetails.bedrooms" value={formData.plotDetails.bedrooms} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 3" />
+                                    <label className="text-[10px] font-black uppercase">Bedrooms <span className="text-red-500">*</span></label>
+                                    <input type="text" name="plotDetails.bedrooms" value={formData.plotDetails.bedrooms} onFocus={handleFocus} onKeyPress={handleNumberKeyPress} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 3" />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black uppercase">Bathrooms</label>
-                                    <input type="text" name="plotDetails.bathrooms" value={formData.plotDetails.bathrooms} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 2" />
+                                    <label className="text-[10px] font-black uppercase">Bathrooms <span className="text-red-500">*</span></label>
+                                    <input type="text" name="plotDetails.bathrooms" value={formData.plotDetails.bathrooms} onFocus={handleFocus} onKeyPress={handleNumberKeyPress} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 2" />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black uppercase">Balcony</label>
-                                    <input type="text" name="plotDetails.balcony" value={formData.plotDetails.balcony} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1" />
+                                    <label className="text-[10px] font-black uppercase">Balcony <span className="text-red-500">*</span></label>
+                                    <input type="text" name="plotDetails.balcony" value={formData.plotDetails.balcony} onFocus={handleFocus} onKeyPress={handleNumberKeyPress} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1" />
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase">Terrace</span>
-                                    <div className="w-32">{renderToggle('plotDetails.terrace', formData.plotDetails.terrace)}</div>
-                                </div>
+
                                 <div>
                                     <label className="text-[10px] font-black uppercase">Furnishing</label>
                                     <select name="plotDetails.furnishing" value={formData.plotDetails.furnishing} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
                                         {['Unfurnished', 'Semi Furnished', 'Fully Furnished'].map(t => <option key={t} value={t}>{t}</option>)}
                                     </select>
                                 </div>
-                                <div>
+                                 <div>
                                     <label className="text-[10px] font-black uppercase">Age of Property</label>
                                     <select name="plotDetails.ageOfProperty" value={formData.plotDetails.ageOfProperty} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-600">
                                         <option value="New">New</option>
@@ -443,6 +440,14 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                         <option value="5-10 years">5-10 years</option>
                                         <option value="10+ years">10+ years</option>
                                         <option value="Under Construction">Under Construction</option>
+                                    </select>
+                                </div>
+                                 <div>
+                                    <label className="text-[10px] font-black uppercase">Floors</label>
+                                     <select name="plotDetails.floors" value={formData.plotDetails.floors} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-600">
+                                        <option value="Ground">Ground</option>
+                                        <option value="G+1">G+1</option>
+                                        <option value="G+2">G+2</option>
                                     </select>
                                 </div>
                             </div>
@@ -455,10 +460,10 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2 text-xl font-black text-slate-900 uppercase">Sale Details</div>
                                     <div className="space-y-1">
-                                        <input type="number" name="saleDetails.priceMin" placeholder="Min Price *" value={formData.saleDetails.priceMin} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['saleDetails.priceMin'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold`} />
+                                        <input type="text" name="saleDetails.priceMin" placeholder="Min Price *" value={formData.saleDetails.priceMin} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['saleDetails.priceMin'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold`} />
                                         {errors['saleDetails.priceMin'] && <p className="text-[10px] text-red-500 font-bold ml-1">{errors['saleDetails.priceMin']}</p>}
                                     </div>
-                                    <input type="number" name="saleDetails.priceMax" placeholder="Max Price" value={formData.saleDetails.priceMax} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
+                                    <input type="text" name="saleDetails.priceMax" placeholder="Max Price" value={formData.saleDetails.priceMax} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
                                     <select name="saleDetails.priceUnit" value={formData.saleDetails.priceUnit} onChange={handleChange} className="w-full px-6 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
                                         {['Rs', 'Thousand', 'Lakh', 'Crore'].map(u => <option key={u} value={u}>{u}</option>)}
                                     </select>
@@ -469,13 +474,13 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2 text-xl font-black text-slate-900 uppercase">Rent Details</div>
                                     <div className="space-y-1">
-                                        <input type="number" name="rentDetails.monthlyRent" placeholder="Monthly Rent *" value={formData.rentDetails.monthlyRent} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['rentDetails.monthlyRent'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold`} />
+                                        <input type="text" name="rentDetails.monthlyRent" placeholder="Monthly Rent *" value={formData.rentDetails.monthlyRent} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['rentDetails.monthlyRent'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold`} />
                                         {errors['rentDetails.monthlyRent'] && <p className="text-[10px] text-red-500 font-bold ml-1">{errors['rentDetails.monthlyRent']}</p>}
                                     </div>
                                     <select name="rentDetails.rentUnit" value={formData.rentDetails.rentUnit} onChange={handleChange} className="w-full px-6 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
                                         {['Rs', 'Thousand', 'Lakh', 'Crore'].map(u => <option key={u} value={u}>{u}</option>)}
                                     </select>
-                                    <input type="number" name="rentDetails.depositAmount" placeholder="Deposit Amount" value={formData.rentDetails.depositAmount} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
+                                    <input type="text" name="rentDetails.depositAmount" placeholder="Deposit Amount" value={formData.rentDetails.depositAmount} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
                                     <select name="rentDetails.depositUnit" value={formData.rentDetails.depositUnit} onChange={handleChange} className="w-full px-6 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
                                         {['Rs', 'Thousand', 'Lakh', 'Crore'].map(u => <option key={u} value={u}>{u}</option>)}
                                     </select>
@@ -499,15 +504,15 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                             {formData.listingType === 'Lease' && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2 text-xl font-black text-slate-900 uppercase">Lease Details</div>
-                                    <input type="number" name="leaseDetails.monthlyLeaseRate" placeholder="Monthly Lease Rate" value={formData.leaseDetails.monthlyLeaseRate} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
+                                    <input type="text" name="leaseDetails.monthlyLeaseRate" placeholder="Monthly Lease Rate" value={formData.leaseDetails.monthlyLeaseRate} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
                                     <select name="leaseDetails.leaseUnit" value={formData.leaseDetails.leaseUnit} onChange={handleChange} className="w-full px-6 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
                                         {['Rs', 'Thousand', 'Lakh', 'Crore'].map(u => <option key={u} value={u}>{u}</option>)}
                                     </select>
-                                    <input type="number" name="leaseDetails.depositAmount" placeholder="Deposit Amount" value={formData.leaseDetails.depositAmount} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
+                                    <input type="text" name="leaseDetails.depositAmount" placeholder="Deposit Amount" value={formData.leaseDetails.depositAmount} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
                                     <select name="leaseDetails.depositUnit" value={formData.leaseDetails.depositUnit} onChange={handleChange} className="w-full px-6 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
                                         {['Rs', 'Thousand', 'Lakh', 'Crore'].map(u => <option key={u} value={u}>{u}</option>)}
                                     </select>
-                                    <input type="number" name="leaseDetails.leaseDurationYears" placeholder="Duration (Years)" value={formData.leaseDetails.leaseDurationYears} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
+                                    <input type="text" name="leaseDetails.leaseDurationYears" placeholder="Duration (Years)" value={formData.leaseDetails.leaseDurationYears} onFocus={handleFocus} onKeyPress={handleNumberKeyPress} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
                                 </div>
                             )}
                         </motion.div>
@@ -531,27 +536,23 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                 <div className="space-y-4">
                                     <h4 className="text-[10px] font-black uppercase text-primary-600">Common & Premium</h4>
                                     <div className="grid grid-cols-1 gap-4">
-                                        <div className="flex flex-col gap-2">
-                                            <span className="text-[10px] font-black uppercase">Parking</span>
-                                            <div className="flex gap-1 flex-wrap">
-                                                {['Ground Parking', 'Basement 1', 'Basement 2'].map(type => (
-                                                    <label
-                                                        key={type}
-                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black border cursor-pointer transition-all ${(Array.isArray(formData.plotDetails.amenities.parking) ? formData.plotDetails.amenities.parking : [formData.plotDetails.amenities.parking]).includes(type)
-                                                            ? 'bg-primary-600 text-white border-primary-600'
-                                                            : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
-                                                            }`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            className="hidden"
-                                                            checked={(Array.isArray(formData.plotDetails.amenities.parking) ? formData.plotDetails.amenities.parking : [formData.plotDetails.amenities.parking]).includes(type)}
-                                                            onChange={() => {
-                                                                const current = Array.isArray(formData.plotDetails.amenities.parking) ? formData.plotDetails.amenities.parking : (formData.plotDetails.amenities.parking ? [formData.plotDetails.amenities.parking] : []);
-                                                                const next = current.includes(type) ? current.filter(t => t !== type) : [...current, type];
-                                                                handleToggle('plotDetails.amenities.parking', next);
-                                                            }}
-                                                        />
+                                         <div className="flex flex-col gap-2">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Parking</span>
+                                            <div className="flex gap-2 flex-wrap">
+                                                {['Car', 'Two-Wheeler', 'No'].map(type => (
+                                                    <label key={type} className={`px-4 py-2 rounded-xl text-[10px] font-black border-2 cursor-pointer transition-all ${(Array.isArray(formData.plotDetails.amenities.parking) ? formData.plotDetails.amenities.parking : [formData.plotDetails.amenities.parking]).includes(type) ? 'bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-100' : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'}`}>
+                                                        <input type="checkbox" className="hidden" checked={(Array.isArray(formData.plotDetails.amenities.parking) ? formData.plotDetails.amenities.parking : [formData.plotDetails.amenities.parking]).includes(type)} onChange={() => {
+                                                            const current = Array.isArray(formData.plotDetails.amenities.parking) ? formData.plotDetails.amenities.parking : (formData.plotDetails.amenities.parking ? [formData.plotDetails.amenities.parking] : []);
+                                                            let next;
+                                                            if (type === 'No') {
+                                                                next = ['No'];
+                                                            } else {
+                                                                const withoutNo = current.filter(t => t !== 'No');
+                                                                next = withoutNo.includes(type) ? withoutNo.filter(t => t !== type) : [...withoutNo, type];
+                                                                if (next.length === 0) next = ['No'];
+                                                            }
+                                                            handleToggle('plotDetails.amenities.parking', next);
+                                                        }} />
                                                         {type}
                                                     </label>
                                                 ))}
@@ -563,47 +564,21 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                                 <div className="w-32">{renderToggle(`plotDetails.amenities.${field}`, formData.plotDetails.amenities[field])}</div>
                                             </div>
                                         ))}
-                                        <div className="flex flex-col gap-2 pt-2">
-                                            <span className="text-[10px] font-black uppercase">Water Supply</span>
-                                            <div className="flex gap-1 flex-wrap">
+                                         <div className="flex flex-col gap-2 pt-2">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Water Supply</span>
+                                            <div className="flex gap-2 flex-wrap">
                                                 {['24hr', 'Borewell', 'Municipal', 'No'].map(type => (
-                                                    <label
-                                                        key={type}
-                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black border cursor-pointer transition-all ${(Array.isArray(formData.plotDetails.amenities.waterSupply) ? formData.plotDetails.amenities.waterSupply : [formData.plotDetails.amenities.waterSupply]).includes(type)
-                                                            ? 'bg-primary-600 text-white border-primary-600'
-                                                            : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
-                                                            }`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            className="hidden"
-                                                            checked={(Array.isArray(formData.plotDetails.amenities.waterSupply) ? formData.plotDetails.amenities.waterSupply : [formData.plotDetails.amenities.waterSupply]).includes(type)}
-                                                            onChange={() => {
-                                                                const current = Array.isArray(formData.plotDetails.amenities.waterSupply) ? formData.plotDetails.amenities.waterSupply : [formData.plotDetails.amenities.waterSupply];
-                                                                let updated;
-                                                                if (type === 'No') {
-                                                                    updated = ['No'];
-                                                                } else {
-                                                                    const withoutNo = current.filter(t => t !== 'No');
-                                                                    if (withoutNo.includes(type)) {
-                                                                        updated = withoutNo.filter(t => t !== type);
-                                                                    } else {
-                                                                        updated = [...withoutNo, type];
-                                                                    }
-                                                                    if (updated.length === 0) updated = ['No'];
-                                                                }
-                                                                setFormData(prev => ({
-                                                                    ...prev,
-                                                                    plotDetails: {
-                                                                        ...prev.plotDetails,
-                                                                        amenities: {
-                                                                            ...prev.plotDetails.amenities,
-                                                                            waterSupply: updated
-                                                                        }
-                                                                    }
-                                                                }));
-                                                            }}
-                                                        />
+                                                    <label key={type} className={`px-4 py-2 rounded-xl text-[10px] font-black border-2 cursor-pointer transition-all ${(Array.isArray(formData.plotDetails.amenities.waterSupply) ? formData.plotDetails.amenities.waterSupply : [formData.plotDetails.amenities.waterSupply]).includes(type) ? 'bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-100' : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'}`}>
+                                                        <input type="checkbox" className="hidden" checked={(Array.isArray(formData.plotDetails.amenities.waterSupply) ? formData.plotDetails.amenities.waterSupply : [formData.plotDetails.amenities.waterSupply]).includes(type)} onChange={() => {
+                                                            const current = Array.isArray(formData.plotDetails.amenities.waterSupply) ? formData.plotDetails.amenities.waterSupply : [formData.plotDetails.amenities.waterSupply];
+                                                            let updated;
+                                                            if (type === 'No') { updated = ['No']; } else {
+                                                                const withoutNo = current.filter(t => t !== 'No');
+                                                                if (withoutNo.includes(type)) { updated = withoutNo.filter(t => t !== type); } else { updated = [...withoutNo, type]; }
+                                                                if (updated.length === 0) updated = ['No'];
+                                                            }
+                                                            setFormData(prev => ({ ...prev, plotDetails: { ...prev.plotDetails, amenities: { ...prev.plotDetails.amenities, waterSupply: updated } } }));
+                                                        }} />
                                                         {type}
                                                     </label>
                                                 ))}
@@ -633,42 +608,37 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                         </div>
                                         {formData.plotDetails.legal.reraApproved === 'Yes' && (
                                             <div className="space-y-2 pt-2">
-                                                <label className="text-[10px] font-black uppercase">RERA Number</label>
-                                                <input
-                                                    type="text"
-                                                    name="plotDetails.legal.reraNumber"
-                                                    value={formData.plotDetails.legal.reraNumber || ''}
-                                                    onChange={handleChange}
-                                                    className="w-full px-6 py-3 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none font-bold text-slate-700 text-xs"
-                                                    placeholder="Enter RERA Number"
-                                                />
+                                                <label className="text-[10px] font-black uppercase">RERA Number <span className="text-red-500">*</span></label>
+                                                <input type="text" name="plotDetails.legal.reraNumber" value={formData.plotDetails.legal.reraNumber || ''} onFocus={handleFocus} onKeyPress={handleNumberKeyPress} onChange={handleChange} className={`w-full px-6 py-3 bg-slate-50 border-2 ${errors['plotDetails.legal.reraNumber'] ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-slate-300'} rounded-2xl outline-none font-bold text-slate-700 text-xs`} placeholder="Enter RERA Number" />
+                                                {errors['plotDetails.legal.reraNumber'] && <p className="text-[8px] text-red-500 font-bold mt-1 ml-1">{errors['plotDetails.legal.reraNumber']}</p>}
                                             </div>
                                         )}
                                     </div>
 
                                     <div className="text-xl font-black text-slate-900 uppercase pt-4">Location</div>
                                     <div className="space-y-4">
-                                    <div className="space-y-1">
-                                        <textarea name="location.address" placeholder="Full Address *" value={formData.location.address} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['location.address'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold min-h-[80px]`} />
-                                        {errors['location.address'] && <p className="text-[10px] text-red-500 font-bold ml-1">{errors['location.address']}</p>}
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <div className="flex flex-col gap-1">
-                                            <input name="location.city" placeholder="City *" value={formData.location.city} onChange={handleChange} className={`px-4 py-3 bg-slate-50 border-2 ${errors['location.city'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-xl font-bold text-xs`} />
-                                            {errors['location.city'] && <p className="text-[8px] text-red-500 font-bold ml-1">{errors['location.city']}</p>}
+                                        <div className="space-y-1">
+                                            <textarea name="location.address" placeholder="Full Address *" value={formData.location.address} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['location.address'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold min-h-[80px]`} />
+                                            {errors['location.address'] && <p className="text-[10px] text-red-500 font-bold ml-1">{errors['location.address']}</p>}
                                         </div>
-                                            <input name="location.area" placeholder="Area" value={formData.location.area} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
-                                            <input name="location.state" placeholder="State" value={formData.location.state} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="flex flex-col gap-1">
+                                                <label className="text-[8px] font-black uppercase">City <span className="text-red-500">*</span></label>
+                                                <input name="location.city" value={formData.location.city} onKeyPress={handleAlphabetKeyPress} onChange={handleChange} className={`px-4 py-3 bg-slate-50 border-2 ${errors['location.city'] ? 'border-red-500 bg-red-50' : 'border-slate-200'} rounded-xl font-bold text-xs`} />
+                                                {errors['location.city'] && <p className="text-[8px] text-red-500 font-bold ml-1">{errors['location.city']}</p>}
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className="text-[8px] font-black uppercase">Area <span className="text-red-500">*</span></label>
+                                                <input name="location.area" value={formData.location.area} onChange={handleChange} className={`px-4 py-3 bg-slate-50 border-2 ${errors['location.area'] ? 'border-red-500 bg-red-50' : 'border-slate-200'} rounded-xl font-bold text-xs`} />
+                                                {errors['location.area'] && <p className="text-[8px] text-red-500 font-bold ml-1">{errors['location.area']}</p>}
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <label className="text-[8px] font-black uppercase">State <span className="text-red-500">*</span></label>
+                                                <input name="location.state" value={formData.location.state} onKeyPress={handleAlphabetKeyPress} onChange={handleChange} className={`px-4 py-3 bg-slate-50 border-2 ${errors['location.state'] ? 'border-red-500 bg-red-50' : 'border-slate-200'} rounded-xl font-bold text-xs`} />
+                                                {errors['location.state'] && <p className="text-[8px] text-red-500 font-bold ml-1">{errors['location.state']}</p>}
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                name="location.mapUrl"
-                                                placeholder="Google Map URL"
-                                                value={formData.location.mapUrl}
-                                                onChange={handleChange}
-                                                className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs flex-1"
-                                            />
-                                        </div>
+                                        <input name="location.mapUrl" placeholder="Google Map URL" value={formData.location.mapUrl} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-xs" />
                                     </div>
                                 </div>
 
@@ -683,17 +653,9 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                             </div>
                                         ))}
                                         {media.length < 50 && (
-                                            <>
-                                            <input
-                                                type="file"
-                                                ref={cameraInputRef}
-                                                accept="image/*"
-                                                capture="environment"
-                                                onChange={(e) => handleImageUpload(e, true)}
-                                                style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
-                                            />
                                             <div className="contents">
-                                                <button
+                                                <input type="file" ref={cameraInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, true)} className="hidden" />
+                                                <button 
                                                     type="button"
                                                     onClick={() => cameraInputRef.current?.click()}
                                                     className={`aspect-square rounded-2xl border-2 border-dashed ${errors.media ? 'border-red-500 bg-red-50' : 'border-slate-200'} flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-primary-600`}
@@ -708,7 +670,6 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                                     <span className="text-[10px] font-bold uppercase">Gallery</span>
                                                 </label>
                                             </div>
-                                            </>
                                         )}
                                     </div>
                                     {errors.media && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.media}</p>}
@@ -719,22 +680,21 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                 </AnimatePresence>
 
                 {/* Footer Controls */}
-                <div className="mt-12 flex items-center justify-between pt-8 border-t border-slate-50">
+                <div className="mt-12 flex flex-row items-center justify-between pt-8 border-t border-slate-50 gap-3 md:gap-4">
                     {step > 1 ? (
-                        <button onClick={() => setStep(s => s - 1)} className="px-8 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Previous</button>
+                        <button onClick={() => setStep(s => s - 1)} className="flex-1 md:flex-none px-4 md:px-8 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-slate-200 transition-all md:min-w-[120px]">Back</button>
                     ) : <div />}
 
                     {step < 5 ? (
-                        <button onClick={() => { if (validateStep(step)) setStep(s => s + 1); }} className="px-10 py-4 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all">Next Step</button>
+                        <button onClick={() => { if (validateStep(step)) setStep(s => s + 1); }} className="flex-1 md:flex-none px-6 md:px-10 py-4 bg-primary-600 text-white rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all">Next Step</button>
                     ) : (
-                        <button onClick={handleSubmit} disabled={loading} className="px-10 py-4 bg-green-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-green-700 shadow-lg shadow-green-200 transition-all disabled:opacity-50">
-                            {loading ? 'Processing...' : 'Submit Listing'}
+                        <button onClick={handleSubmit} disabled={loading} className="flex-[2] md:flex-none px-6 md:px-12 py-4 bg-green-600 text-white rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-green-700 shadow-lg shadow-green-200 transition-all disabled:opacity-50 md:min-w-[200px] flex items-center justify-center">
+                            {loading ? 'Processing...' : 'Complete Listing'}
                         </button>
                     )}
                 </div>
             </div>
         </motion.div>
-        </>
     );
 };
 

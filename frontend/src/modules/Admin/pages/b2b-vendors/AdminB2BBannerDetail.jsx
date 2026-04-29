@@ -15,6 +15,7 @@ import { IndianRupee } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import Badge from "../../../../shared/components/Badge";
+import { useScrollLock } from "../../../../shared/hooks/useScrollLock";
 import {
     getAdminBannerBookingDetails,
     approveBannerBooking,
@@ -30,6 +31,9 @@ const AdminB2BBannerDetail = () => {
     const [approveModal, setApproveModal] = useState(false);
     const [rejectModal, setRejectModal] = useState({ show: false, reason: '' });
     const hasLoaded = useRef(false);
+
+    // Lock scroll when confirmation modals are open
+    useScrollLock(approveModal || rejectModal.show);
 
     useEffect(() => {
         if (!hasLoaded.current) {
@@ -255,10 +259,10 @@ const AdminB2BBannerDetail = () => {
                             </div>
 
                             <button
-                                onClick={() => navigate(`/admin/b2b-vendors/manage`)} // Navigate to general B2B vendors list
-                                className="w-full mt-2 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                                onClick={() => navigate(`/admin/b2b-vendors/manage/${booking.vendorId?._id || booking.vendorId}/dashboard`)}
+                                className="w-full mt-2 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-600 font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
                             >
-                                View B2B Vendors
+                                <FiUser /> View Vendor Information
                             </button>
                         </div>
                     </div>

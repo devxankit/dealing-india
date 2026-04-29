@@ -15,6 +15,7 @@ import {
 } from 'react-icons/fi';
 import { getMyWallet, initiateRecharge, verifyRecharge } from '../services/vendorWalletService';
 import toast from 'react-hot-toast';
+import { useScrollLock } from '../../../shared/hooks/useScrollLock';
 
 const WalletPage = () => {
     const [wallet, setWallet] = useState(null);
@@ -22,6 +23,9 @@ const WalletPage = () => {
     const [rechargeModalOpen, setRechargeModalOpen] = useState(false);
     const [rechargeAmount, setRechargeAmount] = useState('');
     const [processing, setProcessing] = useState(false);
+
+    // Lock scroll when recharge modal is open
+    useScrollLock(rechargeModalOpen);
 
     const fetchWallet = async () => {
         try {
@@ -123,11 +127,7 @@ const WalletPage = () => {
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-8">
             {/* Header Section */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">My Wallet</h1>
-                    <p className="text-gray-500 text-sm">Manage your funds and rewards in one place</p>
-                </div>
+            <div className="flex justify-end">
                 <button
                     onClick={() => setRechargeModalOpen(true)}
                     className="flex items-center justify-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-semibold shadow-md shadow-primary-200"

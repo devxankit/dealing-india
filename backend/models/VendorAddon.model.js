@@ -24,6 +24,10 @@ const vendorAddonSchema = new mongoose.Schema(
       required: [true, 'Total quantity is required'],
       min: [1, 'Total quantity must be at least 1'],
     },
+    purchasedPacks: {
+      type: Number,
+      default: 1,
+    },
     usedCount: {
       type: Number,
       required: [true, 'Used count is required'],

@@ -8,6 +8,7 @@ import api from "../../../shared/utils/api";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useSubscriptionStore } from "../store/subscriptionStore";
 import imageCompression from 'browser-image-compression';
+import { useScrollLock } from "../../../shared/hooks/useScrollLock";
 
 // Basic in-memory cache for B2B categories during the session
 let categoriesCache = null;
@@ -27,6 +28,9 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const [errors, setErrors] = useState({});
     const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
     const unitDropdownRef = useRef(null);
+
+    // Lock scroll when unit selection modal is open
+    useScrollLock(isUnitDropdownOpen);
 
     const [formData, setFormData] = useState(() => {
         if (initialData) return initialData;

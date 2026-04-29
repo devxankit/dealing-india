@@ -26,6 +26,7 @@ import { debounce, getGoogleMapsUrl } from "../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import { useB2BCategoryStore } from "../../../shared/store/b2bCategoryStore";
 import { useB2BLocationStore } from "../../../shared/store/b2bLocationStore";
+import { useScrollLock } from "../../../shared/hooks/useScrollLock";
 
 const ProductCatalog = () => {
   const navigate = useNavigate();
@@ -148,6 +149,12 @@ const ProductCatalog = () => {
   const [mobileExpandedBusinessType, setMobileExpandedBusinessType] =
     useState(null);
   const [showMobileSubcategoryCard, setShowMobileSubcategoryCard] = useState(false);
+
+  // Lock scroll when any mobile overlay (downsheet) is open on mobile screens
+  useScrollLock(
+    (isCityDropdownOpen || isMainCategoryDropdownOpen || isBusinessTypeDropdownOpen || isMobileFilterOpen) && 
+    window.innerWidth < 1024
+  );
 
   const [sortBy, setSortBy] = useState(
     searchParams.get("sortBy") || "createdAt",
@@ -1735,12 +1742,21 @@ const ProductCatalog = () => {
         setExpandedCategory(categoryName);
         setSelectedCategory(categoryName);
         setSelectedSubcategory(null); // Reset subcategory when switching main category
+        
+        // On mobile, close the category list to show products immediately
+        if (typeof window !== "undefined" && window.innerWidth < 1024) {
+          setShowMobileSubcategoryCard(false);
+          closeMobileOverlays();
+        }
       }
     } else {
       // No subcategories, select category directly
       setSelectedCategory(categoryName);
       setSelectedSubcategory(null);
       setExpandedCategory(null);
+      if (typeof window !== "undefined" && window.innerWidth < 1024) {
+        closeMobileOverlays();
+      }
     }
 
     // Clear search query when changing category to avoid conflicts
@@ -1748,6 +1764,7 @@ const ProductCatalog = () => {
     setSubcategorySearchQuery("");
     const newParams = new URLSearchParams(searchParams);
     newParams.delete("search");
+    newParams.delete("open");
     setSearchParams(newParams, { replace: true });
   };
 
@@ -1758,6 +1775,7 @@ const ProductCatalog = () => {
     // On mobile, close the variety exploration card after selection to show results
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
       setShowMobileSubcategoryCard(false);
+      closeMobileOverlays();
     }
 
     // Keep expandedCategory as categoryName so the card stays open for further filtering on desktop
@@ -1767,6 +1785,7 @@ const ProductCatalog = () => {
     setSubcategorySearchQuery("");
     const newParams = new URLSearchParams(searchParams);
     newParams.delete("search");
+    newParams.delete("open");
     setSearchParams(newParams, { replace: true });
   };
 
@@ -2249,7 +2268,7 @@ const ProductCatalog = () => {
       />
 
       {/* Mobile: Search bar sticks under white header */}
-      <div className="md:hidden sticky top-[calc(4.5rem+env(safe-area-inset-top))] z-40 px-4 py-3 bg-white border-b border-gray-50">
+      <div className="lg:hidden sticky top-[calc(4.5rem+env(safe-area-inset-top))] z-40 px-4 py-3 bg-white border-b border-gray-50">
         <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 py-1 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
           <FiSearch className="text-gray-400 mr-2" size={16} />
           <input
@@ -2264,18 +2283,30 @@ const ProductCatalog = () => {
         <div className="mt-2 grid grid-cols-3 gap-2">
           <button
             onClick={() => openOverlay('filters')}
-            className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center">
+            className={`w-full px-2 py-1.5 rounded-full text-[9px] font-black uppercase tracking-tight border text-center transition-all ${isMobileFilterOpen || Object.keys(dynamicFilters).length > 0 || selectedPriceRange || customPriceRange.min ? "bg-primary-600 text-white border-primary-600 shadow-sm" : "bg-white text-gray-700 border-gray-200"}`}>
             Filters
           </button>
           <button
-            onClick={() => openOverlay('categories')}
-            className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center">
-            Category
+            onClick={() => {
+              if (selectedCategory && selectedCategory !== "All") {
+                setShowMobileSubcategoryCard(!showMobileSubcategoryCard);
+                setExpandedCategory(selectedCategory);
+                // Ensure other overlays are closed
+                setIsMainCategoryDropdownOpen(false);
+                setIsBusinessTypeDropdownOpen(false);
+                setIsCityDropdownOpen(false);
+                setIsMobileFilterOpen(false);
+              } else {
+                openOverlay('categories');
+              }
+            }}
+            className={`w-full px-2 py-1.5 rounded-full text-[9px] font-black uppercase tracking-tight border text-center transition-all ${selectedCategory !== "All" ? "bg-primary-600 text-white border-primary-600 shadow-sm" : "bg-white text-gray-700 border-gray-200"}`}>
+            {selectedCategory !== "All" ? "Varieties" : "Category"}
           </button>
           {!noProductsInBusinessType && (
             <button
               onClick={() => openOverlay('city')}
-              className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center">
+              className={`w-full px-2 py-1.5 rounded-full text-[9px] font-black uppercase tracking-tight border text-center transition-all ${selectedCity !== "All Cities" ? "bg-primary-600 text-white border-primary-600 shadow-sm" : "bg-white text-gray-700 border-gray-200"}`}>
               City
             </button>
           )}
@@ -2289,7 +2320,7 @@ const ProductCatalog = () => {
 
       {isCityDropdownOpen && (
         <div
-          className="md:hidden fixed inset-0 z-[70] bg-black/40"
+          className="lg:hidden fixed inset-0 z-[70] bg-black/40"
           onClick={() => setIsCityDropdownOpen(false)}>
           <div
             className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[65vh] overflow-hidden shadow-2xl"
@@ -2349,7 +2380,7 @@ const ProductCatalog = () => {
       )}
       {isMainCategoryDropdownOpen && (
         <div
-          className="md:hidden fixed inset-0 z-[70] bg-black/40"
+          className="lg:hidden fixed inset-0 z-[70] bg-black/40"
           onClick={closeMobileOverlays}>
           <div
             className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-hidden shadow-2xl"
@@ -2440,7 +2471,7 @@ const ProductCatalog = () => {
       )}
       {isBusinessTypeDropdownOpen && (
         <div
-          className="md:hidden fixed inset-0 z-[70] bg-black/40"
+          className="lg:hidden fixed inset-0 z-[70] bg-black/40"
           onClick={closeMobileOverlays}>
           <div
             className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-hidden shadow-2xl"
@@ -2525,7 +2556,7 @@ const ProductCatalog = () => {
         {/* Search & Filter Bar max-w-7xl */}
         <div className="space-y-4 md:space-y-6 mb-2">
           {/* Location Filters */}
-          <div className="hidden md:flex flex-col md:flex-row gap-4 items-stretch md:items-center sticky top-[calc(5rem+env(safe-area-inset-top))] z-40 bg-white/95 backdrop-blur-md p-3 rounded-2xl border border-gray-100 shadow-sm mb-4">
+          <div className="hidden lg:flex flex-col lg:flex-row gap-4 items-stretch lg:items-center sticky top-[calc(5rem+env(safe-area-inset-top))] z-40 bg-white/95 backdrop-blur-md p-3 rounded-2xl border border-gray-100 shadow-sm mb-4">
             {noProductsInBusinessType ? (
               <div className="px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl text-[11px] font-bold text-amber-800">
                 No products listed in this business type
@@ -2537,7 +2568,7 @@ const ProductCatalog = () => {
                   <button
                     onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
                     disabled={locationsLoading}
-                    className="w-full px-4 py-3 md:py-3.5 bg-white border border-gray-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-primary-500 font-bold text-xs md:text-sm shadow-sm transition-all outline-none flex items-center justify-between gap-2">
+                    className="w-full px-4 py-3 lg:py-3.5 bg-white border border-gray-100 rounded-xl lg:rounded-2xl focus:ring-2 focus:ring-primary-500 font-bold text-xs lg:text-sm shadow-sm transition-all outline-none flex items-center justify-between gap-2">
                     <span className="truncate">{selectedCity}</span>
                     <FiChevronDown
                       className={`transition-transform duration-200 ${isCityDropdownOpen ? "rotate-180" : ""}`}
@@ -2550,7 +2581,7 @@ const ProductCatalog = () => {
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl md:rounded-2xl shadow-xl z-[100] overflow-hidden">
+                        className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl lg:rounded-2xl shadow-xl z-[100] overflow-hidden">
                         <div className="p-3 border-b border-gray-50">
                           <div className="relative">
                             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
@@ -2667,6 +2698,7 @@ const ProductCatalog = () => {
                       onClick={() => {
                         setExpandedCategory(null);
                         setShowMobileSubcategoryCard(false);
+                        closeMobileOverlays();
                       }}
                       className="p-3 hover:bg-white rounded-2xl text-gray-400 transition-all hover:text-gray-600 shadow-sm border border-transparent hover:border-gray-100">
                       <FiX size={24} />

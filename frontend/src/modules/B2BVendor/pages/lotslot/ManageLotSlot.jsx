@@ -176,11 +176,7 @@ const ManageLotSlot = () => {
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="text-center md:text-left">
-                    <h1 className="text-2xl md:text-3xl font-black text-gray-900 uppercase tracking-tight">Manage Lots/Slots</h1>
-                    <p className="text-gray-500 font-medium font-medium">Control your bulk inventory and special offerings.</p>
-                </div>
+            <div className="flex justify-end">
                 {/* Wrapped with SubscriptionGate to enforce Diamond plan requirement */}
                 <SubscriptionGate action="lotslot" showLimitInfo={false}>
                     <button

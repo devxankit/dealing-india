@@ -179,6 +179,33 @@ const PropertyDetail = () => {
          window.open(`tel:+91${sellerPhone}`, '_self');
     };
 
+    const handleShare = async () => {
+        const shareData = {
+            title: property.title || 'Property Detail',
+            text: `Check out this property: ${property.title || ''}\nPrice: ${formatPrice(property)}\n`,
+            url: window.location.href,
+        };
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(window.location.href);
+                toast.success('Link copied to clipboard!');
+            }
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                // Fallback to copy if share fails or is blocked
+                try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    toast.success('Link copied to clipboard!');
+                } catch (copyErr) {
+                    toast.error('Could not share or copy link');
+                }
+            }
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#FDFDFF] pb-24">
             <B2BHeader title={property.title} />
@@ -190,7 +217,11 @@ const PropertyDetail = () => {
                         <FiArrowLeft className="text-base group-hover:-translate-x-1 transition-transform" /> Back To Listings
                     </button>
                     <div className="flex gap-3">
-                        <button className="p-4 bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all text-gray-400 border border-gray-100 hover:text-primary-600" onClick={() => toast.success('Link copied!')}>
+                        <button 
+                            className="p-4 bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all text-gray-400 border border-gray-100 hover:text-primary-600" 
+                            onClick={handleShare}
+                            title="Share Property"
+                        >
                             <FiShare2 />
                         </button>
                     </div>
@@ -329,7 +360,7 @@ const PropertyDetail = () => {
                                     { label: 'Bedrooms', val: property.plotDetails?.bedrooms, icon: <FiBox /> },
                                     { label: 'Bathrooms', val: property.plotDetails?.bathrooms, icon: <FiUnlock /> },
                                     { label: 'Balcony', val: property.plotDetails?.balcony, icon: <FiLayers /> },
-                                    { label: 'Terrace', val: property.plotDetails?.terrace, icon: <FiLayers /> },
+
                                     { label: 'Possession', val: property.flatDetails?.possessionType || property.plotDetails?.possessionType, icon: <FiHome /> },
                                     { label: 'Age of Prop.', val: property.status?.propertyCondition || property.flatDetails?.ageOfProperty || property.plotDetails?.ageOfProperty, icon: <FiClock /> },
                                     { label: 'Furnishing', val: property.status?.furnishing || property.flatDetails?.furnishing || property.plotDetails?.furnishing, icon: <FiBox /> },

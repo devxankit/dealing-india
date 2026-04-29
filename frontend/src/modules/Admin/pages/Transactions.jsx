@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
+import { useScrollLock } from '../../../shared/hooks/useScrollLock';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const formatCurrency = (v) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
@@ -22,6 +23,7 @@ const TYPE_META = {
 
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
 const TransactionDetailModal = ({ txn, onClose }) => {
+  useScrollLock(!!txn);
   if (!txn) return null;
   const meta = TYPE_META[txn.type] || TYPE_META.subscription;
   const Icon = meta.icon;
@@ -129,7 +131,7 @@ const TransactionDetailModal = ({ txn, onClose }) => {
                   try {
                     toast.loading('Downloading invoice...', { id: 'modal-inv' });
                     const url = `${api.defaults.baseURL}/admin/b2b-vendors/subscriptions/invoice/${txn.zohoInvoiceId}`;
-                    const token = localStorage.getItem('admin_token'); // Based on recent context session isolation
+                    const token = localStorage.getItem('admin-token'); // Corrected key from admin_token to admin-token
 
                     const response = await fetch(url, {
                       headers: { 'Authorization': `Bearer ${token}` }

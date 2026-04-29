@@ -40,8 +40,8 @@ const PropertyForm = ({ initialData, isEdit }) => {
             rentDetails: { monthlyRent: '', rentUnit: 'Thousand', depositAmount: '', depositUnit: 'Thousand', maintenance: 'Excluded', veraBill: 'Excluded' },
             leaseDetails: { monthlyLeaseRate: '', leaseUnit: 'Lakh', depositAmount: '', depositUnit: 'Lakh', leaseDurationYears: '' },
             status: { furnishing: 'Unfurnished', propertyStatus: 'Ready', propertyCondition: 'New', propertyPosition: 'Ready to Move' },
-            location: { address: '', area: '', market: '', city: '', mapUrl: '' },
-            roadFacing: 'Main Road', legal: { loanAvailable: 'No', reraApproved: 'No', load: '' },
+            location: { address: '', area: '', market: '', city: '', state: '', mapUrl: '' },
+            roadFacing: 'Main Road', legal: { loanAvailable: 'No', reraApproved: 'No', reraNumber: '', load: '' },
             specifications: [{ builtUpArea: '', builtUpAreaUnit: 'Sq. Ft.', carpetArea: '', carpetAreaUnit: '%', floorNumber: '', totalFloors: '', ceilingHeight: '', ceilingHeightUnit: 'Ft.', entranceWidth: '', entranceWidthUnit: 'Ft.', maliya: 'No' }],
             facilities: { parking: [], lift: 'No', liftPassenger: 'No', liftLoading: 'No', powerBackup: 'No', waterSupply: [], washroom: ['Common'], fireSafety: 'No' }
         };
@@ -73,13 +73,16 @@ const PropertyForm = ({ initialData, isEdit }) => {
             if (Array.isArray(initialData.specifications)) {
                 specs = initialData.specifications.map(spec => ({
                     ...spec,
-                    maliya: (typeof spec.maliya === 'string') ? spec.maliya : (Array.isArray(spec.maliya) && spec.maliya[0]?.value) || 'No'
+                    maliya: (typeof spec.maliya === 'string') ? spec.maliya : (Array.isArray(spec.maliya) && spec.maliya[0]?.value) || 'No',
+                    terrace: spec.terrace || 'No'
                 }));
             } else if (initialData.specifications && typeof initialData.specifications === 'object') {
                 const maliyaVal = (Array.isArray(initialData.specifications.maliya) && initialData.specifications.maliya[0]?.value) || 'No';
+                const terraceVal = initialData.specifications.terrace || 'No';
                 specs = [{
                     ...initialData.specifications,
-                    maliya: maliyaVal
+                    maliya: maliyaVal,
+                    terrace: terraceVal
                 }];
             } else {
                 specs = [{
@@ -88,7 +91,8 @@ const PropertyForm = ({ initialData, isEdit }) => {
                     floorNumber: '', totalFloors: '',
                     ceilingHeight: '', ceilingHeightUnit: 'Ft.',
                     entranceWidth: '', entranceWidthUnit: 'Ft.',
-                    maliya: 'No'
+                    maliya: 'No',
+                    terrace: 'No'
                 }];
             }
 
@@ -135,6 +139,43 @@ const PropertyForm = ({ initialData, isEdit }) => {
         }
     };
 
+    const handleNumberKeyPress = (e, allowDot = false) => {
+        const charCode = e.which ? e.which : e.keyCode;
+        if (allowDot && charCode === 46) {
+            if (e.target.value.includes('.')) e.preventDefault();
+            return;
+        }
+        if (charCode < 48 || charCode > 57) e.preventDefault();
+    };
+
+    const handleAlphabetKeyPress = (e) => {
+        const charCode = e.which ? e.which : e.keyCode;
+        if ((charCode < 65 || charCode > 90) && (charCode < 97 || charCode > 122) && charCode !== 32) {
+            e.preventDefault();
+        }
+    };
+
+    const handleFocus = (e, specIndex = null) => {
+        if (e.target.value === '0') {
+            const { name } = e.target;
+            if (specIndex !== null && name.startsWith('specifications')) {
+                const field = name.split('.')[1];
+                setFormData(prev => {
+                    const newSpecs = [...prev.specifications];
+                    if (newSpecs[specIndex]) newSpecs[specIndex] = { ...newSpecs[specIndex], [field]: '' };
+                    return { ...prev, specifications: newSpecs };
+                });
+            } else if (name.includes('.')) {
+                const [parent, child] = name.split('.');
+                setFormData(prev => ({ ...prev, [parent]: { ...prev[parent], [child]: '' } }));
+            } else {
+                setFormData(prev => ({ ...prev, [name]: '' }));
+            }
+        }
+    };
+
+
+
     const handlePropertyTypeChange = (type) => {
         setFormData(prev => {
             const types = prev.propertyTypes.includes(type)
@@ -155,7 +196,8 @@ const PropertyForm = ({ initialData, isEdit }) => {
                     floorNumber: '', totalFloors: '',
                     ceilingHeight: '', ceilingHeightUnit: 'Ft.',
                     entranceWidth: '', entranceWidthUnit: 'Ft.',
-                    maliya: 'No'
+                    maliya: 'No',
+                    terrace: 'No'
                 }
             ]
         }));
@@ -236,8 +278,12 @@ const PropertyForm = ({ initialData, isEdit }) => {
             if (!formData.location?.address?.trim()) newErrors['location.address'] = "Address is required";
             if (!formData.location?.area?.trim()) newErrors['location.area'] = "Locality/Area is required";
             if (!formData.location?.city?.trim()) newErrors['location.city'] = "City is required";
+            if (!formData.location?.state?.trim()) newErrors['location.state'] = "State is required";
         }
         if (currentStep === 5) {
+            if (formData.legal.reraApproved === 'Yes' && !formData.legal.reraNumber) {
+                newErrors['legal.reraNumber'] = "RERA number is required";
+            }
             if (media.length === 0) newErrors.media = "At least one photo is required";
         }
 
@@ -381,9 +427,9 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2 text-xl font-black text-slate-900 uppercase">Sale Details</div>
                                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <input type="number" name="saleDetails.priceMin" placeholder="Min Price" value={formData.saleDetails.priceMin} onChange={handleChange} className="input-field" />
-                                        <input type="number" name="saleDetails.priceMax" placeholder="Max Price" value={formData.saleDetails.priceMax} onChange={handleChange} className="input-field" />
-                                        <select name="saleDetails.priceUnit" value={formData.saleDetails.priceUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
+                                        <input type="text" name="saleDetails.priceMin" placeholder="Min Price" value={formData.saleDetails.priceMin} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="input-field border-2 border-slate-200" />
+                                        <input type="text" name="saleDetails.priceMax" placeholder="Max Price" value={formData.saleDetails.priceMax} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="input-field border-2 border-slate-200" />
+                                        <select name="saleDetails.priceUnit" value={formData.saleDetails.priceUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold border-2 border-slate-200">
                                             <option value="Rs">Rs</option>
                                             <option value="Thousand">Thousand</option>
                                             <option value="Lakh">Lakh</option>
@@ -397,8 +443,8 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2 text-xl font-black text-slate-900 uppercase">Rent Details</div>
                                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <input type="number" name="rentDetails.monthlyRent" placeholder="Monthly Rent" value={formData.rentDetails.monthlyRent} onChange={handleChange} className="input-field" />
-                                        <select name="rentDetails.rentUnit" value={formData.rentDetails.rentUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
+                                        <input type="text" name="rentDetails.monthlyRent" placeholder="Monthly Rent" value={formData.rentDetails.monthlyRent} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="input-field border-2 border-slate-200" />
+                                        <select name="rentDetails.rentUnit" value={formData.rentDetails.rentUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold border-2 border-slate-200">
                                             <option value="Rs">Rs</option>
                                             <option value="Thousand">Thousand</option>
                                             <option value="Lakh">Lakh</option>
@@ -406,8 +452,8 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         </select>
                                     </div>
                                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <input type="number" name="rentDetails.depositAmount" placeholder="Deposit Amount" value={formData.rentDetails.depositAmount} onChange={handleChange} className="input-field" />
-                                        <select name="rentDetails.depositUnit" value={formData.rentDetails.depositUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
+                                        <input type="text" name="rentDetails.depositAmount" placeholder="Deposit Amount" value={formData.rentDetails.depositAmount} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="input-field border-2 border-slate-200" />
+                                        <select name="rentDetails.depositUnit" value={formData.rentDetails.depositUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold border-2 border-slate-200">
                                             <option value="Rs">Rs</option>
                                             <option value="Thousand">Thousand</option>
                                             <option value="Lakh">Lakh</option>
@@ -436,8 +482,8 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2 text-xl font-black text-slate-900 uppercase">Lease Details</div>
                                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <input type="number" name="leaseDetails.monthlyLeaseRate" placeholder="Monthly Lease Rate" value={formData.leaseDetails.monthlyLeaseRate} onChange={handleChange} className="input-field" />
-                                        <select name="leaseDetails.leaseUnit" value={formData.leaseDetails.leaseUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
+                                        <input type="text" name="leaseDetails.monthlyLeaseRate" placeholder="Monthly Lease Rate" value={formData.leaseDetails.monthlyLeaseRate} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="input-field border-2 border-slate-200" />
+                                        <select name="leaseDetails.leaseUnit" value={formData.leaseDetails.leaseUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold border-2 border-slate-200">
                                             <option value="Rs">Rs</option>
                                             <option value="Thousand">Thousand</option>
                                             <option value="Lakh">Lakh</option>
@@ -445,15 +491,15 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         </select>
                                     </div>
                                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <input type="number" name="leaseDetails.depositAmount" placeholder="Deposit Amount" value={formData.leaseDetails.depositAmount} onChange={handleChange} className="input-field" />
-                                        <select name="leaseDetails.depositUnit" value={formData.leaseDetails.depositUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
+                                        <input type="text" name="leaseDetails.depositAmount" placeholder="Deposit Amount" value={formData.leaseDetails.depositAmount} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="input-field border-2 border-slate-200" />
+                                        <select name="leaseDetails.depositUnit" value={formData.leaseDetails.depositUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold border-2 border-slate-200">
                                             <option value="Rs">Rs</option>
                                             <option value="Thousand">Thousand</option>
                                             <option value="Lakh">Lakh</option>
                                             <option value="Crore">Crore</option>
                                         </select>
                                     </div>
-                                    <input type="number" name="leaseDetails.leaseDurationYears" placeholder="Duration (Years)" value={formData.leaseDetails.leaseDurationYears} onChange={handleChange} className="input-field" />
+                                    <input type="text" name="leaseDetails.leaseDurationYears" placeholder="Duration (Years)" value={formData.leaseDetails.leaseDurationYears} onFocus={handleFocus} onKeyPress={handleNumberKeyPress} onChange={handleChange} className="input-field border-2 border-slate-200" />
                                 </div>
                             )}
                         </motion.div>
@@ -489,20 +535,22 @@ const PropertyForm = ({ initialData, isEdit }) => {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="label">Built Up Area</label>
+                                                <label className="label">Built Up Area <span className="text-red-500">*</span></label>
                                                 <div className="flex gap-2">
                                                     <input
                                                         name="specifications.builtUpArea"
                                                         placeholder="Area Value"
                                                         value={spec.builtUpArea}
+                                                        onFocus={(e) => handleFocus(e, index)}
+                                                        onKeyPress={(e) => handleNumberKeyPress(e, true)}
                                                         onChange={(e) => handleChange(e, index)}
-                                                        className="input-field flex-[2]"
+                                                        className="input-field flex-[2] border-2 border-slate-200"
                                                     />
                                                     <select
                                                         name="specifications.builtUpAreaUnit"
                                                         value={spec.builtUpAreaUnit}
                                                         onChange={(e) => handleChange(e, index)}
-                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold"
+                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold border-2 border-slate-200"
                                                     >
                                                         {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
                                                     </select>
@@ -516,14 +564,16 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                                         name="specifications.carpetArea"
                                                         placeholder="CAP %"
                                                         value={spec.carpetArea}
+                                                        onFocus={(e) => handleFocus(e, index)}
+                                                        onKeyPress={(e) => handleNumberKeyPress(e, true)}
                                                         onChange={(e) => handleChange(e, index)}
-                                                        className="input-field flex-[2]"
+                                                        className="input-field flex-[2] border-2 border-slate-200"
                                                     />
                                                     <select
                                                         name="specifications.carpetAreaUnit"
                                                         value={spec.carpetAreaUnit}
                                                         onChange={(e) => handleChange(e, index)}
-                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold"
+                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold border-2 border-slate-200"
                                                     >
                                                         {['%'].map(u => <option key={u} value={u}>{u}</option>)}
                                                     </select>
@@ -531,42 +581,48 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                             </div>
 
                                             <div className="space-y-2">
-                                                <label className="label">Floor No.</label>
+                                                <label className="label">Floor No. <span className="text-red-500">*</span></label>
                                                 <input
                                                     name="specifications.floorNumber"
                                                     placeholder="Floor No."
                                                     value={spec.floorNumber}
+                                                    onFocus={(e) => handleFocus(e, index)}
+                                                    onKeyPress={handleNumberKeyPress}
                                                     onChange={(e) => handleChange(e, index)}
-                                                    className="input-field"
+                                                    className="input-field border-2 border-slate-200"
                                                 />
                                             </div>
 
                                             <div className="space-y-2">
-                                                <label className="label">Total Floors</label>
+                                                <label className="label">Total Floors <span className="text-red-500">*</span></label>
                                                 <input
                                                     name="specifications.totalFloors"
                                                     placeholder="Total Floors"
                                                     value={spec.totalFloors}
+                                                    onFocus={(e) => handleFocus(e, index)}
+                                                    onKeyPress={handleNumberKeyPress}
                                                     onChange={(e) => handleChange(e, index)}
-                                                    className="input-field"
+                                                    className="input-field border-2 border-slate-200"
                                                 />
                                             </div>
 
                                             <div className="space-y-2">
-                                                <label className="label">Ceiling Height</label>
+                                                <label className="label block truncate">Ceiling Height</label>
                                                 <div className="flex gap-2">
                                                     <input
                                                         name="specifications.ceilingHeight"
                                                         placeholder="Height Value"
                                                         value={spec.ceilingHeight}
+                                                        onFocus={(e) => handleFocus(e, index)}
+                                                        onKeyPress={(e) => handleNumberKeyPress(e, true)}
                                                         onChange={(e) => handleChange(e, index)}
-                                                        className="input-field flex-[2]"
+                                                        className="input-field flex-[2] border-2 border-slate-200"
                                                     />
                                                     <select
                                                         name="specifications.ceilingHeightUnit"
                                                         value={spec.ceilingHeightUnit}
                                                         onChange={(e) => handleChange(e, index)}
-                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold"
+                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold border-2 border-slate-200"
                                                     >
                                                         {['Ft.', 'Mt.'].map(u => <option key={u} value={u}>{u}</option>)}
                                                     </select>
@@ -574,20 +630,22 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                             </div>
 
                                             <div className="space-y-2">
-                                                <label className="label">Entrance Width</label>
+                                                <label className="label block truncate">Entrance Width</label>
                                                 <div className="flex gap-2">
                                                     <input
                                                         name="specifications.entranceWidth"
                                                         placeholder="Width Value"
                                                         value={spec.entranceWidth}
+                                                        onFocus={(e) => handleFocus(e, index)}
+                                                        onKeyPress={(e) => handleNumberKeyPress(e, true)}
                                                         onChange={(e) => handleChange(e, index)}
-                                                        className="input-field flex-[2]"
+                                                        className="input-field flex-[2] border-2 border-slate-200"
                                                     />
                                                     <select
                                                         name="specifications.entranceWidthUnit"
                                                         value={spec.entranceWidthUnit}
                                                         onChange={(e) => handleChange(e, index)}
-                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold"
+                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold border-2 border-slate-200"
                                                     >
                                                         {['Ft.', 'Mt.'].map(u => <option key={u} value={u}>{u}</option>)}
                                                     </select>
@@ -600,7 +658,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                                     name="specifications.maliya"
                                                     value={spec.maliya || 'No'}
                                                     onChange={(e) => handleChange(e, index)}
-                                                    className="input-select"
+                                                    className="input-select border-2 border-slate-200"
                                                 >
                                                     <option value="No">No</option>
                                                     <option value="Yes">Yes</option>
@@ -613,14 +671,14 @@ const PropertyForm = ({ initialData, isEdit }) => {
 
                             <h3 className="text-xl font-black text-slate-900 uppercase">Facilities</h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div>
-                                    <label className="label">Parking</label>
-                                    <div className="flex gap-2">
+                                 <div className="md:col-span-2">
+                                    <label className="label uppercase text-[8px] text-slate-500 font-black tracking-wider">Parking</label>
+                                    <div className="flex gap-2 flex-wrap">
                                         {['Car', 'Two-Wheeler', 'No'].map(type => (
                                             <label
                                                 key={type}
-                                                className={`flex-1 py-3 px-2 rounded-xl text-center text-xs font-bold border-2 cursor-pointer transition-all ${formData.facilities.parking.includes(type)
-                                                    ? 'bg-primary-600 text-white border-primary-600'
+                                                className={`px-4 py-2 rounded-xl text-[10px] font-black border-2 cursor-pointer transition-all ${formData.facilities.parking.includes(type)
+                                                    ? 'bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-100'
                                                     : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
                                                     }`}>
                                                 <input
@@ -639,6 +697,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                                             } else {
                                                                 updated = [...withoutNo, type];
                                                             }
+                                                            if (updated.length === 0) updated = ['No'];
                                                         }
 
                                                         setFormData(prev => ({
@@ -668,14 +727,14 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         <option value="Yes">Yes</option>
                                     </select>
                                 </div>
-                                <div className="md:col-span-2">
-                                    <label className="label">Water Supply</label>
-                                    <div className="flex gap-2">
+                                 <div className="md:col-span-2 space-y-2">
+                                    <label className="label uppercase text-[8px] text-slate-500 font-black tracking-wider">Water Supply</label>
+                                    <div className="flex gap-2 flex-wrap">
                                         {['24hr', 'Borewell', 'Municipal', 'No'].map(type => (
                                             <label
                                                 key={type}
-                                                className={`flex-1 py-3 px-1 rounded-xl text-center text-[10px] font-black border-2 cursor-pointer transition-all ${(Array.isArray(formData.facilities.waterSupply) ? formData.facilities.waterSupply : [formData.facilities.waterSupply]).includes(type)
-                                                    ? 'bg-primary-600 text-white border-primary-600'
+                                                className={`px-4 py-2 rounded-xl text-[10px] font-black border-2 cursor-pointer transition-all ${(Array.isArray(formData.facilities.waterSupply) ? formData.facilities.waterSupply : [formData.facilities.waterSupply]).includes(type)
+                                                    ? 'bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-100'
                                                     : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
                                                     }`}>
                                                 <input
@@ -746,6 +805,21 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         <option value="Yes">Yes</option>
                                     </select>
                                 </div>
+                                {formData.legal.reraApproved === 'Yes' && (
+                                    <div className="md:col-span-2">
+                                        <label className="label">RERA Number <span className="text-red-500">*</span></label>
+                                        <input
+                                            name="legal.reraNumber"
+                                            placeholder="Enter RERA Number"
+                                            value={formData.legal.reraNumber}
+                                            onFocus={handleFocus}
+                                            onKeyPress={handleNumberKeyPress}
+                                            onChange={handleChange}
+                                            className={`input-field ${errors['legal.reraNumber'] ? 'border-red-500 bg-red-50' : ''}`}
+                                        />
+                                        {errors['legal.reraNumber'] && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors['legal.reraNumber']}</p>}
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     )}
@@ -759,21 +833,27 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                     {errors['location.address'] && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors['location.address']}</p>}
                                 </div>
                                 <div>
-                                    <label className="label uppercase text-[8px] text-gray-400 mb-1 ml-1 text-slate-900">Locality/Area <span className="text-red-500">*</span></label>
-                                    <input name="location.area" placeholder="E.g. MG Road" value={formData.location.area} onChange={handleChange} className={`input-field ${errors['location.area'] ? 'border-red-500 bg-red-50' : ''}`} />
+                                    <label className="label uppercase text-[8px] text-slate-900 mb-1 ml-1 font-black">Locality/Area <span className="text-red-500">*</span></label>
+                                    <input name="location.area" placeholder="E.g. MG Road" value={formData.location.area} onChange={handleChange} className={`input-field border-2 ${errors['location.area'] ? 'border-red-500 bg-red-50' : 'border-slate-200'}`} />
                                     {errors['location.area'] && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors['location.area']}</p>}
                                 </div>
                                 <div>
-                                    <label className="label uppercase text-[8px] text-gray-400 mb-1 ml-1 text-slate-900">City <span className="text-red-500">*</span></label>
-                                    <input name="location.city" placeholder="City" value={formData.location.city} onChange={handleChange} className={`input-field ${errors['location.city'] ? 'border-red-500 bg-red-50' : ''}`} />
+                                    <label className="label uppercase text-[8px] text-slate-900 mb-1 ml-1 font-black">City <span className="text-red-500">*</span></label>
+                                    <input name="location.city" placeholder="City" value={formData.location.city} onKeyPress={handleAlphabetKeyPress} onChange={handleChange} className={`input-field border-2 ${errors['location.city'] ? 'border-red-500 bg-red-50' : 'border-slate-200'}`} />
                                     {errors['location.city'] && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors['location.city']}</p>}
                                 </div>
                                 <div>
-                                    <label className="label uppercase text-[8px] text-gray-400 mb-1 ml-1">Market</label>
-                                    <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="input-field" />
+                                    <label className="label uppercase text-[8px] text-slate-900 mb-1 ml-1 font-black">State <span className="text-red-500">*</span></label>
+                                    <input name="location.state" placeholder="State" value={formData.location.state} onKeyPress={handleAlphabetKeyPress} onChange={handleChange} className={`input-field border-2 ${errors['location.state'] ? 'border-red-500 bg-red-50' : 'border-slate-200'}`} />
+                                    {errors['location.state'] && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors['location.state']}</p>}
+                                </div>
+                                <div>
+                                    <label className="label uppercase text-[8px] text-slate-900 mb-1 ml-1 font-black">Market/Locality</label>
+                                    <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="input-field border-2 border-slate-200" />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <input name="location.mapUrl" placeholder="Google Map URL" value={formData.location.mapUrl} onChange={handleChange} className="input-field" />
+                                    <label className="label uppercase text-[8px] text-slate-900 mb-1 ml-1 font-black">Google Map URL</label>
+                                    <input name="location.mapUrl" placeholder="Paste Google Map URL here" value={formData.location.mapUrl} onChange={handleChange} className="input-field border-2 border-slate-200" />
                                 </div>
                                 <div>
                                     <label className="label">Road Facing</label>
@@ -804,9 +884,8 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         type="file"
                                         ref={cameraInputRef}
                                         accept="image/*"
-                                        capture="environment"
                                         onChange={(e) => handleImageUpload(e, true)}
-                                        style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                                        className="hidden"
                                     />
                                     <div className="contents">
                                         <button
@@ -831,30 +910,16 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 </AnimatePresence>
 
                 {/* Navigation */}
-                <div className="mt-auto pt-8 border-t border-gray-50 flex justify-between">
-                    <button
-                        disabled={step === 1}
-                        onClick={() => setStep(s => s - 1)}
-                        className={`px-8 py-4 rounded-2xl font-black uppercase tracking-widest transition-all ${step === 1 ? 'opacity-0' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
-                    >
-                        Back
-                    </button>
+                <div className="mt-12 flex flex-row items-center justify-between pt-8 border-t border-slate-100 gap-3 md:gap-4">
+                    {step > 1 ? (
+                        <button onClick={() => setStep(s => s - 1)} className="flex-1 px-4 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all md:flex-none md:px-8 md:text-xs md:min-w-[120px]">Back</button>
+                    ) : <div />}
+
                     {step < 5 ? (
-                        <button
-                            onClick={() => {
-                                if (validateStep(step)) setStep(s => s + 1);
-                            }}
-                            className="bg-primary-600 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest transition-all hover:bg-primary-700 shadow-xl shadow-slate-200"
-                        >
-                            Continue
-                        </button>
+                        <button onClick={() => { if (validateStep(step)) setStep(s => s + 1); }} className="flex-1 px-6 py-4 bg-primary-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all md:flex-none md:px-10 md:text-xs">Next Step</button>
                     ) : (
-                        <button
-                            disabled={loading}
-                            onClick={handleSubmit}
-                            className="bg-primary-600 text-white px-12 py-4 rounded-2xl font-black uppercase tracking-widest transition-all hover:bg-primary-700 shadow-xl shadow-primary-100 disabled:opacity-50"
-                        >
-                            {loading ? 'Processing...' : (isEdit ? 'Update Property' : 'Complete Listing')}
+                        <button onClick={handleSubmit} disabled={loading} className="flex-[2] md:flex-none px-6 md:px-12 py-4 bg-green-600 text-white rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-green-700 shadow-lg shadow-green-200 transition-all disabled:opacity-50 md:min-w-[200px] flex items-center justify-center">
+                            {loading ? 'Processing...' : 'Complete Listing'}
                         </button>
                     )}
                 </div>

@@ -20,6 +20,7 @@ const B2BVendorHeader = ({ onMenuClick }) => {
     const [showNotifications, setShowNotifications] = useState(false);
     const unreadCount = useNotificationStore(state => state.unreadCount);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [customTitle, setCustomTitle] = useState(null);
     const userMenuRef = useRef(null);
 
     useEffect(() => {
@@ -41,6 +42,18 @@ const B2BVendorHeader = ({ onMenuClick }) => {
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [location.search]);
+
+    useEffect(() => {
+        setCustomTitle(null);
+    }, [location.pathname]);
+
+    useEffect(() => {
+        const handleTitleChange = (e) => {
+            setCustomTitle(e.detail);
+        };
+        window.addEventListener('vendor-page-title', handleTitleChange);
+        return () => window.removeEventListener('vendor-page-title', handleTitleChange);
+    }, []);
 
     const handleLogout = () => {
         logout();
@@ -93,7 +106,7 @@ const B2BVendorHeader = ({ onMenuClick }) => {
             .join(' ');
     };
 
-    const pageName = getPageName(location.pathname);
+    const pageName = customTitle || getPageName(location.pathname);
 
     // Fallback if vendor name is not available
     const displayVendorName = vendor?.name || "B2B Vendor";

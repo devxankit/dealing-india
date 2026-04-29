@@ -85,8 +85,9 @@ const Support = () => {
 
                 {/* Contact Options */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div
-                        className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-4 text-center group hover:border-primary-200 transition-all"
+                    <a
+                        href={`tel:${phone}`}
+                        className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-4 text-center group hover:border-primary-200 transition-all cursor-pointer"
                     >
                         <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors shadow-inner">
                             <FiPhoneCall size={28} />
@@ -96,10 +97,11 @@ const Support = () => {
                             <p className="text-sm font-black text-primary-600 mb-1">{phone}</p>
                             <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">{callHours}</p>
                         </div>
-                    </div>
+                    </a>
 
-                    <div
-                        className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-4 text-center group hover:border-primary-200 transition-all"
+                    <a
+                        href={`mailto:${email}`}
+                        className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-4 text-center group hover:border-primary-200 transition-all cursor-pointer"
                     >
                         <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors shadow-inner">
                             <FiMail size={28} />
@@ -109,10 +111,13 @@ const Support = () => {
                             <p className="text-sm font-black text-primary-600 mb-1">{email}</p>
                             <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">{emailResponse}</p>
                         </div>
-                    </div>
+                    </a>
 
-                    <div
-                        className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-4 text-center group hover:border-green-200 transition-all"
+                    <a
+                        href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-4 text-center group hover:border-green-200 transition-all cursor-pointer"
                     >
                         <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors shadow-inner">
                             <FiMessageSquare size={28} />
@@ -122,7 +127,7 @@ const Support = () => {
                             <p className="text-sm font-black text-green-600 mb-1">+{whatsapp}</p>
                             <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">{whatsappDesc}</p>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                 {/* FAQs */}

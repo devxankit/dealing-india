@@ -18,6 +18,7 @@ import { formatPrice } from "../../../shared/utils/helpers";
 import Badge from "../../../shared/components/Badge";
 import DataTable from "../../Admin/components/DataTable";
 import imageCompression from "browser-image-compression";
+import { useScrollLock } from "../../../shared/hooks/useScrollLock";
 
 import {
     getAvailableBannerSlots,
@@ -76,6 +77,9 @@ const B2BBannerBooking = () => {
 
     // Prevent duplicate API calls in React StrictMode
     const hasLoadedData = useRef(false);
+
+    // Lock scroll when any modal is open
+    useScrollLock(showBookingModal || showDetailsModal || showWalletConfirm);
 
     useEffect(() => {
         if (!hasLoadedData.current) {
@@ -558,10 +562,7 @@ const B2BBannerBooking = () => {
         <div className="space-y-10">
 
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                <div>
-                    <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Banner Advertising</h1>
-                    <p className="text-slate-500 text-sm font-medium mt-1">Book premium slots to boost your B2B visibility</p>
-                </div>
+                <div></div>
 
                 {/* Premium Wallet Balance Card */}
                 <motion.div 

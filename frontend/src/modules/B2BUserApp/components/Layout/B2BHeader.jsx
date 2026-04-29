@@ -155,9 +155,9 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                 ref={headerRef}
                 className={`${sticky !== false ? 'fixed top-0 left-0 right-0' : 'relative'} z-[1000] ${transparent ? 'bg-transparent border-none shadow-none' : 'bg-white border-b border-gray-100 shadow-sm'} flex-shrink-0 pt-safe`}
             >
-                <div className="max-w-[1920px] mx-auto px-4 md:px-6 xl:px-8 h-[4.5rem] md:h-24 flex items-center justify-between gap-2 lg:gap-4 xl:gap-8">
-                    <div className="flex items-center gap-3 md:gap-6 min-w-0">
-                        <div className="flex items-center gap-2 md:gap-5">
+                <div className="max-w-[1920px] mx-auto px-4 lg:px-6 xl:px-8 h-[4.5rem] lg:h-24 flex items-center justify-between gap-2 lg:gap-4 xl:gap-8">
+                    <div className="flex items-center gap-3 lg:gap-6 min-w-0">
+                        <div className="flex items-center gap-2 lg:gap-5">
                             {showBack && (
                                 <button onClick={() => navigate(-1)} className="p-2.5 hover:bg-gray-100 rounded-full transition-colors shrink-0">
                                     <FiArrowLeft className="text-xl md:text-2xl text-gray-700" />
@@ -178,20 +178,20 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                 <img
                                     src={appLogo.src}
                                     alt="Dealing India"
-                                    className="h-10 md:h-16 w-auto object-contain"
+                                    className="h-10 lg:h-16 w-auto object-contain"
                                 />
                             </Link>
 
                             {/* Mobile Title (only if logo is small/missing or explicitly requested) */}
                             {title !== "Bulk Marketplace" && !location.pathname.includes('/b2b/catalog') && (
-                                <h1 className="hidden sm:block md:hidden text-lg font-black text-gray-900 truncate uppercase tracking-tighter leading-none ml-2">
+                                <h1 className="hidden sm:block lg:hidden text-lg font-black text-gray-900 truncate uppercase tracking-tighter leading-none ml-2">
                                     {title}
                                 </h1>
                             )}
                         </div>
                         
-                        {/* Desktop (md+) Navigation links next to logo - more prominent */}
-                        <div className="hidden md:flex items-center gap-1 xl:gap-2 ml-2">
+                        {/* Desktop (lg+) Navigation links next to logo - more prominent */}
+                        <div className="hidden lg:flex items-center gap-1 xl:gap-2 ml-2">
                             {customNav}
                                 <Link
                                     to="/b2b/reels"
@@ -234,7 +234,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
 
                     {/* Search - Growing to fill middle space */}
                     {!hideSearch && (
-                        <div className="hidden md:flex flex-1 min-w-[200px] max-w-2xl mx-2 xl:mx-8">
+                        <div className="hidden lg:flex flex-1 min-w-[200px] max-w-2xl mx-2 xl:mx-8">
                             <form
                                 onSubmit={handleSearchSubmit}
                                 className="relative w-full group"
@@ -308,9 +308,9 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                     )}
 
                     {/* Right Side Actions: Profile, Seller, Mobile Burger */}
-                    <div className="flex items-center gap-2 md:gap-4 shrink-0">
+                    <div className="flex items-center gap-2 lg:gap-4 shrink-0">
                         {/* Mobile view quick links (condensed) */}
-                        <div className="flex md:hidden items-center gap-1 sm:gap-2">
+                        <div className="flex lg:hidden items-center gap-1 sm:gap-2">
                             {!minimal && (
                                 <div className="flex items-center gap-1 sm:gap-1.5">
                                     <Link
@@ -353,8 +353,8 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
 
                         </div>
 
-                        {/* Desktop (md+) Profile & Extended Actions */}
-                        <div className="hidden md:flex items-center gap-2 xl:gap-5">
+                        {/* Desktop (lg+) Profile & Extended Actions */}
+                        <div className="hidden lg:flex items-center gap-2 xl:gap-5">
                             <Link
                                 to="/b2b-vendor/register"
                                 className="hidden lg:flex bg-gray-900 text-white px-4 xl:px-7 py-3 xl:py-3.5 rounded-xl xl:rounded-[1.2rem] font-black text-[10px] uppercase tracking-wider xl:tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 whitespace-nowrap"

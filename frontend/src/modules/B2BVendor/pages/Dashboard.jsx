@@ -228,8 +228,8 @@ const B2BVendorDashboard = () => {
                     ------------------------------------------ */}
                     {config.widgets.includes('listings_overview') && (
                         <div>
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest ml-2">Inventory Breakdown</h2>
+                            <div className="flex items-center justify-between mb-6 px-2">
+                                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Inventory Breakdown</h2>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 {config.enableProductListing && (
@@ -270,7 +270,12 @@ const B2BVendorDashboard = () => {
                                     <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden">
                                         <div className="flex justify-between items-start mb-6">
                                             <div className="p-3 bg-amber-100 text-amber-600 rounded-xl"><FiHash size={24} /></div>
-                                            <button className="text-slate-400 hover:text-slate-900"><FiArrowUpRight size={20} /></button>
+                                            <button 
+                                                onClick={() => navigate('/b2b-vendor/lotslot')}
+                                                className="text-slate-400 hover:text-slate-900"
+                                            >
+                                                <FiArrowUpRight size={20} />
+                                            </button>
                                         </div>
                                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Lots / Slots</h3>
                                         <div className="flex items-end justify-between">
@@ -290,7 +295,7 @@ const B2BVendorDashboard = () => {
                     ------------------------------------------ */}
                     {config.widgets.includes('subscription_status') && (
                         <div>
-                            <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 ml-2">Active Plans</h2>
+                            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 px-2">Active Plans</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 {dashboard.subscriptions
                                     .filter(sub => {
@@ -318,7 +323,10 @@ const B2BVendorDashboard = () => {
                                                     <span className="text-3xl font-black text-primary-400">{sub.daysLeft}</span>
                                                     <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Days Remaining</span>
                                                 </div>
-                                                <button className="px-5 py-2.5 bg-white text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-400 transition-colors shadow-lg">
+                                                <button 
+                                                    onClick={() => navigate('/b2b-vendor/subscription')}
+                                                    className="px-5 py-2.5 bg-white text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-400 transition-colors shadow-lg"
+                                                >
                                                     Renew / Upgrade
                                                 </button>
                                             </div>
@@ -339,26 +347,28 @@ const B2BVendorDashboard = () => {
                         SECTION 6: ALERT & ACTION PANEL
                     ------------------------------------------ */}
                     {config.widgets.includes('alerts') && (
-                        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
-                            <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 px-2">Action Center</h2>
-                            <div className="space-y-4">
-                                {dashboard.alerts.map((alert, idx) => (
-                                    <div key={alert.id || idx} className={`p-5 rounded-3xl border flex gap-4 ${alert.type === 'warning' ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'}`}>
-                                        <div className={`mt-1 h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${alert.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
-                                            <FiAlertCircle size={16} />
+                        <div>
+                            <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 px-2 border-l-4 border-primary-600 pl-4">Action Center</h2>
+                            {dashboard.alerts.length > 0 && (
+                                <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 space-y-4">
+                                    {dashboard.alerts.map((alert, idx) => (
+                                        <div key={alert.id || idx} className={`p-5 rounded-3xl border flex gap-4 ${alert.type === 'warning' ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'}`}>
+                                            <div className={`mt-1 h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${alert.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                <FiAlertCircle size={16} />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-700 leading-relaxed">{alert.message}</p>
+                                                <button 
+                                                    onClick={() => alert.actionLink && navigate(alert.actionLink)}
+                                                    className={`mt-2 text-[10px] font-black text-slate-900 uppercase underline underline-offset-4 decoration-slate-300 ${alert.actionLink ? 'cursor-pointer' : 'cursor-default'}`}
+                                                >
+                                                    Take Action
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-xs font-bold text-slate-700 leading-relaxed">{alert.message}</p>
-                                            <button 
-                                                onClick={() => alert.actionLink && navigate(alert.actionLink)}
-                                                className={`mt-2 text-[10px] font-black text-slate-900 uppercase underline underline-offset-4 decoration-slate-300 ${alert.actionLink ? 'cursor-pointer' : 'cursor-default'}`}
-                                            >
-                                                Take Action
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -369,20 +379,55 @@ const B2BVendorDashboard = () => {
                         <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-xl">
                             <h2 className="text-xs font-black text-primary-400 uppercase tracking-widest mb-6 ml-2">Quick Actions</h2>
                             <div className="grid grid-cols-2 gap-4">
-                                <button
-                                    onClick={() => config.enableProductListing && navigate('/b2b-vendor/products/add-product')}
-                                    className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${config.enableProductListing ? 'bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700' : 'opacity-30 cursor-not-allowed bg-slate-800'}`}
-                                >
-                                    <FiPlus size={20} />
-                                    <span className="text-[10px] font-black uppercase tracking-tight">Add Product</span>
-                                </button>
-                                <button
-                                    onClick={() => config.enablePropertyListing && navigate('/b2b-vendor/properties/add-commercial')}
-                                    className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${config.enablePropertyListing ? 'bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700' : 'opacity-30 cursor-not-allowed bg-slate-800'}`}
-                                >
-                                    <FiPlus size={20} />
-                                    <span className="text-[10px] font-black uppercase tracking-tight">Add Commercial</span>
-                                </button>
+                                {config.enablePropertyListing ? (
+                                    <>
+                                        <button
+                                            onClick={() => navigate('/b2b-vendor/properties/add-commercial')}
+                                            className="p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700"
+                                        >
+                                            <FiPlus size={20} />
+                                            <span className="text-[10px] font-black uppercase tracking-tight">Add Property</span>
+                                        </button>
+                                        <button
+                                            onClick={() => navigate('/b2b-vendor/properties/add-flat')}
+                                            className="p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700"
+                                        >
+                                            <FiPlus size={20} />
+                                            <span className="text-[10px] font-black uppercase tracking-tight">Add Flat</span>
+                                        </button>
+                                        <button
+                                            onClick={() => navigate('/b2b-vendor/properties/add-villa')}
+                                            className="p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700"
+                                        >
+                                            <FiPlus size={20} />
+                                            <span className="text-[10px] font-black uppercase tracking-tight">Add Villa</span>
+                                        </button>
+                                        <button
+                                            onClick={() => navigate('/b2b-vendor/properties/add-plot')}
+                                            className="p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700"
+                                        >
+                                            <FiPlus size={20} />
+                                            <span className="text-[10px] font-black uppercase tracking-tight">Add Plot</span>
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={() => config.enableProductListing && navigate('/b2b-vendor/products/add-product')}
+                                            className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${config.enableProductListing ? 'bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700' : 'opacity-30 cursor-not-allowed bg-slate-800'}`}
+                                        >
+                                            <FiPlus size={20} />
+                                            <span className="text-[10px] font-black uppercase tracking-tight">Add Product</span>
+                                        </button>
+                                        <button
+                                            onClick={() => config.enableLotSlotListing && navigate('/b2b-vendor/lots/add')}
+                                            className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${config.enableLotSlotListing ? 'bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700' : 'opacity-30 cursor-not-allowed bg-slate-800'}`}
+                                        >
+                                            <FiPlus size={20} />
+                                            <span className="text-[10px] font-black uppercase tracking-tight">Add Lot/Slot</span>
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}

@@ -90,6 +90,33 @@ const B2BProductDetail = () => {
         window.open(`tel:+91${product.vendorId.phone}`, '_self');
     };
 
+    const handleShare = async () => {
+        const shareData = {
+            title: product.name || 'Product Detail',
+            text: `Check out this product on Dealing India: ${product.name || ''}`,
+            url: window.location.href,
+        };
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(window.location.href);
+                toast.success('Link copied to clipboard!');
+            }
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                // Fallback to copy if share fails or is blocked
+                try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    toast.success('Link copied to clipboard!');
+                } catch (copyErr) {
+                    toast.error('Could not share or copy link');
+                }
+            }
+        }
+    };
+
     const handleInquirySubmit = async (e) => {
         e.preventDefault();
         toast.error('Direct Inquiry system is under maintenance. Please use WhatsApp or Call.');
@@ -223,7 +250,10 @@ const B2BProductDetail = () => {
                     <button onClick={() => navigate(-1)} className="p-2.5 md:p-3 bg-white shadow-sm border border-gray-100 rounded-full transition-all text-gray-700 hover:text-primary-600 flex items-center gap-2 text-[10px] md:text-xs font-black uppercase tracking-widest active:scale-95">
                         <FiArrowLeft className="text-sm md:text-lg" /> Back to Catalog
                     </button>
-                    <button className="p-2.5 md:p-3 bg-white shadow-sm border border-gray-100 rounded-full text-gray-400 hover:text-primary-600 transition-all">
+                    <button 
+                        onClick={handleShare}
+                        className="p-2.5 md:p-3 bg-white shadow-sm border border-gray-100 rounded-full text-gray-400 hover:text-primary-600 transition-all active:scale-90"
+                    >
                         <FiShare2 className="text-sm md:text-lg" />
                     </button>
                 </div>

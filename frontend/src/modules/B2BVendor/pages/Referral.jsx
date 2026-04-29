@@ -43,22 +43,15 @@ const B2BVendorReferral = () => {
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-4xl">
-            {/* Header Section */}
-            <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                        <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-2">Referral Program</h1>
-                        <p className="text-gray-500 font-medium">Invite businesses to Dealing India and earn rewards together.</p>
-                    </div>
-                    <div className="flex items-center gap-4 bg-primary-50 p-4 rounded-2xl border border-primary-100">
-                         <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-                            <FiGift className="text-2xl" />
-                         </div>
-                         <div>
-                            <p className="text-[10px] font-bold text-primary-600 uppercase tracking-widest">Total Earned</p>
-                            <p className="text-xl font-black text-gray-900">₹{(referralData?.wallet?.pointsBalance || 0).toLocaleString('en-IN')}</p>
-                         </div>
-                    </div>
+            <div className="flex justify-end">
+                <div className="flex items-center gap-4 bg-primary-50 p-4 rounded-2xl border border-primary-100">
+                     <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                        <FiGift className="text-2xl" />
+                     </div>
+                     <div>
+                        <p className="text-[10px] font-bold text-primary-600 uppercase tracking-widest">Total Earned</p>
+                        <p className="text-xl font-black text-gray-900">₹{(referralData?.wallet?.pointsBalance || 0).toLocaleString('en-IN')}</p>
+                     </div>
                 </div>
             </div>
 

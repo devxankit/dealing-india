@@ -17,6 +17,7 @@ import { getBusinessTypes } from '../../../shared/utils/businessTypeCache';
 import { getB2BPlanById } from '../../../shared/utils/b2bPlanManager';
 import { useSubscriptionStore } from '../store/subscriptionStore';
 import vendorWalletService from '../services/vendorWalletService';
+import { useScrollLock } from '../../../shared/hooks/useScrollLock';
 
 const B2BVendorSubscription = () => {
     const { vendor } = useB2BVendorAuthStore();
@@ -36,6 +37,15 @@ const B2BVendorSubscription = () => {
     const [addonBalance, setAddonBalance] = useState([]);
     const [loadingAddons, setLoadingAddons] = useState(false);
     const [processingAddonId, setProcessingAddonId] = useState(null);
+    const [addonQuantities, setAddonQuantities] = useState({});
+
+    const updateAddonQuantity = (id, delta) => {
+        setAddonQuantities(prev => {
+            const current = prev[id] || 1;
+            const next = Math.max(1, current + delta);
+            return { ...prev, [id]: next };
+        });
+    };
 
     // Payment Confirmation Modal State
     const [showPayModal, setShowPayModal] = useState(false);
@@ -45,6 +55,9 @@ const B2BVendorSubscription = () => {
     const [isRecharging, setIsRecharging] = useState(false);
     const [showAddMoneyModal, setShowAddMoneyModal] = useState(false);
     const [rechargeAmountInput, setRechargeAmountInput] = useState(100);
+
+    // Lock scroll when any modal is open
+    useScrollLock(showCancelModal || showDetailsModal || showPayModal || showAddMoneyModal);
 
     useEffect(() => {
         loadSubscriptionData();
@@ -384,8 +397,9 @@ const B2BVendorSubscription = () => {
         const addon = availableAddons.find(a => (a._id || a.id) === planId);
         if (!addon) return;
 
-        const discountAmount = addon.discount || 0;
-        const priceAfterDiscount = Math.max(0, addon.price - discountAmount);
+        const quantity = addonQuantities[planId] || 1;
+        const discountAmount = (addon.discount || 0) * quantity;
+        const priceAfterDiscount = Math.max(0, (addon.price * quantity) - discountAmount);
         
         // No GST for addons at purchase time (collected at recharge)
         const gstPercentage = 0;
@@ -395,8 +409,9 @@ const B2BVendorSubscription = () => {
         setPayModalData({
             id: planId,
             name: addon.name,
-            originalPrice: addon.price,
-            basePrice: addon.price,
+            quantity: quantity,
+            originalPrice: addon.price * quantity,
+            basePrice: addon.price * quantity,
             discount: discountAmount,
             gstPercentage: gstPercentage,
             gstAmount: gstAmount,
@@ -407,12 +422,13 @@ const B2BVendorSubscription = () => {
     };
 
     const proceedWithAddonPurchase = async (planId) => {
+        const quantity = payModalData?.quantity || 1;
         setShowPayModal(false);
         try {
             setProcessingAddonId(planId);
             toast.loading('Initializing purchase...', { id: 'addon-init' });
 
-            const response = await subscriptionService.initializeAddonPurchase(planId);
+            const response = await subscriptionService.initializeAddonPurchase(planId, quantity);
             const { order, key } = response;
 
             toast.dismiss('addon-init');
@@ -495,7 +511,7 @@ const B2BVendorSubscription = () => {
             toast.loading('Processing wallet payment...', { id: 'wallet-pay' });
             
             if (type === 'addon') {
-                await vendorWalletService.purchaseAddonViaWallet(id);
+                await vendorWalletService.purchaseAddonViaWallet(id, payModalData.quantity || 1);
             } else {
                 // For both 'subscribe' and 'upgrade', we use the same wallet endpoint
                 await api.post('/vendor/subscriptions/purchase-wallet', { planId: id });
@@ -576,18 +592,14 @@ const B2BVendorSubscription = () => {
         <div className="max-w-7xl mx-auto">
 
             {/* Header */}
-            <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-800 mb-2">B2B Subscription</h1>
-                    <p className="text-gray-600">Manage your subscription to access the B2B marketplace.</p>
-                </div>
+            <div className="mb-8 flex justify-end">
                 <button
                     onClick={loadSubscriptionData}
                     disabled={loading}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 font-bold text-sm uppercase tracking-wider shadow-sm"
                 >
                     <FiRefreshCw className={loading ? 'animate-spin' : ''} />
-                    Refresh
+                    Refresh Status
                 </button>
             </div>
 
@@ -1024,11 +1036,33 @@ const B2BVendorSubscription = () => {
                                 <h4 className="text-xl font-black text-gray-900 mb-1">{addon.name}</h4>
                                 <p className="text-xs text-gray-400 mb-6 font-black uppercase tracking-[0.2em]">{addon.featureType}</p>
                                 
-                                <div className="mb-8 w-full p-4 bg-gray-50 rounded-2xl">
-                                    <span className="text-3xl font-black text-gray-900">₹{addon.price}</span>
+                                <div className="mb-6 w-full p-4 bg-gray-50 rounded-2xl">
+                                    <span className="text-3xl font-black text-gray-900">₹{(addon.price * (addonQuantities[addon._id] || 1)).toLocaleString('en-IN')}</span>
                                     <p className="text-[10px] text-primary-600 font-black mt-2 bg-primary-100/50 py-1.5 px-4 rounded-full uppercase">
-                                        {addon.quantity} {addon.featureType} Units
+                                        {(addon.quantity * (addonQuantities[addon._id] || 1))} {addon.featureType} Units
                                     </p>
+                                </div>
+
+                                {/* Quantity Selector */}
+                                <div className="flex items-center justify-between w-full mb-6 px-4 py-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Select Packs</span>
+                                    <div className="flex items-center gap-4">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); updateAddonQuantity(addon._id, -1); }}
+                                            className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-900 hover:text-white transition-all shadow-sm"
+                                        >
+                                            -
+                                        </button>
+                                        <span className="text-lg font-black text-slate-900 w-6 text-center">
+                                            {addonQuantities[addon._id] || 1}
+                                        </span>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); updateAddonQuantity(addon._id, 1); }}
+                                            className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-900 hover:text-white transition-all shadow-sm"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <button
@@ -1108,7 +1142,10 @@ const B2BVendorSubscription = () => {
                                                         {item.featureType === 'reels' ? <FiPackage /> : item.featureType === 'products' ? <FiPlusCircle /> : item.featureType === 'property' ? <FiHome /> : <FiGrid />}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="font-bold text-gray-800 text-sm leading-tight truncate">{item.addonPlanId?.name || 'Custom Pack'}</p>
+                                                        <p className="font-bold text-gray-800 text-sm leading-tight truncate">
+                                                            {item.addonPlanId?.name || 'Custom Pack'}
+                                                            {item.purchasedPacks > 1 && ` (x${item.purchasedPacks})`}
+                                                        </p>
                                                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                                                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Feature: {item.featureType?.replace('_', ' ')}</p>
                                                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter md:hidden">• {formatDate(item.createdAt)}</p>
@@ -1129,7 +1166,7 @@ const B2BVendorSubscription = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <span className="font-black text-gray-900 text-sm tabular-nums whitespace-nowrap">₹{item.addonPlanId?.price || '0'}</span>
+                                                <span className="font-black text-gray-900 text-sm tabular-nums whitespace-nowrap">₹{(item.totalAmount || item.addonPlanId?.price || 0).toLocaleString('en-IN')}</span>
                                             </td>
                                         </tr>
                                     ))}
@@ -1356,7 +1393,9 @@ const B2BVendorSubscription = () => {
                                     <div className="flex justify-between items-center mb-6">
                                         <div className="flex flex-col">
                                             <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Selected Item</span>
-                                            <span className="text-xl font-bold text-gray-900">{payModalData.name}</span>
+                                            <span className="text-xl font-bold text-gray-900">
+                                                {payModalData.name} {payModalData.quantity > 1 ? `(x${payModalData.quantity})` : ''}
+                                            </span>
                                         </div>
                                         <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center">
                                             <FiCreditCard size={24} />
@@ -1405,7 +1444,7 @@ const B2BVendorSubscription = () => {
                                             // === REGULAR SUBSCRIPTION / ADDON BREAKDOWN ===
                                             <>
                                                 <div className="flex justify-between text-gray-600 font-medium">
-                                                    <span>Base Price</span>
+                                                    <span>Base Price {payModalData.quantity > 1 ? `(₹${(payModalData.basePrice/payModalData.quantity).toLocaleString()} x ${payModalData.quantity})` : ''}</span>
                                                     <span>₹{(payModalData.basePrice || payModalData.originalPrice || 0).toLocaleString('en-IN')}</span>
                                                 </div>
                                                 {payModalData.discount > 0 && (

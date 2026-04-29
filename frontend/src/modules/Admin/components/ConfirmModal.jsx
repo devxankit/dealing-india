@@ -2,8 +2,10 @@ import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiAlertTriangle, FiX } from 'react-icons/fi';
 import Button from './Button';
+import { useScrollLock } from '../../../shared/hooks/useScrollLock';
 
 const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', cancelText = 'Cancel', type = 'danger' }) => {
+  useScrollLock(isOpen);
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
   

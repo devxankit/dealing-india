@@ -1008,7 +1008,7 @@ const RealEstate = () => {
             />
 
             {/* Mobile-only Search Bar */}
-            <div className="md:hidden px-4 py-3 bg-white border-b border-gray-100 sticky top-[calc(4.5rem+env(safe-area-inset-top))] z-40">
+            <div className="lg:hidden px-4 py-3 bg-white border-b border-gray-100 sticky top-[calc(4.5rem+env(safe-area-inset-top))] z-40">
                 <div className="relative">
                     <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-600" />
                     <input

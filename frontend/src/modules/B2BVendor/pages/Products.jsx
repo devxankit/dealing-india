@@ -23,7 +23,7 @@ const Products = () => {
             hoverShadow: "hover:shadow-blue-500/30",
             description: "View and manage your B2B product listings",
         },
-        [{
+        {
             path: "/b2b-vendor/products/add-product",
             label: "Add Product",
             icon: FiPlus,
@@ -32,7 +32,7 @@ const Products = () => {
             shadowColor: "shadow-green-500/20",
             hoverShadow: "hover:shadow-green-500/30",
             description: "List a new B2B product for retailers",
-        }],
+        },
     ];
 
     return (

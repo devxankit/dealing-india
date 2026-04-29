@@ -905,10 +905,15 @@ class SubscriptionService {
 
   async getAllVendorSubscriptions(filters = {}) {
     try {
-      const { status, planId, expiringSoon } = filters;
+      const { status, planId, expiringSoon, businessType } = filters;
       const query = {};
       if (status) query.status = status;
       if (planId) query.planId = planId;
+
+      if (businessType && businessType !== 'All Business Types') {
+        const vendors = await Vendor.find({ businessType }).select('_id');
+        query.vendorId = { $in: vendors.map(v => v._id) };
+      }
       if (expiringSoon) {
         const soon = new Date();
         soon.setDate(soon.getDate() + 7);
@@ -934,6 +939,7 @@ class SubscriptionService {
         expiryDate: sub.endDate ? new Date(sub.endDate).toISOString().split('T')[0] : null,
         expiry: sub.endDate ? new Date(sub.endDate).toISOString().split('T')[0] : null,
         businessType: sub.vendorId?.businessType || 'B2B Vendor',
+        vendorCity: sub.vendorId?.address?.city || '',
         renew: sub.autoRenew,
         startDate: sub.startDate ? new Date(sub.startDate).toISOString().split('T')[0] : null,
         subscriptionId: sub._id,

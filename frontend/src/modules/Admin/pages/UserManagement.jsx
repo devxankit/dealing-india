@@ -4,8 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../components/DataTable";
 import api from "../../../shared/utils/api";
 import toast from "react-hot-toast";
+import { useScrollLock } from "../../../shared/hooks/useScrollLock";
 
 const UserDetailsModal = ({ isOpen, onClose, user }) => {
+  useScrollLock(isOpen);
   if (!isOpen || !user) return null;
 
   return (
@@ -39,143 +41,98 @@ const UserDetailsModal = ({ isOpen, onClose, user }) => {
                 </p>
               </div>
             </div>
-            <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div className="px-6 py-4 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <section>
-                <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Basic Info
+                <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-3 border-b border-gray-50 pb-1">
+                  Registration Info
                 </h3>
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase">
-                      Name
-                    </p>
-                    <p className="font-semibold text-gray-800">
-                      {user.name || "N/A"}
-                    </p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Name</p>
+                    <p className="font-bold text-gray-800">{user.name || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase">
-                      Email
-                    </p>
-                    <p className="font-semibold text-gray-800 break-all">
-                      {user.email}
-                    </p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Email</p>
+                    <p className="font-bold text-gray-800 break-all">{user.email}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase">
-                      Phone
-                    </p>
-                    <p className="font-semibold text-gray-800">
-                      {user.phone || "N/A"}
-                    </p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Phone</p>
+                    <p className="font-bold text-gray-800">{user.phone || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase">
-                      Role
-                    </p>
-                    <p className="font-semibold text-gray-800">
-                      {user.role || "user"}
-                    </p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">City</p>
+                    <p className="font-bold text-gray-800">{user.businessInfo?.address?.city || "N/A"}</p>
                   </div>
                 </div>
               </section>
 
-              <section>
-                <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Business Info
-                </h3>
-                {user.businessInfo ? (
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase">
-                        Company
-                      </p>
-                      <p className="font-semibold text-gray-800">
-                        {user.businessInfo.companyName || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase">
-                        Industry
-                      </p>
-                      <p className="font-semibold text-gray-800">
-                        {user.businessInfo.industry || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase">
-                        Company Type
-                      </p>
-                      <p className="font-semibold text-gray-800">
-                        {user.businessInfo.companyType || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase">
-                        GST Number
-                      </p>
-                      <p className="font-semibold text-gray-800">
-                        {user.businessInfo.gstNumber || "N/A"}
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1">
-                        Address
-                      </p>
-                      <p className="font-semibold text-gray-800 text-sm">
-                        {user.businessInfo.address?.fullAddress || "—"}
-                      </p>
-                      <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-gray-100">
-                        <div>
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase">City</p>
-                          <p className="font-semibold text-gray-800 text-xs">{user.businessInfo.address?.city || "—"}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase">State</p>
-                          <p className="font-semibold text-gray-800 text-xs">{user.businessInfo.address?.state || "—"}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase">Pincode</p>
-                          <p className="font-semibold text-gray-800 text-xs">{user.businessInfo.address?.pincode || "—"}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-400">
-                    No business information provided.
-                  </p>
-                )}
-              </section>
-
-              {Array.isArray(user.addresses) && user.addresses.length > 0 && (
+              {user.businessInfo && (user.businessInfo.companyName || user.businessInfo.gstNumber || user.businessInfo.address?.fullAddress) && (
                 <section>
-                  <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    Saved Addresses
+                  <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-3 border-b border-gray-50 pb-1">
+                    Business Details (Self-Provided)
                   </h3>
-                  <div className="space-y-2">
-                    {user.addresses.map((addr, idx) => (
-                      <div
-                        key={idx}
-                        className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs"
-                      >
-                        <p className="font-semibold text-gray-800">
-                          {addr.addressType || "Address"}{" "}
-                          {addr.isDefault && (
-                            <span className="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-[9px] font-bold uppercase text-green-700">
-                              Default
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      {user.businessInfo.companyName && (
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Company</p>
+                          <p className="font-bold text-gray-800">{user.businessInfo.companyName}</p>
+                        </div>
+                      )}
+                      {user.businessInfo.gstNumber && (
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">GSTIN</p>
+                          <p className="font-bold text-gray-800 uppercase">{user.businessInfo.gstNumber}</p>
+                        </div>
+                      )}
+                      {user.businessInfo.companyType && user.businessInfo.companyType !== 'Retailer' && (
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Business Type</p>
+                          <p className="font-bold text-gray-800">{user.businessInfo.companyType}</p>
+                        </div>
+                      )}
+                      {user.businessInfo.industry && user.businessInfo.industry !== 'General Trade' && (
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Industry</p>
+                          <p className="font-bold text-gray-800">{user.businessInfo.industry}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {user.businessInfo.address?.fullAddress && (
+                      <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Registered Address</p>
+                        <p className="text-xs font-bold text-gray-700 leading-relaxed">
+                          {user.businessInfo.address.fullAddress}
+                          {(user.businessInfo.address.state || user.businessInfo.address.pincode) && (
+                            <span className="block mt-1 text-gray-500 font-medium">
+                              {user.businessInfo.address.state} {user.businessInfo.address.pincode ? ` - ${user.businessInfo.address.pincode}` : ''}
                             </span>
                           )}
                         </p>
-                        <p className="text-gray-600">
-                          {addr.streetAddress}, {addr.city}, {addr.state} -{" "}
-                          {addr.pincode}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {Array.isArray(user.addresses) && user.addresses.length > 0 && (
+                <section>
+                  <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-3 border-b border-gray-50 pb-1">
+                    Additional Delivery Addresses
+                  </h3>
+                  <div className="space-y-2">
+                    {user.addresses.map((addr, idx) => (
+                      <div key={idx} className="rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2 text-xs">
+                        <p className="font-bold text-gray-800 flex items-center gap-2">
+                          {addr.addressType || "Address"}
+                          {addr.isDefault && (
+                            <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">Default</span>
+                          )}
                         </p>
-                        {addr.phone && (
-                          <p className="mt-0.5 text-gray-500">
-                            Phone: {addr.phone}
-                          </p>
-                        )}
+                        <p className="text-gray-500 mt-0.5 font-medium">
+                          {addr.streetAddress}, {addr.city}, {addr.state} {addr.pincode}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -289,11 +246,6 @@ const UserManagement = () => {
     {
       key: "phone",
       label: "Phone",
-    },
-    {
-      key: "businessInfo",
-      label: "Company",
-      render: (val) => val?.companyName || "N/A",
     },
     {
       key: "isEmailVerified",

@@ -5,10 +5,14 @@ import { formatDateTime } from '../../utils/adminHelpers';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../../../shared/hooks/useNotifications';
 import toast from 'react-hot-toast';
+import { useScrollLock } from '../../../../shared/hooks/useScrollLock';
 
 const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
   const navigate = useNavigate();
   const windowRef = useRef(null);
+
+  // Lock scroll when notifications panel is open
+  useScrollLock(isOpen);
 
   // Determine role from path
   const path = window.location.pathname;

@@ -759,7 +759,7 @@ class SubscriptionRulesService {
      * @param {String} vendorId 
      * @returns {Promise<Boolean>} Success
      */
-    async consumeEnquiry(vendorId) {
+    async consumeEnquiry(vendorId, clickType = null) {
         try {
             const subData = await this.getActiveSubscription(vendorId);
             
@@ -801,9 +801,10 @@ class SubscriptionRulesService {
                 await vendorWalletService.payViaWallet(
                     vendorId,
                     price,
-                    `Automatic Enquiry Unlock (Pay-per-use)`,
+                    `Automatic Enquiry Unlock (Pay-Per-Use)${clickType ? ` - ${clickType.toUpperCase()}` : ''}`,
                     `ENQ-${Date.now()}`,
-                    'enquiry_unlock'
+                    'enquiry_unlock',
+                    { clickType }
                 );
 
                 // Notify vendor in background

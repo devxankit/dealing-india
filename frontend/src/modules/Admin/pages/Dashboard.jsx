@@ -24,7 +24,8 @@ const Dashboard = () => {
     subscriptions: {
       product: { active: 0, expiringSoon: 0, expired: 0 },
       property: { active: 0, expiringSoon: 0, expired: 0 },
-      banner: { active: 0, expiringSoon: 0, expired: 0 }
+      banner: { active: 0, expiringSoon: 0, expired: 0 },
+      lotSlot: { active: 0, expiringSoon: 0, expired: 0 }
     },
     listingHealth: {
       products: { total: 0, approved: 0, pending: 0, disabled: 0 },
@@ -182,7 +183,7 @@ const Dashboard = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="grid grid-cols-2 gap-3 mt-4">
+            <div className="grid grid-cols-2 gap-3 mt-4 max-h-[120px] overflow-y-auto pr-2 custom-scrollbar">
             {vendorDistribution.map((item, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || COLORS[i % COLORS.length] }}></div>
@@ -193,7 +194,7 @@ const Dashboard = () => {
         </div>
 
         {/* Section 3: Subscription Overview */}
-        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
           {[
             { title: 'Products', data: subscriptions.product, icon: <FiPackage />, color: 'blue' },
             { title: 'Properties', data: subscriptions.property, icon: <FiHome />, color: 'orange' },
@@ -210,7 +211,7 @@ const Dashboard = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500 text-sm font-bold">Active</span>
-                  <span className="text-green-600 font-black">{sub.data.active}</span>
+                  <span className="text-green-600 font-black">{sub.data?.active || 0}</span>
                 </div>
                 <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
                   <div className="h-full bg-green-500 rounded-full" style={{ width: '85%' }}></div>

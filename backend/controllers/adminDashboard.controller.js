@@ -13,6 +13,8 @@ import Reel from '../models/Reel.model.js';
 import ReelReport from '../models/ReelReport.model.js';
 import VendorWalletTransaction from '../models/VendorWalletTransaction.model.js';
 
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1'];
+
 /**
  * Get Admin Dashboard Summary
  * @route GET /api/admin/reports/dashboard-summary
@@ -62,7 +64,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         Property.countDocuments({ isActive: true }),
         Vendor.aggregate([
             { $match: { vendorType: { $ne: 'admin' } } },
-            { $group: { _id: '$vendorType', count: { $sum: 1 } } }
+            { $group: { _id: { $ifNull: ['$businessType', 'General'] }, count: { $sum: 1 } } }
         ]),
         // Top categories based on Admin defined categories
         Product.aggregate([
@@ -102,11 +104,11 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         LotSlot.countDocuments({ isActive: true })
     ]);
 
-    // Format vendor distribution for frontend
-    const formattedVendorDistribution = vendorDistribution.map(v => ({
-        name: v._id === 'b2b' ? 'B2B Vendors' : 'Individual Sellers',
+    // Format vendor distribution for frontend based on business type
+    const formattedVendorDistribution = vendorDistribution.map((v, index) => ({
+        name: v._id,
         value: v.count,
-        color: v._id === 'b2b' ? '#3B82F6' : '#10B981' // Blue for B2B, Green for others
+        color: COLORS[index % COLORS.length]
     }));
 
     // Create a map of aggregation results

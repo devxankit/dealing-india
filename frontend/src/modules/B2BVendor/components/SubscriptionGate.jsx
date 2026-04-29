@@ -43,6 +43,15 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
     const [rechargeAmountInput, setRechargeAmountInput] = useState(100);
     const [noticeData, setNoticeData] = useState(null);
     const [showNoticeModal, setShowNoticeModal] = useState(false);
+    const [addonQuantities, setAddonQuantities] = useState({});
+
+    const updateAddonQuantity = (id, delta) => {
+        setAddonQuantities(prev => {
+            const current = prev[id] || 1;
+            const next = Math.max(1, current + delta);
+            return { ...prev, [id]: next };
+        });
+    };
     const fetchAttempted = useRef(false);
     // Hide base plans only if the user ALREADY HAS an active subscription that ALLOWS this feature
     const hideBasePlans = useMemo(() => {
@@ -191,20 +200,24 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         const plan = addonPlans.find(p => p._id === planId);
         if (!plan) return;
 
-        if (walletBalance >= planPrice) {
+        const quantity = addonQuantities[planId] || 1;
+        const totalPrice = planPrice * quantity;
+
+        if (walletBalance >= totalPrice) {
             setWalletConfirmData({
                 id: planId,
                 name: plan.name || 'Add-on Pack',
-                price: planPrice,
+                price: totalPrice,
+                quantity: quantity,
                 type: 'addon'
             });
             setShowWalletConfirmModal(true);
         } else {
             // Insufficient balance — show custom notice modal
-            const deficit = Math.ceil(planPrice - walletBalance);
+            const deficit = Math.ceil(totalPrice - walletBalance);
             const rechargeAmt = Math.max(100, deficit);
             setNoticeData({
-                required: planPrice,
+                required: totalPrice,
                 balance: walletBalance,
                 suggested: rechargeAmt
             });
@@ -273,7 +286,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             setShowWalletConfirmModal(false);
             if (type === 'addon') {
                 toast.loading('Processing wallet payment...', { id: 'wallet-gate' });
-                await purchaseAddonViaWallet(id);
+                await purchaseAddonViaWallet(id, walletConfirmData.quantity || 1);
                 toast.success('Purchased successfully!', { id: 'wallet-gate' });
                 setShowAddonModal(false);
             } else {
@@ -423,7 +436,12 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                 </div>
                                 <div className="flex justify-between items-center mb-4 pt-4 border-t border-gray-200/50">
                                     <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Amount</span>
-                                    <span className="font-black text-xl text-primary-600">₹{walletConfirmData.price.toLocaleString()}</span>
+                                    <div className="text-right">
+                                        <span className="font-black text-xl text-primary-600">₹{walletConfirmData.price.toLocaleString()}</span>
+                                        {walletConfirmData.quantity > 1 && (
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase">₹{(walletConfirmData.price/walletConfirmData.quantity).toLocaleString()} x {walletConfirmData.quantity}</p>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex justify-between items-center pt-4 border-t border-gray-200/50">
                                     <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Balance After</span>
@@ -562,18 +580,29 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                             </h3>
                             <div className="grid grid-cols-1 gap-3">
                                 {addonPlans.length > 0 ? addonPlans.map(plan => (
-                                    <button key={plan._id} onClick={() => handleBuyAddon(plan._id, plan.price)} disabled={!!processingAddonId} className={`flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20`}>
-                                        <div className="text-left">
-                                            <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
-                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.quantity} Extra Units</p>
-                                        </div>
-                                        <div className="flex items-center gap-4 text-right">
-                                            <span className={`font-black text-lg text-${theme.color}-600`}>₹{plan.price}</span>
-                                            <div className={`w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white group-hover/item:border-${theme.color}-600 transition-all shadow-sm`}>
-                                                {processingAddonId === plan._id ? <FiRefreshCw className="animate-spin" size={18} /> : theme.icon}
+                                    <div key={plan._id} className="space-y-3">
+                                        <div className={`flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20`}>
+                                            <div className="text-left">
+                                                <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
+                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{(plan.quantity * (addonQuantities[plan._id] || 1))} Extra Units</p>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-right">
+                                                <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-3 py-1 mr-2 shadow-sm">
+                                                    <button onClick={() => updateAddonQuantity(plan._id, -1)} className="text-gray-400 hover:text-gray-900 transition-colors font-bold text-lg">-</button>
+                                                    <span className="text-xs font-black w-4 text-center">{addonQuantities[plan._id] || 1}</span>
+                                                    <button onClick={() => updateAddonQuantity(plan._id, 1)} className="text-gray-400 hover:text-gray-900 transition-colors font-bold text-lg">+</button>
+                                                </div>
+                                                <span className={`font-black text-lg text-${theme.color}-600`}>₹{(plan.price * (addonQuantities[plan._id] || 1))}</span>
+                                                <button 
+                                                    onClick={() => handleBuyAddon(plan._id, plan.price)} 
+                                                    disabled={!!processingAddonId}
+                                                    className={`w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white group-hover/item:border-${theme.color}-600 transition-all shadow-sm`}
+                                                >
+                                                    {processingAddonId === plan._id ? <FiRefreshCw className="animate-spin" size={18} /> : theme.icon}
+                                                </button>
                                             </div>
                                         </div>
-                                    </button>
+                                    </div>
                                 )) : (
                                     <div className="p-8 border-2 border-dashed border-gray-100 rounded-3xl text-center">
                                         <p className="text-gray-400 text-xs italic">
@@ -658,22 +687,27 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                     const isInsufficient = walletBalance < plan.price;
                                     return (
                                         <div key={plan._id} className="space-y-2">
-                                            <button 
-                                                onClick={() => handleBuyAddon(plan._id, plan.price)} 
-                                                disabled={!!processingAddonId || isRecharging} 
-                                                className={`w-full flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20`}
-                                            >
+                                            <div className={`w-full flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20`}>
                                                 <div className="text-left">
                                                     <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
-                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.quantity} Extra Units</p>
+                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{(plan.quantity * (addonQuantities[plan._id] || 1))} Extra Units</p>
                                                 </div>
                                                 <div className="flex items-center gap-4">
-                                                    <span className="font-black text-lg text-amber-600">₹{plan.price}</span>
-                                                    <div className={`w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white group-hover/item:border-${theme.color}-600 transition-all shadow-sm`}>
-                                                        {processingAddonId === plan._id || isRecharging ? <FiRefreshCw className="animate-spin" size={18} /> : (isInsufficient ? <FiPlusCircle /> : theme.icon)}
+                                                    <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-3 py-1 shadow-sm">
+                                                        <button onClick={() => updateAddonQuantity(plan._id, -1)} className="text-gray-400 hover:text-gray-900 transition-colors font-bold text-lg">-</button>
+                                                        <span className="text-xs font-black w-4 text-center">{addonQuantities[plan._id] || 1}</span>
+                                                        <button onClick={() => updateAddonQuantity(plan._id, 1)} className="text-gray-400 hover:text-gray-900 transition-colors font-bold text-lg">+</button>
                                                     </div>
+                                                    <span className="font-black text-lg text-amber-600">₹{(plan.price * (addonQuantities[plan._id] || 1))}</span>
+                                                    <button 
+                                                        onClick={() => handleBuyAddon(plan._id, plan.price)} 
+                                                        disabled={!!processingAddonId || isRecharging} 
+                                                        className={`w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white group-hover/item:border-${theme.color}-600 transition-all shadow-sm`}
+                                                    >
+                                                        {processingAddonId === plan._id || isRecharging ? <FiRefreshCw className="animate-spin" size={18} /> : (isInsufficient ? <FiPlusCircle /> : theme.icon)}
+                                                    </button>
                                                 </div>
-                                            </button>
+                                            </div>
                                             {isInsufficient && (
                                                 <div className="flex items-center justify-between px-4 pb-2">
                                                     <p className="text-[9px] font-black text-rose-500 uppercase tracking-tighter italic">Insufficient Balance (₹{walletBalance})</p>
@@ -737,18 +771,27 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                 
                                 <div className="grid grid-cols-1 gap-3 mb-6">
                                     {addonPlans.map(plan => (
-                                        <button key={plan._id} onClick={() => handleBuyAddon(plan._id, plan.price)} disabled={!!processingAddonId} className={`flex items-center justify-between p-4 border-2 border-gray-100 rounded-2xl hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item`}>
+                                        <div className={`flex items-center justify-between p-4 border-2 border-gray-100 rounded-2xl hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item`}>
                                             <div className="text-left">
                                                 <p className="font-bold text-gray-800">{plan.name}</p>
-                                                <p className="text-xs text-gray-500">{plan.quantity} Units</p>
+                                                <p className="text-xs text-gray-500">{(plan.quantity * (addonQuantities[plan._id] || 1))} Units</p>
                                             </div>
                                             <div className="flex items-center gap-3">
-                                                <span className="font-bold text-primary-600">₹{plan.price}</span>
-                                                <div className={`w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white transition-colors`}>
-                                                    {processingAddonId === plan._id ? <FiRefreshCw className="animate-spin" /> : theme.icon}
+                                                <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-2 py-0.5 border border-gray-100">
+                                                    <button onClick={(e) => { e.stopPropagation(); updateAddonQuantity(plan._id, -1); }} className="text-gray-400 hover:text-gray-900 transition-colors font-bold">-</button>
+                                                    <span className="text-[10px] font-black w-3 text-center">{addonQuantities[plan._id] || 1}</span>
+                                                    <button onClick={(e) => { e.stopPropagation(); updateAddonQuantity(plan._id, 1); }} className="text-gray-400 hover:text-gray-900 transition-colors font-bold">+</button>
                                                 </div>
+                                                <span className="font-bold text-primary-600 text-sm">₹{(plan.price * (addonQuantities[plan._id] || 1))}</span>
+                                                <button 
+                                                    onClick={() => handleBuyAddon(plan._id, plan.price)} 
+                                                    disabled={!!processingAddonId}
+                                                    className={`w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white transition-colors`}
+                                                >
+                                                    {processingAddonId === plan._id ? <FiRefreshCw className="animate-spin" /> : theme.icon}
+                                                </button>
                                             </div>
-                                        </button>
+                                        </div>
                                     ))}
                                     {addonPlans.length === 0 && !loadingAddons && <p className="text-gray-400 text-sm italic">No add-on packs available.</p>}
                                     {loadingAddons && <div className="animate-spin h-8 w-8 border-2 border-primary-600 border-t-transparent rounded-full mx-auto"></div>}

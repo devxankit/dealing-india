@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag, FiX, FiCopy, FiShare2, FiInstagram, FiFacebook, FiYoutube, FiPlayCircle, FiShield } from 'react-icons/fi';
+import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag, FiX, FiCopy, FiShare2, FiInstagram, FiFacebook, FiYoutube, FiPlayCircle, FiShield, FiPhoneCall, FiMail, FiMessageSquare } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import { getMyReferralSummary } from '../../../shared/services/referralService';
 import { getSupportConfig } from '../../../shared/services/supportService';
+import { useScrollLock } from '../../../shared/hooks/useScrollLock';
 
 const Profile = () => {
     const navigate = useNavigate();
@@ -17,6 +18,10 @@ const Profile = () => {
     const [referralLoading, setReferralLoading] = useState(false);
     const [referralError, setReferralError] = useState('');
     const [supportConfig, setSupportConfig] = useState(null);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+    // Lock scroll when logout modal is open
+    useScrollLock(showLogoutModal);
 
     const menuItems = [
         { icon: FiBriefcase, label: 'Company Profile', desc: 'Manage your business details & GST', path: '/b2b/company' },
@@ -27,9 +32,13 @@ const Profile = () => {
     ];
 
     const handleLogout = () => {
+        setShowLogoutModal(true);
+    };
+
+    const confirmLogout = () => {
         logout();
         toast.success('Logged out successfully');
-        navigate('/app/login');
+        navigate('/b2b/login'); // Changed from /app/login to match existing B2B routes
     };
 
     useEffect(() => {
@@ -203,6 +212,47 @@ const Profile = () => {
                     </motion.button>
                 </div>
 
+                {/* Quick Help Section */}
+                {supportConfig && (
+                    <div className="mt-8 bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
+                        <div className="flex items-center gap-2 mb-6">
+                            <div className="w-1 h-5 bg-primary-500 rounded-full"></div>
+                            <h3 className="font-bold text-gray-800">Need Instant Help?</h3>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                            <a
+                                href={`tel:${supportConfig.phone}`}
+                                className="flex flex-col items-center gap-2 group"
+                            >
+                                <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-all shadow-sm">
+                                    <FiPhoneCall size={20} />
+                                </div>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Call</span>
+                            </a>
+                            <a
+                                href={`mailto:${supportConfig.email}`}
+                                className="flex flex-col items-center gap-2 group"
+                            >
+                                <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-all shadow-sm">
+                                    <FiMail size={20} />
+                                </div>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Email</span>
+                            </a>
+                            <a
+                                href={`https://wa.me/${supportConfig.whatsapp?.replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex flex-col items-center gap-2 group"
+                            >
+                                <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 group-hover:bg-green-600 group-hover:text-white transition-all shadow-sm">
+                                    <FiMessageSquare size={20} />
+                                </div>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">WhatsApp</span>
+                            </a>
+                        </div>
+                    </div>
+                )}
+
                 {/* Footer Section with Social Links */}
                 <div className="mt-12 text-center pb-8 px-4">
                     {supportConfig && (
@@ -251,6 +301,57 @@ const Profile = () => {
                     </p>
                 </div>
             </main>
+
+            {/* Logout Confirmation Modal */}
+            <AnimatePresence>
+                {showLogoutModal && (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowLogoutModal(false)}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50"></div>
+                            
+                            <div className="flex flex-col items-center text-center relative z-10">
+                                <div className="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center mb-6 shadow-inner">
+                                    <FiLogOut className="text-red-500 text-3xl" />
+                                </div>
+                                
+                                <h3 className="text-2xl font-black text-gray-900 mb-2 leading-tight">
+                                    Logging Out?
+                                </h3>
+                                <p className="text-gray-500 font-medium mb-8 leading-relaxed">
+                                    Are you sure you want to end your session? You'll need to sign in again to access your account.
+                                </p>
+                                
+                                <div className="flex flex-col w-full gap-3">
+                                    <button
+                                        onClick={confirmLogout}
+                                        className="w-full py-4 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-100 active:scale-[0.98]"
+                                    >
+                                        Yes, Log Me Out
+                                    </button>
+                                    <button
+                                        onClick={() => setShowLogoutModal(false)}
+                                        className="w-full py-4 bg-gray-50 text-gray-700 rounded-2xl font-bold hover:bg-gray-100 transition-all active:scale-[0.98]"
+                                    >
+                                        Stay Logged In
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             <B2BBottomNav />
         </div>

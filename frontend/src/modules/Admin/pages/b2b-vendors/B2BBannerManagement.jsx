@@ -22,6 +22,7 @@ import { formatPrice } from "../../../../shared/utils/helpers";
 import { IndianRupee } from "lucide-react";
 import Badge from "../../../../shared/components/Badge";
 import DataTable from "../../components/DataTable";
+import { useScrollLock } from "../../../../shared/hooks/useScrollLock";
 import {
     getAdminBannerSlots,
     getAdminBannerBookings,
@@ -51,6 +52,9 @@ const B2BBannerManagement = () => {
     const [showSettingsPanel, setShowSettingsPanel] = useState(false);
     const [rejectModal, setRejectModal] = useState({ show: false, bookingId: null, reason: '' });
     const [editingSlotId, setEditingSlotId] = useState(null);
+
+    // Lock scroll when rejection modal is open
+    useScrollLock(rejectModal.show);
 
     // Settings form state
     const [settingsForm, setSettingsForm] = useState({
@@ -305,9 +309,12 @@ const B2BBannerManagement = () => {
             header: "B2B Vendor",
             accessor: "vendorId",
             render: (val) => (
-                <div className="flex flex-col">
-                    <span className="font-medium">{val?.storeName || val?.name || "N/A"}</span>
-                    <span className="text-xs text-gray-500">{val?.email}</span>
+                <div 
+                    className="flex flex-col cursor-pointer group/vendor"
+                    onClick={() => navigate(`/admin/b2b-vendors/manage/${val?._id || val}/dashboard`)}
+                >
+                    <span className="font-bold text-primary-600 group-hover/vendor:underline">{val?.storeName || val?.name || "N/A"}</span>
+                    <span className="text-[10px] text-gray-500 font-medium">{val?.email}</span>
                 </div>
             ),
         },
@@ -395,9 +402,9 @@ const B2BBannerManagement = () => {
             render: (val, row) => (
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => navigate(`/admin/b2b-vendors/banner-bookings/details/${row._id}`)}
+                        onClick={() => navigate(`/admin/b2b-vendors/manage/${row.vendorId?._id || row.vendorId}/dashboard`)}
                         className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                        title="View Details"
+                        title="View Vendor Information"
                     >
                         <FiEye className="text-lg" />
                     </button>
@@ -442,21 +449,6 @@ const B2BBannerManagement = () => {
                             <p className="text-lg font-bold text-gray-900">{settings.universalDisplayTime}ms</p>
                         </div>
                     </div>
-                    <div className="h-10 w-px bg-gray-100"></div>
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-50 text-green-600 rounded-lg">
-                            <IndianRupee className="text-xl" />
-                        </div>
-                        <div>
-                            <p className="text-lg font-bold text-gray-900">{bookings.filter(b =>
-                                b.status === 'active' &&
-                                b.paymentStatus === 'paid' &&
-                                new Date(b.startDate) <= new Date() &&
-                                new Date(b.endDate) >= new Date()
-                            ).length}</p>
-                        </div>
-                    </div>
-                    <div className="h-10 w-px bg-gray-100"></div>
 
                     <button
                         onClick={() => navigate('/admin/b2b-vendors/wallet')}

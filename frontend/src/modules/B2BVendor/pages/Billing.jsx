@@ -52,12 +52,13 @@ const Billing = () => {
     };
 
     const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-        });
+        if (!dateString) return { day: '', month: '', year: '' };
+        const d = new Date(dateString);
+        return {
+            day: d.getDate(),
+            month: d.toLocaleDateString('en-IN', { month: 'short' }),
+            year: d.getFullYear()
+        };
     };
 
     if (loading) {
@@ -74,11 +75,7 @@ const Billing = () => {
     return (
         <div className="p-6 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-gray-900 mb-2 uppercase tracking-tight">Billing & Invoices</h1>
-                    <p className="text-gray-500 font-medium">Manage your subscription invoices and transaction history.</p>
-                </div>
+            <div className="mb-10 flex justify-end">
                 <button
                     onClick={loadBillingData}
                     disabled={loading}
@@ -135,114 +132,138 @@ const Billing = () => {
                         <p className="text-gray-400 font-black uppercase text-[10px] tracking-widest">Last Transaction</p>
                     </div>
                     <p className="text-xl font-black text-gray-900">
-                        {billingHistory[0] ? formatDate(billingHistory[0].date) : 'N/A'}
+                        {billingHistory[0] ? (() => {
+                            const d = formatDate(billingHistory[0].date);
+                            return `${d.day} ${d.month} ${d.year}`;
+                        })() : 'N/A'}
                     </p>
                 </motion.div>
             </div>
 
             {/* Billing History Table */}
             <div className="mb-10">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center shadow-lg shadow-gray-200">
-                        <FiClock />
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Transaction History</h3>
-                        <p className="text-gray-400 text-xs font-bold uppercase tracking-tighter">Your recent payments and invoices from Zoho Books</p>
+                <div className="flex flex-col md:flex-row md:items-center gap-4 mb-8">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-gray-900 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-gray-200 shrink-0">
+                            <FiClock size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Transaction History</h3>
+                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-wider">Your recent payments and invoices</p>
+                        </div>
                     </div>
                 </div>
 
                 <div className="bg-white border-2 border-gray-50 rounded-[2.5rem] overflow-hidden shadow-sm">
                     {billingHistory.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50/50">
-                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Date</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Amount</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right whitespace-nowrap">Invoice</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {billingHistory.map((item, idx) => (
-                                        <tr key={idx} className="hover:bg-gray-50/50 transition-colors group">
-                                            <td className="px-8 py-6">
+                        <div>
+                            {/* Desktop Table */}
+                            <div className="hidden lg:block">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                            <th className="px-8 py-5">Description</th>
+                                            <th className="px-8 py-5 text-center">Date</th>
+                                            <th className="px-8 py-5 text-center">Status</th>
+                                            <th className="px-8 py-5 text-center">Amount</th>
+                                            <th className="px-8 py-5 text-right whitespace-nowrap">Invoice</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {billingHistory.map((item, idx) => {
+                                            const dateObj = formatDate(item.date);
+                                            return (
+                                                <tr key={idx} className="hover:bg-gray-50/50 transition-colors group">
+                                                    <td className="px-8 py-6">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm transition-transform group-hover:scale-110 ${
+                                                                item.type === 'subscription_payment' 
+                                                                    ? 'bg-primary-100 text-primary-600' 
+                                                                    : item.type === 'banner_booking'
+                                                                    ? 'bg-amber-100 text-amber-600'
+                                                                    : item.type === 'wallet_recharge'
+                                                                    ? 'bg-emerald-100 text-emerald-600'
+                                                                    : 'bg-indigo-100 text-indigo-600'
+                                                            }`}>
+                                                                {item.type === 'subscription_payment' ? <FiPackage /> : item.type === 'banner_booking' ? <FiImage /> : item.type === 'wallet_recharge' ? <FiCreditCard /> : <FiPlusCircle />}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-black text-gray-900 text-sm leading-tight">{item.planName}</p>
+                                                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-tighter">Ref: {item.transactionCode}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-6 text-center">
+                                                        <span className="text-sm font-bold text-gray-500 tabular-nums">{dateObj.day} {dateObj.month} {dateObj.year}</span>
+                                                    </td>
+                                                    <td className="px-8 py-6 text-center">
+                                                        <div className="flex justify-center">
+                                                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2 ${
+                                                                item.status === 'completed' || item.status === 'active' ? 'bg-emerald-100 text-emerald-600' : item.status === 'failed' ? 'bg-rose-100 text-rose-600' : 'bg-yellow-100 text-yellow-600'
+                                                            }`}>
+                                                                {item.status === 'completed' || item.status === 'active' ? <FiCheckCircle size={10} /> : <FiXCircle size={10} />}
+                                                                {item.status}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-6 text-center">
+                                                        <span className="font-black text-gray-900 text-lg tabular-nums">₹{item.amount.toLocaleString('en-IN')}</span>
+                                                    </td>
+                                                    <td className="px-8 py-6 text-right">
+                                                        <button onClick={() => handleDownloadInvoice(item.zohoInvoiceId)} disabled={!item.zohoInvoiceId || downloadingId === item.zohoInvoiceId} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tighter transition-all ${!item.zohoInvoiceId ? 'bg-gray-50 text-gray-300 cursor-not-allowed border-2 border-gray-100' : 'bg-white text-primary-600 border-2 border-primary-100 hover:bg-primary-600 hover:text-white hover:shadow-lg shadow-primary-100 active:scale-95'}`}>
+                                                            {downloadingId === item.zohoInvoiceId ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div> : <FiDownload size={14} />}
+                                                            PDF
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Mobile/Tablet Card View */}
+                            <div className="lg:hidden divide-y divide-gray-50">
+                                {billingHistory.map((item, idx) => {
+                                    const dateObj = formatDate(item.date);
+                                    return (
+                                        <div key={idx} className="p-6 space-y-4">
+                                            <div className="flex items-start justify-between">
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm transition-transform group-hover:scale-110 ${
-                                                        item.type === 'subscription_payment' 
-                                                            ? 'bg-primary-100 text-primary-600' 
-                                                            : item.type === 'banner_booking'
-                                                            ? 'bg-amber-100 text-amber-600'
-                                                            : item.type === 'wallet_recharge'
-                                                            ? 'bg-emerald-100 text-emerald-600'
-                                                            : 'bg-indigo-100 text-indigo-600'
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm ${
+                                                        item.type === 'subscription_payment' ? 'bg-primary-100 text-primary-600' : item.type === 'banner_booking' ? 'bg-amber-100 text-amber-600' : item.type === 'wallet_recharge' ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600'
                                                     }`}>
-                                                        {item.type === 'subscription_payment' 
-                                                            ? <FiPackage /> 
-                                                            : item.type === 'banner_booking'
-                                                            ? <FiImage />
-                                                            : item.type === 'wallet_recharge'
-                                                            ? <FiCreditCard />
-                                                            : <FiPlusCircle />}
+                                                        {item.type === 'subscription_payment' ? <FiPackage /> : item.type === 'banner_booking' ? <FiImage /> : item.type === 'wallet_recharge' ? <FiCreditCard /> : <FiPlusCircle />}
                                                     </div>
                                                     <div>
                                                         <p className="font-black text-gray-900 text-sm leading-tight">{item.planName}</p>
-                                                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-tighter">
-                                                            Ref: {item.transactionCode}
-                                                        </p>
-                                                        {item.type === 'banner_booking' && item.startDate && (
-                                                            <p className="text-[10px] text-amber-500 font-bold mt-0.5">
-                                                                {new Date(item.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                                {item.endDate && item.endDate !== item.startDate ? ` – ${new Date(item.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
-                                                            </p>
-                                                        )}
+                                                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-tighter line-clamp-1">REF: {item.transactionCode}</p>
                                                     </div>
                                                 </div>
-                                            </td>
-                                            <td className="px-8 py-6 text-center">
-                                                <span className="text-sm font-bold text-gray-500 tabular-nums">{formatDate(item.date)}</span>
-                                            </td>
-                                            <td className="px-8 py-6 text-center">
-                                                <div className="flex justify-center">
-                                                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2 ${
-                                                        item.status === 'completed' || item.status === 'active'
-                                                            ? 'bg-emerald-100 text-emerald-600' 
-                                                            : item.status === 'failed'
-                                                            ? 'bg-rose-100 text-rose-600'
-                                                            : 'bg-yellow-100 text-yellow-600'
-                                                    }`}>
-                                                        {item.status === 'completed' || item.status === 'active' ? <FiCheckCircle size={10} /> : <FiXCircle size={10} />}
-                                                        {item.status}
-                                                    </span>
+                                                <div className="text-right flex flex-col items-end shrink-0">
+                                                    <span className="text-[14px] font-black text-gray-900 leading-none">{dateObj.day}</span>
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">{dateObj.month}</span>
+                                                    <span className="text-[10px] font-black text-gray-400 tracking-tighter">{dateObj.year}</span>
                                                 </div>
-                                            </td>
-                                            <td className="px-8 py-6 text-center">
-                                                <span className="font-black text-gray-900 text-lg tabular-nums">₹{item.amount.toLocaleString('en-IN')}</span>
-                                            </td>
-                                            <td className="px-8 py-6 text-right">
-                                                <button
-                                                    onClick={() => handleDownloadInvoice(item.zohoInvoiceId)}
-                                                    disabled={!item.zohoInvoiceId || downloadingId === item.zohoInvoiceId}
-                                                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tighter transition-all ${
-                                                        !item.zohoInvoiceId 
-                                                            ? 'bg-gray-50 text-gray-300 cursor-not-allowed border-2 border-gray-100' 
-                                                            : 'bg-white text-primary-600 border-2 border-primary-100 hover:bg-primary-600 hover:text-white hover:shadow-lg shadow-primary-100 active:scale-95'
-                                                    }`}
-                                                >
-                                                    {downloadingId === item.zohoInvoiceId ? (
-                                                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                                    ) : (
-                                                        <FiDownload size={14} />
-                                                    )}
-                                                    PDF
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                            </div>
+                                            <div className="flex items-center justify-between pt-2">
+                                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-2 ${
+                                                    item.status === 'completed' || item.status === 'active' ? 'bg-emerald-100 text-emerald-600' : item.status === 'failed' ? 'bg-rose-100 text-rose-600' : 'bg-yellow-100 text-yellow-600'
+                                                }`}>
+                                                    {item.status === 'completed' || item.status === 'active' ? <FiCheckCircle size={10} /> : <FiXCircle size={10} />}
+                                                    {item.status}
+                                                </span>
+                                                <div className="flex items-center gap-4">
+                                                    <span className="font-black text-gray-900 text-base tabular-nums">₹{item.amount.toLocaleString('en-IN')}</span>
+                                                    <button onClick={() => handleDownloadInvoice(item.zohoInvoiceId)} disabled={!item.zohoInvoiceId || downloadingId === item.zohoInvoiceId} className={`p-2 rounded-xl border-2 transition-all ${!item.zohoInvoiceId ? 'bg-gray-50 text-gray-300 border-gray-100' : 'bg-white text-primary-600 border-primary-100 hover:bg-primary-600 hover:text-white'}`}>
+                                                        {downloadingId === item.zohoInvoiceId ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div> : <FiDownload size={14} />}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     ) : (
                         <div className="p-20 text-center">

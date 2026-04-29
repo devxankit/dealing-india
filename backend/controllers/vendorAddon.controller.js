@@ -74,13 +74,13 @@ class VendorAddonController {
   async purchaseAddonViaWallet(req, res) {
     try {
       const vendorId = req.user?.vendorId || req.userDoc?._id || req.user?.id;
-      const { addonPlanId } = req.body;
+      const { addonPlanId, quantity } = req.body;
 
       if (!addonPlanId) {
         return res.status(400).json({ success: false, message: 'Addon plan ID is required' });
       }
 
-      const addonRecord = await vendorAddonService.purchaseAddonViaWallet(vendorId, addonPlanId);
+      const addonRecord = await vendorAddonService.purchaseAddonViaWallet(vendorId, addonPlanId, quantity);
 
       res.status(200).json({
         success: true,
@@ -103,13 +103,13 @@ class VendorAddonController {
   async initializeAddonPurchase(req, res) {
     try {
       const vendorId = req.user?.vendorId || req.userDoc?._id || req.user?.id;
-      const { addonPlanId } = req.body;
+      const { addonPlanId, quantity } = req.body;
 
       if (!addonPlanId) {
         return res.status(400).json({ success: false, message: 'Addon plan ID is required' });
       }
 
-      const orderData = await vendorAddonService.initializeAddonPurchase(vendorId, addonPlanId);
+      const orderData = await vendorAddonService.initializeAddonPurchase(vendorId, addonPlanId, quantity);
 
       console.log('Finalizing Addon Purchase Initialization:', {
         orderId: orderData.id,

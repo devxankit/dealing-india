@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiCreditCard, FiLock, FiCheckCircle, FiArrowRight, FiShield, FiCalendar, FiUser } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useScrollLock } from '../../../shared/hooks/useScrollLock';
 import { getB2BPlanById, getB2BPlanByIdSync } from '../../../shared/utils/b2bPlanManager';
 
 const PaymentModal = ({ isOpen, onClose, planId, onSuccess }) => {
@@ -12,6 +13,9 @@ const PaymentModal = ({ isOpen, onClose, planId, onSuccess }) => {
     const [cvv, setCvv] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [step, setStep] = useState(1); // 1: payment details, 2: confirmation
+
+    // Lock scroll when payment modal is open
+    useScrollLock(isOpen);
 
     const [plan, setPlan] = useState(null);
 

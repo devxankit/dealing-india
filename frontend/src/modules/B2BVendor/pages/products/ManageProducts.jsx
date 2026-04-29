@@ -150,11 +150,7 @@ const ManageProducts = () => {
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="text-center md:text-left">
-                    <h1 className="text-2xl md:text-3xl font-black text-gray-800 uppercase tracking-tight">Manage Listings</h1>
-                    <p className="text-gray-500 font-medium">Overview of your product catalog.</p>
-                </div>
+            <div className="flex flex-col md:flex-row items-center justify-end gap-6">
                 {/* Wrapped with SubscriptionGate to enforce product limits */}
                 <SubscriptionGate action="product">
                     <button 

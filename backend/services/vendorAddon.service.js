@@ -82,9 +82,10 @@ class VendorAddonService {
    * Purchase addon unit using wallet balance (no Zoho invoice as requested)
    * @param {string} vendorId 
    * @param {string} addonPlanId 
+   * @param {number} quantity - Number of packs to purchase
    * @returns {Promise<Object>} Created vendor addon record
    */
-  async purchaseAddonViaWallet(vendorId, addonPlanId) {
+  async purchaseAddonViaWallet(vendorId, addonPlanId, quantity = 1) {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
@@ -93,8 +94,9 @@ class VendorAddonService {
         throw new Error('Invalid or inactive add-on plan');
       }
 
-      const price = addonPlan.price || 0;
-      const discountAmount = addonPlan.discount || 0;
+      const multiplier = Math.max(1, parseInt(quantity) || 1);
+      const price = (addonPlan.price || 0) * multiplier;
+      const discountAmount = (addonPlan.discount || 0) * multiplier;
       const gstPercentage = addonPlan.gst || 18;
 
       const priceAfterDiscount = Math.max(0, price - discountAmount);
@@ -107,7 +109,7 @@ class VendorAddonService {
       await vendorWalletService.payViaWallet(
         vendorId,
         totalAmount,
-        `Purchase Add-on Plan: ${addonPlan.name}`,
+        `Purchase Add-on Plan: ${addonPlan.name} (x${multiplier})`,
         addonPlanId.toString(),
         'addon_plan'
       );
@@ -117,7 +119,8 @@ class VendorAddonService {
         vendorId,
         addonPlanId,
         featureType: addonPlan.featureType,
-        totalQuantity: addonPlan.quantity,
+        totalQuantity: addonPlan.quantity * multiplier,
+        purchasedPacks: multiplier,
         usedCount: 0,
         purchaseDate: new Date(),
         status: 'active',
@@ -188,17 +191,19 @@ class VendorAddonService {
    * Initialize addon purchase (Create Razorpay Order)
    * @param {string} vendorId - Vendor ID
    * @param {string} addonPlanId - ID of the addon package
+   * @param {number} quantity - Number of packs to purchase
    * @returns {Promise<Object>} Razorpay order data
    */
-  async initializeAddonPurchase(vendorId, addonPlanId) {
+  async initializeAddonPurchase(vendorId, addonPlanId, quantity = 1) {
     try {
       const addonPlan = await B2BAddonPlan.findById(addonPlanId);
       if (!addonPlan || !addonPlan.isActive) {
         throw new Error('Invalid or inactive add-on plan');
       }
 
-      const price = addonPlan.price || 0;
-      const discountAmount = addonPlan.discount || 0;
+      const multiplier = Math.max(1, parseInt(quantity) || 1);
+      const price = (addonPlan.price || 0) * multiplier;
+      const discountAmount = (addonPlan.discount || 0) * multiplier;
       const gstPercentage = addonPlan.gst || 18;
 
       const priceAfterDiscount = Math.max(0, price - discountAmount);
@@ -215,7 +220,8 @@ class VendorAddonService {
           vendorId: vendorId.toString(),
           addonPlanId: addonPlanId.toString(),
           featureType: addonPlan.featureType,
-          quantity: addonPlan.quantity,
+          quantity: (addonPlan.quantity * multiplier).toString(),
+          purchasedPacks: multiplier.toString(),
           basePrice: price.toString(),
           gstAmount: gstAmount.toString(),
           totalAmount: totalAmount.toString(),
@@ -227,11 +233,12 @@ class VendorAddonService {
       return {
         ...razorpayOrder,
         addonPlanId: addonPlan._id,
+        purchasedPacks: multiplier,
         price: addonPlan.price,
         basePrice: price,
         gstAmount: gstAmount,
         totalAmount: totalAmount,
-        quantity: addonPlan.quantity,
+        quantity: addonPlan.quantity * multiplier,
         featureType: addonPlan.featureType,
         name: addonPlan.name,
         razorpayKeyId: process.env.RAZORPAY_KEY_ID
@@ -271,8 +278,9 @@ class VendorAddonService {
       if (!addonPlan) throw new Error('Add-on plan not found');
 
       // 4. Create VendorAddon Record
-      const price = addonPlan.price || 0;
-      const discountAmount = addonPlan.discount || 0;
+      const multiplier = Math.max(1, parseInt(paymentData.purchasedPacks || 1));
+      const price = (addonPlan.price || 0) * multiplier;
+      const discountAmount = (addonPlan.discount || 0) * multiplier;
       const gstPercentage = addonPlan.gst || 18;
 
       const priceAfterDiscount = Math.max(0, price - discountAmount);
@@ -283,7 +291,8 @@ class VendorAddonService {
         vendorId,
         addonPlanId,
         featureType: addonPlan.featureType,
-        totalQuantity: addonPlan.quantity,
+        totalQuantity: addonPlan.quantity * multiplier,
+        purchasedPacks: multiplier,
         usedCount: 0,
         purchaseDate: new Date(),
         status: 'active',

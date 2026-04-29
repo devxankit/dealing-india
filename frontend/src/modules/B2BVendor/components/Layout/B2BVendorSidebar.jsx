@@ -82,6 +82,7 @@ const getChildRoute = (parentRoute, childName) => {
 };
 
 import { useNotificationStore } from "../../../../shared/store/notificationStore";
+import { useScrollLock } from "../../../../shared/hooks/useScrollLock";
 
 const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const location = useLocation();
@@ -98,6 +99,9 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
 
     const displayVendorName = vendor?.name || "B2B Vendor";
     const vendorInitial = displayVendorName.charAt(0).toUpperCase();
+
+    // Lock scroll when sidebar is open on mobile
+    useScrollLock(isOpen && window.innerWidth < 1024);
 
     useEffect(() => {
         fetchUnreadCount();

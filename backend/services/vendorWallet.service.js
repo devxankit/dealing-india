@@ -184,18 +184,18 @@ class VendorWalletService {
     /**
      * Pay via wallet with balance check
      */
-    async payViaWallet(vendorId, amount, description, referenceId, referenceType) {
+    async payViaWallet(vendorId, amount, description, referenceId, referenceType, metadata = {}) {
         const wallet = await this.getOrCreateWallet(vendorId);
         if (wallet.balance < amount) {
             throw new Error(`Insufficient wallet balance. Total required: ₹${amount}, Available: ₹${wallet.balance}`);
         }
-        return await this.debitWallet(vendorId, amount, description, referenceId, referenceType);
+        return await this.debitWallet(vendorId, amount, description, referenceId, referenceType, metadata);
     }
 
     /**
      * Debit vendor wallet (e.g., for banner bookings)
      */
-    async debitWallet(vendorId, amount, description, referenceId, referenceType = 'refund') {
+    async debitWallet(vendorId, amount, description, referenceId, referenceType = 'refund', metadata = {}) {
         const session = await mongoose.startSession();
         session.startTransaction();
         try {
@@ -214,6 +214,7 @@ class VendorWalletService {
                 description,
                 referenceId,
                 referenceType,
+                metadata
             }], { session });
 
             await session.commitTransaction();

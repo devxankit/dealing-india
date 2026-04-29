@@ -42,12 +42,7 @@ const Followers = () => {
 
     return (
         <div className="p-4 md:p-8 space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">My Followers</h1>
-                    <p className="text-gray-500 text-sm font-medium">Grow and engage with your dealing community</p>
-                </div>
-
+            <div className="flex justify-end">
                 <div className="relative">
                     <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input 

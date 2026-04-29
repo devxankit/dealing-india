@@ -380,8 +380,9 @@ const Subscriptions = () => {
         return (subscriptions || []).filter(sub => {
             const city = (sub.vendorCity || '').trim();
             const cityMatch = selectedCity === 'All Cities' || city === selectedCity;
+            const typeMatch = selectedBusinessType === 'All Business Types' || sub.businessType === selectedBusinessType;
 
-            if (!q) return cityMatch;
+            if (!q) return cityMatch && typeMatch;
 
             const vendorName = (sub.vendorName || sub.vendor || '').toLowerCase();
             const email = (sub.vendorEmail || '').toLowerCase();
@@ -392,9 +393,9 @@ const Subscriptions = () => {
                 email.includes(q) ||
                 plan.includes(q);
 
-            return cityMatch && searchMatch;
+            return cityMatch && typeMatch && searchMatch;
         });
-    }, [subscriptions, selectedCity, searchQuery]);
+    }, [subscriptions, selectedCity, searchQuery, selectedBusinessType]);
 
 
     return (

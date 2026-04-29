@@ -13,12 +13,7 @@ const AddLotSlot = () => {
             animate={{ opacity: 1, y: 0 }}
             className="max-w-7xl mx-auto space-y-6"
         >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
-                <div>
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tight">Add New Lot/Slot</h1>
-                    <p className="text-sm text-gray-500 font-medium">Create a new lot or slot listing for bulk buyers.</p>
-                </div>
-
+            <div className="flex justify-end px-1">
                 {/* Dynamic Quota Badge */}
                 {status?.limits?.lotSlot && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-2xl shadow-sm">

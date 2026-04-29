@@ -121,7 +121,7 @@ export const trackContactClick = async (req, res, next) => {
         // --- STEP 3: Consume enquiry unit (if billable, not yet paid today, and userId exists) ---
         if (isBillableClick && userId && !enquiryConsumed) {
             const { default: subscriptionRulesService } = await import('../services/subscriptionRules.service.js');
-            enquiryConsumed = await subscriptionRulesService.consumeEnquiry(vendorId);
+            enquiryConsumed = await subscriptionRulesService.consumeEnquiry(vendorId, clickType);
         }
 
         res.status(200).json({
@@ -650,9 +650,19 @@ export const unlockEnquiry = async (req, res, next) => {
             });
         }
 
+        // Identify original click type for better history logs
+        const originalClicks = await VendorContactClick.find({
+            vendorId,
+            userId: new mongoose.Types.ObjectId(userId),
+            dateKey
+        }).select('clickType').lean();
+        
+        const clickType = originalClicks.find(c => c.clickType === 'whatsapp') ? 'whatsapp' : 
+                         originalClicks.find(c => c.clickType === 'call') ? 'call' : null;
+
         // Try to consume 1 unit (Plan first, then Addon)
         const { default: subscriptionRulesService } = await import('../services/subscriptionRules.service.js');
-        const success = await subscriptionRulesService.consumeEnquiry(vendorId);
+        const success = await subscriptionRulesService.consumeEnquiry(vendorId, clickType);
 
         if (!success) {
             return res.status(400).json({

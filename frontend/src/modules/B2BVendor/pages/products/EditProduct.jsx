@@ -83,6 +83,12 @@ const EditProduct = () => {
         if (id) loadProduct();
     }, [id, navigate]);
 
+    useEffect(() => {
+        if (product?.name) {
+            window.dispatchEvent(new CustomEvent('vendor-page-title', { detail: `Edit ${product.name}` }));
+        }
+    }, [product]);
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
@@ -97,12 +103,6 @@ const EditProduct = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
         >
-            <div className="px-1 text-center mb-8">
-                <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">
-                    Edit Listing
-                </h1>
-                <p className="text-sm text-gray-500 font-medium">Update your product details and B2B pricing.</p>
-            </div>
 
             {product && (
                 <B2BVendorProductForm isEdit={true} initialData={product} productId={id} />

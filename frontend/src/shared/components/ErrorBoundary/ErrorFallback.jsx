@@ -10,7 +10,14 @@ const ErrorFallback = ({ error, errorInfo, onReset, fallback }) => {
   const isDevelopment = import.meta.env.DEV;
 
   const handleGoHome = () => {
-    window.location.href = '/';
+    const path = window.location.pathname;
+    if (path.startsWith('/b2b-vendor')) {
+      window.location.href = '/b2b-vendor/dashboard';
+    } else if (path.startsWith('/admin')) {
+      window.location.href = '/admin/dashboard';
+    } else {
+      window.location.href = '/';
+    }
   };
 
   const isChunkError = error?.name === 'ChunkLoadError' ||

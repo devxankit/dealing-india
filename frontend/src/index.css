@@ -389,3 +389,18 @@ body::-webkit-scrollbar {
     min-height: 0.5rem;
   }
 }
+
+/* Scroll Lock Utility */
+.no-scroll {
+  overflow: hidden !important;
+  height: 100vh !important;
+}
+
+html.no-scroll, body.no-scroll {
+  overflow: hidden !important;
+  height: 100vh !important;
+}
+
+.no-scroll main {
+  overflow: hidden !important;
+}

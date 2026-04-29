@@ -192,9 +192,9 @@ export const getAddonPlans = async (featureType) => {
 /**
  * Initialize addon purchase
  */
-export const initializeAddonPurchase = async (planId) => {
+export const initializeAddonPurchase = async (planId, quantity = 1) => {
     try {
-        const response = await api.post('/vendor/addons/initialize', { addonPlanId: planId });
+        const response = await api.post('/vendor/addons/initialize', { addonPlanId: planId, quantity });
         if (response.success) {
             return response.data;
         }

@@ -58,10 +58,11 @@ export const verifyRecharge = async (paymentData) => {
 /**
  * Purchase addon unit using wallet balance
  * @param {String} addonPlanId 
+ * @param {Number} quantity
  */
-export const purchaseAddonViaWallet = async (addonPlanId) => {
+export const purchaseAddonViaWallet = async (addonPlanId, quantity = 1) => {
     try {
-        const response = await api.post('/vendor/addons/purchase-wallet', { addonPlanId });
+        const response = await api.post('/vendor/addons/purchase-wallet', { addonPlanId, quantity });
         if (response.success) {
             return response.data;
         }

@@ -896,7 +896,7 @@ const B2BLanding = () => {
                             <div className="flex items-center gap-2 lg:gap-4">
                                 <div className="relative" ref={businessTypeRef}>
                                     <button
-                                        onClick={() => setIsMobileBusinessTypeOpen(true)}
+                                        onClick={() => setIsBusinessTypeDropdownOpen(!isBusinessTypeDropdownOpen)}
                                         className="flex items-center gap-2 px-4 py-2 border border-primary-100 rounded-full text-xs font-black uppercase tracking-wider text-gray-700 hover:bg-primary-50 transition-all min-w-[140px] justify-between outline-none"
                                     >
                                         <div className="flex items-center gap-2">

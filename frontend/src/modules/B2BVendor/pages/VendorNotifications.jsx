@@ -102,50 +102,33 @@ const VendorNotifications = () => {
     return (
         <div className="p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                <div>
-                    <h1 className="text-2xl font-black text-gray-900 uppercase tracking-wider flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
-                            <FiBell className="text-primary-600" />
-                        </div>
-                        Notifications
-                        {unreadCount > 0 && (
-                            <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                                {unreadCount}
-                            </span>
-                        )}
-                    </h1>
-                    <p className="text-gray-500 text-sm mt-1">Stay updated with your business alerts</p>
-                </div>
-
-                <div className="flex items-center gap-2">
+            <div className="flex justify-end gap-2 mb-6">
+                <button
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="p-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                    title="Refresh"
+                >
+                    <FiRefreshCw className={refreshing ? 'animate-spin' : ''} size={18} />
+                </button>
+                {unreadCount > 0 && (
                     <button
-                        onClick={handleRefresh}
-                        disabled={refreshing}
-                        className="p-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
-                        title="Refresh"
+                        onClick={markAllAsRead}
+                        className="px-3 py-2 bg-primary-50 text-primary-600 rounded-lg text-xs font-bold hover:bg-primary-100 transition-all flex items-center gap-2"
                     >
-                        <FiRefreshCw className={refreshing ? 'animate-spin' : ''} size={18} />
+                        <FiCheckCircle size={14} />
+                        Mark All Read
                     </button>
-                    {unreadCount > 0 && (
-                        <button
-                            onClick={markAllAsRead}
-                            className="px-3 py-2 bg-primary-50 text-primary-600 rounded-lg text-xs font-bold hover:bg-primary-100 transition-all flex items-center gap-2"
-                        >
-                            <FiCheckCircle size={14} />
-                            Mark All Read
-                        </button>
-                    )}
-                    {notifications.some(n => n.isRead) && (
-                        <button
-                            onClick={deleteAllRead}
-                            className="px-3 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
-                        >
-                            <FiTrash2 size={14} />
-                            Clear Read
-                        </button>
-                    )}
-                </div>
+                )}
+                {notifications.some(n => n.isRead) && (
+                    <button
+                        onClick={deleteAllRead}
+                        className="px-3 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2"
+                    >
+                        <FiTrash2 size={14} />
+                        Clear Read
+                    </button>
+                )}
             </div>
 
             {/* Filters */}
