@@ -8,6 +8,7 @@ import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useSubscriptionStore } from "../store/subscriptionStore";
+import { openFlutterCamera } from "../../../shared/utils/flutterBridge";
 
 const LotSlotForm = ({ initialData, isEdit, id }) => {
     const navigate = useNavigate();
@@ -298,6 +299,19 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
         } finally {
             setIsUploading(false);
             if (e.target) e.target.value = '';
+        }
+    };
+
+    const handleCameraClick = async () => {
+        const result = await openFlutterCamera();
+        if (result) {
+            setFormData(prev => ({
+                ...prev,
+                images: [...prev.images, result.data]
+            }));
+            toast.success('Photo captured');
+        } else {
+            cameraInputRef.current?.click();
         }
     };
 
@@ -813,7 +827,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
 
                                 <button
                                     type="button"
-                                    onClick={() => cameraInputRef.current?.click()}
+                                    onClick={handleCameraClick}
                                     disabled={isUploading}
                                     className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-gray-200 rounded-2xl hover:bg-indigo-50 hover:border-indigo-200 cursor-pointer transition-all group"
                                 >

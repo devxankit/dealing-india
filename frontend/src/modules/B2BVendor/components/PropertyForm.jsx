@@ -7,6 +7,7 @@ import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useSubscriptionStore } from "../store/subscriptionStore";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
+import { openFlutterCamera } from "../../../shared/utils/flutterBridge";
 
 const DRAFT_KEY = "b2b_property_add_draft";
 
@@ -261,6 +262,17 @@ const PropertyForm = ({ initialData, isEdit }) => {
             toast.error('Failed to process images', { id: toastId });
         } finally {
             if (e.target) e.target.value = '';
+        }
+    };
+
+    const handleCameraClick = async () => {
+        const result = await openFlutterCamera();
+        if (result) {
+            setMedia(prev => [...prev, result]);
+            toast.success('Photo captured');
+        } else {
+            // Fallback to hidden file input
+            cameraInputRef.current?.click();
         }
     };
 
@@ -890,7 +902,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                     <div className="contents">
                                         <button
                                             type="button"
-                                            onClick={() => cameraInputRef.current?.click()}
+                                            onClick={handleCameraClick}
                                             className={`aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-primary-600`}
                                         >
                                             <FiCamera size={24} />

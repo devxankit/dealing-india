@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import imageCompression from 'browser-image-compression';
 import api from '../../../shared/utils/api';
 import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
+import { openFlutterCamera } from '../../../shared/utils/flutterBridge';
 
 /**
  * B2B Vendor Registration Page
@@ -219,6 +220,21 @@ const B2BVendorRegister = () => {
             toast.error('Failed to process file', { id: toastId });
         } finally {
             setIsUploadingDocs(false);
+        }
+    };
+
+    const handleCameraClick = async (type) => {
+        const result = await openFlutterCamera();
+        if (result) {
+            const docData = { name: result.fileName, data: result.data, type: result.mimeType };
+            if (type === 'license') {
+                setBusinessLicense(docData);
+            } else {
+                setPanCard(docData);
+            }
+            toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} captured`);
+        } else {
+            document.getElementById(type === 'license' ? 'license-camera' : 'pan-camera')?.click();
         }
     };
 
@@ -600,19 +616,20 @@ const B2BVendorRegister = () => {
                                                     <FiPlus className="text-xl text-gray-400 mb-3 group-hover:text-primary-600" />
                                                     <span className="text-xs font-black text-gray-500 group-hover:text-primary-600 uppercase tracking-widest">GALLERY</span>
                                                 </label>
-
-
                                             </div>
                                             <div className="relative">
                                                 <input type="file" capture="environment" accept="image/png, image/jpeg, image/webp, video/*, application/pdf" onChange={(e) => {
                                                     handleDocumentUpload(e, 'license', true);
                                                     if (errors.businessLicense) setErrors(prev => ({ ...prev, businessLicense: '' }));
                                                 }} style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} id="license-camera" disabled={isUploadingDocs} />
-                                                <label htmlFor="license-camera" className={`flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.businessLicense ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleCameraClick('license')}
+                                                    className={`w-full flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.businessLicense ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}
+                                                >
                                                     <FiCamera className="text-xl text-gray-400 mb-3 group-hover:text-primary-600" />
                                                     <span className="text-xs font-black text-gray-500 group-hover:text-primary-600 uppercase tracking-widest">CAMERA</span>
-                                                </label>
-
+                                                </button>
                                             </div>
                                         </div>
                                         {errors.businessLicense && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.businessLicense}</p>}
@@ -649,19 +666,20 @@ const B2BVendorRegister = () => {
                                                     <FiPlus className="text-xl text-gray-400 mb-3 group-hover:text-primary-600" />
                                                     <span className="text-xs font-black text-gray-500 group-hover:text-primary-600 uppercase tracking-widest">GALLERY</span>
                                                 </label>
-
-
                                             </div>
                                             <div className="relative">
                                                 <input type="file" capture="environment" accept="image/png, image/jpeg, image/webp, video/*, application/pdf" onChange={(e) => {
                                                     handleDocumentUpload(e, 'pan', true);
                                                     if (errors.panCard) setErrors(prev => ({ ...prev, panCard: '' }));
                                                 }} style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }} id="pan-camera" disabled={isUploadingDocs} />
-                                                <label htmlFor="pan-camera" className={`flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.panCard ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleCameraClick('pan')}
+                                                    className={`w-full flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.panCard ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}
+                                                >
                                                     <FiCamera className="text-xl text-gray-400 mb-3 group-hover:text-primary-600" />
                                                     <span className="text-xs font-black text-gray-500 group-hover:text-primary-600 uppercase tracking-widest">CAMERA</span>
-                                                </label>
-
+                                                </button>
                                             </div>
                                         </div>
                                         {errors.panCard && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.panCard}</p>}

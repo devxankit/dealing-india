@@ -7,6 +7,7 @@ import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useSubscriptionStore } from "../store/subscriptionStore";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
+import { openFlutterCamera } from "../../../shared/utils/flutterBridge";
 
 const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
     const navigate = useNavigate();
@@ -215,6 +216,16 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
             toast.error('Failed to process images', { id: toastId });
         } finally {
             if (e.target) e.target.value = '';
+        }
+    };
+
+    const handleCameraClick = async () => {
+        const result = await openFlutterCamera();
+        if (result) {
+            setMedia(prev => [...prev, result]);
+            toast.success('Photo captured');
+        } else {
+            cameraInputRef.current?.click();
         }
     };
 
@@ -657,7 +668,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
                                                 <input type="file" ref={cameraInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, true)} className="hidden" />
                                                 <button 
                                                     type="button"
-                                                    onClick={() => cameraInputRef.current?.click()}
+                                                    onClick={handleCameraClick}
                                                     className={`aspect-square rounded-2xl border-2 border-dashed ${errors.media ? 'border-red-500 bg-red-50' : 'border-slate-200'} flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-primary-600`}
                                                 >
                                                     <FiCamera size={24} />

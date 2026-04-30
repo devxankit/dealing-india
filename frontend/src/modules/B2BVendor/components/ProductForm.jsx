@@ -9,6 +9,7 @@ import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useSubscriptionStore } from "../store/subscriptionStore";
 import imageCompression from 'browser-image-compression';
 import { useScrollLock } from "../../../shared/hooks/useScrollLock";
+import { openFlutterCamera } from "../../../shared/utils/flutterBridge";
 
 // Basic in-memory cache for B2B categories during the session
 let categoriesCache = null;
@@ -384,6 +385,19 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
             toast.error("Failed to process images", { id: toastId });
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    const handleCameraClick = async () => {
+        const result = await openFlutterCamera();
+        if (result) {
+            setFormData(prev => ({
+                ...prev,
+                images: [...prev.images, result.data]
+            }));
+            toast.success('Photo captured');
+        } else {
+            cameraInputRef.current?.click();
         }
     };
 
@@ -922,7 +936,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
                                     <button
                                         type="button"
-                                        onClick={() => cameraInputRef.current?.click()}
+                                        onClick={handleCameraClick}
                                         disabled={isUploading}
                                         className="flex-1 flex flex-col items-center justify-center py-8 px-4 border-2 border-dashed border-gray-200 rounded-3xl hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all group relative overflow-hidden"
                                     >

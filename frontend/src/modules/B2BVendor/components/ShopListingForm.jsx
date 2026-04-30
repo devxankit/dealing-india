@@ -6,6 +6,7 @@ import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useSubscriptionStore } from "../store/subscriptionStore";
+import { openFlutterCamera } from "../../../shared/utils/flutterBridge";
 
 const ALL_BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier', 'Developer', 'Property'];
 const DEVELOPER_BUSINESS_CATEGORIES = ['Developer', 'Property'];
@@ -197,6 +198,20 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         }
     };
 
+    const handleCameraClick = async () => {
+        const result = await openFlutterCamera();
+        if (result) {
+            setFormData(prev => ({
+                ...prev,
+                images: [...prev.images, result.data]
+            }));
+            setIsShopModified(true);
+            toast.success('Photo captured');
+        } else {
+            cameraInputRef.current?.click();
+        }
+    };
+
     const removeImage = (index) => {
         setFormData(prev => ({
             ...prev,
@@ -373,7 +388,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                                         />
                                         <button
                                             type="button"
-                                            onClick={() => cameraInputRef.current?.click()}
+                                            onClick={handleCameraClick}
                                             className="w-full aspect-square rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center p-6 gap-2 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group"
                                         >
                                             <FiCamera size={24} className="group-hover:scale-110 transition-transform text-primary-500" />

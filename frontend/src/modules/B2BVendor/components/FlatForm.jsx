@@ -7,6 +7,7 @@ import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useSubscriptionStore } from "../store/subscriptionStore";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
+import { openFlutterCamera } from "../../../shared/utils/flutterBridge";
 
 const FlatForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
@@ -341,6 +342,17 @@ const FlatForm = ({ initialData, isEdit }) => {
         } finally {
             // CRITICAL: Clear the input value so the same file name (like camera's image.jpg) triggers onChange next time
             if (e.target) e.target.value = '';
+        }
+    };
+
+    const handleCameraClick = async () => {
+        const result = await openFlutterCamera();
+        if (result) {
+            setMedia(prev => [...prev, result]);
+            toast.success('Photo captured');
+        } else {
+            // Fallback to hidden file input for browser/non-flutter environment
+            cameraInputRef.current?.click();
         }
     };
 
@@ -896,7 +908,7 @@ const FlatForm = ({ initialData, isEdit }) => {
                                             <div className="contents">
                                                 <button
                                                     type="button"
-                                                    onClick={() => cameraInputRef.current?.click()}
+                                                    onClick={handleCameraClick}
                                                     className={`aspect-square rounded-2xl border-2 border-dashed ${errors.media ? 'border-red-500 bg-red-50' : 'border-slate-200'} flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-primary-600`}
                                                 >
                                                     <FiCamera size={24} />
