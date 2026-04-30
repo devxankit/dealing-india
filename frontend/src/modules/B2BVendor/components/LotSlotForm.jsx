@@ -8,7 +8,7 @@ import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useSubscriptionStore } from "../store/subscriptionStore";
-import { openFlutterCamera } from "../../../shared/utils/flutterBridge";
+import { openFlutterCamera, openFlutterGallery } from "../../../shared/utils/flutterBridge";
 
 const LotSlotForm = ({ initialData, isEdit, id }) => {
     const navigate = useNavigate();
@@ -312,6 +312,20 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
             toast.success('Photo captured');
         } else {
             cameraInputRef.current?.click();
+        }
+    };
+
+    const handleGalleryClick = async () => {
+        const result = await openFlutterGallery();
+        if (result) {
+            setFormData(prev => ({
+                ...prev,
+                images: [...prev.images, result.data]
+            }));
+            toast.success('Image added');
+        } else {
+            // Fallback to standard input
+            document.getElementById('gallery-upload')?.click();
         }
     };
 
@@ -810,21 +824,28 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                             ))}
 
                             <div className="col-span-2 grid grid-cols-2 gap-4">
-                                <label className={`flex flex-col items-center justify-center aspect-square border-2 border-dashed ${errors.images ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-2xl hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-all group`}>
-                                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-purple-600 transition-all shadow-sm mb-1">
-                                        {isUploading ? <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div> : <FiPlus size={20} />}
-                                    </div>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-purple-600">Gallery</span>
+                                <div className="flex-1 relative">
                                     <input
+                                        id="gallery-upload"
                                         type="file"
-                                        onChange={(e) => handleMultipleImageUpload(e, false)}
-                                        className="hidden"
                                         multiple
                                         accept="image/png, image/jpeg, image/webp"
+                                        onChange={(e) => handleMultipleImageUpload(e, false)}
+                                        className="hidden"
                                         disabled={isUploading}
                                     />
-                                </label>
-
+                                    <button
+                                        type="button"
+                                        onClick={handleGalleryClick}
+                                        className={`w-full flex flex-col items-center justify-center aspect-square border-2 border-dashed ${errors.images ? 'border-red-500 bg-red-50' : 'border-gray-200'} rounded-2xl hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-all group`}
+                                        disabled={isUploading}
+                                    >
+                                        <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-purple-600 transition-all shadow-sm mb-1">
+                                            {isUploading ? <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div> : <FiPlus size={20} />}
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-purple-600">Gallery</span>
+                                    </button>
+                                </div>
                                 <button
                                     type="button"
                                     onClick={handleCameraClick}

@@ -7,7 +7,7 @@ import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useSubscriptionStore } from "../store/subscriptionStore";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
-import { openFlutterCamera } from "../../../shared/utils/flutterBridge";
+import { openFlutterCamera, openFlutterGallery } from "../../../shared/utils/flutterBridge";
 
 const DRAFT_KEY = "b2b_property_add_draft";
 
@@ -273,6 +273,17 @@ const PropertyForm = ({ initialData, isEdit }) => {
         } else {
             // Fallback to hidden file input
             cameraInputRef.current?.click();
+        }
+    };
+
+    const handleGalleryClick = async () => {
+        const result = await openFlutterGallery();
+        if (result) {
+            setMedia(prev => [...prev, result]);
+            toast.success('Image added');
+        } else {
+            // Fallback to standard input
+            document.getElementById('gallery-upload')?.click();
         }
     };
 
@@ -909,11 +920,24 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                             <span className="text-[10px] font-bold uppercase tracking-tight">Camera</span>
                                         </button>
 
-                                        <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-slate-400">
-                                            <input type="file" multiple accept="image/png, image/jpeg, image/webp" onChange={(e) => handleImageUpload(e, false)} className="hidden" />
-                                            <FiPlus size={24} />
-                                            <span className="text-[10px] font-bold uppercase">Gallery</span>
-                                        </label>
+                                        <div className="flex-1 relative">
+                                            <input
+                                                id="gallery-upload"
+                                                type="file"
+                                                multiple
+                                                accept="image/png, image/jpeg, image/webp"
+                                                onChange={(e) => handleImageUpload(e, false)}
+                                                className="hidden"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleGalleryClick}
+                                                className="w-full aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 transition-all text-slate-400"
+                                            >
+                                                <FiPlus size={24} />
+                                                <span className="text-[10px] font-bold uppercase">Gallery</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

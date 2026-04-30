@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import imageCompression from 'browser-image-compression';
 import api from '../../../shared/utils/api';
 import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
-import { openFlutterCamera } from '../../../shared/utils/flutterBridge';
+import { openFlutterCamera, openFlutterGallery } from '../../../shared/utils/flutterBridge';
 
 /**
  * B2B Vendor Registration Page
@@ -235,6 +235,21 @@ const B2BVendorRegister = () => {
             toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} captured`);
         } else {
             document.getElementById(type === 'license' ? 'license-camera' : 'pan-camera')?.click();
+        }
+    };
+
+    const handleGalleryClick = async (type) => {
+        const result = await openFlutterGallery();
+        if (result) {
+            const docData = { name: result.fileName, data: result.data, type: result.mimeType };
+            if (type === 'license') {
+                setBusinessLicense(docData);
+            } else {
+                setPanCard(docData);
+            }
+            toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} added`);
+        } else {
+            document.getElementById(type === 'license' ? 'license-upload' : 'pan-upload')?.click();
         }
     };
 
@@ -526,7 +541,7 @@ const B2BVendorRegister = () => {
                                 {errors.name && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.name}</p>}
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Email Address</label>
+                                <label className="block text-[10px) font-bold text-gray-500 mb-1 uppercase">Email Address</label>
                                 <input type="email" name="email" value={formData.email} onChange={handleChange} className={`w-full px-3 py-2 bg-white border ${errors.email ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:border-primary-500 outline-none text-sm`} placeholder="john@example.com" />
                                 {errors.email && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.email}</p>}
                             </div>
@@ -612,10 +627,14 @@ const B2BVendorRegister = () => {
                                                     handleDocumentUpload(e, 'license', false);
                                                     if (errors.businessLicense) setErrors(prev => ({ ...prev, businessLicense: '' }));
                                                 }} className="hidden" id="license-upload" disabled={isUploadingDocs} />
-                                                <label htmlFor="license-upload" className={`flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.businessLicense ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleGalleryClick('license')}
+                                                    className={`w-full flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.businessLicense ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}
+                                                >
                                                     <FiPlus className="text-xl text-gray-400 mb-3 group-hover:text-primary-600" />
                                                     <span className="text-xs font-black text-gray-500 group-hover:text-primary-600 uppercase tracking-widest">GALLERY</span>
-                                                </label>
+                                                </button>
                                             </div>
                                             <div className="relative">
                                                 <input type="file" capture="environment" accept="image/png, image/jpeg, image/webp, video/*, application/pdf" onChange={(e) => {
@@ -662,10 +681,14 @@ const B2BVendorRegister = () => {
                                                     handleDocumentUpload(e, 'pan', false);
                                                     if (errors.panCard) setErrors(prev => ({ ...prev, panCard: '' }));
                                                 }} className="hidden" id="pan-upload" disabled={isUploadingDocs} />
-                                                <label htmlFor="pan-upload" className={`flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.panCard ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleGalleryClick('pan')}
+                                                    className={`w-full flex flex-col items-center justify-center py-8 px-5 border-2 border-dashed ${errors.panCard ? 'border-red-500' : 'border-gray-200'} rounded-2xl hover:bg-slate-50 cursor-pointer transition-all group`}
+                                                >
                                                     <FiPlus className="text-xl text-gray-400 mb-3 group-hover:text-primary-600" />
                                                     <span className="text-xs font-black text-gray-500 group-hover:text-primary-600 uppercase tracking-widest">GALLERY</span>
-                                                </label>
+                                                </button>
                                             </div>
                                             <div className="relative">
                                                 <input type="file" capture="environment" accept="image/png, image/jpeg, image/webp, video/*, application/pdf" onChange={(e) => {

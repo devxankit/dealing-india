@@ -6,7 +6,7 @@ import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useSubscriptionStore } from "../store/subscriptionStore";
-import { openFlutterCamera } from "../../../shared/utils/flutterBridge";
+import { openFlutterCamera, openFlutterGallery } from "../../../shared/utils/flutterBridge";
 
 const ALL_BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier', 'Developer', 'Property'];
 const DEVELOPER_BUSINESS_CATEGORIES = ['Developer', 'Property'];
@@ -212,6 +212,21 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         }
     };
 
+    const handleGalleryClick = async () => {
+        const result = await openFlutterGallery();
+        if (result) {
+            setFormData(prev => ({
+                ...prev,
+                images: [...prev.images, result.data]
+            }));
+            setIsShopModified(true);
+            toast.success('Image added');
+        } else {
+            // Fallback to standard input
+            document.getElementById('gallery-upload')?.click();
+        }
+    };
+
     const removeImage = (index) => {
         setFormData(prev => ({
             ...prev,
@@ -365,17 +380,24 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                             </AnimatePresence>
                             {formData.images.length < MAX_PHOTOS && (
                                 <div className="flex gap-4 col-span-2 sm:col-span-1">
-                                     <label className="flex-1 aspect-square rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center p-6 gap-2 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group relative">
-                                        <FiPlus size={24} className="group-hover:scale-110 transition-transform" />
-                                        <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">Gallery</span>
-                                        <input
-                                            type="file"
-                                            multiple
-                                            accept="image/png, image/jpeg, image/webp"
-                                            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
-                                            onChange={(e) => handleImageUpload(e, false)}
-                                        />
-                                    </label>
+                                     <div className="flex-1 relative">
+                                         <input
+                                             id="gallery-upload"
+                                             type="file"
+                                             multiple
+                                             accept="image/png, image/jpeg, image/webp"
+                                             style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                                             onChange={(e) => handleImageUpload(e, false)}
+                                         />
+                                         <button
+                                             type="button"
+                                             onClick={handleGalleryClick}
+                                             className="w-full aspect-square rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center p-6 gap-2 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group"
+                                         >
+                                             <FiPlus size={24} className="group-hover:scale-110 transition-transform" />
+                                             <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">Gallery</span>
+                                         </button>
+                                     </div>
 
                                     <div className="flex-1 relative">
                                         <input

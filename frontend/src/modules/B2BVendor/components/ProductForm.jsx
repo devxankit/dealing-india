@@ -9,7 +9,7 @@ import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useSubscriptionStore } from "../store/subscriptionStore";
 import imageCompression from 'browser-image-compression';
 import { useScrollLock } from "../../../shared/hooks/useScrollLock";
-import { openFlutterCamera } from "../../../shared/utils/flutterBridge";
+import { openFlutterCamera, openFlutterGallery } from "../../../shared/utils/flutterBridge";
 
 // Basic in-memory cache for B2B categories during the session
 let categoriesCache = null;
@@ -398,6 +398,20 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
             toast.success('Photo captured');
         } else {
             cameraInputRef.current?.click();
+        }
+    };
+
+    const handleGalleryClick = async () => {
+        const result = await openFlutterGallery();
+        if (result) {
+            setFormData(prev => ({
+                ...prev,
+                images: [...prev.images, result.data]
+            }));
+            toast.success('Image added');
+        } else {
+            // Fallback to standard input
+            document.getElementById('gallery-upload')?.click();
         }
     };
 
@@ -919,20 +933,28 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
                                 {/* Action Buttons */}
                                 <div className="col-span-2 flex gap-3">
-                                    <label className="flex-1 flex flex-col items-center justify-center py-10 px-5 border-2 border-dashed border-gray-200 rounded-3xl hover:bg-primary-50 hover:border-primary-200 cursor-pointer transition-all group relative overflow-hidden">
-                                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-primary-600 transition-all shadow-sm mb-1">
-                                            {isUploading ? <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div> : <FiPlus size={24} />}
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-primary-600">Gallery</span>
-                                        <input
-                                            type="file"
-                                            onChange={(e) => handleMultipleImageUpload(e, false)}
-                                            className="hidden"
-                                            multiple
-                                            accept="image/png, image/jpeg, image/webp"
-                                            disabled={isUploading}
-                                        />
-                                    </label>
+                                     <div className="flex-1 relative">
+                                         <input
+                                             id="gallery-upload"
+                                             type="file"
+                                             onChange={(e) => handleMultipleImageUpload(e, false)}
+                                             className="hidden"
+                                             multiple
+                                             accept="image/png, image/jpeg, image/webp"
+                                             disabled={isUploading}
+                                         />
+                                         <button
+                                             type="button"
+                                             onClick={handleGalleryClick}
+                                             disabled={isUploading}
+                                             className="w-full flex flex-col items-center justify-center py-10 px-5 border-2 border-dashed border-gray-200 rounded-3xl hover:bg-primary-50 hover:border-primary-200 cursor-pointer transition-all group relative overflow-hidden"
+                                         >
+                                             <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:text-primary-600 transition-all shadow-sm mb-1">
+                                                 {isUploading ? <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div> : <FiPlus size={24} />}
+                                             </div>
+                                             <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-primary-600">Gallery</span>
+                                         </button>
+                                     </div>
 
                                     <button
                                         type="button"
