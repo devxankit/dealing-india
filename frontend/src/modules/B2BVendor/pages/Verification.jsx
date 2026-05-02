@@ -26,18 +26,47 @@ const B2BVendorVerification = () => {
     }, [email, navigate]);
 
     const handleChange = (index, value) => {
-        if (value.length > 1) return;
+        const cleanedValue = value.trim();
+        if (!cleanedValue) {
+            const newCodes = [...codes];
+            newCodes[index] = '';
+            setCodes(newCodes);
+            return;
+        }
+
+        // Handle pasting multiple characters or auto-fill
+        if (cleanedValue.length > 1) {
+            const pasteData = cleanedValue.slice(0, 6);
+            if (!/^\d+$/.test(pasteData)) return;
+
+            const newCodes = [...codes];
+            pasteData.split('').forEach((char, i) => {
+                if (index + i < 6) newCodes[index + i] = char;
+            });
+            setCodes(newCodes);
+            
+            const nextIndex = Math.min(index + pasteData.length, 5);
+            inputRefs.current[nextIndex]?.focus();
+            return;
+        }
+
+        // Handle single character input
+        if (!/^\d+$/.test(cleanedValue)) return;
+        
         const newCodes = [...codes];
-        newCodes[index] = value;
+        newCodes[index] = cleanedValue;
         setCodes(newCodes);
-        if (value && index < 5) {
+        
+        if (index < 5) {
             inputRefs.current[index + 1]?.focus();
         }
     };
 
     const handleKeyDown = (index, e) => {
-        if (e.key === 'Backspace' && !codes[index] && index > 0) {
-            inputRefs.current[index - 1]?.focus();
+        if (e.key === 'Backspace') {
+            if (!codes[index] && index > 0) {
+                inputRefs.current[index - 1]?.focus();
+            }
         }
     };
 
@@ -52,7 +81,6 @@ const B2BVendorVerification = () => {
         });
         setCodes(newCodes);
 
-        // Focus the last filled input or the next one
         const focusIndex = Math.min(pasteData.length, 5);
         inputRefs.current[focusIndex]?.focus();
     };
@@ -126,11 +154,11 @@ const B2BVendorVerification = () => {
                                 ref={(el) => (inputRefs.current[index] = el)}
                                 type="text"
                                 inputMode="numeric"
-                                maxLength={1}
                                 value={code}
                                 onChange={(e) => handleChange(index, e.target.value)}
                                 onKeyDown={(e) => handleKeyDown(index, e)}
                                 onPaste={handlePaste}
+                                autoComplete="one-time-code"
                                 className="w-10 h-12 text-center text-xl font-extrabold bg-gray-50 border-2 border-transparent rounded-xl focus:outline-none focus:border-primary-500 focus:bg-white text-gray-800 transition-all shadow-sm"
                             />
                         ))}

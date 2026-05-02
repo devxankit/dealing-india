@@ -7,7 +7,8 @@ import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useSubscriptionStore } from "../store/subscriptionStore";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
-import { openFlutterCamera, openFlutterGallery } from "../../../shared/utils/flutterBridge";
+import { openFlutterCamera, openFlutterGallery, isFlutterApp } from "../../../shared/utils/flutterBridge";
+import { useFormPersist } from "../../../shared/hooks/useFormPersist";
 
 const DRAFT_KEY = "b2b_property_add_draft";
 
@@ -21,50 +22,31 @@ const PropertyForm = ({ initialData, isEdit }) => {
     const vendorId = vendor?._id || vendor?.id || "anonymous";
     const USER_DRAFT_KEY = `${DRAFT_KEY}_${vendorId}`;
 
-    const [media, setMedia] = useState(() => {
-        if (!isEdit) {
-            const saved = localStorage.getItem(USER_DRAFT_KEY);
-            if (saved) {
-                try { return JSON.parse(saved).media || []; } catch (e) { }
-            }
-        }
-        return [];
-    }); // { url, data, name }
+    const [media, setMedia] = useState([]); // { url, data, name }
+    const [isDraftLoaded, setIsDraftLoaded] = useState(false);
+
+    // Use persistence hook
+    useFormPersist(USER_DRAFT_KEY, { formData, media }, (data) => {
+        if (data.formData) setFormData(data.formData);
+        if (data.media) setMedia(data.media);
+    }, !isEdit);
 
     // const propertyTypeOptions = ["Shop/Showroom", "Office Space", "Warehouse", "Industrial Shed", "Penthouse", "Flat", "Villa", "Plot"];
     const propertyTypeOptions = ["Shop", "Office", "Showroom", "Warehouse", "Industrial Shed", "Other"];
 
-    const [formData, setFormData] = useState(() => {
-        const defaultData = {
-            title: '', propertyTypes: [], listingType: 'Rent', description: '',
-            saleDetails: { priceMin: '', priceMax: '', priceUnit: 'Lakh', depositAmount: '', depositUnit: 'Lakh', maintenance: 'Excluded', veraBill: 'Excluded' },
-            rentDetails: { monthlyRent: '', rentUnit: 'Thousand', depositAmount: '', depositUnit: 'Thousand', maintenance: 'Excluded', veraBill: 'Excluded' },
-            leaseDetails: { monthlyLeaseRate: '', leaseUnit: 'Lakh', depositAmount: '', depositUnit: 'Lakh', leaseDurationYears: '' },
-            status: { furnishing: 'Unfurnished', propertyStatus: 'Ready', propertyCondition: 'New', propertyPosition: 'Ready to Move' },
-            location: { address: '', area: '', market: '', city: '', state: '', mapUrl: '' },
-            roadFacing: 'Main Road', legal: { loanAvailable: 'No', reraApproved: 'No', reraNumber: '', load: '' },
-            specifications: [{ builtUpArea: '', builtUpAreaUnit: 'Sq. Ft.', carpetArea: '', carpetAreaUnit: '%', floorNumber: '', totalFloors: '', ceilingHeight: '', ceilingHeightUnit: 'Ft.', entranceWidth: '', entranceWidthUnit: 'Ft.', maliya: 'No' }],
-            facilities: { parking: [], lift: 'No', liftPassenger: 'No', liftLoading: 'No', powerBackup: 'No', waterSupply: [], washroom: ['Common'], fireSafety: 'No' }
-        };
-
-        if (initialData) return defaultData; // Will be hydrated by useEffect below
-        if (!isEdit) {
-            const saved = localStorage.getItem(USER_DRAFT_KEY);
-            if (saved) {
-                try { return JSON.parse(saved).formData || defaultData; } catch (e) { }
-            }
-        }
-        return defaultData;
+    const [formData, setFormData] = useState({
+        title: '', propertyTypes: [], listingType: 'Rent', description: '',
+        saleDetails: { priceMin: '', priceMax: '', priceUnit: 'Lakh', depositAmount: '', depositUnit: 'Lakh', maintenance: 'Excluded', veraBill: 'Excluded' },
+        rentDetails: { monthlyRent: '', rentUnit: 'Thousand', depositAmount: '', depositUnit: 'Thousand', maintenance: 'Excluded', veraBill: 'Excluded' },
+        leaseDetails: { monthlyLeaseRate: '', leaseUnit: 'Lakh', depositAmount: '', depositUnit: 'Lakh', leaseDurationYears: '' },
+        status: { furnishing: 'Unfurnished', propertyStatus: 'Ready', propertyCondition: 'New', propertyPosition: 'Ready to Move' },
+        location: { address: '', area: '', market: '', city: '', state: '', mapUrl: '' },
+        roadFacing: 'Main Road', legal: { loanAvailable: 'No', reraApproved: 'No', reraNumber: '', load: '' },
+        specifications: [{ builtUpArea: '', builtUpAreaUnit: 'Sq. Ft.', carpetArea: '', carpetAreaUnit: '%', floorNumber: '', totalFloors: '', ceilingHeight: '', ceilingHeightUnit: 'Ft.', entranceWidth: '', entranceWidthUnit: 'Ft.', maliya: 'No' }],
+        facilities: { parking: [], lift: 'No', liftPassenger: 'No', liftLoading: 'No', powerBackup: 'No', waterSupply: [], washroom: ['Common'], fireSafety: 'No' }
     });
 
-    // Auto-save draft
-    useEffect(() => {
-        if (!isEdit && vendorId !== "anonymous") {
-            localStorage.setItem(USER_DRAFT_KEY, JSON.stringify({ formData, media }));
-        } else if (isEdit) {
-            localStorage.removeItem(USER_DRAFT_KEY);
-        }
-    }, [formData, media, isEdit, USER_DRAFT_KEY, vendorId]);
+    // Draft logic handled by useFormPersist hook.
 
     useEffect(() => {
         if (initialData) {
@@ -266,25 +248,33 @@ const PropertyForm = ({ initialData, isEdit }) => {
     };
 
     const handleCameraClick = async () => {
-        const result = await openFlutterCamera();
-        if (result) {
-            setMedia(prev => [...prev, result]);
-            toast.success('Photo captured');
-        } else {
-            // Fallback to hidden file input
-            cameraInputRef.current?.click();
+        if (isFlutterApp()) {
+            const result = await openFlutterCamera();
+            if (result) {
+                setMedia(prev => [...prev, result]);
+                toast.success('Photo captured');
+                return;
+            }
         }
+        
+        // Fallback to hidden file input (Synchronous)
+        cameraInputRef.current?.click();
     };
 
-    const handleGalleryClick = async () => {
-        const result = await openFlutterGallery();
-        if (result) {
-            setMedia(prev => [...prev, result]);
-            toast.success('Image added');
-        } else {
-            // Fallback to standard input
-            document.getElementById('gallery-upload')?.click();
+    const handleGalleryClick = () => {
+        if (isFlutterApp()) {
+            (async () => {
+                const result = await openFlutterGallery();
+                if (result) {
+                    setMedia(prev => [...prev, result]);
+                    toast.success('Image added');
+                }
+            })();
+            return;
         }
+        
+        // Synchronous fallback
+        document.getElementById('gallery-upload')?.click();
     };
 
     const removeImage = (index) => {

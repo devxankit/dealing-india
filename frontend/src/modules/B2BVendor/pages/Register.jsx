@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import imageCompression from 'browser-image-compression';
 import api from '../../../shared/utils/api';
 import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
-import { openFlutterCamera, openFlutterGallery } from '../../../shared/utils/flutterBridge';
+import { openFlutterCamera, openFlutterGallery, isFlutterApp } from '../../../shared/utils/flutterBridge';
 
 /**
  * B2B Vendor Registration Page
@@ -224,33 +224,44 @@ const B2BVendorRegister = () => {
     };
 
     const handleCameraClick = async (type) => {
-        const result = await openFlutterCamera();
-        if (result) {
-            const docData = { name: result.fileName, data: result.data, type: result.mimeType };
-            if (type === 'license') {
-                setBusinessLicense(docData);
-            } else {
-                setPanCard(docData);
+        if (isFlutterApp()) {
+            const result = await openFlutterCamera();
+            if (result) {
+                const docData = { name: result.fileName, data: result.data, type: result.mimeType };
+                if (type === 'license') {
+                    setBusinessLicense(docData);
+                } else {
+                    setPanCard(docData);
+                }
+                toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} captured`);
+                return;
             }
-            toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} captured`);
-        } else {
-            document.getElementById(type === 'license' ? 'license-camera' : 'pan-camera')?.click();
         }
+        
+        // Synchronous fallback
+        document.getElementById(type === 'license' ? 'license-camera' : 'pan-camera')?.click();
     };
 
-    const handleGalleryClick = async (type) => {
-        const result = await openFlutterGallery();
-        if (result) {
-            const docData = { name: result.fileName, data: result.data, type: result.mimeType };
-            if (type === 'license') {
-                setBusinessLicense(docData);
-            } else {
-                setPanCard(docData);
-            }
-            toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} added`);
-        } else {
-            document.getElementById(type === 'license' ? 'license-upload' : 'pan-upload')?.click();
+    const handleGalleryClick = (type) => {
+        if (isFlutterApp()) {
+            // Async bridge call
+            (async () => {
+                const result = await openFlutterGallery();
+                if (result) {
+                    const docData = { name: result.fileName, data: result.data, type: result.mimeType };
+                    if (type === 'license') {
+                        setBusinessLicense(docData);
+                    } else {
+                        setPanCard(docData);
+                    }
+                    toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} added`);
+                }
+            })();
+            return;
         }
+        
+        // Synchronous fallback (critical for mobile browsers)
+        document.getElementById(type === 'license' ? 'license-upload' : 'pan-upload')?.click();
     };
 
     const handleChange = (e) => {

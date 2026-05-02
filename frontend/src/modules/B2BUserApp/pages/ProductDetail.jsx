@@ -13,6 +13,8 @@ import api from '../../../shared/utils/api';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 import { formatPrice, getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
+import { shareContentOnFlutter, isFlutterApp } from '../../../shared/utils/flutterBridge';
+import ShareModal from '../../../shared/components/ShareModal';
 
 const B2BProductDetail = () => {
     const { id } = useParams();
@@ -23,6 +25,7 @@ const B2BProductDetail = () => {
     const [selectedImage, setSelectedImage] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [showInquiryModal, setShowInquiryModal] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [inquiryAttachment, setInquiryAttachment] = useState(null);
     const [hasInquiry, setHasInquiry] = useState(false);
     const [enquiryStatus, setEnquiryStatus] = useState({ canAcceptEnquiries: true });
@@ -97,24 +100,25 @@ const B2BProductDetail = () => {
             url: window.location.href,
         };
 
-        try {
-            if (navigator.share) {
+        // 1. Try Flutter Native Share (If running inside Flutter App)
+        if (isFlutterApp()) {
+            const success = await shareContentOnFlutter(shareData);
+            if (success) return;
+        }
+
+        // 2. Try Web Share API (Requires HTTPS or localhost)
+        if (navigator.share) {
+            try {
                 await navigator.share(shareData);
-            } else {
-                await navigator.clipboard.writeText(window.location.href);
-                toast.success('Link copied to clipboard!');
-            }
-        } catch (err) {
-            if (err.name !== 'AbortError') {
-                // Fallback to copy if share fails or is blocked
-                try {
-                    await navigator.clipboard.writeText(window.location.href);
-                    toast.success('Link copied to clipboard!');
-                } catch (copyErr) {
-                    toast.error('Could not share or copy link');
-                }
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+                console.error('Web Share failed:', err);
             }
         }
+
+        // 3. Fallback for all other cases (Desktop/Unsupported Browsers): Open Custom Share Modal
+        setIsShareModalOpen(true);
     };
 
     const handleInquirySubmit = async (e) => {
@@ -499,6 +503,17 @@ const B2BProductDetail = () => {
                 </div>
             </main>
             <B2BBottomNav />
+
+            {/* Premium Share Modal */}
+            <ShareModal 
+                isOpen={isShareModalOpen} 
+                onClose={() => setIsShareModalOpen(false)} 
+                shareData={{
+                    title: product.name,
+                    text: `Check out this product on Dealing India: ${product.name}`,
+                    url: window.location.href
+                }}
+            />
         </div>
     );
 };

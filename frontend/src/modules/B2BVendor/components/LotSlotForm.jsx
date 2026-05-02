@@ -8,7 +8,7 @@ import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useSubscriptionStore } from "../store/subscriptionStore";
-import { openFlutterCamera, openFlutterGallery } from "../../../shared/utils/flutterBridge";
+import { openFlutterCamera, openFlutterGallery, isFlutterApp } from "../../../shared/utils/flutterBridge";
 
 const LotSlotForm = ({ initialData, isEdit, id }) => {
     const navigate = useNavigate();
@@ -303,30 +303,39 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     };
 
     const handleCameraClick = async () => {
-        const result = await openFlutterCamera();
-        if (result) {
-            setFormData(prev => ({
-                ...prev,
-                images: [...prev.images, result.data]
-            }));
-            toast.success('Photo captured');
-        } else {
-            cameraInputRef.current?.click();
+        if (isFlutterApp()) {
+            const result = await openFlutterCamera();
+            if (result) {
+                setFormData(prev => ({
+                    ...prev,
+                    images: [...prev.images, result.data]
+                }));
+                toast.success('Photo captured');
+                return;
+            }
         }
+        
+        // Synchronous fallback
+        cameraInputRef.current?.click();
     };
 
-    const handleGalleryClick = async () => {
-        const result = await openFlutterGallery();
-        if (result) {
-            setFormData(prev => ({
-                ...prev,
-                images: [...prev.images, result.data]
-            }));
-            toast.success('Image added');
-        } else {
-            // Fallback to standard input
-            document.getElementById('gallery-upload')?.click();
+    const handleGalleryClick = () => {
+        if (isFlutterApp()) {
+            (async () => {
+                const result = await openFlutterGallery();
+                if (result) {
+                    setFormData(prev => ({
+                        ...prev,
+                        images: [...prev.images, result.data]
+                    }));
+                    toast.success('Image added');
+                }
+            })();
+            return;
         }
+        
+        // Synchronous fallback
+        document.getElementById('gallery-upload')?.click();
     };
 
     const removeImage = (index) => {

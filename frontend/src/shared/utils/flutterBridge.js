@@ -49,6 +49,21 @@ export const openFlutterGallery = async () => {
 };
 
 /**
+ * Calls the Flutter 'shareContent' handler if available.
+ */
+export const shareContentOnFlutter = async (shareData) => {
+    if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+        try {
+            await window.flutter_inappwebview.callHandler('shareContent', shareData);
+            return true;
+        } catch (error) {
+            console.error('[FlutterBridge] Error calling shareContent:', error);
+        }
+    }
+    return false;
+};
+
+/**
  * Checks if the application is running inside the Flutter InAppWebView
  */
 export const isFlutterApp = () => {

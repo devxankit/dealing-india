@@ -7,7 +7,8 @@ import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useSubscriptionStore } from "../store/subscriptionStore";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
-import { openFlutterCamera, openFlutterGallery } from "../../../shared/utils/flutterBridge";
+import { openFlutterCamera, openFlutterGallery, isFlutterApp } from "../../../shared/utils/flutterBridge";
+import { useFormPersist } from "../../../shared/hooks/useFormPersist";
 
 const FlatForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
@@ -19,15 +20,8 @@ const FlatForm = ({ initialData, isEdit }) => {
     const vendorId = vendor?._id || vendor?.id || "anonymous";
     const DRAFT_KEY = `b2b_flat_add_draft_${vendorId}`;
 
-    const [media, setMedia] = useState(() => {
-        if (!isEdit) {
-            const saved = localStorage.getItem(DRAFT_KEY);
-            if (saved) {
-                try { return JSON.parse(saved).media || []; } catch(e) {}
-            }
-        }
-        return [];
-    });
+    const [media, setMedia] = useState([]);
+    const [isDraftLoaded, setIsDraftLoaded] = useState(false);
 
     const baseFlat = {
         flatType: '',
@@ -63,44 +57,23 @@ const FlatForm = ({ initialData, isEdit }) => {
         }
     };
 
-    const [flatVariants, setFlatVariants] = useState(() => {
-        if (!isEdit) {
-            const saved = localStorage.getItem(DRAFT_KEY);
-            if (saved) {
-                try { return JSON.parse(saved).flatVariants || [{ ...baseFlat }]; } catch(e) {}
-            }
-        }
-        return [{ ...baseFlat }];
+    const [flatVariants, setFlatVariants] = useState([{ ...baseFlat }]);
+
+    const [formData, setFormData] = useState({
+        title: '', listingType: 'Rent', description: '', propertyType: 'Flat',
+        saleDetails: { priceMin: '', priceMax: '', priceUnit: 'Lakh' },
+        rentDetails: { monthlyRent: '', rentUnit: 'Thousand', depositAmount: '', depositUnit: 'Thousand', maintenance: 'Excluded', veraBill: 'Excluded' },
+        leaseDetails: { monthlyLeaseRate: '', leaseUnit: 'Lakh', depositAmount: '', depositUnit: 'Lakh', leaseDurationYears: '' },
+        flatDetails: { ...baseFlat },
+        location: { address: '', area: '', state: '', city: '', mapUrl: '' }
     });
 
-    const [formData, setFormData] = useState(() => {
-        const defaultData = {
-            title: '', listingType: 'Rent', description: '', propertyType: 'Flat',
-            saleDetails: { priceMin: '', priceMax: '', priceUnit: 'Lakh' },
-            rentDetails: { monthlyRent: '', rentUnit: 'Thousand', depositAmount: '', depositUnit: 'Thousand', maintenance: 'Excluded', veraBill: 'Excluded' },
-            leaseDetails: { monthlyLeaseRate: '', leaseUnit: 'Lakh', depositAmount: '', depositUnit: 'Lakh', leaseDurationYears: '' },
-            flatDetails: { ...baseFlat },
-            location: { address: '', area: '', state: '', city: '', mapUrl: '' }
-        };
-
-        if (initialData) return defaultData; // Hydrated in useEffect
-        if (!isEdit) {
-            const saved = localStorage.getItem(DRAFT_KEY);
-            if (saved) {
-                try { return JSON.parse(saved).formData || defaultData; } catch(e) {}
-            }
-        }
-        return defaultData;
-    });
-
-    // Auto-save draft
-    useEffect(() => {
-        if (!isEdit && vendorId !== "anonymous") {
-            localStorage.setItem(DRAFT_KEY, JSON.stringify({ formData, flatVariants, media }));
-        } else if (isEdit) {
-            localStorage.removeItem(DRAFT_KEY);
-        }
-    }, [formData, flatVariants, media, isEdit, DRAFT_KEY, vendorId]);
+    // Use persistence hook
+    useFormPersist(DRAFT_KEY, { formData, flatVariants, media }, (data) => {
+        if (data.formData) setFormData(data.formData);
+        if (data.flatVariants) setFlatVariants(data.flatVariants);
+        if (data.media) setMedia(data.media);
+    }, !isEdit);
 
     useEffect(() => {
         // keep primary flatDetails in sync with first variant
@@ -346,25 +319,33 @@ const FlatForm = ({ initialData, isEdit }) => {
     };
 
     const handleCameraClick = async () => {
-        const result = await openFlutterCamera();
-        if (result) {
-            setMedia(prev => [...prev, result]);
-            toast.success('Photo captured');
-        } else {
-            // Fallback to hidden file input for browser/non-flutter environment
-            cameraInputRef.current?.click();
+        if (isFlutterApp()) {
+            const result = await openFlutterCamera();
+            if (result) {
+                setMedia(prev => [...prev, result]);
+                toast.success('Photo captured');
+                return;
+            }
         }
+        
+        // Fallback to hidden file input for browser/non-flutter environment (Synchronous)
+        cameraInputRef.current?.click();
     };
 
-    const handleGalleryClick = async () => {
-        const result = await openFlutterGallery();
-        if (result) {
-            setMedia(prev => [...prev, result]);
-            toast.success('Image added');
-        } else {
-            // Fallback to standard input
-            document.getElementById('gallery-upload')?.click();
+    const handleGalleryClick = () => {
+        if (isFlutterApp()) {
+            (async () => {
+                const result = await openFlutterGallery();
+                if (result) {
+                    setMedia(prev => [...prev, result]);
+                    toast.success('Image added');
+                }
+            })();
+            return;
         }
+        
+        // Synchronous fallback
+        document.getElementById('gallery-upload')?.click();
     };
 
     const removeImage = (index) => {

@@ -99,7 +99,7 @@ const propertySchema = new mongoose.Schema(
             possessionType: { type: String, enum: ['Ready to Move', 'Under Construction'] },
             amenities: {
                 lift: { type: String, enum: ['Yes', 'No'] },
-                parking: { type: [String], enum: ['Ground Parking', 'Basement 1', 'Basement 2'] },
+                parking: { type: [String], enum: ['Ground Parking', 'Basement 1', 'Basement 2', 'Car', 'Two-Wheeler', 'Two Wheeler', 'No'] },
                 security: { type: String, enum: ['Yes', 'No'] },
                 cctv: { type: String, enum: ['Yes', 'No'] },
                 powerBackup: { type: String, enum: ['Yes', 'No'] },
@@ -134,7 +134,7 @@ const propertySchema = new mongoose.Schema(
             ageOfProperty: String,
             amenities: {
                 lift: { type: String, enum: ['Yes', 'No'] },
-                parking: { type: [String], enum: ['Ground Parking', 'Basement 1', 'Basement 2'] },
+                parking: { type: [String], enum: ['Ground Parking', 'Basement 1', 'Basement 2', 'Car', 'Two-Wheeler', 'Two Wheeler', 'No'] },
                 security: { type: String, enum: ['Yes', 'No'] },
                 cctv: { type: String, enum: ['Yes', 'No'] },
                 powerBackup: { type: String, enum: ['Yes', 'No'] },
@@ -183,7 +183,7 @@ const propertySchema = new mongoose.Schema(
                 servantRoom: { type: String, enum: ['Yes', 'No'] }
             },
             amenities: {
-                parking: { type: [String], enum: ['Ground Parking', 'Basement 1', 'Basement 2'] },
+                parking: { type: [String], enum: ['Ground Parking', 'Basement 1', 'Basement 2', 'Car', 'Two-Wheeler', 'Two Wheeler', 'No'] },
                 security: { type: String, enum: ['Yes', 'No'] },
                 cctv: { type: String, enum: ['Yes', 'No'] },
                 powerBackup: { type: String, enum: ['Yes', 'No'] },
@@ -260,7 +260,7 @@ const propertySchema = new mongoose.Schema(
         }],
 
         facilities: {
-            parking: { type: [String], enum: ['Car', 'Two-Wheeler', 'No'] },
+            parking: { type: [String], enum: ['Car', 'Two-Wheeler', 'Two Wheeler', 'No'] },
             lift: { type: String, enum: ['Yes', 'No'] },
             liftPassenger: { type: String, enum: ['Yes', 'No'] },
             liftLoading: { type: String, enum: ['Yes', 'No'] },

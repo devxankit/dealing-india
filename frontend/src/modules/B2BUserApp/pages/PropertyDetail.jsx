@@ -15,6 +15,8 @@ import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
 import { getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
 import { useAuthStore } from '../../../shared/store/authStore';
+import { shareContentOnFlutter, isFlutterApp } from '../../../shared/utils/flutterBridge';
+import ShareModal from '../../../shared/components/ShareModal';
 
 const PropertyDetail = () => {
     const { id } = useParams();
@@ -23,6 +25,7 @@ const PropertyDetail = () => {
     const [property, setProperty] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(0);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [enquiryStatus, setEnquiryStatus] = useState({ canAcceptEnquiries: true });
 
     useEffect(() => {
@@ -186,24 +189,25 @@ const PropertyDetail = () => {
             url: window.location.href,
         };
 
-        try {
-            if (navigator.share) {
+        // 1. Try Flutter Native Share (If running inside Flutter App)
+        if (isFlutterApp()) {
+            const success = await shareContentOnFlutter(shareData);
+            if (success) return;
+        }
+
+        // 2. Try Web Share API (Requires HTTPS or localhost)
+        if (navigator.share) {
+            try {
                 await navigator.share(shareData);
-            } else {
-                await navigator.clipboard.writeText(window.location.href);
-                toast.success('Link copied to clipboard!');
-            }
-        } catch (err) {
-            if (err.name !== 'AbortError') {
-                // Fallback to copy if share fails or is blocked
-                try {
-                    await navigator.clipboard.writeText(window.location.href);
-                    toast.success('Link copied to clipboard!');
-                } catch (copyErr) {
-                    toast.error('Could not share or copy link');
-                }
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+                console.error('Web Share failed:', err);
             }
         }
+
+        // 3. Fallback for all other cases (Desktop/Unsupported Browsers): Open Custom Share Modal
+        setIsShareModalOpen(true);
     };
 
     return (
@@ -665,6 +669,17 @@ const PropertyDetail = () => {
             </main>
 
             <B2BBottomNav />
+
+            {/* Premium Share Modal */}
+            <ShareModal 
+                isOpen={isShareModalOpen} 
+                onClose={() => setIsShareModalOpen(false)} 
+                shareData={{
+                    title: property.title,
+                    text: `Check out this property: ${property.title}\nPrice: ${formatPrice(property)}`,
+                    url: window.location.href
+                }}
+            />
         </div>
     );
 };

@@ -11,6 +11,7 @@ import { useNotificationStore } from "../../../../shared/store/notificationStore
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
 import { appLogo } from "../../../../data/logos";
+import ConfirmModal from "../../../Admin/components/ConfirmModal";
 
 const B2BVendorHeader = ({ onMenuClick }) => {
     const location = useLocation();
@@ -20,6 +21,7 @@ const B2BVendorHeader = ({ onMenuClick }) => {
     const [showNotifications, setShowNotifications] = useState(false);
     const unreadCount = useNotificationStore(state => state.unreadCount);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [customTitle, setCustomTitle] = useState(null);
     const userMenuRef = useRef(null);
 
@@ -56,6 +58,11 @@ const B2BVendorHeader = ({ onMenuClick }) => {
     }, []);
 
     const handleLogout = () => {
+        setShowLogoutModal(true);
+        setShowUserMenu(false);
+    };
+
+    const confirmLogout = () => {
         logout();
         toast.success("Logged out successfully");
         navigate("/b2b-vendor/login");
@@ -188,6 +195,17 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                     </div>
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={showLogoutModal}
+                onClose={() => setShowLogoutModal(false)}
+                onConfirm={confirmLogout}
+                title="Logout Confirmation"
+                message="Are you sure you want to logout? You will need to login again to access your dashboard."
+                confirmText="Logout"
+                cancelText="Stay Logged In"
+                type="danger"
+            />
         </header>
     );
 };

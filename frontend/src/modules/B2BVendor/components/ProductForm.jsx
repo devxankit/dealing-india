@@ -9,7 +9,7 @@ import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useSubscriptionStore } from "../store/subscriptionStore";
 import imageCompression from 'browser-image-compression';
 import { useScrollLock } from "../../../shared/hooks/useScrollLock";
-import { openFlutterCamera, openFlutterGallery } from "../../../shared/utils/flutterBridge";
+import { openFlutterCamera, openFlutterGallery, isFlutterApp } from "../../../shared/utils/flutterBridge";
 
 // Basic in-memory cache for B2B categories during the session
 let categoriesCache = null;
@@ -33,76 +33,88 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     // Lock scroll when unit selection modal is open
     useScrollLock(isUnitDropdownOpen);
 
-    const [formData, setFormData] = useState(() => {
-        if (initialData) return initialData;
-        if (!isEdit) {
-            const saved = localStorage.getItem(USER_DRAFT_KEY);
-            if (saved) {
-                try {
-                    const parsed = JSON.parse(saved);
-                    return parsed.formData || {
-                        name: "", category: "", subcategory: "", moq: 1, price: "",
-                        description: "", images: [], specifications: [{ name: "", value: "" }],
-                        bulkPricing: [{ minQty: "", price: "" }], brand: "", availability: "In Stock", unit: "",
-                    };
-                } catch (e) { console.error("Draft load failed", e); }
-            }
-        }
-        return {
-            name: "",
-            category: "",
-            subcategory: "",
-            moq: 1,
-            price: "", // Base Price / Expected price
-            description: "",
-            images: [],
-            specifications: [{ name: "", value: "" }],
-            bulkPricing: [{ minQty: "", price: "" }],
-            brand: "",
-            availability: "In Stock",
-            unit: "",
-        };
+    const [formData, setFormData] = useState({
+        name: "",
+        category: "",
+        subcategory: "",
+        moq: 1,
+        price: "", 
+        description: "",
+        images: [],
+        specifications: [{ name: "", value: "" }],
+        bulkPricing: [{ minQty: "", price: "" }],
+        brand: "",
+        availability: "In Stock",
+        unit: "",
     });
 
     const [categories, setCategories] = useState(categoriesCache || []);
     const [subcategories, setSubcategories] = useState([]);
     const [categoriesLoading, setCategoriesLoading] = useState(!categoriesCache);
     const [dynamicFields, setDynamicFields] = useState([]);
+    const [dynamicValues, setDynamicValues] = useState({});
+    const [customMultiInputs, setCustomMultiInputs] = useState({});
+    const [isDraftLoaded, setIsDraftLoaded] = useState(false);
 
-    // Initialize dynamic values and custom inputs from draft
-    const [dynamicValues, setDynamicValues] = useState(() => {
-        if (!isEdit) {
-            const saved = localStorage.getItem(USER_DRAFT_KEY);
-            if (saved) {
-                try { return JSON.parse(saved).dynamicValues || {}; } catch (e) { }
+    // Initial draft loading with authentication awareness
+    useEffect(() => {
+        if (isEdit || isDraftLoaded || vendorId === "anonymous") return;
+
+        const saved = localStorage.getItem(USER_DRAFT_KEY);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed.formData) setFormData(prev => ({ ...prev, ...parsed.formData }));
+                if (parsed.dynamicValues) setDynamicValues(parsed.dynamicValues);
+                if (parsed.customMultiInputs) setCustomMultiInputs(parsed.customMultiInputs);
+                console.log("[ProductForm] Draft hydrated for user:", vendorId);
+            } catch (e) {
+                console.error("[ProductForm] Draft load failed", e);
             }
         }
-        return {};
-    });
+        setIsDraftLoaded(true);
+    }, [vendorId, USER_DRAFT_KEY, isEdit, isDraftLoaded]);
 
-    const [customMultiInputs, setCustomMultiInputs] = useState(() => {
-        if (!isEdit) {
-            const saved = localStorage.getItem(USER_DRAFT_KEY);
-            if (saved) {
-                try { return JSON.parse(saved).customMultiInputs || {}; } catch (e) { }
-            }
+    // Fallback: If user is anonymous but we have an anonymous draft, load it
+    useEffect(() => {
+        if (isEdit || isDraftLoaded || vendorId !== "anonymous") return;
+        const saved = localStorage.getItem(`${DRAFT_KEY}_anonymous`);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed.formData) setFormData(prev => ({ ...prev, ...parsed.formData }));
+                if (parsed.dynamicValues) setDynamicValues(parsed.dynamicValues);
+                if (parsed.customMultiInputs) setCustomMultiInputs(parsed.customMultiInputs);
+            } catch (e) {}
         }
-        return {};
-    });
+        setIsDraftLoaded(true);
+    }, [vendorId, isEdit, isDraftLoaded]);
 
     // Auto-save draft
     useEffect(() => {
-        if (!isEdit && vendorId !== "anonymous") {
-            localStorage.setItem(USER_DRAFT_KEY, JSON.stringify({
-                formData,
-                dynamicValues,
-                customMultiInputs
-            }));
+        if (!isEdit && isDraftLoaded) {
+            try {
+                localStorage.setItem(USER_DRAFT_KEY, JSON.stringify({
+                    formData,
+                    dynamicValues,
+                    customMultiInputs
+                }));
+            } catch (e) {
+                if (e.name === 'QuotaExceededError') {
+                    console.warn("[ProductForm] Storage quota exceeded, saving without images");
+                    try {
+                        localStorage.setItem(USER_DRAFT_KEY, JSON.stringify({
+                            formData: { ...formData, images: [] },
+                            dynamicValues,
+                            customMultiInputs
+                        }));
+                    } catch (e2) {}
+                }
+            }
         } else if (isEdit) {
-            // If editing, clear any stale add drafts for this user to prevent overlap
             localStorage.removeItem(USER_DRAFT_KEY);
         }
-    }, [formData, dynamicValues, customMultiInputs, isEdit, USER_DRAFT_KEY, vendorId]);
+    }, [formData, dynamicValues, customMultiInputs, isEdit, USER_DRAFT_KEY, isDraftLoaded]);
 
     useEffect(() => {
         if (!categoriesCache) {
@@ -389,30 +401,39 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     };
 
     const handleCameraClick = async () => {
-        const result = await openFlutterCamera();
-        if (result) {
-            setFormData(prev => ({
-                ...prev,
-                images: [...prev.images, result.data]
-            }));
-            toast.success('Photo captured');
-        } else {
-            cameraInputRef.current?.click();
+        if (isFlutterApp()) {
+            const result = await openFlutterCamera();
+            if (result) {
+                setFormData(prev => ({
+                    ...prev,
+                    images: [...prev.images, result.data]
+                }));
+                toast.success('Photo captured');
+                return;
+            }
         }
+        
+        // Synchronous fallback
+        cameraInputRef.current?.click();
     };
 
-    const handleGalleryClick = async () => {
-        const result = await openFlutterGallery();
-        if (result) {
-            setFormData(prev => ({
-                ...prev,
-                images: [...prev.images, result.data]
-            }));
-            toast.success('Image added');
-        } else {
-            // Fallback to standard input
-            document.getElementById('gallery-upload')?.click();
+    const handleGalleryClick = () => {
+        if (isFlutterApp()) {
+            (async () => {
+                const result = await openFlutterGallery();
+                if (result) {
+                    setFormData(prev => ({
+                        ...prev,
+                        images: [...prev.images, result.data]
+                    }));
+                    toast.success('Image added');
+                }
+            })();
+            return;
         }
+        
+        // Synchronous fallback
+        document.getElementById('gallery-upload')?.click();
     };
 
     const removeImage = (index) => {

@@ -31,6 +31,7 @@ import { useVendorSettings } from "../../hooks/useVendorSettings";
 import { getSupportConfig } from "../../../../shared/services/supportService";
 import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api";
+import ConfirmModal from "../../../Admin/components/ConfirmModal";
 
 const iconMap = {
     Dashboard: FiHome,
@@ -91,6 +92,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const { settings } = useVendorSettings();
     const [expandedItems, setExpandedItems] = useState({});
     const [supportConfig, setSupportConfig] = useState(null);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
     
     // Use global notification store
     // Use selectors for better reactivity and performance
@@ -187,6 +189,10 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     };
 
     const handleLogout = () => {
+        setShowLogoutModal(true);
+    };
+
+    const confirmLogout = () => {
         useB2BVendorAuthStore.getState().logout();
         toast.success("Logged out successfully");
         navigate("/b2b-vendor/login");
@@ -350,6 +356,17 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
             <div className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 z-30 overflow-hidden">
                 {sidebarContent}
             </div>
+
+            <ConfirmModal
+                isOpen={showLogoutModal}
+                onClose={() => setShowLogoutModal(false)}
+                onConfirm={confirmLogout}
+                title="Logout Confirmation"
+                message="Are you sure you want to logout? You will need to login again to access your dashboard."
+                confirmText="Logout"
+                cancelText="Stay Logged In"
+                type="danger"
+            />
         </div>
     );
 };
