@@ -28,7 +28,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const cameraInputRef = useRef(null);
     const [errors, setErrors] = useState({});
     const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
-    const unitDropdownRef = useRef(null);
+
 
     // Lock scroll when unit selection modal is open
     useScrollLock(isUnitDropdownOpen);
@@ -124,15 +124,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         }
     }, []);
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (unitDropdownRef.current && !unitDropdownRef.current.contains(event.target)) {
-                setIsUnitDropdownOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+
 
     const fetchCategories = async () => {
         if (categoriesCache) {
@@ -1047,7 +1039,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         className={`min-w-0 flex-1 px-4 py-2.5 bg-slate-50 border ${errors.moq ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none`}
                                         placeholder="100"
                                     />
-                                    <div className="relative w-24 xs:w-28 shrink-0" ref={unitDropdownRef}>
+                                    <div className="relative w-24 xs:w-28 shrink-0">
                                         <button
                                             type="button"
                                             onClick={(e) => {
