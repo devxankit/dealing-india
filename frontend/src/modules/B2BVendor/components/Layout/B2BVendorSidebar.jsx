@@ -57,6 +57,7 @@ const iconMap = {
     "Billing & Invoices": FiCreditCard,
     "My Wallet": FiBriefcase,
     "How to Use": FiPlayCircle,
+    "Support & Feedback": FiMessageCircle,
 };
 
 const getChildRoute = (parentRoute, childName) => {

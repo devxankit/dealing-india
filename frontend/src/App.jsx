@@ -119,6 +119,9 @@ const AdminMusicLibrary = lazyWithRetry(
 const AdminReelReports = lazyWithRetry(
   () => import("./modules/Admin/pages/ReelReports"),
 );
+const AdminFeedbacks = lazyWithRetry(
+  () => import("./modules/Admin/pages/Feedbacks"),
+);
 const RouteWrapper = lazyWithRetry(
   () => import("./shared/components/RouteWrapper"),
 );
@@ -247,6 +250,9 @@ const B2BVendorHowToUse = lazyWithRetry(
 );
 const B2BVendorWallet = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/WalletPage"),
+);
+const B2BVendorSupport = lazyWithRetry(
+  () => import("./modules/B2BVendor/pages/VendorSupport"),
 );
 
 // B2B User App Routes
@@ -461,6 +467,7 @@ const AppRoutes = () => {
           <Route path="music-library" element={<AdminMusicLibrary />} />
           <Route path="support-settings" element={<SupportSettings />} />
           <Route path="transactions" element={<AdminTransactions />} />
+          <Route path="feedbacks" element={<AdminFeedbacks />} />
         </Route>
 
         {/* B2B User App Routes */}
@@ -686,6 +693,7 @@ const AppRoutes = () => {
           <Route path="followers" element={<B2BVendorFollowers />} />
           <Route path="referral" element={<B2BVendorReferral />} />
           <Route path="how-to-use" element={<B2BVendorHowToUse />} />
+          <Route path="support" element={<B2BVendorSupport />} />
         </Route>
         <Route path="*" element={<Navigate to="/b2b/landing" replace />} />
       </Routes>

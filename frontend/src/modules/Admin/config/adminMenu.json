@@ -103,5 +103,10 @@
     "title": "Reel Reports",
     "route": "/admin/reel-reports",
     "children": []
+  },
+  {
+    "title": "Feedbacks",
+    "route": "/admin/feedbacks",
+    "children": []
   }
 ]

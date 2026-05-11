@@ -87,5 +87,10 @@
         "title": "How to Use",
         "route": "/b2b-vendor/how-to-use",
         "children": []
+    },
+    {
+        "title": "Support & Feedback",
+        "route": "/b2b-vendor/support",
+        "children": []
     }
 ]

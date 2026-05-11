@@ -12,6 +12,7 @@ import VendorAddon from '../models/VendorAddon.model.js';
 import Reel from '../models/Reel.model.js';
 import ReelReport from '../models/ReelReport.model.js';
 import VendorWalletTransaction from '../models/VendorWalletTransaction.model.js';
+import Feedback from '../models/Feedback.model.js';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1'];
 
@@ -325,12 +326,14 @@ export const getSidebarCounts = asyncHandler(async (req, res) => {
         pendingVendors,
         pendingBanners,
         pendingReels,
-        pendingReports
+        pendingReports,
+        pendingFeedbacks
     ] = await Promise.all([
         Vendor.countDocuments({ status: 'pending', vendorType: { $ne: 'admin' } }),
         BannerBooking.countDocuments({ status: 'pending', paymentStatus: 'paid' }),
         Reel.countDocuments({ status: 'pending' }),
-        ReelReport.countDocuments({ status: 'pending' })
+        ReelReport.countDocuments({ status: 'pending' }),
+        Feedback.countDocuments({ status: 'pending' })
     ]);
 
     res.status(200).json({
@@ -339,7 +342,8 @@ export const getSidebarCounts = asyncHandler(async (req, res) => {
             pendingVendors,
             pendingBanners,
             pendingReels,
-            pendingReports
+            pendingReports,
+            pendingFeedbacks
         }
     });
 });

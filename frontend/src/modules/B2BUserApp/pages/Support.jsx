@@ -4,6 +4,8 @@ import { FiHelpCircle, FiPhoneCall, FiMail, FiMessageSquare, FiChevronDown, FiCh
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import { getSupportConfig } from '../../../shared/services/supportService';
+import { submitFeedback } from '../../../shared/services/feedbackService';
+import toast from 'react-hot-toast';
 
 const FAQItem = ({ question, answer }) => {
     const [isOpen, setIsOpen] = React.useState(false);
@@ -29,6 +31,32 @@ const FAQItem = ({ question, answer }) => {
 const Support = () => {
     const [config, setConfig] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
+    const [submitting, setSubmitting] = React.useState(false);
+    const [feedback, setFeedback] = React.useState({ subject: '', message: '' });
+
+    const handleFeedbackSubmit = async (e) => {
+        e.preventDefault();
+        if (!feedback.subject || !feedback.message) {
+            return toast.error('Please fill in all fields');
+        }
+
+        setSubmitting(true);
+        try {
+            const res = await submitFeedback({
+                ...feedback,
+                role: 'user'
+            });
+            if (res.success) {
+                toast.success('Feedback submitted successfully');
+                setFeedback({ subject: '', message: '' });
+            }
+        } catch (error) {
+            console.error('Feedback error:', error);
+            toast.error(error.message || 'Failed to submit feedback');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     React.useEffect(() => {
         const fetchConfig = async () => {
@@ -141,6 +169,48 @@ const Support = () => {
                         {faqs.map((faq, idx) => (
                             <FAQItem key={idx} question={faq.question} answer={faq.answer} />
                         ))}
+                    </div>
+                </div>
+
+                {/* Feedback Form */}
+                <div className="pt-10 max-w-2xl mx-auto w-full">
+                    <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm space-y-6">
+                        <div className="text-center space-y-2">
+                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">Any Kind of Feedback?</h3>
+                            <p className="text-gray-500 text-sm font-medium">We'd love to hear your thoughts or issues</p>
+                        </div>
+
+                        <form onSubmit={handleFeedbackSubmit} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Subject</label>
+                                <input
+                                    type="text"
+                                    value={feedback.subject}
+                                    onChange={(e) => setFeedback({ ...feedback, subject: e.target.value })}
+                                    placeholder="Brief topic of your feedback"
+                                    className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-800 placeholder:text-gray-300 focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Message</label>
+                                <textarea
+                                    value={feedback.message}
+                                    onChange={(e) => setFeedback({ ...feedback, message: e.target.value })}
+                                    placeholder="Tell us more details..."
+                                    rows={4}
+                                    className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold text-gray-800 placeholder:text-gray-300 focus:ring-2 focus:ring-primary-500/20 transition-all resize-none"
+                                    required
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="w-full bg-primary-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-primary-200 hover:bg-primary-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100"
+                            >
+                                {submitting ? 'Submitting...' : 'Send Feedback to Admin'}
+                            </button>
+                        </form>
                     </div>
                 </div>
 

@@ -28,6 +28,7 @@ import {
   FiMusic,
   FiAlertTriangle,
   FiDollarSign,
+  FiMessageSquare,
 } from "react-icons/fi";
 import { useAdminAuthStore } from "../../store/adminStore";
 import adminMenu from "../../config/adminMenu.json";
@@ -59,6 +60,7 @@ const iconMap = {
   "Reel Reports": FiAlertTriangle,
   "Music Library": FiMusic,
   Firebase: FiDatabase,
+  Feedbacks: FiMessageSquare,
 };
 
 // Helper function to convert child name to route path
@@ -90,7 +92,8 @@ const AdminSidebar = ({ isOpen, onClose }) => {
     pendingVendors: 0,
     pendingBanners: 0,
     pendingReels: 0,
-    pendingReports: 0
+    pendingReports: 0,
+    pendingFeedbacks: 0
   });
 
   // Fetch all sidebar notification counts
@@ -288,6 +291,11 @@ const AdminSidebar = ({ isOpen, onClose }) => {
             {item.title === "Reel Reports" && sidebarCounts.pendingReports > 0 && (
               <span className="inline-flex items-center justify-center min-w-[18px] px-1.5 py-0.5 rounded-full bg-rose-600 text-[10px] font-bold text-white shadow-sm">
                 {sidebarCounts.pendingReports > 99 ? "99+" : sidebarCounts.pendingReports}
+              </span>
+            )}
+            {item.title === "Feedbacks" && sidebarCounts.pendingFeedbacks > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] px-1.5 py-0.5 rounded-full bg-purple-600 text-[10px] font-bold text-white shadow-sm">
+                {sidebarCounts.pendingFeedbacks > 99 ? "99+" : sidebarCounts.pendingFeedbacks}
               </span>
             )}
           </span>

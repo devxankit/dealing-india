@@ -38,6 +38,7 @@ import upgradeRoutes from "./routes/upgrade.routes.js";
 import adminB2BAddonPlanRoutes from "./routes/adminB2BAddonPlan.routes.js";
 import vendorAddonRoutes from "./routes/vendorAddon.routes.js";
 import adminB2BSettingsRoutes from "./routes/adminB2BSettings.routes.js";
+import feedbackRoutes from "./routes/Feedback.routes.js";
 
 import b2bVendorProductsRoutes from "./routes/b2bVendorProducts.routes.js";
 import b2bVendorShopUnitRoutes from "./routes/b2bVendorShopUnit.routes.js";
@@ -262,6 +263,7 @@ app.use("/api/subscriptions", SubscriptionRoutes);
 app.use("/api/subscriptions/upgrade", upgradeRoutes);
 app.use("/api/products", publicProductRoutes);
 app.use("/api/rating", ratingRoutes);
+app.use("/api/feedback", feedbackRoutes);
 
 app.use("/api/admin/media", adminMediaRoutes);
 app.use("/api/admin/b2b-subscription-plans", adminB2BSubscriptionPlanRoutes);
