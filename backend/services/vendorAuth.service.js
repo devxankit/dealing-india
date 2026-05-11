@@ -11,6 +11,8 @@ import notificationService from './notification.service.js';
 import { geocodeAddress } from '../utils/geocoding.util.js';
 import { normalizeAddress } from '../utils/addressNormalizer.util.js';
 import { ensureReferralCodeForOwner } from './referral.service.js';
+import SMSOTP from '../models/SMSOTP.model.js';
+import smsService from './sms.service.js';
 
 /**
  * Register a new vendor (temporary - only creates record after email verification)
@@ -175,10 +177,67 @@ export const registerVendor = async (vendorData) => {
       processedDocuments = processedDocuments.filter(Boolean);
     }
 
-    // Store registration data temporarily (expires in 15 minutes)
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+    // If it's a B2B vendor, we'll use the new mobile OTP flow.
+    if (vendorType === 'b2b') {
+      const vendor = await Vendor.create({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        phone: phone.trim(),
+        password: hashedPassword,
+        storeName: storeName.trim(),
+        storeDescription: storeDescription ? storeDescription.trim() : undefined,
+        address: normalizeAddress({
+          ...(address || {}),
+          pincode: address?.pincode || address?.zipCode || '',
+          zipCode: address?.zipCode || address?.pincode || '',
+        }),
+        documents: processedDocuments,
+        status: 'pending',
+        isEmailVerified: true, 
+        isPhoneVerified: false, // Must verify phone via OTP
+        isActive: true,
+        role: 'vendor',
+        vendorType: 'b2b',
+        agreedToTerms: !!agreedToTerms,
+        businessTypes: businessTypes && Array.isArray(businessTypes) ? businessTypes.map(bt => bt.trim()) : undefined,
+        businessType: businessType || 'Textile',
+        businessTypeRef: businessTypeRef,
+        gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
+        mfgOfWork: mfgOfWork ? mfgOfWork.trim() : undefined,
+        commissionRate: 0
+      });
 
+      await ensureReferralCodeForOwner({ userId: vendor._id, userModel: 'Vendor' });
+
+      // Generate 6-digit OTP for phone
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      
+      const fullPhone = phone.startsWith('+91') ? phone : `+91${phone}`;
+
+      await SMSOTP.create({
+          phoneNumber: fullPhone,
+          otp,
+          expiresAt,
+          purpose: 'registration'
+      });
+
+      // Send SMS
+      await smsService.sendOTP(fullPhone, otp);
+
+      // NOTE: Admin notification moved to OTP verification flow
+      // See verifyVendorPhone function - notification is sent only AFTER phone verification
+
+      return {
+        success: true,
+        message: 'Registration successful! Please verify your mobile number.',
+        otpSent: true,
+        phone: fullPhone,
+        vendor
+      };
+    }
+
+    // Original flow for regular vendors
     await TemporaryRegistration.create({
       email: email.toLowerCase().trim(),
       registrationType: 'vendor',
@@ -250,25 +309,30 @@ export const registerVendor = async (vendorData) => {
 };
 
 /**
- * Login vendor with email and password
- * @param {String} email - Vendor email
+ * Login vendor with email/phone and password
+ * @param {String} identifier - Vendor email or phone
  * @param {String} password - Plain text password
  * @returns {Promise<Object>} { vendor, token }
  */
-export const loginVendor = async (email, password) => {
+export const loginVendor = async (identifier, password) => {
   try {
-    console.log(`[Login Attempt] Email: ${email}`);
-    if (!email || !password) {
-      throw new Error('Email and password are required');
+    console.log(`[Login Attempt] Identifier: ${identifier}`);
+    if (!identifier || !password) {
+      throw new Error('Email/Phone and password are required');
     }
 
-    // Find vendor by email - select all fields including password
+    // Find vendor by email or phone - select all fields including password
     const vendor = await Vendor.findOne({
-      email: email.toLowerCase(),
-    }).select('+password'); // Include password field, all other fields are included by default
+      $or: [
+        { email: identifier.toLowerCase() },
+        { phone: identifier },
+        { phone: identifier.replace('+91', '') },
+        { phone: '+91' + identifier.replace(/^\+91/, '') }
+      ]
+    }).select('+password');
 
     if (!vendor) {
-      console.log(`[Login Failed] Vendor not found: ${email}`);
+      console.log(`[Login Failed] Vendor not found: ${identifier}`);
       const error = new Error('Vendor not found');
       error.statusCode = 404;
       throw error;
@@ -281,15 +345,38 @@ export const loginVendor = async (email, password) => {
 
     // Check if account is active
     if (!vendor.isActive) {
-      console.log(`[Login Blocked] Account inactive for: ${email}`);
+      console.log(`[Login Blocked] Account inactive for: ${identifier}`);
       const error = new Error('Account is inactive. Please contact support.');
       error.statusCode = 403;
       throw error;
     }
 
+    // Check if phone is verified
+    if (!vendor.isPhoneVerified) {
+      // Generate new OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+      const fullPhone = vendor.phone.startsWith('+91') ? vendor.phone : `+91${vendor.phone}`;
+
+      await SMSOTP.create({
+        phoneNumber: fullPhone,
+        otp,
+        expiresAt,
+        purpose: 'login'
+      });
+
+      await smsService.sendOTP(fullPhone, otp);
+
+      const error = new Error('Please verify your mobile number. A new OTP has been sent.');
+      error.statusCode = 403;
+      error.code = 'PHONE_NOT_VERIFIED';
+      error.phone = fullPhone;
+      throw error;
+    }
+
     // Check if vendor is approved (vendors can only login if approved)
     if (vendor.status !== 'approved') {
-      console.log(`[Login Blocked] Account not approved - Status: ${vendor.status} for: ${email}`);
+      console.log(`[Login Blocked] Account not approved - Status: ${vendor.status} for: ${identifier}`);
       const error = new Error(
         `Vendor account is ${vendor.status}. Please wait for admin approval before logging in.`
       );

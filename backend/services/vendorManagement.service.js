@@ -215,6 +215,11 @@ export const updateVendorStatus = async (vendorId, status, reason = null, isActi
         throw new Error('Invalid status. Must be one of: pending, approved, rejected');
       }
       updateData.status = status;
+      
+      // Auto-verify phone if admin approves the vendor
+      if (status === 'approved') {
+        updateData.isPhoneVerified = true;
+      }
     }
 
     if (isActive !== null && isActive !== undefined) {

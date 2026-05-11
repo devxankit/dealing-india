@@ -86,16 +86,17 @@ export const register = async (req, res, next) => {
  */
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, email, password } = req.body;
+    const loginIdentifier = identifier || email;
 
-    if (!email || !password) {
+    if (!loginIdentifier || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required',
+        message: 'Email/phone and password are required',
       });
     }
 
-    const result = await loginVendor(email, password);
+    const result = await loginVendor(loginIdentifier, password);
 
     res.status(200).json({
       success: true,
@@ -124,6 +125,10 @@ export const login = async (req, res, next) => {
     // Add expired date if subscription expired
     if (error.code === 'SUBSCRIPTION_EXPIRED' && error.expiredDate) {
       response.expiredDate = error.expiredDate;
+    }
+
+    if (error.code === 'PHONE_NOT_VERIFIED' && error.phone) {
+      response.data = { phone: error.phone };
     }
 
     // Don't pass to next() if we can handle it here
@@ -268,6 +273,111 @@ export const resetPassword = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Password reset successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Reset password by phone with OTP
+ * POST /api/auth/vendor/reset-password-phone
+ */
+export const resetPasswordByPhone = async (req, res, next) => {
+  try {
+    const { phoneNumber, otp, newPassword } = req.body;
+
+    if (!phoneNumber || !otp || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number, OTP, and new password are required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    // Normalize phone number - try both with and without +91
+    const normalizedPhone = phoneNumber.startsWith('+91')
+      ? phoneNumber
+      : `+91${phoneNumber}`;
+    const phoneWithoutCode = phoneNumber.replace(/^\+91/, '');
+
+    // Import here to avoid circular dependency
+    const SMSOTP = (await import('../models/SMSOTP.model.js')).default;
+    const Vendor = (await import('../models/Vendor.model.js')).default;
+
+    // Find the latest OTP for this phone number
+    const storedOtp = await SMSOTP.findOne({
+      phoneNumber: normalizedPhone,
+      purpose: { $in: ['password_reset', 'verification', 'login', 'registration'] }
+    }).sort({ createdAt: -1 });
+
+    if (!storedOtp) {
+      // Try without +91
+      const otpWithoutCode = await SMSOTP.findOne({
+        phoneNumber: phoneWithoutCode,
+        purpose: { $in: ['password_reset', 'verification', 'login', 'registration'] }
+      }).sort({ createdAt: -1 });
+
+      if (!otpWithoutCode) {
+        return res.status(404).json({
+          success: false,
+          message: 'OTP not found. Please request a new one.'
+        });
+      }
+      storedOtp = otpWithoutCode;
+    }
+
+    // Check expiry
+    if (new Date() > storedOtp.expiresAt) {
+      return res.status(403).json({
+        success: false,
+        message: 'OTP has expired. Please request a new one.'
+      });
+    }
+
+    // Check if OTP matches
+    if (storedOtp.otp !== otp) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid OTP'
+      });
+    }
+
+    // Find vendor by phone - try multiple formats
+    let vendor = await Vendor.findOne({
+      $or: [
+        { phone: normalizedPhone },
+        { phone: phoneWithoutCode },
+        { phone: `+91${phoneWithoutCode}` }
+      ]
+    });
+
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor not found with this phone number'
+      });
+    }
+
+    // Hash and save new password
+    const { hashPassword } = await import('../utils/bcrypt.util.js');
+    vendor.password = await hashPassword(newPassword);
+    await vendor.save();
+
+    // Clean up used OTPs (both formats)
+    await SMSOTP.deleteMany({
+      phoneNumber: { $in: [normalizedPhone, phoneWithoutCode, `+91${phoneWithoutCode}`] }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully'
     });
   } catch (error) {
     next(error);

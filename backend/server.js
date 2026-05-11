@@ -52,6 +52,7 @@ import ratingRoutes from "./routes/rating.routes.js";
 import vendorAuthRoutes from "./routes/vendorAuth.routes.js";
 import adminAuthRoutes from "./routes/adminAuth.routes.js";
 import userAuthRoutes from "./routes/userAuth.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 
 import adminMediaRoutes from "./routes/media.routes.js";
 import heroBannerVendorRoutes from "./routes/heroBannerVendor.routes.js";
@@ -248,6 +249,7 @@ import { razorpayWebhook } from "./controllers/SubscriptionCtrl.js";
 app.use("/api/auth/vendor", vendorAuthRoutes);
 app.use("/api/auth/admin", adminAuthRoutes);
 app.use("/api/auth/user", userAuthRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/user", userAuthRoutes);
 
 app.use("/api/vendors", publicVendorRoutes);

@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema(
         phone: {
             type: String,
             required: [true, 'Phone is required'],
+            unique: true,
             trim: true,
         },
         password: {
@@ -26,6 +27,10 @@ const userSchema = new mongoose.Schema(
             select: false,
         },
         isEmailVerified: {
+            type: Boolean,
+            default: false,
+        },
+        isPhoneVerified: {
             type: Boolean,
             default: false,
         },

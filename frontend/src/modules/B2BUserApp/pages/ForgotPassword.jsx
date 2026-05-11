@@ -1,22 +1,18 @@
-
 import { useState } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { FiMail, FiLock, FiArrowLeft, FiCheck, FiSmartphone } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { FiLock, FiArrowLeft, FiCheck, FiSmartphone } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
-import api from '../../../shared/utils/api'; // Direct API usage or add to store
+import api from '../../../shared/utils/api';
 
 const ForgotPassword = () => {
     const navigate = useNavigate();
-    const location = useLocation();
-    const [step, setStep] = useState(1); // 1: Email, 2: OTP & Password
+    const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Form States
-    const [phone, setPhone] = useState(location.state?.phone || '');
-    const [countryCode, setCountryCode] = useState(location.state?.countryCode || '+91');
-    const [maskedEmail, setMaskedEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [countryCode] = useState('+91');
+    const [maskedPhone, setMaskedPhone] = useState('');
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -30,18 +26,23 @@ const ForgotPassword = () => {
 
         setIsLoading(true);
         try {
-            const identifier = `${countryCode}${phone}`;
-            const response = await api.post('/auth/user/forgot-password', { identifier });
+            const fullPhone = `${countryCode}${phone}`;
+            console.log('[ForgotPassword] Sending OTP to:', fullPhone);
 
-            const isSuccess = response.success || response.data?.success;
-            const message = response.message || response.data?.message;
+            const response = await api.post('/auth/send-otp', {
+                phoneNumber: fullPhone,
+                purpose: 'password_reset'
+            });
 
-            if (isSuccess) {
-                toast.success(message || 'OTP sent to your registered email!');
-                setMaskedEmail(response.data?.email || response.data?.data?.email || '');
+            console.log('[ForgotPassword] Response:', response);
+
+            if (response.success) {
+                const masked = `${countryCode}******${phone.slice(-4)}`;
+                setMaskedPhone(masked);
+                toast.success('OTP sent to your mobile number!');
                 setStep(2);
             } else {
-                toast.error(message || 'Failed to send OTP');
+                toast.error(response.message || 'Failed to send OTP');
             }
         } catch (error) {
             console.error('Forgot Password Error:', error);
@@ -70,25 +71,26 @@ const ForgotPassword = () => {
 
         setIsLoading(true);
         try {
-            const identifier = `${countryCode}${phone}`;
-            const response = await api.post('/auth/user/reset-password', {
-                identifier,
+            const fullPhone = `${countryCode}${phone}`;
+            console.log('[ForgotPassword] Resetting password for:', fullPhone);
+
+            const response = await api.post('/auth/user/reset-password-phone', {
+                phoneNumber: fullPhone,
                 otp,
                 newPassword
             });
 
-            const isSuccess = response.success || response.data?.success;
-            const message = response.message || response.data?.message;
+            console.log('[ForgotPassword] Reset Response:', response);
 
-            if (isSuccess) {
-                toast.success(message || 'Password reset successfully! Please login.');
+            if (response.success) {
+                toast.success('Password reset successfully! Please login with your new password.');
                 navigate('/b2b/login');
             } else {
-                toast.error(message || 'Failed to reset password');
+                toast.error(response.message || 'Failed to reset password');
             }
         } catch (error) {
             console.error('Reset Password Error:', error);
-            const msg = error.response?.data?.message || 'Invalid Request';
+            const msg = error.response?.data?.message || 'Invalid OTP or expired';
             toast.error(msg);
         } finally {
             setIsLoading(false);
@@ -102,10 +104,8 @@ const ForgotPassword = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-6 sm:p-8 w-full max-w-sm shadow-2xl relative overflow-hidden"
             >
-                {/* Decoration */}
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary-400 to-primary-600"></div>
 
-                {/* Back Button */}
                 <button
                     onClick={() => step === 2 ? setStep(1) : navigate('/b2b/login')}
                     className="absolute top-3 left-3 p-1.5 hover:bg-gray-100 text-gray-500 rounded-full transition-colors z-10"
@@ -122,37 +122,28 @@ const ForgotPassword = () => {
                     </h1>
                     <p className="text-xs text-gray-500 font-medium tracking-tight px-4 mt-2">
                         {step === 1
-                            ? 'Enter your phone number to receive an OTP on your registered email'
-                            : maskedEmail ? `Enter the OTP sent to ${maskedEmail} and your new password` : 'Enter the OTP and your new password'}
+                            ? 'Enter your mobile number to receive an OTP'
+                            : `Enter the OTP sent to ${maskedPhone}`}
                     </p>
                 </div>
 
                 {step === 1 ? (
                     <form onSubmit={handleSendOTP} className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-700 ml-1">Phone Number</label>
+                            <label className="text-xs font-bold text-gray-700 ml-1">Mobile Number</label>
                             <div className="flex gap-2">
-                                <select
-                                    name="countryCode"
-                                    value={countryCode}
-                                    onChange={(e) => setCountryCode(e.target.value)}
-                                    className="w-20 px-2 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-gray-900 appearance-none cursor-pointer text-sm"
-                                >
-                                    <option value="+91">+91</option>
-                                    <option value="+880">+880</option>
-                                    <option value="+1">+1</option>
-                                    <option value="+44">+44</option>
-                                </select>
+                                <div className="w-16 flex items-center justify-center bg-gray-100 rounded-xl font-bold text-gray-700">
+                                    +91
+                                </div>
                                 <div className="relative flex-1 group">
                                     <FiSmartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                                     <input
                                         type="tel"
                                         required
-                                        readOnly={!!location.state?.phone}
                                         value={phone}
                                         onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
-                                        placeholder="10 digit number"
-                                        className={`w-full pl-10 pr-4 py-3 border-2 border-transparent rounded-xl focus:border-primary-500 transition-all font-medium text-sm ${!!location.state?.phone ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-gray-50 focus:bg-white'}`}
+                                        placeholder="Enter 10 digit number"
+                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                                     />
                                 </div>
                             </div>

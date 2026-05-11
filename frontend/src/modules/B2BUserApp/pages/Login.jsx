@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiPhone, FiLock, FiEye, FiEyeOff, FiBriefcase, FiShoppingBag, FiArrowLeft } from 'react-icons/fi';
+import { FiPhone, FiLock, FiEye, FiEyeOff, FiBriefcase, FiShoppingBag, FiArrowLeft, FiUser } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from '../../../shared/utils/toast';
-import { registerFCMToken } from '../../../services/pushNotificationService';
 
 const B2BUserLogin = () => {
     const navigate = useNavigate();
@@ -13,21 +12,19 @@ const B2BUserLogin = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
-    const [showRegisterModal, setShowRegisterModal] = useState(false);
     const [formData, setFormData] = useState({
-        phone: '',
-        countryCode: '+91',
+        identifier: location.state?.phone?.replace('+91', '') || '',
         password: '',
     });
 
     // Check for remembered phone
     useEffect(() => {
         const savedPhone = localStorage.getItem('remembered-b2b-user-phone');
-        if (savedPhone) {
-            setFormData(prev => ({ ...prev, phone: savedPhone }));
+        if (savedPhone && !location.state?.phone) {
+            setFormData(prev => ({ ...prev, identifier: savedPhone }));
             setRememberMe(true);
         }
-    }, []);
+    }, [location.state]);
 
     // Redirect if already authenticated
     useEffect(() => {
@@ -39,49 +36,38 @@ const B2BUserLogin = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        if (name === 'phone') {
-            // Only allow numbers and limit to 10 digits
-            const cleaned = value.replace(/[^0-9]/g, '').slice(0, 10);
-            setFormData({ ...formData, [name]: cleaned });
-        } else {
-            setFormData({ ...formData, [name]: value });
-        }
+        setFormData({ ...formData, [name]: value });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        if (formData.phone.length !== 10) {
-            toast.error('Please enter a valid 10-digit phone number');
+        if (!formData.identifier || !formData.password) {
+            toast.error('Please enter both identifier and password');
             return;
         }
 
         setIsLoading(true);
         try {
-            const identifier = `${formData.countryCode}${formData.phone}`;
-            // Send userType: 'b2b' to land in B2B marketplace
-            const result = await login(identifier, formData.password, false, 'b2b');
+            const result = await login(formData.identifier, formData.password);
             if (result.success) {
-                // Handle Remember Me
                 if (rememberMe) {
-                    localStorage.setItem('remembered-b2b-user-phone', formData.phone);
+                    localStorage.setItem('remembered-b2b-user-phone', formData.identifier);
                 } else {
                     localStorage.removeItem('remembered-b2b-user-phone');
                 }
-
-                toast.success('Welcome back to Bulk Marketplace!');
-                try { await registerFCMToken(true); } catch { }
-                const from = location.state?.from?.pathname || '/b2b/catalog';
-                navigate(from, { replace: true });
-            } else {
-                toast.error(result.message || 'Login failed');
+                toast.success('Welcome back!');
             }
         } catch (error) {
-            const errorMsg = error.response?.data?.message || error.message || '';
-            if (errorMsg.toLowerCase().includes('user not found')) {
-                setShowRegisterModal(true);
+            if (error.code === 'PHONE_NOT_VERIFIED') {
+                toast.error('Mobile number not verified. Sending OTP...');
+                navigate('/b2b/verification', { 
+                    state: { 
+                        phone: error.data?.phone || formData.identifier,
+                        message: 'Please verify your mobile number to login.'
+                    } 
+                });
             } else {
-                toast.error(errorMsg || 'Something went wrong. Please try again.');
+                toast.error(error.message || 'Login failed');
             }
         } finally {
             setIsLoading(false);
@@ -97,56 +83,42 @@ const B2BUserLogin = () => {
             >
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary-400 to-primary-600"></div>
 
-                {/* Back Button */}
                 <button
                     onClick={() => navigate(-1)}
-                    className="absolute top-3 left-3 p-1.5 hover:bg-gray-100 text-gray-500 rounded-full transition-colors z-10"
+                    className="absolute top-4 left-4 p-2 text-gray-400 hover:text-primary-600 transition-colors z-10"
                 >
-                    <FiArrowLeft size={20} />
+                    <FiArrowLeft size={22} />
                 </button>
 
-                <div className="text-center mb-6">
-                    <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-primary-50">
+                <div className="text-center mb-8">
+                    <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-50">
                         <FiBriefcase className="text-primary-600 text-2xl" />
                     </div>
                     <h1 className="text-2xl font-extrabold text-gray-800 mb-1">B2B Login</h1>
                     <p className="text-sm text-gray-500 font-medium tracking-tight">Access the Bulk Marketplace</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-700 ml-1">Phone Number</label>
-                        <div className="flex gap-2">
-                            <select
-                                name="countryCode"
-                                value={formData.countryCode}
+                        <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">Phone or Email</label>
+                        <div className="relative group">
+                            <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <input
+                                type="text"
+                                name="identifier"
+                                required
+                                value={formData.identifier}
                                 onChange={handleChange}
-                                className="w-20 px-2 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-gray-900 appearance-none cursor-pointer text-sm"
-                            >
-                                <option value="+91">+91</option>
-                                <option value="+880">+880</option>
-                                <option value="+1">+1</option>
-                                <option value="+44">+44</option>
-                            </select>
-                            <div className="relative flex-1 group">
-                                <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
-                                <input
-                                    type="tel"
-                                    name="phone"
-                                    required
-                                    value={formData.phone}
-                                    onChange={handleChange}
-                                    placeholder="10 digit number"
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
-                                />
-                            </div>
+                                placeholder="Phone number or Email"
+                                className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
+                            />
                         </div>
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-700 ml-1">Password</label>
+                        <label className="text-xs font-bold text-gray-700 ml-1 uppercase tracking-wider">Password</label>
                         <div className="relative group">
-                            <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 name="password"
@@ -154,17 +126,18 @@ const B2BUserLogin = () => {
                                 value={formData.password}
                                 onChange={handleChange}
                                 placeholder="••••••••"
-                                className="w-full pl-10 pr-10 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
+                                className="w-full pl-10 pr-12 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-500"
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                             >
                                 {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                             </button>
                         </div>
                     </div>
+
                     <div className="flex items-center justify-between py-1">
                         <label className="flex items-center gap-2 cursor-pointer group">
                             <input
@@ -173,13 +146,9 @@ const B2BUserLogin = () => {
                                 onChange={(e) => setRememberMe(e.target.checked)}
                                 className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                             />
-                            <span className="text-xs text-gray-600 group-hover:text-gray-800 transition-colors font-medium">Remember me</span>
+                            <span className="text-xs text-gray-600 group-hover:text-gray-800 transition-colors font-bold">Remember me</span>
                         </label>
-                        <Link
-                            to="/b2b/forgot-password"
-                            state={{ phone: formData.phone, countryCode: formData.countryCode }}
-                            className="text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
-                        >
+                        <Link to="/b2b/forgot-password" className="text-xs font-bold text-primary-600 hover:text-primary-700">
                             Forgot Password?
                         </Link>
                     </div>
@@ -187,83 +156,32 @@ const B2BUserLogin = () => {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full bg-primary-600 text-white py-3 rounded-xl font-bold text-base hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-bold text-base hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98]"
                     >
-                        {isLoading ? 'Verifying...' : 'Sign In as Buyer'}
+                        {isLoading ? 'Signing in...' : 'Sign In'}
                     </button>
 
-                    <div className="pt-6 border-t border-gray-100 text-center space-y-3">
-                        <p className="text-xs text-gray-600">
-                            New to Bulk Marketplace?{' '}
+                    <div className="pt-6 border-t border-gray-100 text-center space-y-4">
+                        <p className="text-xs text-gray-600 font-medium">
+                            Don't have an account?{' '}
                             <Link
                                 to="/b2b/register"
-                                state={{ from: location.state?.from }}
-                                className="text-primary-600 hover:text-primary-700 font-bold"
+                                className="text-primary-600 hover:text-primary-700 font-black uppercase tracking-wider ml-1"
                             >
-                                Create Account
+                                Register Now
                             </Link>
                         </p>
-                        <div className="pt-1">
-                            <p className="text-xs text-gray-500 mb-1">Are you a Seller?</p>
+                        <div className="pt-2">
                             <Link
                                 to="/b2b-vendor/login"
-                                className="inline-flex items-center gap-1.5 text-primary-600 font-bold hover:gap-2 transition-all text-sm"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-lg font-bold hover:bg-gray-100 transition-all text-xs border border-gray-100"
                             >
                                 <FiBriefcase /> Login as Vendor
                             </Link>
                         </div>
-                     </div>
-                 </form>
-            </motion.div>
-
-            {/* Register Modal */}
-            <AnimatePresence>
-                {showRegisterModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 min-h-screen">
-                        {/* Backdrop */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowRegisterModal(false)}
-                            className="absolute inset-0 bg-navy-950/60 backdrop-blur-md"
-                        />
-                        
-                        {/* Modal Content */}
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden p-8 text-center"
-                        >
-                            <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <FiShoppingBag className="text-primary-600 text-3xl" />
-                            </div>
-                            
-                            <h3 className="text-2xl font-black text-gray-900 mb-2">User Not Found</h3>
-                            <p className="text-gray-500 font-medium mb-8 leading-relaxed">
-                                This phone number or email is not registered with us. Would you like to create a new account?
-                            </p>
-                            
-                            <div className="space-y-3">
-                                <Link
-                                    to="/b2b/register"
-                                    onClick={() => setShowRegisterModal(false)}
-                                    className="block w-full py-4 bg-primary-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-primary-200 hover:bg-primary-700 transition-all"
-                                >
-                                    Register Now
-                                </Link>
-                                <button
-                                    onClick={() => setShowRegisterModal(false)}
-                                    className="block w-full py-4 bg-gray-50 text-gray-500 rounded-2xl font-black text-sm hover:bg-gray-100 transition-all border border-gray-100"
-                                >
-                                    Try Different Number
-                                </button>
-                            </div>
-                        </motion.div>
                     </div>
-                )}
-            </AnimatePresence>
+                </form>
+            </motion.div>
         </div >
     );
 };

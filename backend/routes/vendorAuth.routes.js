@@ -9,6 +9,7 @@ import {
   resendOTP,
   forgotPassword,
   resetPassword,
+  resetPasswordByPhone,
   checkSubscriptionByEmail,
   checkVendorStatusByEmail,
 } from '../controllers/vendorAuth.controller.js';
@@ -41,6 +42,7 @@ router.post('/verify-email', asyncHandler(verifyEmail));
 router.post('/resend-otp', rateLimiter('vendor-otp-resend', 20, 600), asyncHandler(resendOTP));
 router.post('/forgot-password', rateLimiter('vendor-forgot-password', 20, 600), asyncHandler(forgotPassword));
 router.post('/reset-password', rateLimiter('vendor-reset-password', 20, 600), asyncHandler(resetPassword));
+router.post('/reset-password-phone', rateLimiter('vendor-reset-password', 20, 600), asyncHandler(resetPasswordByPhone));
 
 // Protected routes (require authentication)
 // Logout uses optional authentication to allow logout even with expired tokens

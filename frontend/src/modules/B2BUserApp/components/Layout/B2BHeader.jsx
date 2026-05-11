@@ -14,7 +14,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
     const location = useLocation();
     const [currentSearchParams] = useSearchParams();
     const currentItemType = currentSearchParams.get('itemType') || null;
-    const { isAuthenticated } = useAuthStore();
+    const { isAuthenticated, user } = useAuthStore();
     const [localSearchQuery, setLocalSearchQuery] = useState(propSearchQuery || '');
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -336,6 +336,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             {/* Become Seller (Prominent on small screens too) */}
                             <Link
                                 to="/b2b-vendor/register"
+                                state={{ userData: user, isUpgrade: true }}
                                 className="px-3 py-1.5 bg-black text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-gray-800 transition-colors whitespace-nowrap"
                             >
                                 Seller
@@ -357,6 +358,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         <div className="hidden lg:flex items-center gap-2 xl:gap-5">
                             <Link
                                 to="/b2b-vendor/register"
+                                state={{ userData: user, isUpgrade: true }}
                                 className="hidden lg:flex bg-gray-900 text-white px-4 xl:px-7 py-3 xl:py-3.5 rounded-xl xl:rounded-[1.2rem] font-black text-[10px] uppercase tracking-wider xl:tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 whitespace-nowrap"
                             >
                                 <span className="hidden xl:inline">Become a Seller</span>

@@ -35,7 +35,7 @@ const B2BVendorRegister = () => {
     const [errors, setErrors] = useState({});
 
     // Get pre-filled data from navigation state (e.g. from "Become a Seller" button)
-    const preFilledData = location.state?.userData || {};
+    const preFilledData = location.state?.userData || location.state?.preFilledData || {};
     const isUpgrade = location.state?.isUpgrade || false;
 
     const [businessTypes, setBusinessTypes] = useState([]);
@@ -55,22 +55,22 @@ const B2BVendorRegister = () => {
         const defaultData = {
             name: preFilledData.name || '',
             email: preFilledData.email || '',
-            phone: preFilledData.phone || '',
+            phone: location.state?.phone?.replace('+91', '') || preFilledData.phone || '',
             password: '',
             confirmPassword: '',
-            companyName: '',
-            gstNumber: '',
+            companyName: preFilledData.businessInfo?.companyName || '',
+            gstNumber: preFilledData.businessInfo?.gstNumber || '',
             mfgOfWork: '',
             businessType: 'Textile',
             businessTypeRef: '',
             address: {
-                street: '',
+                street: preFilledData.businessInfo?.address?.fullAddress || '',
                 area: '',
                 market: '',
                 landmark: '',
-                city: '',
-                state: '',
-                pincode: '',
+                city: preFilledData.businessInfo?.address?.city || '',
+                state: preFilledData.businessInfo?.address?.state || '',
+                pincode: preFilledData.businessInfo?.address?.pincode || '',
                 country: 'India',
                 mapUrl: '',
             },
@@ -151,6 +151,38 @@ const B2BVendorRegister = () => {
 
         if (isUpgrade && preFilledData.name) {
             toast.success(`Welcome ${preFilledData.name.split(' ')[0]}! Complete these details to start your B2B business.`);
+        } else if (!preFilledData.name) {
+            // Check if user is logged in to User App (Buyer) and pre-fill from there
+            const buyerToken = localStorage.getItem('token');
+            if (buyerToken) {
+                const fetchBuyerProfile = async () => {
+                    try {
+                        const response = await api.get('/auth/user/me');
+                        if (response.success && response.data?.user) {
+                            const buyer = response.data.user;
+                            setFormData(prev => ({
+                                ...prev,
+                                name: buyer.name || prev.name,
+                                email: buyer.email || prev.email,
+                                phone: buyer.phone?.replace('+91', '') || prev.phone,
+                                companyName: buyer.businessInfo?.companyName || prev.companyName,
+                                gstNumber: buyer.businessInfo?.gstNumber || prev.gstNumber,
+                                address: {
+                                    ...prev.address,
+                                    street: buyer.businessInfo?.address?.fullAddress || prev.address.street,
+                                    city: buyer.businessInfo?.address?.city || prev.address.city,
+                                    state: buyer.businessInfo?.address?.state || prev.address.state,
+                                    pincode: buyer.businessInfo?.address?.pincode || prev.address.pincode,
+                                }
+                            }));
+                            toast.success(`Welcome back ${buyer.name.split(' ')[0]}! We've pre-filled your business details.`);
+                        }
+                    } catch (error) {
+                        console.log('[B2B Register] No buyer session found or error fetching.');
+                    }
+                };
+                fetchBuyerProfile();
+            }
         }
     }, [isUpgrade, preFilledData.name]);
 
@@ -479,10 +511,12 @@ const B2BVendorRegister = () => {
                 setTimeout(() => {
                     navigate('/b2b-vendor/verification', {
                         state: {
-                            email: formData.email
+                            phone: formData.phone.startsWith('+91') ? formData.phone : `+91${formData.phone}`,
+                            email: formData.email,
+                            message: 'Registration successful! Please verify your mobile number.'
                         }
                     });
-                }, 1000);
+                }, 1500);
             } else {
                 toast.error(response.message || 'Registration failed', { id: 'registration-error-toast' });
             }
@@ -558,7 +592,7 @@ const B2BVendorRegister = () => {
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Phone Number</label>
-                                <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className={`w-full px-3 py-2 bg-white border ${errors.phone ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:border-primary-500 outline-none text-sm`} placeholder="9876543210" maxLength={10} />
+                                <input type="tel" name="phone" value={formData.phone} onChange={handleChange} disabled={!!location.state?.phone} className={`w-full px-3 py-2 bg-white border ${errors.phone ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:border-primary-500 outline-none text-sm disabled:bg-gray-50 disabled:text-gray-500`} placeholder="9876543210" maxLength={10} />
                                 {errors.phone && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.phone}</p>}
                             </div>
                         </div>
@@ -803,20 +837,46 @@ const B2BVendorRegister = () => {
                             Security
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="relative">
+                            <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Password</label>
-                                <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className={`w-full px-3 py-2 bg-white border ${errors.password ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:border-primary-500 outline-none text-sm`} placeholder="••••••••" minLength={6} />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-7 text-gray-400 hover:text-gray-600">
-                                    {showPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
-                                </button>
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        name="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        className={`w-full px-3 py-2 bg-white border ${errors.password ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:border-primary-500 outline-none text-sm`}
+                                        placeholder="Min 6 characters"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                        {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                                    </button>
+                                </div>
                                 {errors.password && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.password}</p>}
                             </div>
-                            <div className="relative">
+                            <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Confirm Password</label>
-                                <input type={showConfirmPassword ? "text" : "password"} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className={`w-full px-3 py-2 bg-white border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:border-primary-500 outline-none text-sm`} placeholder="••••••••" minLength={6} />
-                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-7 text-gray-400 hover:text-gray-600">
-                                    {showConfirmPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
-                                </button>
+                                <div className="relative">
+                                    <input
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        name="confirmPassword"
+                                        value={formData.confirmPassword}
+                                        onChange={handleChange}
+                                        className={`w-full px-3 py-2 bg-white border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:border-primary-500 outline-none text-sm`}
+                                        placeholder="Re-enter password"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                        {showConfirmPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                                    </button>
+                                </div>
                                 {errors.confirmPassword && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.confirmPassword}</p>}
                             </div>
                         </div>

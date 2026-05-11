@@ -81,6 +81,10 @@ const vendorSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isPhoneVerified: {
+      type: Boolean,
+      default: false,
+    },
     isActive: {
       type: Boolean,
       default: true,

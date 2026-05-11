@@ -55,10 +55,9 @@ export const register = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'B2B vendor registered successfully. Your account is pending admin approval.',
+      message: result.message || 'B2B vendor registered successfully. Please verify your mobile number.',
       data: {
-        vendor: result.vendor,
-        token: result.token,
+        ...result
       },
     });
   } catch (error) {

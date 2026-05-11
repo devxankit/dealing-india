@@ -15,23 +15,25 @@ const B2BUserRegister = () => {
 
     const [formData, setFormData] = useState(() => {
         const saved = localStorage.getItem('b2b_user_register_draft');
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {
-                console.error('Failed to parse draft', e);
-            }
-        }
-        return {
+        let initialData = {
             name: '',
             email: '',
-            phone: '',
+            phone: location.state?.phone ? location.state.phone.replace('+91', '') : '',
             password: '',
             address: {
                 city: '',
             },
             agreedToTerms: false
         };
+
+        if (saved && !location.state?.phone) {
+            try {
+                return { ...initialData, ...JSON.parse(saved) };
+            } catch (e) {
+                console.error('Failed to parse draft', e);
+            }
+        }
+        return initialData;
     });
 
     useEffect(() => {
@@ -162,12 +164,20 @@ const B2BUserRegister = () => {
             );
 
             if (result.success) {
-                const successMsg = result.otp
-                    ? `Registration successful! Your OTP is ${result.otp}`
-                    : 'Registration successful! Please verify your email.';
-                toast.success(successMsg, { duration: 6000 });
                 localStorage.removeItem('b2b_user_register_draft');
-                navigate('/b2b/verification', { state: { email: formData.email } });
+                if (result.otpSent) {
+                    toast.success('Registration successful! Please verify your mobile number.');
+                    navigate('/b2b/verification', { 
+                        state: { 
+                            phone: result.phone, 
+                            email: formData.email 
+                        },
+                        replace: true 
+                    });
+                } else {
+                    toast.success('Registration successful! Welcome to Dealing India.');
+                    navigate('/b2b/catalog', { replace: true });
+                }
             } else {
                 toast.error(result.message || 'Registration failed');
             }
@@ -255,10 +265,13 @@ const B2BUserRegister = () => {
                             <input
                                 type="tel"
                                 name="phone"
+                                readOnly={!!location.state?.phone}
                                 value={formData.phone}
                                 onChange={handleChange}
                                 placeholder="9876543210"
-                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${errors.phone ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${
+                                    location.state?.phone ? 'opacity-70 cursor-not-allowed' : ''
+                                } ${errors.phone ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
                                     }`}
                             />
                         </div>

@@ -22,7 +22,7 @@ export const register = asyncHandler(async (req, res) => {
     res.status(201).json({
         success: true,
         message: result.message,
-        data: { email: result.email }
+        data: result
     });
 });
 
@@ -59,12 +59,15 @@ export const login = asyncHandler(async (req, res) => {
             data: result
         });
     } catch (error) {
-        if (error.code === 'EMAIL_NOT_VERIFIED') {
+        if (error.code === 'EMAIL_NOT_VERIFIED' || error.code === 'PHONE_NOT_VERIFIED') {
             return res.status(403).json({
                 success: false,
                 message: error.message,
                 code: error.code,
-                data: { email: error.email }
+                data: { 
+                    email: error.email,
+                    phone: error.phone
+                }
             });
         }
         throw error;
@@ -183,6 +186,107 @@ export const resetPassword = asyncHandler(async (req, res) => {
     const { identifier, email, otp, newPassword } = req.body;
     const lookupId = identifier || email;
     await resetUserPassword(lookupId, otp, newPassword);
+    res.status(200).json({
+        success: true,
+        message: 'Password reset successfully'
+    });
+});
+
+/**
+ * Reset Password by Phone
+ * POST /api/auth/user/reset-password-phone
+ */
+export const resetPasswordByPhone = asyncHandler(async (req, res) => {
+    const { phoneNumber, otp, newPassword } = req.body;
+
+    if (!phoneNumber || !otp || !newPassword) {
+        return res.status(400).json({
+            success: false,
+            message: 'Phone number, OTP, and new password are required'
+        });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({
+            success: false,
+            message: 'Password must be at least 6 characters'
+        });
+    }
+
+    // Normalize phone number - try both with and without +91
+    const normalizedPhone = phoneNumber.startsWith('+91')
+        ? phoneNumber
+        : `+91${phoneNumber}`;
+    const phoneWithoutCode = phoneNumber.replace(/^\+91/, '');
+
+    // Import here to avoid circular dependency
+    const SMSOTP = (await import('../models/SMSOTP.model.js')).default;
+    const User = (await import('../models/User.model.js')).default;
+
+    // Find the latest OTP for this phone number
+    let storedOtp = await SMSOTP.findOne({
+        phoneNumber: normalizedPhone,
+        purpose: { $in: ['password_reset', 'verification', 'login', 'registration'] }
+    }).sort({ createdAt: -1 });
+
+    if (!storedOtp) {
+        // Try without +91
+        const otpWithoutCode = await SMSOTP.findOne({
+            phoneNumber: phoneWithoutCode,
+            purpose: { $in: ['password_reset', 'verification', 'login', 'registration'] }
+        }).sort({ createdAt: -1 });
+
+        if (!otpWithoutCode) {
+            return res.status(404).json({
+                success: false,
+                message: 'OTP not found. Please request a new one.'
+            });
+        }
+        storedOtp = otpWithoutCode;
+    }
+
+    // Check expiry
+    if (new Date() > storedOtp.expiresAt) {
+        return res.status(403).json({
+            success: false,
+            message: 'OTP has expired. Please request a new one.'
+        });
+    }
+
+    // Check if OTP matches
+    if (storedOtp.otp !== otp) {
+        return res.status(401).json({
+            success: false,
+            message: 'Invalid OTP'
+        });
+    }
+
+    // Find user by phone - try multiple formats
+    let user = await User.findOne({
+        $or: [
+            { phone: normalizedPhone },
+            { phone: phoneWithoutCode },
+            { phone: `+91${phoneWithoutCode}` }
+        ]
+    });
+
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            message: 'User not found with this phone number'
+        });
+    }
+
+    // Hash and save new password
+    const { hashPassword } = await import('../utils/bcrypt.util.js');
+    user.password = await hashPassword(newPassword);
+    await user.save();
+
+    // Clean up used OTPs (both formats)
+    await SMSOTP.deleteMany({
+        phoneNumber: { $in: [normalizedPhone, phoneWithoutCode, `+91${phoneWithoutCode}`] }
+    });
+
     res.status(200).json({
         success: true,
         message: 'Password reset successfully'

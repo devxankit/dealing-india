@@ -80,11 +80,7 @@ const SellerTypeSelection = () => {
             // Case 3: No vendor account exists - Register new B2B vendor
             navigate('/b2b-vendor/register', {
                 state: {
-                    preFilledData: {
-                        name: user.name,
-                        email: user.email,
-                        phone: user.phone
-                    },
+                    userData: user,
                     isUpgrade: true
                 }
             });

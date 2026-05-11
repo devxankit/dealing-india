@@ -1,29 +1,38 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiArrowLeft, FiCheck, FiMail } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiPhone, FiLock } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
+import { useAuthStore } from '../../../shared/store/authStore';
 
 const B2BVendorVerification = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [codes, setCodes] = useState(['', '', '', '', '', '']); // 6 digit OTP
     const [isLoading, setIsLoading] = useState(false);
+    const [cooldown, setCooldown] = useState(30);
     const inputRefs = useRef([]);
-    const { verifyEmail, resendOTP } = useB2BVendorAuthStore();
+    const { verifyOTP, sendOTP } = useAuthStore();
 
-    const email = location.state?.email;
+    const phone = location.state?.phone;
 
     useEffect(() => {
-        if (!email) {
+        if (!phone) {
             toast.error('Session expired. Please register again.');
             navigate('/b2b-vendor/register');
         }
         if (inputRefs.current[0]) {
             inputRefs.current[0].focus();
         }
-    }, [email, navigate]);
+    }, [phone, navigate]);
+
+    useEffect(() => {
+        let timer;
+        if (cooldown > 0) {
+            timer = setInterval(() => setCooldown(c => c - 1), 1000);
+        }
+        return () => clearInterval(timer);
+    }, [cooldown]);
 
     const handleChange = (index, value) => {
         const cleanedValue = value.trim();
@@ -34,7 +43,6 @@ const B2BVendorVerification = () => {
             return;
         }
 
-        // Handle pasting multiple characters or auto-fill
         if (cleanedValue.length > 1) {
             const pasteData = cleanedValue.slice(0, 6);
             if (!/^\d+$/.test(pasteData)) return;
@@ -50,7 +58,6 @@ const B2BVendorVerification = () => {
             return;
         }
 
-        // Handle single character input
         if (!/^\d+$/.test(cleanedValue)) return;
         
         const newCodes = [...codes];
@@ -88,40 +95,43 @@ const B2BVendorVerification = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const otp = codes.join('');
-        if (otp.length !== 6) {
-            toast.error('Please enter the complete 6-digit code');
-            return;
-        }
+        if (otp.length !== 6) return;
 
         setIsLoading(true);
         try {
-            const result = await verifyEmail(email, otp);
+            const result = await verifyOTP(phone, otp);
             if (result.success) {
-                toast.success('Registration successful! Your account is now waiting for admin approval.', {
-                    duration: 8000
+                toast.success('Mobile verified successfully! You can now login. Your account is subject to admin approval.', {
+                    duration: 5000
                 });
+                // Clear session storage data
+                sessionStorage.removeItem('b2b_registration_data');
+                sessionStorage.removeItem('b2b_registration_license');
+                sessionStorage.removeItem('b2b_registration_pan');
+
+                // Redirect to login page with success message
                 navigate('/b2b-vendor/login', {
                     state: {
-                        message: 'Registration successful! Your account is pending admin approval. You will be able to login once approved.',
-                        email: email,
-                        autoFill: true
-                    }
+                        phone: phone.replace('+91', ''),
+                        message: 'Mobile verified! Please login with your email and password. Your account may be subject to admin approval.'
+                    },
+                    replace: true
                 });
-            } else {
-                toast.error(result.message || 'Verification failed');
             }
         } catch (error) {
-            toast.error(error.message || 'Something went wrong. Please try again.');
+            toast.error(error.message || 'Invalid OTP. Please try again.');
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleResend = async () => {
+        if (cooldown > 0) return;
         try {
-            const result = await resendOTP(email);
+            const result = await sendOTP(phone);
             if (result.success) {
                 toast.success('Verification code resent successfully');
+                setCooldown(30);
             }
         } catch (error) {
             toast.error(error.message || 'Failed to resend code');
@@ -133,21 +143,31 @@ const B2BVendorVerification = () => {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-[2rem] p-6 sm:p-8 w-full max-w-sm shadow-2xl"
+                className="bg-white rounded-[2rem] p-6 sm:p-8 w-full max-w-sm shadow-2xl relative overflow-hidden"
             >
-                <div className="text-center mb-6">
-                    <div className="w-14 h-14 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-50">
-                        <FiMail className="text-primary-600 text-2xl" />
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary-400 to-primary-600"></div>
+
+                <button
+                    onClick={() => navigate('/b2b-vendor/register')}
+                    className="absolute top-4 left-4 p-2 text-gray-400 hover:text-primary-600 transition-colors z-10"
+                    title="Go Back"
+                >
+                    <FiArrowLeft size={22} />
+                </button>
+
+                <div className="text-center mb-8">
+                    <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-50">
+                        <FiLock className="text-primary-600 text-2xl" />
                     </div>
-                    <h1 className="text-2xl font-extrabold text-gray-800 mb-1">Verify Access</h1>
-                    <p className="text-sm text-gray-500 font-medium px-4">
-                        Code sent to <br />
-                        <span className="font-bold text-gray-800">{email}</span>
+                    <h1 className="text-2xl font-black text-gray-800 mb-2">Vendor Verification</h1>
+                    <p className="text-sm text-gray-500 font-medium leading-relaxed px-4">
+                        We've sent a 6-digit code to <br />
+                        <span className="font-bold text-primary-600 text-base">{phone}</span>
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="flex justify-center gap-2">
+                <form onSubmit={handleSubmit} className="space-y-8">
+                    <div className="flex justify-center gap-2.5">
                         {codes.map((code, index) => (
                             <input
                                 key={index}
@@ -158,32 +178,35 @@ const B2BVendorVerification = () => {
                                 onChange={(e) => handleChange(index, e.target.value)}
                                 onKeyDown={(e) => handleKeyDown(index, e)}
                                 onPaste={handlePaste}
-                                autoComplete="one-time-code"
-                                className="w-10 h-12 text-center text-xl font-extrabold bg-gray-50 border-2 border-transparent rounded-xl focus:outline-none focus:border-primary-500 focus:bg-white text-gray-800 transition-all shadow-sm"
+                                maxLength={1}
+                                className="w-10 h-12 text-center text-xl font-black bg-gray-50 border-2 border-transparent rounded-xl focus:outline-none focus:border-primary-500 focus:bg-white text-gray-800 transition-all shadow-sm"
                             />
                         ))}
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={isLoading || codes.some(code => !code)}
-                        className="w-full bg-primary-600 text-white py-3 rounded-xl font-bold text-base hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                        {isLoading ? 'Verifying...' : <><FiCheck className="text-lg" /> Complete Verification</>}
-                    </button>
-
-                    <div className="text-center">
+                    <div className="space-y-4">
                         <button
-                            type="button"
-                            onClick={handleResend}
-                            className="text-sm font-bold text-primary-600 hover:underline"
+                            type="submit"
+                            disabled={isLoading || codes.some(code => !code)}
+                            className="w-full bg-primary-600 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transform active:scale-[0.98]"
                         >
-                            Didn't receive? Resend Code
+                            {isLoading ? 'Verifying...' : <><FiCheck className="text-lg" /> Verify & Continue</>}
                         </button>
+
+                        <div className="text-center">
+                            <button
+                                type="button"
+                                onClick={handleResend}
+                                disabled={cooldown > 0}
+                                className="text-xs font-bold text-primary-600 hover:text-primary-700 disabled:text-gray-400 transition-colors uppercase tracking-wider"
+                            >
+                                {cooldown > 0 ? `Resend code in ${cooldown}s` : "Didn't receive? Resend Code"}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="text-center pt-4 border-t border-gray-100">
-                        <Link to="/b2b-vendor/login" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-800 transition-colors">
+                        <Link to="/b2b-vendor/login" className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-wider">
                             <FiArrowLeft /> Back to Login
                         </Link>
                     </div>

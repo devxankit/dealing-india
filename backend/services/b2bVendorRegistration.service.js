@@ -10,6 +10,8 @@ import mongoose from 'mongoose';
 import subscriptionService from './subscription.service.js';
 import { geocodeAddress } from '../utils/geocoding.util.js';
 import { ensureReferralCodeForOwner } from './referral.service.js';
+import SMSOTP from '../models/SMSOTP.model.js';
+import smsService from './sms.service.js';
 
 /**
  * Register B2B vendor without immediate subscription/payment
@@ -129,7 +131,8 @@ export const registerB2BVendor = async (vendorData) => {
       gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
       vendorType: 'b2b',
       status: 'pending',
-      isEmailVerified: false,
+      isEmailVerified: true, // We trust email for B2B phone flow
+      isPhoneVerified: false, // Must verify phone via OTP
       isActive: true,
       role: 'vendor',
       commissionRate: 0,
@@ -153,24 +156,40 @@ export const registerB2BVendor = async (vendorData) => {
     const vendor = await Vendor.create([newVendorData], { session });
     const createdVendor = vendor[0];
 
-    try {
-      await notificationService.sendBulkNotification({
-        type: 'vendor_registration',
-        title: 'New B2B Vendor Registration',
-        message: 'New vendor registration request received.',
-        actionUrl: `/admin/b2b-vendors/pending`,
-        metadata: { vendorId: createdVendor._id.toString(), vendorName: createdVendor.businessName || createdVendor.storeName, email: createdVendor.email, vendorType: 'b2b' }
-      }, 'admins');
-    } catch (e) { console.error('Notification failed:', e.message); }
+    // NOTE: Admin notification moved to OTP verification flow in auth.controller.js
+    // Notification will be sent only AFTER phone verification is complete
 
     await session.commitTransaction();
     await ensureReferralCodeForOwner({ userId: createdVendor._id, userModel: 'Vendor' });
+
+    // Generate 6-digit OTP for phone
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    
+    const fullPhone = phone.startsWith('+91') ? phone : `+91${phone}`;
+
+    await SMSOTP.create({
+        phoneNumber: fullPhone,
+        otp,
+        expiresAt,
+        purpose: 'registration'
+    });
+
+    // Send SMS
+    await smsService.sendOTP(fullPhone, otp);
 
     const token = generateToken({ vendorId: createdVendor._id.toString(), email: createdVendor.email, role: createdVendor.role });
     const vendorObj = createdVendor.toObject();
     delete vendorObj.password;
 
-    return { vendor: vendorObj, token };
+    return { 
+      success: true, 
+      message: 'Registration successful! Please verify your mobile number.',
+      otpSent: true,
+      phone: fullPhone,
+      vendor: vendorObj, 
+      token 
+    };
   } catch (error) {
     await session.abortTransaction();
     throw error;

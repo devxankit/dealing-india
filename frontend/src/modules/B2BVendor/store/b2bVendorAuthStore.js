@@ -132,6 +132,9 @@ export const useB2BVendorAuthStore = create(
                         errorMessage = 'Invalid email or password';
                     } else if (error.response?.status === 403) {
                         errorMessage = error.response?.data?.message || 'Account is not approved or inactive. Please contact support.';
+                    } else if (error.response?.data?.code === 'PHONE_NOT_VERIFIED') {
+                        // Don't show generic error for phone not verified - let the login page handle it
+                        errorMessage = 'Phone not verified';
                     } else if (error.response?.data?.message) {
                         errorMessage = error.response.data.message;
                     } else if (error.message) {
@@ -139,7 +142,13 @@ export const useB2BVendorAuthStore = create(
                     }
 
                     set({ loading: false, error: errorMessage });
-                    return { success: false, message: errorMessage };
+                    return { 
+                        success: false, 
+                        message: errorMessage,
+                        code: error.response?.data?.code,
+                        data: error.response?.data?.data,
+                        expiredDate: error.response?.data?.expiredDate
+                    };
                 }
             },
 

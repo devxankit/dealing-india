@@ -10,6 +10,8 @@ import {
     validateReferralCode,
     processSuccessfulUserReferral,
 } from './referral.service.js';
+import SMSOTP from '../models/SMSOTP.model.js';
+import smsService from './sms.service.js';
 
 /**
  * Register a new user
@@ -29,12 +31,71 @@ export const registerUser = async (userData) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
         const error = new Error('User with this email already exists');
-        error.status = 400;
+        error.status = 409;
         throw error;
     }
 
     // Hash password (uses util with 10 rounds for performance)
     const hashedPassword = await hashPassword(password);
+
+    // If it's a B2B user and they've already verified their phone (via the new OTP flow)
+    // we can create the user directly.
+    if (userType === 'b2b') {
+        const user = await User.create({
+            name,
+            email,
+            password: hashedPassword,
+            phone,
+            currentMarketplace: 'b2b',
+            businessInfo,
+            role: 'user',
+            referralCode: normalizedReferralCode || undefined,
+            agreedToTerms: !!agreedToTerms,
+            isEmailVerified: true, // We trust email as they will verify phone
+            isPhoneVerified: false, // Must verify phone via OTP
+            isActive: true
+        });
+
+        await ensureReferralCodeForOwner({ userId: user._id, userModel: 'User' });
+
+        if (normalizedReferralCode) {
+            try {
+                await processSuccessfulUserReferral({
+                    referredUserId: user._id,
+                    referralCode: normalizedReferralCode,
+                });
+            } catch (referralError) {
+                console.error('Referral processing skipped:', referralError.message);
+            }
+        }
+
+        // Generate 6-digit OTP for phone
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+        
+        const fullPhone = phone.startsWith('+91') ? phone : `+91${phone}`;
+
+        await SMSOTP.create({
+            phoneNumber: fullPhone,
+            otp,
+            expiresAt
+        });
+
+        // Send SMS
+        await smsService.sendOTP(fullPhone, otp);
+
+        // Send welcome email (Background)
+        sendWelcomeEmail(user.email, user.name).catch(e => console.error('BG Email Error:', e.message));
+
+        return {
+            success: true,
+            message: 'Registration successful! Please verify your mobile number.',
+            otpSent: true,
+            phone: fullPhone,
+            user
+        };
+    }
+
     await TemporaryRegistration.findOneAndUpdate(
         { email, registrationType: 'user' },
         {
@@ -144,42 +205,61 @@ export const verifyUserEmail = async (email, otp) => {
  * Login user
  */
 export const loginUser = async (identifier, password) => {
-    // 1. Try exact match first
+    // 1. Unified lookup (email, exact phone, and variations)
+    const normalizedIdentifier = identifier.trim().toLowerCase();
+    
     let user = await User.findOne({
-        $or: [{ email: identifier }, { phone: identifier }]
+        $or: [
+            { email: normalizedIdentifier },
+            { phone: identifier },
+            { phone: identifier.replace('+91', '') },
+            { phone: '+91' + identifier.replace(/^\+91/, '') }
+        ]
     }).select('+password');
 
-    // 2. Try variations if exact match not found
-    if (!user && identifier) {
-        let fallbackConditions = [];
-        if (identifier.startsWith('+91')) {
-            fallbackConditions.push({ phone: identifier.replace('+91', '') });
-        } else {
-            fallbackConditions.push({ phone: '+91' + identifier });
-        }
-        if (fallbackConditions.length > 0) {
-            user = await User.findOne({ $or: fallbackConditions }).select('+password');
-        }
-    }
-
     if (!user) {
-        throw new Error('user not found please register');
+        const error = new Error('User not found. Please register.');
+        error.status = 404;
+        throw error;
     }
 
     const isPasswordMatch = await comparePassword(password, user.password);
     if (!isPasswordMatch) {
-        throw new Error('Invalid credentials');
+        const error = new Error('Invalid credentials');
+        error.status = 401;
+        throw error;
     }
 
-    if (!user.isEmailVerified) {
+    if (user.currentMarketplace === 'b2b' && !user.isPhoneVerified) {
+        // Generate new OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+        const fullPhone = user.phone.startsWith('+91') ? user.phone : `+91${user.phone}`;
+
+        await SMSOTP.create({
+            phoneNumber: fullPhone,
+            otp,
+            expiresAt
+        });
+
+        await smsService.sendOTP(fullPhone, otp);
+
+        const error = new Error('Please verify your mobile number. A new OTP has been sent.');
+        error.status = 403;
+        error.code = 'PHONE_NOT_VERIFIED';
+        error.phone = fullPhone;
+        throw error;
+    }
+
+    if (!user.isEmailVerified && user.currentMarketplace !== 'b2b') {
         // Generate new OTP and tell them to verify
         const otp = await generateOTP(user.email, 'email_verification');
         sendVerificationEmail(user.email, otp).catch(e => console.error('BG Email Error:', e.message));
-        throw {
-            message: 'Please verify your email. A new OTP has been sent.',
-            code: 'EMAIL_NOT_VERIFIED',
-            email: user.email
-        };
+        const error = new Error('Please verify your email. A new OTP has been sent.');
+        error.status = 403;
+        error.code = 'EMAIL_NOT_VERIFIED';
+        error.email = user.email;
+        throw error;
     }
 
     // Generate token
