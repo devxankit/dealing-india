@@ -140,10 +140,16 @@ export const verifyOTP = asyncHandler(async (req, res) => {
       });
     }
 
-    // Mark as verified in both collections if found
+    // Mark as verified in both collections if found - using multiple phone formats for matching
+    const phoneFormats = [
+        phoneNumber,
+        phoneNumber.replace('+91', ''),
+        '+91' + phoneNumber.replace(/^\+91/, '')
+    ];
+
     await Promise.all([
-      User.updateOne({ phone: phoneNumber }, { $set: { isPhoneVerified: true } }),
-      Vendor.updateOne({ phone: phoneNumber }, { $set: { isPhoneVerified: true } })
+        User.updateMany({ phone: { $in: phoneFormats } }, { $set: { isPhoneVerified: true } }),
+        Vendor.updateMany({ phone: { $in: phoneFormats } }, { $set: { isPhoneVerified: true } })
     ]);
 
     // Ensure we have the latest profile data for the response
@@ -251,8 +257,18 @@ export const resetPasswordByPhone = asyncHandler(async (req, res) => {
 
     // Hash new password
     const hashedPassword = await hashPassword(newPassword);
-    user.password = hashedPassword;
-    await user.save();
+    
+    // Update both collections if found - using multiple phone formats for matching
+    const phoneFormats = [
+        phoneNumber,
+        phoneNumber.replace('+91', ''),
+        '+91' + phoneNumber.replace(/^\+91/, '')
+    ];
+
+    await Promise.all([
+        User.updateMany({ phone: { $in: phoneFormats } }, { $set: { password: hashedPassword, isPhoneVerified: true } }),
+        Vendor.updateMany({ phone: { $in: phoneFormats } }, { $set: { password: hashedPassword, isPhoneVerified: true } })
+    ]);
 
     // Clean up used OTPs
     await SMSOTP.deleteMany({ phoneNumber });

@@ -351,7 +351,27 @@ export const loginVendor = async (identifier, password) => {
       throw error;
     }
 
+    // Check if vendor is approved (vendors can only login if approved)
+    if (vendor.status !== 'approved') {
+      console.log(`[Login Blocked] Account not approved - Status: ${vendor.status} for: ${identifier}`);
+      const error = new Error(
+        `Vendor account is ${vendor.status}. Please wait for admin approval before logging in.`
+      );
+      error.statusCode = 403;
+      throw error;
+    }
+
+    // Verify password first as it's the most expensive operation
+    // AND to prevent sending OTPs for incorrect password attempts
+    const isPasswordValid = await comparePassword(password, vendor.password);
+    if (!isPasswordValid) {
+      const error = new Error('Invalid email or password');
+      error.statusCode = 401;
+      throw error;
+    }
+
     // Check if phone is verified
+    // Only force verification for B2B vendors or if specifically required
     if (!vendor.isPhoneVerified) {
       // Generate new OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -371,24 +391,6 @@ export const loginVendor = async (identifier, password) => {
       error.statusCode = 403;
       error.code = 'PHONE_NOT_VERIFIED';
       error.phone = fullPhone;
-      throw error;
-    }
-
-    // Check if vendor is approved (vendors can only login if approved)
-    if (vendor.status !== 'approved') {
-      console.log(`[Login Blocked] Account not approved - Status: ${vendor.status} for: ${identifier}`);
-      const error = new Error(
-        `Vendor account is ${vendor.status}. Please wait for admin approval before logging in.`
-      );
-      error.statusCode = 403;
-      throw error;
-    }
-
-    // Verify password first as it's the most expensive operation
-    const isPasswordValid = await comparePassword(password, vendor.password);
-    if (!isPasswordValid) {
-      const error = new Error('Invalid email or password');
-      error.statusCode = 401;
       throw error;
     }
 

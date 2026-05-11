@@ -368,6 +368,7 @@ export const resetPasswordByPhone = async (req, res, next) => {
     // Hash and save new password
     const { hashPassword } = await import('../utils/bcrypt.util.js');
     vendor.password = await hashPassword(newPassword);
+    vendor.isPhoneVerified = true; // Since they verified via OTP to reset
     await vendor.save();
 
     // Clean up used OTPs (both formats)

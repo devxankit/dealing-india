@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList, FiCamera, FiCheck } from "react-icons/fi";
+import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList, FiCamera, FiCheck, FiSearch, FiChevronDown } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
@@ -28,7 +28,12 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const cameraInputRef = useRef(null);
     const [errors, setErrors] = useState({});
     const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
-
+    const [isCategorySearchOpen, setIsCategorySearchOpen] = useState(false);
+    const [isSubcategorySearchOpen, setIsSubcategorySearchOpen] = useState(false);
+    const [categorySearchQuery, setCategorySearchQuery] = useState("");
+    const [subcategorySearchQuery, setSubcategorySearchQuery] = useState("");
+    const categoryDropdownRef = useRef(null);
+    const subcategoryDropdownRef = useRef(null);
 
     // Lock scroll when unit selection modal is open
     useScrollLock(isUnitDropdownOpen);
@@ -91,6 +96,19 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     }, [vendorId, isEdit, isDraftLoaded]);
 
     // Auto-save draft
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+                setIsCategorySearchOpen(false);
+            }
+            if (subcategoryDropdownRef.current && !subcategoryDropdownRef.current.contains(event.target)) {
+                setIsSubcategorySearchOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     useEffect(() => {
         if (!isEdit && isDraftLoaded) {
             try {
@@ -596,48 +614,144 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                 {errors.name && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.name}</p>}
                             </div>
 
-                            <div className="md:col-span-1">
+                            <div className="md:col-span-1 relative" ref={categoryDropdownRef}>
                                 <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Category <span className="text-red-500">*</span></label>
-                                <select
-                                    name="category"
-                                    value={formData.category}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            category: val,
-                                            // Reset subcategory if category changes
-                                            subcategory: val === '__OTHER_CAT__' ? '' : prev.subcategory
-                                        }));
-                                    }}
-                                    disabled={categoriesLoading}
-                                    className={`w-full px-4 py-2.5 bg-slate-50 border ${errors.category ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-50`}
+                                
+                                <div 
+                                    onClick={() => !categoriesLoading && setIsCategorySearchOpen(!isCategorySearchOpen)}
+                                    className={`w-full px-4 py-2.5 bg-slate-50 border ${errors.category ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus-within:border-primary-500 focus-within:bg-white rounded-xl transition-all cursor-pointer flex justify-between items-center ${categoriesLoading ? 'opacity-50' : ''}`}
                                 >
-                                    <option value="">{categoriesLoading ? "Loading categories..." : "Select Category"}</option>
-                                    {categories.map((cat) => (
-                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
-                                    ))}
-                                </select>
+                                    <span className={`truncate ${!formData.category ? 'text-gray-400' : 'text-gray-800'}`}>
+                                        {categoriesLoading ? "Loading..." : (formData.category || "Select Category")}
+                                    </span>
+                                    <FiChevronDown className={`text-gray-400 transition-transform ${isCategorySearchOpen ? 'rotate-180' : ''}`} />
+                                </div>
+
+                                <AnimatePresence>
+                                    {isCategorySearchOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="absolute z-[100] w-full mt-2 bg-white border border-gray-100 shadow-xl rounded-2xl overflow-hidden"
+                                        >
+                                            <div className="p-3 border-b border-gray-50">
+                                                <div className="relative">
+                                                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                    <input 
+                                                        autoFocus
+                                                        type="text"
+                                                        placeholder="Search category..."
+                                                        value={categorySearchQuery}
+                                                        onChange={(e) => setCategorySearchQuery(e.target.value)}
+                                                        className="w-full pl-9 pr-4 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary-500/20 outline-none"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="max-h-60 overflow-y-auto p-2 custom-scrollbar">
+                                                {categories
+                                                    .filter(cat => cat.name.toLowerCase().includes(categorySearchQuery.toLowerCase()))
+                                                    .map((cat) => (
+                                                        <button
+                                                            key={cat.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    category: cat.name,
+                                                                    subcategory: "" // Reset subcategory
+                                                                }));
+                                                                setIsCategorySearchOpen(false);
+                                                                setCategorySearchQuery("");
+                                                                if (errors.category) setErrors(prev => ({ ...prev, category: null }));
+                                                            }}
+                                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-colors ${
+                                                                formData.category === cat.name 
+                                                                ? 'bg-primary-50 text-primary-700 font-bold' 
+                                                                : 'text-gray-600 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            {cat.name}
+                                                        </button>
+                                                    ))}
+                                                {categories.filter(cat => cat.name.toLowerCase().includes(categorySearchQuery.toLowerCase())).length === 0 && (
+                                                    <div className="p-4 text-center text-gray-400 text-sm italic">
+                                                        No categories found
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                                 {errors.category && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.category}</p>}
                             </div>
 
-                            <div className="md:col-span-1">
+                            <div className="md:col-span-1 relative" ref={subcategoryDropdownRef}>
                                 <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Subcategory</label>
-                                <select
-                                    name="subcategory"
-                                    value={formData.subcategory}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        setFormData(prev => ({ ...prev, subcategory: val }));
-                                    }}
-                                    disabled={!formData.category || (formData.category !== '__OTHER_CAT__' && subcategories.length === 0)}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-50"
+                                
+                                <div 
+                                    onClick={() => formData.category && subcategories.length > 0 && setIsSubcategorySearchOpen(!isSubcategorySearchOpen)}
+                                    className={`w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus-within:border-primary-500 focus-within:bg-white rounded-xl transition-all flex justify-between items-center ${(!formData.category || subcategories.length === 0) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                                 >
-                                    <option value="">Select Subcategory</option>
-                                    {subcategories.map((sub, index) => (
-                                        <option key={index} value={sub.name}>{sub.name}</option>
-                                    ))}
-                                </select>
+                                    <span className={`truncate ${!formData.subcategory ? 'text-gray-400' : 'text-gray-800'}`}>
+                                        {formData.subcategory || "Select Subcategory"}
+                                    </span>
+                                    <FiChevronDown className={`text-gray-400 transition-transform ${isSubcategorySearchOpen ? 'rotate-180' : ''}`} />
+                                </div>
+
+                                <AnimatePresence>
+                                    {isSubcategorySearchOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="absolute z-[100] w-full mt-2 bg-white border border-gray-100 shadow-xl rounded-2xl overflow-hidden"
+                                        >
+                                            <div className="p-3 border-b border-gray-50">
+                                                <div className="relative">
+                                                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                    <input 
+                                                        autoFocus
+                                                        type="text"
+                                                        placeholder="Search subcategory..."
+                                                        value={subcategorySearchQuery}
+                                                        onChange={(e) => setSubcategorySearchQuery(e.target.value)}
+                                                        className="w-full pl-9 pr-4 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-primary-500/20 outline-none"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="max-h-60 overflow-y-auto p-2 custom-scrollbar">
+                                                {subcategories
+                                                    .filter(sub => sub.name.toLowerCase().includes(subcategorySearchQuery.toLowerCase()))
+                                                    .map((sub, index) => (
+                                                        <button
+                                                            key={index}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFormData(prev => ({ ...prev, subcategory: sub.name }));
+                                                                setIsSubcategorySearchOpen(false);
+                                                                setSubcategorySearchQuery("");
+                                                            }}
+                                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-colors ${
+                                                                formData.subcategory === sub.name 
+                                                                ? 'bg-primary-50 text-primary-700 font-bold' 
+                                                                : 'text-gray-600 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            {sub.name}
+                                                        </button>
+                                                    ))}
+                                                {subcategories.filter(sub => sub.name.toLowerCase().includes(subcategorySearchQuery.toLowerCase())).length === 0 && (
+                                                    <div className="p-4 text-center text-gray-400 text-sm italic">
+                                                        No subcategories found
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
 
                             {/* Dynamic Fields Rendering Section */}

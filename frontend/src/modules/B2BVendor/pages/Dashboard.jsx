@@ -13,7 +13,8 @@ import {
     FiCalendar,
     FiMapPin,
     FiArrowUpRight,
-    FiCreditCard
+    FiCreditCard,
+    FiVideo
 } from "react-icons/fi";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../hooks/useVendorSettings";
@@ -41,7 +42,8 @@ const B2BVendorDashboard = () => {
         counts: {
             products: dashboardData?.counts?.products || { total: 0, approved: 0, pending: 0 },
             lotSlot: dashboardData?.counts?.lotSlot || { total: 0, approved: 0, pending: 0 },
-            properties: dashboardData?.counts?.properties || { total: 0, approved: 0, pending: 0 }
+            properties: dashboardData?.counts?.properties || { total: 0, approved: 0, pending: 0 },
+            reels: dashboardData?.counts?.reels || { total: 0, approved: 0, pending: 0 }
         },
         subscriptions: dashboardData?.subscriptions || [],
         banners: dashboardData?.banners || [],
@@ -101,6 +103,7 @@ const B2BVendorDashboard = () => {
         enableLotSlotListing: settings.enabledModules?.includes('lotslot') || false,
         enableBanner: settings.enabledModules?.includes('banner'),
         enableShopListing: settings.enabledModules?.includes('shop-listing') || false,
+        enableReels: true, // Reels are currently always enabled for vendors
 
         // Subscription Flags (Usually map to listing modules)
         enableProductSubscription: settings.enabledModules?.includes('product'),
@@ -282,6 +285,23 @@ const B2BVendorDashboard = () => {
                                             <p className="text-4xl font-black text-slate-900">{dashboard.counts.lotSlot.total}</p>
                                             <div className="text-right">
                                                 <p className="text-[10px] font-bold text-emerald-500 uppercase">{dashboard.counts.lotSlot.approved} Active</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {config.enableReels && (
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden">
+                                        <div className="flex justify-between items-start mb-6">
+                                            <div className="p-3 bg-rose-100 text-rose-600 rounded-xl"><FiVideo size={24} /></div>
+                                            <button onClick={() => navigate('/b2b-vendor/reels')} className="text-slate-400 hover:text-slate-900"><FiArrowUpRight size={20} /></button>
+                                        </div>
+                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Reels & Media</h3>
+                                        <div className="flex items-end justify-between">
+                                            <p className="text-4xl font-black text-slate-900">{dashboard.counts.reels.total}</p>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-bold text-emerald-500 uppercase">{dashboard.counts.reels.approved} Approved</p>
+                                                <p className="text-[10px] font-bold text-amber-500 uppercase">{dashboard.counts.reels.pending} Review</p>
                                             </div>
                                         </div>
                                     </div>

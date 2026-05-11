@@ -8,6 +8,7 @@ import Vendor from '../models/Vendor.model.js';
 import ShopUnit from '../models/ShopUnit.model.js';
 import SecureDeal from '../models/SecureDeal.model.js';
 import VendorWallet from '../models/VendorWallet.model.js';
+import Reel from '../models/Reel.model.js';
 
 /**
  * Get B2B Vendor Dashboard Data
@@ -28,7 +29,8 @@ export const getDashboardData = async (req, res, next) => {
             vendorAnalytics,
             shop,
             pendingSecureDeals,
-            wallet
+            wallet,
+            totalReels, approvedReels
         ] = await Promise.all([
             Product.countDocuments({ vendorId }),
             Product.countDocuments({ vendorId, isActive: true }),
@@ -42,7 +44,9 @@ export const getDashboardData = async (req, res, next) => {
             Vendor.findById(vendorId).select('analytics').lean(),
             ShopUnit.findOne({ vendorId }).select('_id').lean(),
             SecureDeal.countDocuments({ sellerId: vendorId, status: 'pending' }),
-            VendorWallet.findOne({ vendorId }).select('balance').lean()
+            VendorWallet.findOne({ vendorId }).select('balance').lean(),
+            Reel.countDocuments({ uploaderId: vendorId, uploaderType: 'vendor' }),
+            Reel.countDocuments({ uploaderId: vendorId, uploaderType: 'vendor', status: 'approved' })
         ]);
 
         // Format Data for Frontend
@@ -73,6 +77,11 @@ export const getDashboardData = async (req, res, next) => {
                 },
                 secureDeals: {
                     pending: pendingSecureDeals
+                },
+                reels: {
+                    total: totalReels,
+                    approved: approvedReels,
+                    pending: totalReels - approvedReels
                 }
             },
             subscriptions: subscriptions.map(sub => ({
