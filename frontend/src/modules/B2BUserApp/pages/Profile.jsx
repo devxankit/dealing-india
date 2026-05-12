@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag, FiX, FiCopy, FiShare2, FiInstagram, FiFacebook, FiYoutube, FiPlayCircle, FiShield, FiPhoneCall, FiMail, FiMessageSquare } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import { handleShare } from '../../../shared/utils/share';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import { useAuthStore } from '../../../shared/store/authStore';
@@ -69,6 +70,15 @@ const Profile = () => {
         }
     }, [user?._id]);
 
+    const handleShareReferral = async () => {
+        if (!referralData?.referralLink) return;
+        await handleShare({
+            title: 'Join Dealing India',
+            text: `Join Dealing India using my referral code: ${referralData.referralCode}`,
+            url: referralData.referralLink,
+        });
+    };
+
     const copyReferralLink = async () => {
         if (!referralData?.referralLink) return;
         try {
@@ -126,17 +136,13 @@ const Profile = () => {
                         >
                             <FiCopy /> Copy Link
                         </button>
-                        <a
-                            href={referralData?.whatsappShareLink || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => {
-                                if (!referralData?.whatsappShareLink) e.preventDefault();
-                            }}
-                            className="px-3 py-2 rounded-xl bg-emerald-900/30 text-white text-xs font-bold flex items-center gap-2 border border-white/20"
+                        <button
+                            onClick={handleShareReferral}
+                            disabled={!referralData?.referralLink}
+                            className="px-3 py-2 rounded-xl bg-emerald-900/30 text-white text-xs font-bold flex items-center gap-2 border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <FiShare2 /> WhatsApp
-                        </a>
+                            <FiShare2 /> Share
+                        </button>
                     </div>
                 </div>
 

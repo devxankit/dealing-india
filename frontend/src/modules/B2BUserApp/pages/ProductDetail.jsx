@@ -13,8 +13,7 @@ import api from '../../../shared/utils/api';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 import { formatPrice, getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
-import { shareContentOnFlutter, isFlutterApp } from '../../../shared/utils/flutterBridge';
-import ShareModal from '../../../shared/components/ShareModal';
+import { handleShare } from '../../../shared/utils/share';
 
 const B2BProductDetail = () => {
     const { id } = useParams();
@@ -93,32 +92,12 @@ const B2BProductDetail = () => {
         window.open(`tel:+91${product.vendorId.phone}`, '_self');
     };
 
-    const handleShare = async () => {
-        const shareData = {
+    const handleShareClick = async () => {
+        await handleShare({
             title: product.name || 'Product Detail',
             text: `Check out this product on Dealing India: ${product.name || ''}`,
             url: window.location.href,
-        };
-
-        // 1. Try Flutter Native Share (If running inside Flutter App)
-        if (isFlutterApp()) {
-            const success = await shareContentOnFlutter(shareData);
-            if (success) return;
-        }
-
-        // 2. Try Web Share API (Requires HTTPS or localhost)
-        if (navigator.share) {
-            try {
-                await navigator.share(shareData);
-                return;
-            } catch (err) {
-                if (err.name === 'AbortError') return;
-                console.error('Web Share failed:', err);
-            }
-        }
-
-        // 3. Fallback for all other cases (Desktop/Unsupported Browsers): Open Custom Share Modal
-        setIsShareModalOpen(true);
+        });
     };
 
     const handleInquirySubmit = async (e) => {
@@ -255,7 +234,7 @@ const B2BProductDetail = () => {
                         <FiArrowLeft className="text-sm md:text-lg" /> Back to Catalog
                     </button>
                     <button 
-                        onClick={handleShare}
+                        onClick={handleShareClick}
                         className="p-2.5 md:p-3 bg-white shadow-sm border border-gray-100 rounded-full text-gray-400 hover:text-primary-600 transition-all active:scale-90"
                     >
                         <FiShare2 className="text-sm md:text-lg" />
@@ -504,16 +483,6 @@ const B2BProductDetail = () => {
             </main>
             <B2BBottomNav />
 
-            {/* Premium Share Modal */}
-            <ShareModal 
-                isOpen={isShareModalOpen} 
-                onClose={() => setIsShareModalOpen(false)} 
-                shareData={{
-                    title: product.name,
-                    text: `Check out this product on Dealing India: ${product.name}`,
-                    url: window.location.href
-                }}
-            />
         </div>
     );
 };

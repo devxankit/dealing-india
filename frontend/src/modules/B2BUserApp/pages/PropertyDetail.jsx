@@ -15,8 +15,7 @@ import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
 import { getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
 import { useAuthStore } from '../../../shared/store/authStore';
-import { shareContentOnFlutter, isFlutterApp } from '../../../shared/utils/flutterBridge';
-import ShareModal from '../../../shared/components/ShareModal';
+import { handleShare } from '../../../shared/utils/share';
 
 const PropertyDetail = () => {
     const { id } = useParams();
@@ -182,32 +181,12 @@ const PropertyDetail = () => {
          window.open(`tel:+91${sellerPhone}`, '_self');
     };
 
-    const handleShare = async () => {
-        const shareData = {
+    const handleShareClick = async () => {
+        await handleShare({
             title: property.title || 'Property Detail',
             text: `Check out this property: ${property.title || ''}\nPrice: ${formatPrice(property)}\n`,
             url: window.location.href,
-        };
-
-        // 1. Try Flutter Native Share (If running inside Flutter App)
-        if (isFlutterApp()) {
-            const success = await shareContentOnFlutter(shareData);
-            if (success) return;
-        }
-
-        // 2. Try Web Share API (Requires HTTPS or localhost)
-        if (navigator.share) {
-            try {
-                await navigator.share(shareData);
-                return;
-            } catch (err) {
-                if (err.name === 'AbortError') return;
-                console.error('Web Share failed:', err);
-            }
-        }
-
-        // 3. Fallback for all other cases (Desktop/Unsupported Browsers): Open Custom Share Modal
-        setIsShareModalOpen(true);
+        });
     };
 
     return (
@@ -223,7 +202,7 @@ const PropertyDetail = () => {
                     <div className="flex gap-3">
                         <button 
                             className="p-4 bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all text-gray-400 border border-gray-100 hover:text-primary-600" 
-                            onClick={handleShare}
+                            onClick={handleShareClick}
                             title="Share Property"
                         >
                             <FiShare2 />
@@ -670,16 +649,6 @@ const PropertyDetail = () => {
 
             <B2BBottomNav />
 
-            {/* Premium Share Modal */}
-            <ShareModal 
-                isOpen={isShareModalOpen} 
-                onClose={() => setIsShareModalOpen(false)} 
-                shareData={{
-                    title: property.title,
-                    text: `Check out this property: ${property.title}\nPrice: ${formatPrice(property)}`,
-                    url: window.location.href
-                }}
-            />
         </div>
     );
 };

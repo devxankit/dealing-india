@@ -10,6 +10,7 @@ import B2BBottomNav from "../components/Layout/B2BBottomNav";
 import { useAuthStore } from "../../../shared/store/authStore";
 import { useB2BCategoryStore } from "../../../shared/store/b2bCategoryStore";
 import { getWhatsAppUserDetailsSuffix } from "../../../shared/utils/helpers";
+import { handleShare } from "../../../shared/utils/share";
 
 export default function ReelFeed() {
   const navigate = useNavigate();
@@ -373,49 +374,16 @@ export default function ReelFeed() {
     return null;
   };
 
-  const openShareModal = () => {
+  const handleShareClick = async () => {
     if (!currentReel) return;
-    setShowShareModal(true);
-  };
-  const closeShareModal = () => setShowShareModal(false);
-
-  const copyLink = async () => {
     const url = getShareUrl();
-    if (!url) return;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link copied to clipboard");
-      closeShareModal();
-    } catch {
-      toast.error("Could not copy link");
-    }
-  };
-
-  const shareOnWhatsApp = () => {
-    const url = getShareUrl();
-    if (!url) return;
     const typeText = getDisplayType();
-    const baseText = `Check out this ${typeText.toLowerCase()}: ${currentReel?.title || typeText}\n\n${url}`;
-    const text = encodeURIComponent(baseText);
-    window.open(`https://wa.me/?text=${text}`, "_blank");
-    closeShareModal();
-  };
-
-  const nativeShare = async () => {
-    const url = getShareUrl();
-    if (!url || !navigator.share) return;
-    const typeText = getDisplayType();
-    try {
-      await navigator.share({
-        title: currentReel?.title || typeText,
-        text: currentReel?.description || `Check out this ${typeText.toLowerCase()}`,
-        url,
-      });
-      closeShareModal();
-      toast.success("Shared!");
-    } catch (e) {
-      if (e.name !== "AbortError") toast.error("Share failed");
-    }
+    
+    await handleShare({
+      title: currentReel?.title || typeText,
+      text: currentReel?.description || `Check out this ${typeText.toLowerCase()} on Dealing India`,
+      url: url
+    });
   };
 
   const trackContactClick = async (type) => {
@@ -605,7 +573,7 @@ export default function ReelFeed() {
                   <span className="text-xs">{(currentReel || initialMetadata)?.viewCount ?? 0}</span>
                 </div>
                 <button
-                  onClick={openShareModal}
+                  onClick={handleShareClick}
                   className="flex flex-col items-center text-white"
                 >
                   <FiShare2 className="text-3xl" />
@@ -737,50 +705,6 @@ export default function ReelFeed() {
           </div>
         </div>
 
-        {/* Share Modal */}
-        <AnimatePresence>
-          {showShareModal && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/40 z-[45] backdrop-blur-[2px]"
-                style={{ bottom: 'calc(64px + env(safe-area-inset-bottom))' }}
-                onClick={closeShareModal}
-              />
-              <motion.div
-                initial={{ opacity: 0, y: 100 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 100 }}
-                className="fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-3 right-3 z-[45] bg-gray-900 rounded-2xl px-5 pt-5 pb-6 border border-white/10 shadow-2xl pointer-events-auto"
-              >
-                <div className="flex items-center justify-between mb-5">
-                  <h3 className="text-lg font-semibold text-white">Share this reel</h3>
-                  <button onClick={closeShareModal} className="p-2 text-gray-400 hover:text-white">
-                    <FiX className="text-xl" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <button onClick={copyLink} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 text-white">
-                    <FiCopy className="text-2xl" />
-                    <span className="text-sm">Copy link</span>
-                  </button>
-                  <button onClick={shareOnWhatsApp} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 text-white">
-                    <FaWhatsapp className="text-2xl text-[#25D366]" />
-                    <span className="text-sm">WhatsApp</span>
-                  </button>
-                  {typeof navigator !== "undefined" && navigator.share && (
-                    <button onClick={nativeShare} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-800 text-white">
-                      <FiShare2 className="text-2xl" />
-                      <span className="text-sm">More</span>
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
 
         {/* Report Modal */}
         <AnimatePresence>

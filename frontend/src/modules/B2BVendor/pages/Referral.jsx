@@ -1,4 +1,5 @@
 import { FiCopy, FiShare2, FiUsers, FiAward, FiGift, FiInfo } from "react-icons/fi";
+import { handleShare } from "../../../shared/utils/share";
 import { motion } from "framer-motion";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useEffect, useState } from "react";
@@ -30,6 +31,15 @@ const B2BVendorReferral = () => {
             loadReferral();
         }
     }, [vendor?._id]);
+
+    const handleShareReferral = async () => {
+        if (!referralData?.referralLink) return;
+        await handleShare({
+            title: "Join Dealing India",
+            text: `Join Dealing India using my referral code: ${referralData.referralCode}`,
+            url: referralData.referralLink
+        });
+    };
 
     const copyReferralLink = async () => {
         if (!referralData?.referralLink) return;
@@ -116,17 +126,13 @@ const B2BVendorReferral = () => {
                             </div>
                             
                             <div className="flex flex-wrap gap-4 pt-2">
-                                <a
-                                    href={referralData?.whatsappShareLink || "#"}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => {
-                                        if (!referralData?.whatsappShareLink) e.preventDefault();
-                                    }}
-                                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-bold transition-all shadow-lg"
+                                <button
+                                    onClick={handleShareReferral}
+                                    disabled={!referralData?.referralLink}
+                                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-bold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <FiShare2 className="text-lg" /> Share on WhatsApp
-                                </a>
+                                    <FiShare2 className="text-lg" /> Share Now
+                                </button>
                             </div>
                         </div>
                     </div>
