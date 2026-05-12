@@ -1236,13 +1236,13 @@ const B2BLanding = () => {
                                         fetchLotProducts();
                                         setActivePopup('lots');
                                     }}
-                                    className="px-2 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1 whitespace-nowrap"
+                                    className="px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1 whitespace-nowrap"
                                 >
                                     <img src={lotSlotIcon} alt="Lot" className="h-5 w-auto object-contain" /> <span>Lot / Slot</span>
                                 </button>
                                 <button
                                     onClick={() => navigateWithAuth('/b2b/real-estate')}
-                                    className="px-2 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1 whitespace-nowrap"
+                                    className="px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider bg-gray-50 border border-gray-100 text-gray-800 flex items-center gap-1 whitespace-nowrap"
                                 >
                                     <img src={realEstateIcon} alt="Real Estate" className="h-5 w-auto object-contain" /> <span>Real Estate</span>
                                 </button>

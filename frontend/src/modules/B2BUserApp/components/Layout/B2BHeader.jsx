@@ -316,7 +316,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                     <Link
                                         to="/b2b/catalog?itemType=lotslot"
                                         onClick={(e) => handleNavClick(e, '/b2b/catalog?itemType=lotslot')}
-                                        className={`px-2 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 whitespace-nowrap border transition-all ${currentItemType === 'lotslot' ? 'bg-primary-600 text-white border-primary-600 shadow-md' : 'bg-gray-50 text-gray-700 border-gray-100'}`}
+                                        className={`px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 whitespace-nowrap border transition-all ${currentItemType === 'lotslot' ? 'bg-primary-600 text-white border-primary-600 shadow-md' : 'bg-gray-50 text-gray-700 border-gray-100'}`}
                                     >
                                         <img src={lotSlotIcon} alt="Lot" className="h-4 sm:h-5 w-auto object-contain" />
                                         <span>Lot / Slot</span>
@@ -324,7 +324,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                     <Link
                                         to="/b2b/real-estate"
                                         onClick={(e) => handleNavClick(e, '/b2b/real-estate')}
-                                        className={`px-2 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 whitespace-nowrap border transition-all ${location.pathname.includes('/real-estate') ? 'bg-primary-600 text-white border-primary-600 shadow-md' : 'bg-gray-50 text-gray-700 border-gray-100'}`}
+                                        className={`px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 whitespace-nowrap border transition-all ${location.pathname.includes('/real-estate') ? 'bg-primary-600 text-white border-primary-600 shadow-md' : 'bg-gray-50 text-gray-700 border-gray-100'}`}
                                     >
                                         <img src={realEstateIcon} alt="Real Estate" className="h-4 sm:h-5 w-auto object-contain" />
                                         <span>Real Estate</span>
