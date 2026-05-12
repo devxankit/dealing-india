@@ -7,6 +7,7 @@ const router = express.Router();
 
 // All routes here are for admin panel user management
 router.get('/cities', authenticate, authorize('admin'), getDistinctCities);
+router.delete('/:id', authenticate, authorize('admin'), deleteUser);
 router.get('/', authenticate, authorize('admin'), getAllUsers);
 router.delete('/:id', authenticate, authorize('admin'), deleteUser);
 

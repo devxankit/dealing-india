@@ -204,7 +204,9 @@ export const registerVendor = async (vendorData) => {
         businessTypeRef: businessTypeRef,
         gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
         mfgOfWork: mfgOfWork ? mfgOfWork.trim() : undefined,
-        commissionRate: 0
+        commissionRate: 0,
+        otp: undefined, // To be set below
+        otpExpiresAt: undefined
       });
 
       await ensureReferralCodeForOwner({ userId: vendor._id, userModel: 'Vendor' });
@@ -214,6 +216,11 @@ export const registerVendor = async (vendorData) => {
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
       
       const fullPhone = phone.startsWith('+91') ? phone : `+91${phone}`;
+
+      // Store OTP on vendor document as well
+      vendor.otp = otp;
+      vendor.otpExpiresAt = expiresAt;
+      await vendor.save();
 
       await SMSOTP.create({
           phoneNumber: fullPhone,
@@ -384,6 +391,11 @@ export const loginVendor = async (identifier, password) => {
         expiresAt,
         purpose: 'login'
       });
+
+      // Store OTP on vendor document as well
+      vendor.otp = otp;
+      vendor.otpExpiresAt = expiresAt;
+      await vendor.save();
 
       await smsService.sendOTP(fullPhone, otp);
 

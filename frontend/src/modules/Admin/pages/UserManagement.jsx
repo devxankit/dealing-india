@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { FiSearch, FiEye, FiUser, FiMapPin, FiChevronDown, FiX, FiTrash2 } from "react-icons/fi";
+import { FiSearch, FiEye, FiUser, FiMapPin, FiChevronDown, FiX, FiTrash2, FiAlertTriangle } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../components/DataTable";
 import api from "../../../shared/utils/api";
@@ -154,9 +154,9 @@ const UserDetailsModal = ({ isOpen, onClose, user }) => {
   );
 };
 
-const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, user, isLoading }) => {
+const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, userName, isLoading }) => {
   useScrollLock(isOpen);
-  if (!isOpen || !user) return null;
+  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
@@ -169,33 +169,41 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, user, isLoading }
           onClick={onClose}
         >
           <motion.div
-            className="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full overflow-hidden p-8 text-center"
+            className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 text-3xl">
-              <FiTrash2 />
+            <div className="p-8 text-center">
+              <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center text-red-500 mx-auto mb-6">
+                <FiAlertTriangle size={40} />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">
+                Delete User?
+              </h3>
+              <p className="text-sm text-gray-500 leading-relaxed px-4">
+                Are you sure you want to delete <span className="font-bold text-gray-800">{userName}</span>? This action is permanent and cannot be undone.
+              </p>
             </div>
-            <h2 className="text-xl font-black text-slate-800 mb-2">Delete User?</h2>
-            <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
-              Are you sure you want to delete user <span className="font-bold text-slate-800">"{user.name || user.email}"</span>? This action cannot be undone.
-            </p>
-            <div className="flex gap-3">
+            <div className="p-6 bg-gray-50 flex gap-3">
               <button
                 onClick={onClose}
-                className="flex-1 px-6 py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-colors"
                 disabled={isLoading}
+                className="flex-1 px-4 py-3 text-xs font-bold uppercase tracking-widest rounded-2xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 transition-all disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={onConfirm}
-                className="flex-1 px-6 py-4 rounded-2xl bg-rose-600 text-white font-bold text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
                 disabled={isLoading}
+                className="flex-1 px-4 py-3 text-xs font-bold uppercase tracking-widest rounded-2xl bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200 transition-all disabled:opacity-50 flex items-center justify-center"
               >
-                {isLoading ? "Deleting..." : "Delete User"}
+                {isLoading ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  "Delete User"
+                )}
               </button>
             </div>
           </motion.div>
@@ -218,7 +226,7 @@ const UserManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchCities = async () => {
     try {
@@ -286,24 +294,21 @@ const UserManagement = () => {
 
   const confirmDelete = async () => {
     if (!userToDelete) return;
-
-    setDeleteLoading(true);
+    setIsDeleting(true);
     try {
-      const response = await api.delete(`/admin/users/${userToDelete._id}`);
-      if (response?.success) {
-        toast.success(response.message || "User deleted successfully");
+      const res = await api.delete(`/admin/users/${userToDelete._id}`);
+      if (res.success) {
+        toast.success(res.message || "User deleted successfully");
         setUsers(users.filter((u) => u._id !== userToDelete._id));
         setIsDeleteModalOpen(false);
-        setUserToDelete(null);
       } else {
-        toast.error(response?.message || "Failed to delete user");
+        toast.error(res.message || "Failed to delete user");
       }
     } catch (error) {
-      toast.error(
-        error?.response?.data?.message || "Failed to delete user from server",
-      );
+      toast.error(error?.response?.data?.message || "Failed to delete user");
     } finally {
-      setDeleteLoading(false);
+      setIsDeleting(false);
+      setUserToDelete(null);
     }
   };
 
@@ -506,17 +511,18 @@ const UserManagement = () => {
         user={selectedUser}
       />
 
-      <DeleteConfirmationModal
+      <DeleteConfirmModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
-          if (!deleteLoading) {
+          if (!isDeleting) {
             setIsDeleteModalOpen(false);
             setUserToDelete(null);
           }
         }}
         onConfirm={confirmDelete}
-        user={userToDelete}
-        isLoading={deleteLoading}
+        userName={userToDelete?.name || userToDelete?.email}
+        isLoading={isDeleting}
+      />
       />
     </motion.div>
   );

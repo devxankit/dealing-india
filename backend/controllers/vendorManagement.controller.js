@@ -522,9 +522,9 @@ export const getVendorDashboardForAdmin = async (req, res, next) => {
           pending: totalLotSlots - approvedLotSlots
         },
         reels: {
-          total: totalReels,
-          approved: approvedReels,
-          pending: totalReels - approvedReels
+          total: totalReels || 0,
+          approved: approvedReels || 0,
+          pending: (totalReels || 0) - (approvedReels || 0)
         }
       },
       subscriptions: subscriptions.map(sub => ({

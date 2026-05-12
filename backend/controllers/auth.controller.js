@@ -50,6 +50,15 @@ export const sendOTP = asyncHandler(async (req, res) => {
     // Send SMS via SMS India Hub
     const smsSent = await smsService.sendOTP(phoneNumber, otp);
 
+    // Update User/Vendor documents if they exist (Backup storage)
+    const phoneWithoutCode = phoneNumber.replace(/^\+91/, '');
+    const phoneFormats = [phoneNumber, phoneWithoutCode, '+91' + phoneWithoutCode];
+    
+    await Promise.all([
+        User.updateMany({ phone: { $in: phoneFormats } }, { $set: { otp, otpExpiresAt: expiresAt } }),
+        Vendor.updateMany({ phone: { $in: phoneFormats } }, { $set: { otp, otpExpiresAt: expiresAt } })
+    ]);
+
     if (!smsSent && process.env.NODE_ENV === 'production') {
         return res.status(500).json({
             success: false,
@@ -71,26 +80,90 @@ export const sendOTP = asyncHandler(async (req, res) => {
  */
 export const verifyOTP = asyncHandler(async (req, res) => {
     const { phoneNumber, otp } = req.body;
-
-    if (!phoneNumber || !otp) {
+    const cleanPhone = phoneNumber?.trim();
+    if (!cleanPhone || !otp) {
         return res.status(400).json({
             success: false,
             message: 'Phone number and OTP are required'
         });
     }
 
-    // Fetch the latest OTP for this phone number
-    const storedOtp = await SMSOTP.findOne({ phoneNumber }).sort({ createdAt: -1 });
+    // Fetch the latest OTP for this phone number - handle variations
+    const phoneWithoutCode = cleanPhone.replace(/^\+91/, '');
+    const phoneFormats = [
+        cleanPhone,
+        phoneWithoutCode,
+        '+91' + phoneWithoutCode
+    ];
+
+    console.log('[VerifyOTP Debug] Phone variations:', phoneFormats);
+    console.log('[VerifyOTP Debug] Searching for OTP...');
+
+    // 1. Check SMSOTP collection (the primary storage)
+    let storedOtp = await SMSOTP.findOne({ 
+        phoneNumber: { $in: phoneFormats } 
+    }).sort({ createdAt: -1 });
+
+    // 2. Check User/Vendor collections (the new backup storage)
+    let profileForOtp = await User.findOne({ phone: { $in: phoneFormats } }).select('+otp +otpExpiresAt');
+    if (!profileForOtp) {
+        profileForOtp = await Vendor.findOne({ phone: { $in: phoneFormats } }).select('+otp +otpExpiresAt');
+    }
+
+    // If no OTP found in SMSOTP, try to use the one from the profile
+    if (!storedOtp && profileForOtp && profileForOtp.otp) {
+        console.log('[VerifyOTP Debug] OTP not found in SMSOTP, using OTP from profile.');
+        storedOtp = {
+            otp: profileForOtp.otp,
+            expiresAt: profileForOtp.otpExpiresAt,
+            phoneNumber: profileForOtp.phone,
+            isFromProfile: true
+        };
+    }
 
     if (!storedOtp) {
+        console.warn('[VerifyOTP Debug] No OTP found in DB for any format:', phoneFormats);
+        
+        // Check if user is ALREADY verified (handles double-request scenarios)
+        const alreadyVerified = await User.findOne({ phone: { $in: phoneFormats }, isPhoneVerified: true });
+        const alreadyVerifiedVendor = await Vendor.findOne({ phone: { $in: phoneFormats }, isPhoneVerified: true });
+        
+        if (alreadyVerified || alreadyVerifiedVendor) {
+            console.log('[VerifyOTP Debug] OTP not found but user is already verified. Returning success.');
+            const profile = alreadyVerified || alreadyVerifiedVendor;
+            const role = alreadyVerifiedVendor ? 'vendor' : 'user';
+            
+            return res.status(200).json({
+                success: true,
+                message: 'Mobile already verified.',
+                data: {
+                    token: generateToken({
+                        id: profile._id,
+                        email: profile.email,
+                        role: profile.role || role
+                    }),
+                    user: profile,
+                    role: role
+                }
+            });
+        }
+
         return res.status(404).json({
             success: false,
             message: 'OTP not found. Please request a new one.'
         });
     }
 
-    // Check attempts
-    if (storedOtp.attempts >= 3) {
+    console.log('[VerifyOTP Debug] OTP Found:', {
+        source: storedOtp.isFromProfile ? 'Profile' : 'SMSOTP',
+        dbPhone: storedOtp.phoneNumber,
+        dbOtp: storedOtp.otp,
+        inputOtp: otp,
+        expiresAt: storedOtp.expiresAt
+    });
+
+    // Check attempts (only for SMSOTP)
+    if (!storedOtp.isFromProfile && storedOtp.attempts >= 3) {
         return res.status(403).json({
             success: false,
             message: 'Maximum attempts reached. Please request a new OTP.'
@@ -107,24 +180,45 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 
     // Check if OTP matches
     if (storedOtp.otp !== otp) {
-        storedOtp.attempts += 1;
-        await storedOtp.save();
+        if (!storedOtp.isFromProfile) {
+            storedOtp.attempts += 1;
+            // Since it's a plain object if from profile, we only save if it's a Mongoose doc
+            if (typeof storedOtp.save === 'function') {
+                await storedOtp.save();
+            }
+        }
         return res.status(401).json({
             success: false,
-            message: `Invalid OTP. ${3 - storedOtp.attempts} attempts remaining.`
+            message: 'Invalid OTP. Please try again.'
         });
     }
 
     // OTP is valid!
-    // Clean up OTPs for this number
-    await SMSOTP.deleteMany({ phoneNumber });
+    console.log(`[VerifyOTP Audit] OTP matches! Preparing to verify phone for: ${cleanPhone}`);
 
-    // Check if user exists (either as a regular user or a vendor)
-    let profile = await User.findOne({ phone: phoneNumber });
+    // Clean up OTPs for this number
+    await SMSOTP.deleteMany({ phoneNumber: { $in: phoneFormats } });
+
+    // Mark as verified in both collections - using multiple phone formats for matching
+    // We do this BEFORE fetching the profile to ensure isPhoneVerified is true in the fetched doc
+    console.log(`[VerifyOTP Audit] Executing database update to set isPhoneVerified: true for formats:`, phoneFormats);
+    
+    const updateResult = await Promise.all([
+        User.updateMany({ phone: { $in: phoneFormats } }, { $set: { isPhoneVerified: true, otp: null, otpExpiresAt: null } }),
+        Vendor.updateMany({ phone: { $in: phoneFormats } }, { $set: { isPhoneVerified: true, otp: null, otpExpiresAt: null } })
+    ]);
+
+    console.log(`[VerifyOTP Audit] Database update complete. Result:`, {
+        usersUpdated: updateResult[0].modifiedCount,
+        vendorsUpdated: updateResult[1].modifiedCount
+    });
+
+    // Check if user exists (either as a regular user or a vendor) - use variations for lookup
+    let profile = await User.findOne({ phone: { $in: phoneFormats } });
     let role = 'user';
 
     if (!profile) {
-      profile = await Vendor.findOne({ phone: phoneNumber });
+      profile = await Vendor.findOne({ phone: { $in: phoneFormats } });
       if (profile) {
         role = 'vendor';
       }
@@ -140,26 +234,11 @@ export const verifyOTP = asyncHandler(async (req, res) => {
       });
     }
 
-    // Mark as verified in both collections if found - using multiple phone formats for matching
-    const phoneFormats = [
-        phoneNumber,
-        phoneNumber.replace('+91', ''),
-        '+91' + phoneNumber.replace(/^\+91/, '')
-    ];
-
-    await Promise.all([
-        User.updateMany({ phone: { $in: phoneFormats } }, { $set: { isPhoneVerified: true } }),
-        Vendor.updateMany({ phone: { $in: phoneFormats } }, { $set: { isPhoneVerified: true } })
-    ]);
-
     // Ensure we have the latest profile data for the response
-    let updatedProfile = await User.findOne({ phone: phoneNumber });
-    let finalRole = 'user';
+    const updatedProfile = profile;
+    const finalRole = role;
 
-    if (!updatedProfile) {
-      updatedProfile = await Vendor.findOne({ phone: phoneNumber });
-      finalRole = 'vendor';
-
+    if (finalRole === 'vendor') {
       // If this is a new B2B vendor (just registered and verified), send admin notification
       if (updatedProfile && updatedProfile.vendorType === 'b2b' && updatedProfile.status === 'pending') {
         try {
@@ -184,14 +263,16 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Logged in successfully',
-      isNewUser: false,
-      token: generateToken({
-        id: updatedProfile._id,
-        email: updatedProfile.email,
-        role: updatedProfile.role || finalRole
-      }),
-      user: updatedProfile,
-      role: finalRole
+      data: {
+        isNewUser: false,
+        token: generateToken({
+          id: updatedProfile._id,
+          email: updatedProfile.email,
+          role: updatedProfile.role || finalRole
+        }),
+        user: updatedProfile,
+        role: finalRole
+      }
     });
 });
 

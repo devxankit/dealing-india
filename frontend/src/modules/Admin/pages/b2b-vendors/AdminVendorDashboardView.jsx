@@ -20,7 +20,8 @@ import {
     FiMapPin,
     FiDownload,
     FiFileText,
-    FiVideo
+    FiVideo,
+    FiPlay
 } from "react-icons/fi";
 import api from "../../../../shared/utils/api";
 import { getBusinessTypes } from "../../../../shared/utils/businessTypeCache";
@@ -228,7 +229,6 @@ const AdminVendorDashboardView = () => {
                     {[
                         { key: 'banners', label: 'Active Promotion Banners', value: banners.length, icon: FiImage, color: 'text-blue-600', bg: 'bg-blue-50' },
                         { key: 'reels', label: 'Total Reels Uploaded', value: counts.reels?.total || 0, icon: FiVideo, color: 'text-rose-600', bg: 'bg-rose-50' },
-                        { key: 'call', label: 'Total Call Inquiries', value: overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                         { key: 'whatsapp', label: 'Total WhatsApp Clicks', value: overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50' },
                         { key: 'map', label: 'Total Map Opens', value: overview.mapClicks, icon: FiMapPin, color: 'text-orange-600', bg: 'bg-orange-50' }
                     ].map((stat, i) => {

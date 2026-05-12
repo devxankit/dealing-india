@@ -41,6 +41,12 @@ export const registerUser = async (userData) => {
     // If it's a B2B user and they've already verified their phone (via the new OTP flow)
     // we can create the user directly.
     if (userType === 'b2b') {
+        // Generate 6-digit OTP for phone
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+        const fullPhone = phone.startsWith('+91') ? phone : `+91${phone}`;
+
+        console.log(`[RegisterUser Audit] Creating User in DB with phone: ${phone}, isPhoneVerified: false`);
         const user = await User.create({
             name,
             email,
@@ -53,8 +59,12 @@ export const registerUser = async (userData) => {
             agreedToTerms: !!agreedToTerms,
             isEmailVerified: true, // We trust email as they will verify phone
             isPhoneVerified: false, // Must verify phone via OTP
-            isActive: true
+            isActive: true,
+            otp: otp,
+            otpExpiresAt: expiresAt
         });
+
+        console.log(`[RegisterUser Audit] User created successfully. ID: ${user._id}, isPhoneVerified: ${user.isPhoneVerified}`);
 
         await ensureReferralCodeForOwner({ userId: user._id, userModel: 'User' });
 
@@ -68,13 +78,7 @@ export const registerUser = async (userData) => {
                 console.error('Referral processing skipped:', referralError.message);
             }
         }
-
-        // Generate 6-digit OTP for phone
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
         
-        const fullPhone = phone.startsWith('+91') ? phone : `+91${phone}`;
-
         await SMSOTP.create({
             phoneNumber: fullPhone,
             otp,
@@ -241,6 +245,11 @@ export const loginUser = async (identifier, password) => {
             otp,
             expiresAt
         });
+
+        // Store OTP on user document as well for double-verification
+        user.otp = otp;
+        user.otpExpiresAt = expiresAt;
+        await user.save();
 
         await smsService.sendOTP(fullPhone, otp);
 
