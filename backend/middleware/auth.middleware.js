@@ -180,6 +180,7 @@ export const authorize = (...roles) => {
   return (req, res, next) => {
     const allowedRoles = roles.includes('admin') ? [...roles, 'superadmin'] : roles;
     if (!req.user || !allowedRoles.includes(req.user.role)) {
+      console.warn(`[Auth Denied] ${req.method} ${req.url} - User: ${req.user ? req.user.id : 'NONE'}, Role: ${req.user ? req.user.role : 'NONE'}, Required: [${roles.join(', ')}]`);
       return res.status(403).json({
         success: false,
         message: 'Access denied. You do not have permission to perform this action.',

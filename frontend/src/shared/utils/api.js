@@ -192,7 +192,7 @@ api.interceptors.response.use(
       } else if (error.response?.status === 401) {
         message = 'Invalid credentials. Please check your email/phone and password.';
       } else if (error.response?.status === 403) {
-        message = 'Access denied.';
+        message = error.response?.data?.message || 'Access denied.';
       } else if (error.response?.status === 404) {
         message = 'Resource not found.';
       } else {

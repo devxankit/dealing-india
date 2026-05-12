@@ -129,6 +129,17 @@ const allowedBaseDomains = [
 
 const normalizedCorsOrigins = new Set(corsOrigins.map(normalizeOrigin));
 
+// Global Request Logger for Debugging
+app.use((req, res, next) => {
+  const origin = req.headers.origin || 'No Origin';
+  const auth = req.headers.authorization ? 'Present' : 'Missing';
+  // Only log in production or if debug flag is present
+  if (process.env.NODE_ENV === 'production' || req.query.debug === 'true') {
+    console.log(`[Request Log] ${req.method} ${req.path} | Origin: ${origin} | Auth: ${auth}`);
+  }
+  next();
+});
+
 app.use(
   cors({
     origin: function (origin, callback) {

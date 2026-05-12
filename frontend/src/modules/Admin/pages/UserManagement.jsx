@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { FiSearch, FiEye, FiUser, FiMapPin, FiChevronDown, FiX } from "react-icons/fi";
+import { FiSearch, FiEye, FiUser, FiMapPin, FiChevronDown, FiX, FiTrash2 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../components/DataTable";
 import api from "../../../shared/utils/api";
@@ -154,6 +154,57 @@ const UserDetailsModal = ({ isOpen, onClose, user }) => {
   );
 };
 
+const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, user, isLoading }) => {
+  useScrollLock(isOpen);
+  if (!isOpen || !user) return null;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
+          <motion.div
+            className="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full overflow-hidden p-8 text-center"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 text-3xl">
+              <FiTrash2 />
+            </div>
+            <h2 className="text-xl font-black text-slate-800 mb-2">Delete User?</h2>
+            <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8">
+              Are you sure you want to delete user <span className="font-bold text-slate-800">"{user.name || user.email}"</span>? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-1 px-6 py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-colors"
+                disabled={isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onConfirm}
+                className="flex-1 px-6 py-4 rounded-2xl bg-rose-600 text-white font-bold text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
+                disabled={isLoading}
+              >
+                {isLoading ? "Deleting..." : "Delete User"}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -165,6 +216,9 @@ const UserManagement = () => {
   const cityDropdownRef = useRef(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchCities = async () => {
     try {
@@ -223,6 +277,34 @@ const UserManagement = () => {
   const handleView = (user) => {
     setSelectedUser(user);
     setIsModalOpen(true);
+  };
+
+  const handleDelete = (user) => {
+    setUserToDelete(user);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+
+    setDeleteLoading(true);
+    try {
+      const response = await api.delete(`/admin/users/${userToDelete._id}`);
+      if (response?.success) {
+        toast.success(response.message || "User deleted successfully");
+        setUsers(users.filter((u) => u._id !== userToDelete._id));
+        setIsDeleteModalOpen(false);
+        setUserToDelete(null);
+      } else {
+        toast.error(response?.message || "Failed to delete user");
+      }
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Failed to delete user from server",
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const columns = [
@@ -285,13 +367,22 @@ const UserManagement = () => {
       key: "actions",
       label: "Actions",
       render: (_, row) => (
-        <button
-          onClick={() => handleView(row)}
-          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-          title="View user details"
-        >
-          <FiEye />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleView(row)}
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            title="View user details"
+          >
+            <FiEye />
+          </button>
+          <button
+            onClick={() => handleDelete(row)}
+            className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+            title="Delete user"
+          >
+            <FiTrash2 />
+          </button>
+        </div>
       ),
     },
   ];
@@ -413,6 +504,19 @@ const UserManagement = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         user={selectedUser}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!deleteLoading) {
+            setIsDeleteModalOpen(false);
+            setUserToDelete(null);
+          }
+        }}
+        onConfirm={confirmDelete}
+        user={userToDelete}
+        isLoading={deleteLoading}
       />
     </motion.div>
   );

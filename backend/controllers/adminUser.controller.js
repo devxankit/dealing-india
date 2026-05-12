@@ -104,3 +104,37 @@ export const getDistinctCities = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, data: cityList });
 });
 
+/**
+ * Delete a user
+ * @route DELETE /api/admin/users/:id
+ * @access Private/Admin
+ */
+export const deleteUser = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            message: 'User not found'
+        });
+    }
+
+    // Check if user is an admin - maybe prevent deleting other admins here if needed
+    // if (user.role === 'admin') {
+    //     return res.status(403).json({
+    //         success: false,
+    //         message: 'Admins cannot be deleted via this endpoint'
+    //     });
+    // }
+
+    await User.findByIdAndDelete(id);
+
+    res.status(200).json({
+        success: true,
+        message: 'User deleted successfully'
+    });
+});
+
+

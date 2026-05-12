@@ -23,6 +23,7 @@ import Notification from '../models/Notification.model.js';
 import Vendor from '../models/Vendor.model.js';
 import ShopUnit from '../models/ShopUnit.model.js';
 import VendorFollow from '../models/VendorFollow.model.js';
+import Reel from '../models/Reel.model.js';
 import mongoose from 'mongoose';
 
 /**
@@ -461,7 +462,9 @@ export const getVendorDashboardForAdmin = async (req, res, next) => {
       subscriptions,
       notifications,
       vendorAnalytics,
-      shopUnit
+      shopUnit,
+      totalReels,
+      approvedReels
     ] = await Promise.all([
       Vendor.findById(vendorId).select('name storeName businessType businessTypeRef email').lean(),
       Product.countDocuments({ vendorId }),
@@ -474,7 +477,9 @@ export const getVendorDashboardForAdmin = async (req, res, next) => {
       VendorSubscription.find({ vendorId, status: 'active' }).populate('planId').lean(),
       Notification.find({ recipient: vendorId, recipientType: 'vendor' }).sort({ createdAt: -1 }).limit(5).lean(),
       Vendor.findById(vendorId).select('analytics').lean(),
-      ShopUnit.findOne({ vendorId }).lean()
+      ShopUnit.findOne({ vendorId }).lean(),
+      Reel.countDocuments({ uploaderId: vendorId, uploaderType: 'vendor' }),
+      Reel.countDocuments({ uploaderId: vendorId, uploaderType: 'vendor', status: 'approved' })
     ]);
 
     if (!vendor) {
@@ -515,6 +520,11 @@ export const getVendorDashboardForAdmin = async (req, res, next) => {
           total: totalLotSlots,
           approved: approvedLotSlots,
           pending: totalLotSlots - approvedLotSlots
+        },
+        reels: {
+          total: totalReels,
+          approved: approvedReels,
+          pending: totalReels - approvedReels
         }
       },
       subscriptions: subscriptions.map(sub => ({

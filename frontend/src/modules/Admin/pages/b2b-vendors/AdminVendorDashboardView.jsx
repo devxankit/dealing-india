@@ -19,7 +19,8 @@ import {
     FiArrowLeft,
     FiMapPin,
     FiDownload,
-    FiFileText
+    FiFileText,
+    FiVideo
 } from "react-icons/fi";
 import api from "../../../../shared/utils/api";
 import { getBusinessTypes } from "../../../../shared/utils/businessTypeCache";
@@ -113,12 +114,14 @@ const AdminVendorDashboardView = () => {
         enableProductListing: settings.enabledModules?.includes('product'),
         enablePropertyListing: settings.enabledModules?.includes('property'),
         enableLotSlotListing: settings.enabledModules?.includes('lotslot') || false,
+        enableReelsListing: settings.enabledModules?.includes('reel') || true, // Default to true if not explicitly set
         enableBanner: settings.enabledModules?.includes('banner'),
         widgets: settings.dashboardWidgets?.length > 0 ? settings.dashboardWidgets : ['stats', 'listings_overview', 'subscription_status', 'banner_promo', 'alerts'],
     } : {
         enableProductListing: true,
         enablePropertyListing: true,
         enableLotSlotListing: true,
+        enableReelsListing: true,
         enableBanner: true,
         widgets: ['stats', 'listings_overview', 'subscription_status', 'banner_promo', 'alerts']
     };
@@ -224,6 +227,7 @@ const AdminVendorDashboardView = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
                         { key: 'banners', label: 'Active Promotion Banners', value: banners.length, icon: FiImage, color: 'text-blue-600', bg: 'bg-blue-50' },
+                        { key: 'reels', label: 'Total Reels Uploaded', value: counts.reels?.total || 0, icon: FiVideo, color: 'text-rose-600', bg: 'bg-rose-50' },
                         { key: 'call', label: 'Total Call Inquiries', value: overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                         { key: 'whatsapp', label: 'Total WhatsApp Clicks', value: overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50' },
                         { key: 'map', label: 'Total Map Opens', value: overview.mapClicks, icon: FiMapPin, color: 'text-orange-600', bg: 'bg-orange-50' }
@@ -296,7 +300,7 @@ const AdminVendorDashboardView = () => {
                                     </div>
                                 )}
 
-                                {config.enableLotSlotListing && (
+                                { config.enableLotSlotListing && (
                                     <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden text-left">
                                         <div className="flex justify-between items-start mb-6">
                                             <div className="p-3 bg-amber-100 text-amber-600 rounded-xl"><FiHash size={24} /></div>
@@ -306,6 +310,22 @@ const AdminVendorDashboardView = () => {
                                             <p className="text-4xl font-black text-slate-900">{counts.lotSlot.total}</p>
                                             <div className="text-right">
                                                 <p className="text-[10px] font-bold text-emerald-500 uppercase">{counts.lotSlot.approved} Active</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {config.enableReelsListing && (
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden text-left">
+                                        <div className="flex justify-between items-start mb-6">
+                                            <div className="p-3 bg-rose-100 text-rose-600 rounded-xl"><FiVideo size={24} /></div>
+                                        </div>
+                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Reels / Videos</h3>
+                                        <div className="flex items-end justify-between">
+                                            <p className="text-4xl font-black text-slate-900">{counts.reels?.total || 0}</p>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-bold text-emerald-500 uppercase">{counts.reels?.approved || 0} Approved</p>
+                                                <p className="text-[10px] font-bold text-amber-500 uppercase">{counts.reels?.pending || 0} Pending</p>
                                             </div>
                                         </div>
                                     </div>

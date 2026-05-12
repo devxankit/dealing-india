@@ -71,8 +71,8 @@ router.post('/save', async (req, res) => {
         webCount: Array.isArray(doc.fcmTokens) ? doc.fcmTokens.length : 0,
         mobileCount: Array.isArray(doc.fcmTokenMobile) ? doc.fcmTokenMobile.length : 0
       });
-    } else if (role === 'admin') {
-      const adminId = req.user.adminId;
+    } else if (role === 'admin' || role === 'superadmin') {
+      const adminId = req.user.adminId || req.user.id;
       doc = await Admin.findById(adminId);
       if (!doc) return res.status(404).json({ success: false, message: 'Admin not found' });
       if (platform === 'web') {
@@ -89,13 +89,13 @@ router.post('/save', async (req, res) => {
         }
       }
       await doc.save();
-      console.log('[FCM] Admin tokens updated', {
+      console.log('[FCM] Admin/Superadmin tokens updated', {
         adminId,
         webCount: Array.isArray(doc.fcmTokens) ? doc.fcmTokens.length : 0,
         mobileCount: Array.isArray(doc.fcmTokenMobile) ? doc.fcmTokenMobile.length : 0
       });
     } else {
-      return res.status(403).json({ success: false, message: 'Unsupported role' });
+      return res.status(403).json({ success: false, message: `Unsupported role: ${role}` });
     }
     res.json({ success: true, message: 'FCM token saved' });
   } catch (error) {
@@ -126,15 +126,15 @@ router.delete('/remove', async (req, res) => {
       if (platform === 'web') doc.fcmTokens = (doc.fcmTokens || []).filter(t => t !== token);
       else doc.fcmTokenMobile = (doc.fcmTokenMobile || []).filter(t => t !== token);
       await doc.save();
-    } else if (role === 'admin') {
-      const adminId = req.user.adminId;
+    } else if (role === 'admin' || role === 'superadmin') {
+      const adminId = req.user.adminId || req.user.id;
       doc = await Admin.findById(adminId);
       if (!doc) return res.status(404).json({ success: false, message: 'Admin not found' });
       if (platform === 'web') doc.fcmTokens = (doc.fcmTokens || []).filter(t => t !== token);
       else doc.fcmTokenMobile = (doc.fcmTokenMobile || []).filter(t => t !== token);
       await doc.save();
     } else {
-      return res.status(403).json({ success: false, message: 'Unsupported role' });
+      return res.status(403).json({ success: false, message: `Unsupported role: ${role}` });
     }
     res.json({ success: true, message: 'FCM token removed' });
   } catch (error) {
