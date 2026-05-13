@@ -23,6 +23,7 @@ export default function UploadReel() {
   const { status, canUploadReel, refreshStatus } = useSubscriptionStore();
   const [loading, setLoading] = useState(false);
   const [canUploadDaily, setCanUploadDaily] = useState(true);
+  const [enableVideoFileUpload, setEnableVideoFileUpload] = useState(true);
   const [dailyStatusLoading, setDailyStatusLoading] = useState(true);
   const defaultForm = {
     title: '',
@@ -48,7 +49,7 @@ export default function UploadReel() {
     }
     return defaultForm;
   });
-  const [submissionType, setSubmissionType] = useState('file'); // 'file' or 'link'
+  const [submissionType, setSubmissionType] = useState('link'); // Default to link as fallback
   const [videoLink, setVideoLink] = useState('');
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
@@ -78,8 +79,13 @@ export default function UploadReel() {
         const res = await api.get("/reels/daily-status");
         if (res.success) {
           setCanUploadDaily(res.data.canUpload);
-          if (!res.data.canUpload) {
+          const isEnabled = res.data.enableVideoFileUpload !== false;
+          setEnableVideoFileUpload(isEnabled);
+          
+          if (!isEnabled || !res.data.canUpload) {
             setSubmissionType("link");
+          } else {
+            setSubmissionType("file");
           }
         }
       } catch (err) {
@@ -315,18 +321,20 @@ export default function UploadReel() {
       <SubscriptionGate action="reels" showLimitInfo={false} fullPage={true}>
         {/* Toggle between File and Link */}
         <div className="flex bg-gray-100 p-1 rounded-2xl mb-6">
-          <button
-            type="button"
-            disabled={!canUploadDaily}
-            onClick={() => setSubmissionType("file")}
-            className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
-              submissionType === "file"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            } ${!canUploadDaily ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            Upload File {!canUploadDaily && "(1/day reached)"}
-          </button>
+          {enableVideoFileUpload && (
+            <button
+              type="button"
+              disabled={!canUploadDaily}
+              onClick={() => setSubmissionType("file")}
+              className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                submissionType === "file"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              } ${!canUploadDaily ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              Upload File {!canUploadDaily && "(1/day reached)"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setSubmissionType('link')}

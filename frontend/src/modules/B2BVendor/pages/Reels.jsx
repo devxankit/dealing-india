@@ -159,6 +159,31 @@ export default function Reels() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const [enableVideoFileUpload, setEnableVideoFileUpload] = useState(true);
+  const [dailyStatusLoading, setDailyStatusLoading] = useState(true);
+
+  // ... existing fetchReels and other logic ...
+
+  useEffect(() => {
+    const checkSettings = async () => {
+      try {
+        const res = await api.get("/reels/daily-status");
+        if (res.success) {
+          const isEnabled = res.data.enableVideoFileUpload !== false;
+          setEnableVideoFileUpload(isEnabled);
+          if (!isEnabled && reelTypeFilter === 'upload') {
+            setReelTypeFilter('link');
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch reel settings:", err);
+      } finally {
+        setDailyStatusLoading(false);
+      }
+    };
+    checkSettings();
+  }, []);
+
   useEffect(() => {
     fetchB2BCategories();
   }, [fetchB2BCategories]);
@@ -220,17 +245,19 @@ export default function Reels() {
             <FiPlay size={16} />
             Video Links
           </button>
-          <button
-            onClick={() => { setReelTypeFilter('upload'); setPage(1); }}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
-              reelTypeFilter === 'upload' 
-                ? 'bg-white text-primary-600 shadow-sm ring-1 ring-black/[0.05]' 
-                : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
-            }`}
-          >
-            <FiVideo size={16} />
-            Uploaded Videos
-          </button>
+          {enableVideoFileUpload && (
+            <button
+              onClick={() => { setReelTypeFilter('upload'); setPage(1); }}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                reelTypeFilter === 'upload' 
+                  ? 'bg-white text-primary-600 shadow-sm ring-1 ring-black/[0.05]' 
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+              }`}
+            >
+              <FiVideo size={16} />
+              Uploaded Videos
+            </button>
+          )}
         </div>
 
         {/* Global Search */}

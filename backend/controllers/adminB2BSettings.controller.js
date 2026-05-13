@@ -35,10 +35,11 @@ class AdminB2BSettingsController {
     async updateSettings(req, res) {
         try {
             const adminId = req.userDoc?._id || req.user?.adminId || req.user?.id;
-            const { defaultEnquiryPrice } = req.body;
+            const { defaultEnquiryPrice, enableVideoFileUpload } = req.body;
 
             const update = {};
             if (defaultEnquiryPrice !== undefined) update.defaultEnquiryPrice = defaultEnquiryPrice;
+            if (enableVideoFileUpload !== undefined) update.enableVideoFileUpload = enableVideoFileUpload;
             update.updatedBy = adminId;
 
             const settings = await B2BSettings.findOneAndUpdate(

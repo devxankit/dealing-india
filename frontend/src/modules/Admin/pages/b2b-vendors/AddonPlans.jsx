@@ -156,32 +156,50 @@ const AddonPlans = () => {
                             <p className="text-xs text-gray-500 font-medium">Set the fallback price per enquiry unlock when quota is exceeded.</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">₹</span>
-                            <input 
-                                type="number" 
-                                min="0"
-                                step="any"
-                                value={globalSettings ? globalSettings.defaultEnquiryPrice : ''}
-                                placeholder="Loading..."
-                                onChange={(e) => {
-                                    const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                                    setGlobalSettings({ ...globalSettings, defaultEnquiryPrice: val });
-                                }}
-                                className="pl-8 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white outline-none font-bold text-sm w-32"
-                            />
+                    <div className="flex flex-col sm:flex-row items-center gap-6">
+                        <div className="flex items-center gap-3">
+                            <label className="text-sm font-bold text-gray-700">Video Upload</label>
+                            <button
+                                onClick={() => setGlobalSettings({ ...globalSettings, enableVideoFileUpload: !globalSettings?.enableVideoFileUpload })}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                                    globalSettings?.enableVideoFileUpload !== false ? 'bg-primary-600' : 'bg-gray-200'
+                                }`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        globalSettings?.enableVideoFileUpload !== false ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                                />
+                            </button>
                         </div>
-                        <button
-                            onClick={handleUpdateGlobalSettings}
-                            disabled={updatingSettings}
-                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${
-                                updatingSettings ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-white hover:bg-black shadow-lg shadow-gray-200'
-                            }`}
-                        >
-                            {updatingSettings ? <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" /> : <FiSave />}
-                            Save
-                        </button>
+
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">₹</span>
+                                <input 
+                                    type="number" 
+                                    min="0"
+                                    step="any"
+                                    value={globalSettings ? globalSettings.defaultEnquiryPrice : ''}
+                                    placeholder="Loading..."
+                                    onChange={(e) => {
+                                        const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                                        setGlobalSettings({ ...globalSettings, defaultEnquiryPrice: val });
+                                    }}
+                                    className="pl-8 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white outline-none font-bold text-sm w-32"
+                                />
+                            </div>
+                            <button
+                                onClick={handleUpdateGlobalSettings}
+                                disabled={updatingSettings}
+                                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${
+                                    updatingSettings ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-white hover:bg-black shadow-lg shadow-gray-200'
+                                }`}
+                            >
+                                {updatingSettings ? <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" /> : <FiSave />}
+                                Save
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

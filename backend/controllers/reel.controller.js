@@ -7,6 +7,7 @@ import YouTubePlaylistMap from '../models/YouTubePlaylistMap.model.js';
 import Vendor from '../models/Vendor.model.js';
 import User from '../models/User.model.js';
 import Music from '../models/Music.model.js';
+import B2BSettings from '../models/B2BSettings.model.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadToCloudinary, deleteFromCloudinary, uploadUrlToCloudinary } from '../utils/cloudinary.util.js';
 import { publishReelToYouTube, fetchPlaylistItems, fetchVideoById, deleteVideoFromYouTube } from '../services/youtubeReel.service.js';
@@ -98,6 +99,14 @@ export const uploadReel = asyncHandler(async (req, res) => {
   let uploadResult = { secure_url: null, public_id: null, duration: null };
   let reelType = 'upload';
   let externalLinkType = 'cloudinary';
+
+  // 🔹 Global Setting Check for File Uploads
+  if (!videoLink) {
+    const settings = await B2BSettings.findOne().sort({ createdAt: -1 }).lean();
+    if (settings && settings.enableVideoFileUpload === false) {
+      return res.status(403).json({ success: false, message: 'Video file uploads are currently disabled by admin. Please use YouTube links.' });
+    }
+  }
 
   // 🔹 Daily Limit for File Uploads (Vendor only)
   if (!videoLink && uploaderType === 'vendor') {
@@ -1526,12 +1535,24 @@ export const getDailyUploadStatus = asyncHandler(async (req, res) => {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const count = await Reel.countDocuments({
-    uploaderId,
-    uploaderType: 'vendor',
-    reelType: 'upload',
-    createdAt: { $gte: today }
-  });
+  const [count, settings] = await Promise.all([
+    Reel.countDocuments({
+      uploaderId,
+      uploaderType: 'vendor',
+      reelType: 'upload',
+      createdAt: { $gte: today }
+    }),
+    B2BSettings.findOne().sort({ createdAt: -1 }).lean()
+  ]);
 
-  res.status(200).json({ success: true, data: { canUpload: count < 1, count } });
+  const enableVideoFileUpload = settings ? settings.enableVideoFileUpload : true;
+
+  res.status(200).json({ 
+    success: true, 
+    data: { 
+      canUpload: count < 1 && enableVideoFileUpload, 
+      count,
+      enableVideoFileUpload
+    } 
+  });
 });

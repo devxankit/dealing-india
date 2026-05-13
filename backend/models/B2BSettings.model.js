@@ -7,6 +7,10 @@ const b2bSettingsSchema = new mongoose.Schema(
             default: 1,
             min: 0
         },
+        enableVideoFileUpload: {
+            type: Boolean,
+            default: true
+        },
         updatedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Admin'
