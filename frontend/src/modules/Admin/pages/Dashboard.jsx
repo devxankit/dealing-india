@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiUsers, FiUserCheck, FiPackage, FiHome, FiZap, FiImage,
   FiTrendingUp, FiTrendingDown, FiPhone, FiMessageCircle,
-  FiAlertCircle, FiCheckCircle, FiClock, FiXCircle, FiUserPlus
+  FiAlertCircle, FiCheckCircle, FiClock, FiXCircle, FiUserPlus, FiVideo
 } from 'react-icons/fi';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
@@ -46,6 +46,7 @@ const Dashboard = () => {
     FiImage: <FiImage />,
     FiUserPlus: <FiUserPlus />,
     FiTrendingUp: <FiTrendingUp />,
+    FiVideo: <FiVideo />,
   };
 
   useEffect(() => {
@@ -65,6 +66,7 @@ const Dashboard = () => {
               { label: 'Total Products', value: apiData.totalProducts, trend: '+18%', trendType: 'up', icon: 'FiPackage', color: 'purple', link: '/admin/b2b-vendors/products' },
               { label: 'Total Properties', value: apiData.totalProperties, trend: '+8%', trendType: 'up', icon: 'FiHome', color: 'orange', link: '/admin/b2b-vendors/properties' },
               { label: 'Lot Slots', value: apiData.totalLotSlots || 0, trend: '+15%', trendType: 'up', icon: 'FiZap', color: 'indigo', link: '/admin/b2b-vendors/lot-slots' },
+              { label: 'Total Reels', value: apiData.totalReels || 0, trend: '+10%', trendType: 'up', icon: 'FiVideo', color: 'rose', link: '/admin/reels/moderation' },
               { label: 'Live Banners', value: apiData.activeBanners, trend: '-3%', trendType: 'down', icon: 'FiImage', color: 'pink', link: '/admin/b2b-vendors/banner-bookings' }
             ],
             vendorDistribution: vendorDist || [],
@@ -79,7 +81,8 @@ const Dashboard = () => {
             listingHealth: {
               products: { total: apiData.totalProducts, approved: apiData.activeProducts, pending: apiData.totalProducts - apiData.activeProducts, disabled: 0 },
               properties: { total: apiData.totalProperties, approved: apiData.activeProperties, pending: apiData.totalProperties - apiData.activeProperties, disabled: 0 },
-              lotSlots: { total: apiData.totalLotSlots || 0, approved: apiData.activeLotSlots || 0, pending: (apiData.totalLotSlots || 0) - (apiData.activeLotSlots || 0), disabled: 0 }
+              lotSlots: { total: apiData.totalLotSlots || 0, approved: apiData.activeLotSlots || 0, pending: (apiData.totalLotSlots || 0) - (apiData.activeLotSlots || 0), disabled: 0 },
+              reels: { total: apiData.totalReels || 0, approved: apiData.activeReels || 0, pending: (apiData.totalReels || 0) - (apiData.activeReels || 0), disabled: 0 }
             },
             banners: {
               productBanners: Math.floor(apiData.activeBanners / 2),
@@ -272,6 +275,22 @@ const Dashboard = () => {
                 <div className="p-4 rounded-3xl bg-green-50/50 border border-green-100">
                   <div className="text-green-600 text-xs font-bold uppercase mb-1">Live</div>
                   <div className="text-xl font-black text-green-900">{listingHealth.lotSlots.approved.toLocaleString()}</div>
+                </div>
+              </div>
+            </div>
+            {/* Reels */}
+            <div className="space-y-6">
+              <h4 className="flex items-center gap-2 text-rose-600 font-black uppercase text-xs tracking-widest">
+                <FiVideo /> Reels
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-3xl bg-rose-50/50 border border-rose-100">
+                  <div className="text-rose-600 text-xs font-bold uppercase mb-1">Total</div>
+                  <div className="text-xl font-black text-rose-900">{listingHealth.reels?.total?.toLocaleString() || 0}</div>
+                </div>
+                <div className="p-4 rounded-3xl bg-green-50/50 border border-green-100">
+                  <div className="text-green-600 text-xs font-bold uppercase mb-1">Approved</div>
+                  <div className="text-xl font-black text-green-900">{listingHealth.reels?.approved?.toLocaleString() || 0}</div>
                 </div>
               </div>
             </div>

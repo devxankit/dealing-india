@@ -43,7 +43,9 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         revenueResult,
         activeSubscriptionsCount,
         totalLotSlots,
-        activeLotSlots
+        activeLotSlots,
+        totalReels,
+        activeReels
     ] = await Promise.all([
         User.countDocuments(),
         Vendor.countDocuments({ vendorType: { $ne: 'admin' } }),
@@ -102,7 +104,9 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         ]),
         VendorSubscription.countDocuments({ status: 'active' }),
         LotSlot.countDocuments(),
-        LotSlot.countDocuments({ isActive: true })
+        LotSlot.countDocuments({ isActive: true }),
+        Reel.countDocuments(),
+        Reel.countDocuments({ status: 'approved' })
     ]);
 
     // Format vendor distribution for frontend based on business type
@@ -302,7 +306,9 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
                 totalRevenue,
                 activeSubscriptionsCount,
                 totalLotSlots,
-                activeLotSlots
+                activeLotSlots,
+                totalReels,
+                activeReels
             },
             vendorDistribution: formattedVendorDistribution,
             recentVendors,
