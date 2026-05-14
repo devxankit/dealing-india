@@ -74,7 +74,9 @@ class VendorAddonController {
   async purchaseAddonViaWallet(req, res) {
     try {
       const vendorId = req.user?.vendorId || req.userDoc?._id || req.user?.id;
-      const { addonPlanId, quantity } = req.body;
+      // Enforce quantity = 1 as per requirements (exact plan only)
+      const addonPlanId = req.body.addonPlanId;
+      const quantity = 1;
 
       if (!addonPlanId) {
         return res.status(400).json({ success: false, message: 'Addon plan ID is required' });
@@ -103,7 +105,9 @@ class VendorAddonController {
   async initializeAddonPurchase(req, res) {
     try {
       const vendorId = req.user?.vendorId || req.userDoc?._id || req.user?.id;
-      const { addonPlanId, quantity } = req.body;
+      // Enforce quantity = 1 as per requirements (exact plan only)
+      const addonPlanId = req.body.addonPlanId;
+      const quantity = 1;
 
       if (!addonPlanId) {
         return res.status(400).json({ success: false, message: 'Addon plan ID is required' });

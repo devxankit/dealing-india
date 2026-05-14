@@ -37,15 +37,9 @@ const B2BVendorSubscription = () => {
     const [addonBalance, setAddonBalance] = useState([]);
     const [loadingAddons, setLoadingAddons] = useState(false);
     const [processingAddonId, setProcessingAddonId] = useState(null);
-    const [addonQuantities, setAddonQuantities] = useState({});
 
-    const updateAddonQuantity = (id, delta) => {
-        setAddonQuantities(prev => {
-            const current = prev[id] || 1;
-            const next = Math.max(1, current + delta);
-            return { ...prev, [id]: next };
-        });
-    };
+
+
 
     // Payment Confirmation Modal State
     const [showPayModal, setShowPayModal] = useState(false);
@@ -397,7 +391,7 @@ const B2BVendorSubscription = () => {
         const addon = availableAddons.find(a => (a._id || a.id) === planId);
         if (!addon) return;
 
-        const quantity = addonQuantities[planId] || 1;
+        const quantity = 1;
         const discountAmount = (addon.discount || 0) * quantity;
         const priceAfterDiscount = Math.max(0, (addon.price * quantity) - discountAmount);
         
@@ -422,7 +416,7 @@ const B2BVendorSubscription = () => {
     };
 
     const proceedWithAddonPurchase = async (planId) => {
-        const quantity = payModalData?.quantity || 1;
+        const quantity = 1;
         setShowPayModal(false);
         try {
             setProcessingAddonId(planId);
@@ -511,7 +505,7 @@ const B2BVendorSubscription = () => {
             toast.loading('Processing wallet payment...', { id: 'wallet-pay' });
             
             if (type === 'addon') {
-                await vendorWalletService.purchaseAddonViaWallet(id, payModalData.quantity || 1);
+                await vendorWalletService.purchaseAddonViaWallet(id, 1);
             } else {
                 // For both 'subscribe' and 'upgrade', we use the same wallet endpoint
                 await api.post('/vendor/subscriptions/purchase-wallet', { planId: id });
@@ -1037,33 +1031,12 @@ const B2BVendorSubscription = () => {
                                 <p className="text-xs text-gray-400 mb-6 font-black uppercase tracking-[0.2em]">{addon.featureType}</p>
                                 
                                 <div className="mb-6 w-full p-4 bg-gray-50 rounded-2xl">
-                                    <span className="text-3xl font-black text-gray-900">₹{(addon.price * (addonQuantities[addon._id] || 1)).toLocaleString('en-IN')}</span>
+                                    <span className="text-3xl font-black text-gray-900">₹{addon.price.toLocaleString('en-IN')}</span>
                                     <p className="text-[10px] text-primary-600 font-black mt-2 bg-primary-100/50 py-1.5 px-4 rounded-full uppercase">
-                                        {(addon.quantity * (addonQuantities[addon._id] || 1))} {addon.featureType} Units
+                                        {addon.quantity} {addon.featureType} Units
                                     </p>
                                 </div>
 
-                                {/* Quantity Selector */}
-                                <div className="flex items-center justify-between w-full mb-6 px-4 py-3 bg-slate-50 rounded-2xl border border-slate-100">
-                                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Select Packs</span>
-                                    <div className="flex items-center gap-4">
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); updateAddonQuantity(addon._id, -1); }}
-                                            className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-900 hover:text-white transition-all shadow-sm"
-                                        >
-                                            -
-                                        </button>
-                                        <span className="text-lg font-black text-slate-900 w-6 text-center">
-                                            {addonQuantities[addon._id] || 1}
-                                        </span>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); updateAddonQuantity(addon._id, 1); }}
-                                            className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-900 hover:text-white transition-all shadow-sm"
-                                        >
-                                            +
-                                        </button>
-                                    </div>
-                                </div>
 
                                 <button
                                     onClick={() => handleBuyAddon(addon._id)}
@@ -1394,7 +1367,7 @@ const B2BVendorSubscription = () => {
                                         <div className="flex flex-col">
                                             <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Selected Item</span>
                                             <span className="text-xl font-bold text-gray-900">
-                                                {payModalData.name} {payModalData.quantity > 1 ? `(x${payModalData.quantity})` : ''}
+                                                {payModalData.name}
                                             </span>
                                         </div>
                                         <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center">

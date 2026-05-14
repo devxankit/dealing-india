@@ -43,15 +43,9 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
     const [rechargeAmountInput, setRechargeAmountInput] = useState(100);
     const [noticeData, setNoticeData] = useState(null);
     const [showNoticeModal, setShowNoticeModal] = useState(false);
-    const [addonQuantities, setAddonQuantities] = useState({});
 
-    const updateAddonQuantity = (id, delta) => {
-        setAddonQuantities(prev => {
-            const current = prev[id] || 1;
-            const next = Math.max(1, current + delta);
-            return { ...prev, [id]: next };
-        });
-    };
+
+
     const fetchAttempted = useRef(false);
     // Hide base plans only if the user ALREADY HAS an active subscription that ALLOWS this feature
     const hideBasePlans = useMemo(() => {
@@ -200,7 +194,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         const plan = addonPlans.find(p => p._id === planId);
         if (!plan) return;
 
-        const quantity = addonQuantities[planId] || 1;
+        const quantity = 1;
         const totalPrice = planPrice * quantity;
 
         if (walletBalance >= totalPrice) {
@@ -208,7 +202,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                 id: planId,
                 name: plan.name || 'Add-on Pack',
                 price: totalPrice,
-                quantity: quantity,
+                quantity: 1,
                 type: 'addon'
             });
             setShowWalletConfirmModal(true);
@@ -286,7 +280,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             setShowWalletConfirmModal(false);
             if (type === 'addon') {
                 toast.loading('Processing wallet payment...', { id: 'wallet-gate' });
-                await purchaseAddonViaWallet(id, walletConfirmData.quantity || 1);
+                await purchaseAddonViaWallet(id, 1);
                 toast.success('Purchased successfully!', { id: 'wallet-gate' });
                 setShowAddonModal(false);
             } else {
@@ -438,9 +432,9 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                     <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Amount</span>
                                     <div className="text-right">
                                         <span className="font-black text-xl text-primary-600">₹{walletConfirmData.price.toLocaleString()}</span>
-                                        {walletConfirmData.quantity > 1 && (
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase">₹{(walletConfirmData.price/walletConfirmData.quantity).toLocaleString()} x {walletConfirmData.quantity}</p>
-                                        )}
+
+
+
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center pt-4 border-t border-gray-200/50">
@@ -584,15 +578,10 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                         <div className={`flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20`}>
                                             <div className="text-left">
                                                 <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
-                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{(plan.quantity * (addonQuantities[plan._id] || 1))} Extra Units</p>
+                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.quantity} Extra Units</p>
                                             </div>
                                             <div className="flex items-center gap-4 text-right">
-                                                <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-3 py-1 mr-2 shadow-sm">
-                                                    <button onClick={() => updateAddonQuantity(plan._id, -1)} className="text-gray-400 hover:text-gray-900 transition-colors font-bold text-lg">-</button>
-                                                    <span className="text-xs font-black w-4 text-center">{addonQuantities[plan._id] || 1}</span>
-                                                    <button onClick={() => updateAddonQuantity(plan._id, 1)} className="text-gray-400 hover:text-gray-900 transition-colors font-bold text-lg">+</button>
-                                                </div>
-                                                <span className={`font-black text-lg text-${theme.color}-600`}>₹{(plan.price * (addonQuantities[plan._id] || 1))}</span>
+                                                <span className={`font-black text-lg text-${theme.color}-600`}>₹{plan.price}</span>
                                                 <button 
                                                     onClick={() => handleBuyAddon(plan._id, plan.price)} 
                                                     disabled={!!processingAddonId}
@@ -690,15 +679,15 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                             <div className={`w-full flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20`}>
                                                 <div className="text-left">
                                                     <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
-                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{(plan.quantity * (addonQuantities[plan._id] || 1))} Extra Units</p>
+                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.quantity} Extra Units</p>
                                                 </div>
                                                 <div className="flex items-center gap-4">
-                                                    <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-3 py-1 shadow-sm">
-                                                        <button onClick={() => updateAddonQuantity(plan._id, -1)} className="text-gray-400 hover:text-gray-900 transition-colors font-bold text-lg">-</button>
-                                                        <span className="text-xs font-black w-4 text-center">{addonQuantities[plan._id] || 1}</span>
-                                                        <button onClick={() => updateAddonQuantity(plan._id, 1)} className="text-gray-400 hover:text-gray-900 transition-colors font-bold text-lg">+</button>
-                                                    </div>
-                                                    <span className="font-black text-lg text-amber-600">₹{(plan.price * (addonQuantities[plan._id] || 1))}</span>
+
+
+
+
+
+                                                    <span className="font-black text-lg text-amber-600">₹{plan.price}</span>
                                                     <button 
                                                         onClick={() => handleBuyAddon(plan._id, plan.price)} 
                                                         disabled={!!processingAddonId || isRecharging} 
@@ -774,15 +763,15 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                         <div className={`flex items-center justify-between p-4 border-2 border-gray-100 rounded-2xl hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item`}>
                                             <div className="text-left">
                                                 <p className="font-bold text-gray-800">{plan.name}</p>
-                                                <p className="text-xs text-gray-500">{(plan.quantity * (addonQuantities[plan._id] || 1))} Units</p>
+                                                <p className="text-xs text-gray-500">{plan.quantity} Units</p>
                                             </div>
                                             <div className="flex items-center gap-3">
-                                                <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-2 py-0.5 border border-gray-100">
-                                                    <button onClick={(e) => { e.stopPropagation(); updateAddonQuantity(plan._id, -1); }} className="text-gray-400 hover:text-gray-900 transition-colors font-bold">-</button>
-                                                    <span className="text-[10px] font-black w-3 text-center">{addonQuantities[plan._id] || 1}</span>
-                                                    <button onClick={(e) => { e.stopPropagation(); updateAddonQuantity(plan._id, 1); }} className="text-gray-400 hover:text-gray-900 transition-colors font-bold">+</button>
-                                                </div>
-                                                <span className="font-bold text-primary-600 text-sm">₹{(plan.price * (addonQuantities[plan._id] || 1))}</span>
+
+
+
+
+
+                                                <span className="font-bold text-primary-600 text-sm">₹{plan.price}</span>
                                                 <button 
                                                     onClick={() => handleBuyAddon(plan._id, plan.price)} 
                                                     disabled={!!processingAddonId}
