@@ -24,6 +24,7 @@ import Vendor from '../models/Vendor.model.js';
 import ShopUnit from '../models/ShopUnit.model.js';
 import VendorFollow from '../models/VendorFollow.model.js';
 import Reel from '../models/Reel.model.js';
+import VendorContactClick from '../models/VendorContactClick.model.js';
 import mongoose from 'mongoose';
 
 /**
@@ -461,12 +462,14 @@ export const getVendorDashboardForAdmin = async (req, res, next) => {
       activeBanners,
       subscriptions,
       notifications,
-      vendorAnalytics,
       shopUnit,
       totalReels,
-      approvedReels
+      approvedReels,
+      realCallClicks,
+      realWhatsappClicks,
+      realMapClicks
     ] = await Promise.all([
-      Vendor.findById(vendorId).select('name storeName businessType businessTypeRef email').lean(),
+      Vendor.findById(vendorId).select('name storeName businessType businessTypeRef email analytics').lean(),
       Product.countDocuments({ vendorId }),
       Product.countDocuments({ vendorId, isActive: true }),
       Property.countDocuments({ vendorId }),
@@ -476,10 +479,12 @@ export const getVendorDashboardForAdmin = async (req, res, next) => {
       BannerBooking.find({ vendorId, status: 'active' }).populate('slotId').lean(),
       VendorSubscription.find({ vendorId, status: 'active' }).populate('planId').lean(),
       Notification.find({ recipient: vendorId, recipientType: 'vendor' }).sort({ createdAt: -1 }).limit(5).lean(),
-      Vendor.findById(vendorId).select('analytics').lean(),
       ShopUnit.findOne({ vendorId }).lean(),
-      Reel.countDocuments({ uploaderId: vendorId, uploaderType: 'vendor' }),
-      Reel.countDocuments({ uploaderId: vendorId, uploaderType: 'vendor', status: 'approved' })
+      Reel.countDocuments({ uploaderId: new mongoose.Types.ObjectId(vendorId), uploaderType: 'vendor' }),
+      Reel.countDocuments({ uploaderId: new mongoose.Types.ObjectId(vendorId), uploaderType: 'vendor', status: 'approved' }),
+      VendorContactClick.countDocuments({ vendorId: new mongoose.Types.ObjectId(vendorId), clickType: 'call' }),
+      VendorContactClick.countDocuments({ vendorId: new mongoose.Types.ObjectId(vendorId), clickType: 'whatsapp' }),
+      VendorContactClick.countDocuments({ vendorId: new mongoose.Types.ObjectId(vendorId), clickType: 'map' })
     ]);
 
     if (!vendor) {
@@ -501,9 +506,9 @@ export const getVendorDashboardForAdmin = async (req, res, next) => {
       } : null,
       overview: {
         bannerClicks: 0,
-        callClicks: vendorAnalytics?.analytics?.callClicks || 0,
-        whatsappClicks: vendorAnalytics?.analytics?.whatsappClicks || 0,
-        mapClicks: vendorAnalytics?.analytics?.mapClicks || 0
+        callClicks: realCallClicks || 0,
+        whatsappClicks: realWhatsappClicks || 0,
+        mapClicks: realMapClicks || 0
       },
       counts: {
         products: {

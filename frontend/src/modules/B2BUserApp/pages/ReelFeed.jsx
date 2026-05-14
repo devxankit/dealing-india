@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiHeart, FiVideo, FiShare2, FiEye, FiCopy, FiX, FiFilter, FiChevronDown, FiVolume2, FiVolumeX, FiFlag } from "react-icons/fi";
+import { FiHeart, FiVideo, FiShare2, FiEye, FiCopy, FiX, FiFilter, FiChevronDown, FiVolume2, FiVolumeX, FiFlag, FiPlay, FiPause, FiSkipBack, FiSkipForward } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
@@ -38,6 +38,10 @@ export default function ReelFeed() {
   const [isBuffering, setIsBuffering] = useState(true);
   const [initialMetadata, setInitialMetadata] = useState(null);
   const [metadataLoading, setMetadataLoading] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const videoRef = useRef(null);
+  const ytPlayerRef = useRef(null);
+  const ytApiLoadedRef = useRef(false);
 
   // Debounce category search
   useEffect(() => {
@@ -199,6 +203,7 @@ export default function ReelFeed() {
 
     if (reels.length > 0 && reels[currentIndex]?._id) {
       const currentId = reels[currentIndex]._id;
+      setIsPlaying(true); // Reset play state for new reel
       if (currentId !== reelIdFromUrl) {
         const search = searchParams.toString();
         // Use replace: true so that we don't pollute the history stack with every scroll
@@ -420,6 +425,121 @@ export default function ReelFeed() {
     window.open(`https://api.whatsapp.com/send?phone=${formatted}&text=${msg}`, "_blank");
   };
 
+  const isYoutubeRef = useRef(false);
+
+  // Load YouTube IFrame API
+  useEffect(() => {
+    if (window.YT && window.YT.Player) return;
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const firstScript = document.getElementsByTagName('script')[0];
+    firstScript.parentNode.insertBefore(tag, firstScript);
+  }, []);
+
+  // Initialize YouTube player when youtube ID changes
+  const currentYoutubeId = getReelYoutubeId(currentReel || initialMetadata);
+  useEffect(() => {
+    if (!currentYoutubeId) return;
+    isYoutubeRef.current = false;
+    ytApiLoadedRef.current = false;
+
+    const checkYT = setInterval(() => {
+      if (window.YT && window.YT.Player) {
+        clearInterval(checkYT);
+
+        // Destroy old player if exists
+        if (ytPlayerRef.current) {
+          ytPlayerRef.current.destroy();
+          ytPlayerRef.current = null;
+        }
+
+        const container = document.getElementById('youtube-player-container');
+        if (container) {
+          container.innerHTML = '';
+          isYoutubeRef.current = true;
+          ytPlayerRef.current = new window.YT.Player(container, {
+            videoId: currentYoutubeId,
+            playerVars: {
+              autoplay: 1,
+              mute: isMuted ? 1 : 0,
+              loop: 1,
+              controls: 0,
+              disablekb: 1,
+              fs: 0,
+              rel: 0,
+              modestbranding: 1,
+              iv_load_policy: 3,
+              showinfo: 0,
+              playlist: currentYoutubeId,
+            },
+            events: {
+              onReady: () => {
+                setIsBuffering(false);
+                // Auto-play when ready
+                if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === 'function') {
+                  ytPlayerRef.current.playVideo();
+                }
+              },
+              onStateChange: (event) => {
+                if (event.data === window.YT.PlayerState.PLAYING) {
+                  setIsPlaying(true);
+                  setIsBuffering(false);
+                } else if (event.data === window.YT.PlayerState.PAUSED) {
+                  setIsPlaying(false);
+                } else if (event.data === window.YT.PlayerState.BUFFERING) {
+                  setIsBuffering(true);
+                }
+              }
+            }
+          });
+        }
+      }
+    }, 100);
+
+    return () => clearInterval(checkYT);
+  }, [currentYoutubeId, isMuted]);
+
+  const togglePlay = useCallback(() => {
+    const newPlaying = !isPlaying;
+    setIsPlaying(newPlaying);
+
+    // Handle native video element
+    if (videoRef.current && !isYoutubeRef.current) {
+      if (newPlaying) {
+        videoRef.current.play().catch(console.error);
+      } else {
+        videoRef.current.pause();
+      }
+    }
+
+    // Handle YouTube player via API - Added safety checks for methods
+    if (ytPlayerRef.current && isYoutubeRef.current) {
+      try {
+        if (newPlaying) {
+          if (typeof ytPlayerRef.current.playVideo === 'function') {
+            ytPlayerRef.current.playVideo();
+          }
+        } else {
+          if (typeof ytPlayerRef.current.pauseVideo === 'function') {
+            ytPlayerRef.current.pauseVideo();
+          }
+        }
+      } catch (err) {
+        console.warn("YouTube player error:", err);
+      }
+    }
+  }, [isPlaying]);
+
+  const handleSkip = useCallback((direction) => {
+    if (direction === 'next') {
+      if (hasNext) setCurrentIndex(i => i + 1);
+      else if (hasMore) loadMore();
+    } else {
+      if (hasPrev) setCurrentIndex(i => i - 1);
+    }
+    setIsPlaying(true);
+  }, [hasNext, hasPrev, hasMore, loadMore]);
+
   const submitReport = async () => {
     if (!reportReason) return;
     setIsReporting(true);
@@ -493,38 +613,74 @@ export default function ReelFeed() {
                 </div>
 
                 {getReelYoutubeId(currentReel || initialMetadata) ? (
-                  <div className="w-full h-full pointer-events-none relative z-10 bg-transparent">
-                    <iframe
-                      title={(currentReel || initialMetadata)?.title}
-                      onLoad={() => {
-                        // YouTube doesn't give a 'playing' event via HTML, so we delay the hide
-                        setTimeout(() => setIsBuffering(false), 800);
-                      }}
-                      src={`https://www.youtube.com/embed/${getReelYoutubeId(currentReel || initialMetadata)}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${getReelYoutubeId(currentReel || initialMetadata)}&rel=0&modestbranding=1&controls=0&disablekb=1&enablejsapi=1&iv_load_policy=3&showinfo=0`}
-                      className="w-full h-full scale-[1.3] md:scale-[1.05]"
-                      allow="autoplay; encrypted-media; picture-in-picture"
-                      allowFullScreen
-                    />
+                  <div className="w-full h-full relative z-10 bg-transparent">
+                    <div id="youtube-player-container" className="w-full h-full" />
                   </div>
-                ) : (currentReel || initialMetadata)?.videoUrl && (
-                  <video
-                    src={(currentReel || initialMetadata).videoUrl}
-                    poster={(currentReel || initialMetadata).thumbnailUrl}
-                    className="w-full h-full object-cover relative z-10"
-                    autoPlay
-                    loop
-                    preload="auto"
-                    playsInline
-                    muted={isMuted}
-                    crossOrigin="anonymous"
-                    onPlaying={() => setIsBuffering(false)}
-                    onWaiting={() => setIsBuffering(true)}
-                    onLoadStart={() => setIsBuffering(true)}
-                  />
+                ) : (
+                  <>
+                    {(() => { isYoutubeRef.current = false; })()}
+                    {(currentReel || initialMetadata)?.videoUrl && (
+                      <video
+                        ref={videoRef}
+                        src={(currentReel || initialMetadata).videoUrl}
+                        poster={(currentReel || initialMetadata).thumbnailUrl}
+                        className="w-full h-full object-cover relative z-10"
+                        autoPlay
+                        loop
+                        preload="auto"
+                        playsInline
+                        muted={isMuted}
+                        crossOrigin="anonymous"
+                        onPlaying={() => {
+                          setIsBuffering(false);
+                          setIsPlaying(true);
+                        }}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                        onWaiting={() => setIsBuffering(true)}
+                        onLoadStart={() => setIsBuffering(true)}
+                      />
+                    )}
+                  </>
                 )}
 
                 {/* Interaction blocker/event catcher for iframes */}
-                <div className="absolute inset-0 z-[15]" />
+                <div 
+                  className="absolute inset-0 z-[15] cursor-pointer" 
+                  onClick={togglePlay}
+                />
+
+                {/* Play/Pause/Skip Controls Overlay - Always visible except during auto-play */}
+                <div
+                  className="absolute inset-0 z-[25] flex items-center justify-center gap-8"
+                >
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleSkip('prev'); }}
+                    className={`p-4 rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10 transition-all active:scale-90 ${!hasPrev ? 'opacity-30' : 'hover:bg-black/40'}`}
+                    disabled={!hasPrev}
+                  >
+                    <FiSkipBack className="text-2xl" />
+                  </button>
+
+                  <button
+                    onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                    className="w-20 h-20 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-xl text-white border border-white/20 shadow-2xl transition-all hover:scale-110 active:scale-95"
+                  >
+                    {isPlaying ? (
+                      <FiPause className="text-4xl" />
+                    ) : (
+                      <FiPlay className="text-4xl ml-1" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleSkip('next'); }}
+                    className={`p-4 rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10 transition-all active:scale-90 ${(!hasNext && !hasMore) ? 'opacity-30' : 'hover:bg-black/40'}`}
+                    disabled={!hasNext && !hasMore}
+                  >
+                    <FiSkipForward className="text-2xl" />
+                  </button>
+                </div>
               </div>
 
               {/* OVERLAYS INSIDE MOTION DIV */}
@@ -608,7 +764,7 @@ export default function ReelFeed() {
                           : "text-[#25D366] hover:scale-110 active:scale-95"
                       }`}
                     >
-                      <FaWhatsapp className="text-3xl" />
+                      <FaWhatsapp className="text-5xl shadow-glow-green" />
                     </button>
                     {currentReel?.enquiryStatus && !currentReel.enquiryStatus.canAcceptEnquiries && (
                       <p className="text-[7px] text-white/40 font-bold uppercase tracking-tighter mt-1 text-center bg-black/40 px-1 rounded">

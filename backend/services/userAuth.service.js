@@ -27,10 +27,20 @@ export const registerUser = async (userData) => {
         }
     }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-        const error = new Error('User with this email already exists');
+    // Check if user already exists (only if email provided)
+    if (email) {
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            const error = new Error('User with this email already exists');
+            error.status = 409;
+            throw error;
+        }
+    }
+
+    // Always check phone uniqueness as it's required for all users
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) {
+        const error = new Error('User with this phone number already exists');
         error.status = 409;
         throw error;
     }
@@ -89,7 +99,9 @@ export const registerUser = async (userData) => {
         await smsService.sendOTP(fullPhone, otp);
 
         // Send welcome email (Background)
-        sendWelcomeEmail(user.email, user.name).catch(e => console.error('BG Email Error:', e.message));
+        if (user.email) {
+            sendWelcomeEmail(user.email, user.name).catch(e => console.error('BG Email Error:', e.message));
+        }
 
         return {
             success: true,
@@ -187,7 +199,9 @@ export const verifyUserEmail = async (email, otp) => {
     await TemporaryRegistration.deleteOne({ _id: tempReg._id });
 
     // Send welcome email (Background)
-    sendWelcomeEmail(user.email, user.name).catch(e => console.error('BG Email Error:', e.message));
+    if (user.email) {
+        sendWelcomeEmail(user.email, user.name).catch(e => console.error('BG Email Error:', e.message));
+    }
 
     // Create Welcome Notification in DB
     notificationService.createNotification({
@@ -262,8 +276,10 @@ export const loginUser = async (identifier, password) => {
 
     if (!user.isEmailVerified && user.currentMarketplace !== 'b2b') {
         // Generate new OTP and tell them to verify
-        const otp = await generateOTP(user.email, 'email_verification');
-        sendVerificationEmail(user.email, otp).catch(e => console.error('BG Email Error:', e.message));
+        if (user.email) {
+            const otp = await generateOTP(user.email, 'email_verification');
+            sendVerificationEmail(user.email, otp).catch(e => console.error('BG Email Error:', e.message));
+        }
         const error = new Error('Please verify your email. A new OTP has been sent.');
         error.status = 403;
         error.code = 'EMAIL_NOT_VERIFIED';

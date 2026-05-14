@@ -25,15 +25,6 @@ const PropertyForm = ({ initialData, isEdit }) => {
     const [media, setMedia] = useState([]); // { url, data, name }
     const [isDraftLoaded, setIsDraftLoaded] = useState(false);
 
-    // Use persistence hook
-    useFormPersist(USER_DRAFT_KEY, { formData, media }, (data) => {
-        if (data.formData) setFormData(data.formData);
-        if (data.media) setMedia(data.media);
-    }, !isEdit);
-
-    // const propertyTypeOptions = ["Shop/Showroom", "Office Space", "Warehouse", "Industrial Shed", "Penthouse", "Flat", "Villa", "Plot"];
-    const propertyTypeOptions = ["Shop", "Office", "Showroom", "Warehouse", "Industrial Shed", "Other"];
-
     const [formData, setFormData] = useState({
         title: '', propertyTypes: [], listingType: 'Rent', description: '',
         saleDetails: { priceMin: '', priceMax: '', priceUnit: 'Lakh', depositAmount: '', depositUnit: 'Lakh', maintenance: 'Excluded', veraBill: 'Excluded' },
@@ -45,6 +36,15 @@ const PropertyForm = ({ initialData, isEdit }) => {
         specifications: [{ builtUpArea: '', builtUpAreaUnit: 'Sq. Ft.', carpetArea: '', carpetAreaUnit: '%', floorNumber: '', totalFloors: '', ceilingHeight: '', ceilingHeightUnit: 'Ft.', entranceWidth: '', entranceWidthUnit: 'Ft.', maliya: 'No' }],
         facilities: { parking: [], lift: 'No', liftPassenger: 'No', liftLoading: 'No', powerBackup: 'No', waterSupply: [], washroom: ['Common'], fireSafety: 'No' }
     });
+
+    // Use persistence hook
+    useFormPersist(USER_DRAFT_KEY, { formData, media }, (data) => {
+        if (data.formData) setFormData(data.formData);
+        if (data.media) setMedia(data.media);
+    }, !isEdit);
+
+    // const propertyTypeOptions = ["Shop/Showroom", "Office Space", "Warehouse", "Industrial Shed", "Penthouse", "Flat", "Villa", "Plot"];
+    const propertyTypeOptions = ["Shop", "Office", "Showroom", "Warehouse", "Industrial Shed", "Other"];
 
     // Draft logic handled by useFormPersist hook.
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FiSearch, FiTrash2, FiEye, FiUser, FiToggleLeft, FiToggleRight, FiArrowUpRight, FiChevronDown, FiMapPin, FiX, FiUsers } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../../components/DataTable";
@@ -11,6 +11,7 @@ import useDebounce from "../../../../shared/hooks/useDebounce";
 import api from "../../../../shared/utils/api";
 
 const ManageB2BVendors = () => {
+    const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearchQuery = useDebounce(searchQuery, 500);
     const [selectedVendor, setSelectedVendor] = useState(null);

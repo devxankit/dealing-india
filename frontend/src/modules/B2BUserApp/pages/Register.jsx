@@ -93,11 +93,9 @@ const B2BUserRegister = () => {
             newErrors.name = 'Name should only contain alphabets';
         }
 
-        // 2. Business Email Validation: Format check (restricting TLD length to 2-3 to catch typos like .comm and .commm)
+        // 2. Business Email Validation: Optional, but format check if provided
         const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
-        if (!formData.email.trim()) {
-            newErrors.email = 'Business Email is required';
-        } else if (!emailRegex.test(formData.email)) {
+        if (formData.email.trim() && !emailRegex.test(formData.email)) {
             newErrors.email = 'Enter a valid email (e.g., name@company.com)';
         }
 
