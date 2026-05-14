@@ -61,6 +61,7 @@ const reelSchema = new mongoose.Schema(
 reelSchema.index({ status: 1, approvedAt: -1 });
 reelSchema.index({ uploaderId: 1, createdAt: -1 });
 reelSchema.index({ categoryId: 1 });
+reelSchema.index({ categoryName: 1 });
 reelSchema.index({ createdAt: -1 });
 
 export default mongoose.model('Reel', reelSchema);

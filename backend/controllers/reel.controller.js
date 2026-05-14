@@ -847,7 +847,7 @@ export const getFeed = asyncHandler(async (req, res) => {
     $and: [
       {
         $or: [
-          { youtubeVideoId: { $type: "string", $regex: /.+/ } },
+          { youtubeVideoId: { $gt: "" } },
           { status: "approved" },
         ],
       },
@@ -893,18 +893,22 @@ export const getFeed = asyncHandler(async (req, res) => {
     .map((r) => r.uploaderId);
   let vendorMap = new Map();
   if (vendorIds.length) {
-    const vendors = await Vendor.find({ 
-      _id: { $in: vendorIds },
-      status: 'approved',
-      isActive: true,
-      vendorType: 'b2b'
-    })
-      .select('phone storeName')
-      .lean();
+    const [vendors, b2bSettings] = await Promise.all([
+      Vendor.find({ 
+        _id: { $in: vendorIds },
+        status: 'approved',
+        isActive: true,
+        vendorType: 'b2b'
+      })
+        .select('phone storeName currentSubscription businessType businessTypeRef')
+        .lean(),
+      B2BSettings.findOne().sort({ createdAt: -1 }).lean()
+    ]);
     
-    // Enrich with enquiry status
+    // Enrich with enquiry status in a more optimized way
+    // We pass the pre-fetched settings to avoid N+1 queries for settings
     const vendorStatusPromises = vendors.map(async (v) => {
-      const status = await subscriptionRulesService.getVendorEnquiryStatus(v._id);
+      const status = await subscriptionRulesService.getVendorEnquiryStatus(v._id, b2bSettings);
       return { ...v, enquiryStatus: status };
     });
     const enrichedVendors = await Promise.all(vendorStatusPromises);

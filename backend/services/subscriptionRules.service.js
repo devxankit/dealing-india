@@ -853,12 +853,12 @@ class SubscriptionRulesService {
      * @param {String} vendorId 
      * @returns {Promise<Object>} Status object
      */
-    async getVendorEnquiryStatus(vendorId) {
+    async getVendorEnquiryStatus(vendorId, providedSettings = null) {
         try {
             const subData = await this.getActiveSubscription(vendorId);
             
             // Default status if no plan
-            const b2bSettings = await B2BSettings.findOne().lean();
+            const b2bSettings = providedSettings || await B2BSettings.findOne().sort({ createdAt: -1 }).lean();
             const defaultPrice = b2bSettings?.defaultEnquiryPrice ?? 1;
             
             let canAcceptEnquiries = false;

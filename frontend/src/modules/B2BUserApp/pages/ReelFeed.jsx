@@ -39,9 +39,13 @@ export default function ReelFeed() {
   const [initialMetadata, setInitialMetadata] = useState(null);
   const [metadataLoading, setMetadataLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const hasUserInteractedRef = useRef(false);
   const videoRef = useRef(null);
   const ytPlayerRef = useRef(null);
   const ytApiLoadedRef = useRef(false);
+  const controlsTimeoutRef = useRef(null);
+  const pendingAdvanceRef = useRef(false);
 
   // Debounce category search
   useEffect(() => {
@@ -65,6 +69,12 @@ export default function ReelFeed() {
   const loadingMoreRef = useRef(false);
   const hasAppliedInitialReelRef = useRef(false);
   const [isMuted, setIsMuted] = useState(false);
+  const reelIdFromUrlRef = useRef(reelIdFromUrl);
+  useEffect(() => {
+    // Only update the ref if we are not in the middle of a scroll-induced URL update
+    // Actually, we can just keep it updated.
+    reelIdFromUrlRef.current = reelIdFromUrl;
+  }, [reelIdFromUrl]);
 
   const fetchFeed = useCallback(async (pageNum = 1, append = false, pageToken = null, forceCategory = null) => {
     try {
@@ -91,11 +101,18 @@ export default function ReelFeed() {
         const currentPage = pagination.page ?? pageNum;
 
         if (append) {
-          setReels((prev) => (newReels.length ? [...prev, ...newReels] : prev));
+          setReels((prev) => {
+            const newer = newReels.length ? [...prev, ...newReels] : prev;
+            return newer;
+          });
+          if (pendingAdvanceRef.current) {
+            pendingAdvanceRef.current = false;
+            setCurrentIndex(prev => prev + 1);
+          }
         } else {
           setReels(newReels);
           // If reelIdFromUrl is in the new batch, jump to it immediately
-          const foundIdx = reelIdFromUrl ? newReels.findIndex(r => r._id === reelIdFromUrl) : -1;
+          const foundIdx = reelIdFromUrlRef.current ? newReels.findIndex(r => r._id === reelIdFromUrlRef.current) : -1;
           if (foundIdx >= 0) {
             setCurrentIndex(foundIdx);
             hasAppliedInitialReelRef.current = true;
@@ -145,7 +162,7 @@ export default function ReelFeed() {
       setLoading(false);
       loadingMoreRef.current = false;
     }
-  }, [activeCategory, reelIdFromUrl]);
+  }, [activeCategory]); // Removed reelIdFromUrl to prevent loop on scroll
 
   // Priority fetch for deep-linked reel metadata to show thumbnail immediately
   useEffect(() => {
@@ -203,10 +220,12 @@ export default function ReelFeed() {
 
     if (reels.length > 0 && reels[currentIndex]?._id) {
       const currentId = reels[currentIndex]._id;
-      setIsPlaying(true); // Reset play state for new reel
+      setIsPlaying(true); 
+      setIsBuffering(true); // Show loader while new video loads
+      setControlsVisible(false);
+      hasUserInteractedRef.current = false;
       if (currentId !== reelIdFromUrl) {
         const search = searchParams.toString();
-        // Use replace: true so that we don't pollute the history stack with every scroll
         navigate(`/b2b/reels/${currentId}${search ? `?${search}` : ""}`, { replace: true });
       }
     }
@@ -281,17 +300,24 @@ export default function ReelFeed() {
       if (e.deltaY > 0) {
         if (canNext) {
           wheelLockRef.current = true;
+          setControlsVisible(false);
+          setIsPlaying(true);
+          hasUserInteractedRef.current = false;
           setCurrentIndex((i) => i + 1);
-          setTimeout(() => { wheelLockRef.current = false; }, 500);
+          setTimeout(() => { wheelLockRef.current = false; }, 1000);
         } else if (moreAvailable) {
           wheelLockRef.current = true;
+          pendingAdvanceRef.current = true;
           loadMore();
-          setTimeout(() => { wheelLockRef.current = false; }, 800);
+          setTimeout(() => { wheelLockRef.current = false; }, 1200);
         }
       } else if (e.deltaY < 0 && canPrev) {
         wheelLockRef.current = true;
+        setControlsVisible(false);
+        setIsPlaying(true);
+        hasUserInteractedRef.current = false;
         setCurrentIndex((i) => i - 1);
-        setTimeout(() => { wheelLockRef.current = false; }, 500);
+        setTimeout(() => { wheelLockRef.current = false; }, 1000);
       }
     },
     [loadMore]
@@ -312,9 +338,19 @@ export default function ReelFeed() {
     const diff = touchStartYRef.current - e.changedTouches[0].clientY;
     if (Math.abs(diff) < 40) return;
     if (diff > 0) {
-      if (hasNext) setCurrentIndex((i) => i + 1);
-      else if (hasMore) loadMore();
+      if (hasNext) {
+        setControlsVisible(false);
+        setIsPlaying(true);
+        hasUserInteractedRef.current = false;
+        setCurrentIndex((i) => i + 1);
+      } else if (hasMore) {
+        pendingAdvanceRef.current = true;
+        loadMore();
+      }
     } else if (diff < 0 && hasPrev) {
+      setControlsVisible(false);
+      setIsPlaying(true);
+      hasUserInteractedRef.current = false;
       setCurrentIndex((i) => i - 1);
     }
     touchStartYRef.current = null;
@@ -440,16 +476,17 @@ export default function ReelFeed() {
   const currentYoutubeId = getReelYoutubeId(currentReel || initialMetadata);
   useEffect(() => {
     if (!currentYoutubeId) return;
-    isYoutubeRef.current = false;
-    ytApiLoadedRef.current = false;
+    let isCancelled = false;
 
     const checkYT = setInterval(() => {
+      if (isCancelled) { clearInterval(checkYT); return; }
       if (window.YT && window.YT.Player) {
         clearInterval(checkYT);
+        if (isCancelled) return;
 
         // Destroy old player if exists
         if (ytPlayerRef.current) {
-          ytPlayerRef.current.destroy();
+          try { ytPlayerRef.current.destroy(); } catch(e) {}
           ytPlayerRef.current = null;
         }
 
@@ -474,18 +511,21 @@ export default function ReelFeed() {
             },
             events: {
               onReady: () => {
+                if (isCancelled) return;
                 setIsBuffering(false);
-                // Auto-play when ready
                 if (ytPlayerRef.current && typeof ytPlayerRef.current.playVideo === 'function') {
                   ytPlayerRef.current.playVideo();
                 }
               },
               onStateChange: (event) => {
+                if (isCancelled) return;
                 if (event.data === window.YT.PlayerState.PLAYING) {
                   setIsPlaying(true);
                   setIsBuffering(false);
+                  setControlsVisible(false);
                 } else if (event.data === window.YT.PlayerState.PAUSED) {
                   setIsPlaying(false);
+                  setControlsVisible(true);
                 } else if (event.data === window.YT.PlayerState.BUFFERING) {
                   setIsBuffering(true);
                 }
@@ -496,12 +536,38 @@ export default function ReelFeed() {
       }
     }, 100);
 
-    return () => clearInterval(checkYT);
+    return () => {
+      isCancelled = true;
+      clearInterval(checkYT);
+      if (ytPlayerRef.current) {
+        try {
+          ytPlayerRef.current.destroy();
+        } catch (e) {}
+        ytPlayerRef.current = null;
+      }
+    };
   }, [currentYoutubeId, isMuted]);
 
   const togglePlay = useCallback(() => {
     const newPlaying = !isPlaying;
     setIsPlaying(newPlaying);
+    hasUserInteractedRef.current = true;
+
+    // Clear existing timeout
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+
+    if (newPlaying) {
+      // When playing: show controls briefly then auto-hide
+      setControlsVisible(true);
+      controlsTimeoutRef.current = setTimeout(() => {
+        setControlsVisible(false);
+      }, 2000);
+    } else {
+      // When paused: keep controls visible
+      setControlsVisible(true);
+    }
 
     // Handle native video element
     if (videoRef.current && !isYoutubeRef.current) {
@@ -512,7 +578,7 @@ export default function ReelFeed() {
       }
     }
 
-    // Handle YouTube player via API - Added safety checks for methods
+    // Handle YouTube player via API
     if (ytPlayerRef.current && isYoutubeRef.current) {
       try {
         if (newPlaying) {
@@ -533,11 +599,13 @@ export default function ReelFeed() {
   const handleSkip = useCallback((direction) => {
     if (direction === 'next') {
       if (hasNext) setCurrentIndex(i => i + 1);
-      else if (hasMore) loadMore();
+      else if (hasMore) {
+        pendingAdvanceRef.current = true;
+        loadMore();
+      }
     } else {
       if (hasPrev) setCurrentIndex(i => i - 1);
     }
-    setIsPlaying(true);
   }, [hasNext, hasPrev, hasMore, loadMore]);
 
   const submitReport = async () => {
@@ -584,6 +652,42 @@ export default function ReelFeed() {
 
       {/* Background Video Layer - Starts below status bar */}
       <div className="absolute inset-x-0 bottom-0 top-[env(safe-area-inset-top)] z-0 bg-black">
+        {/* Stable Player Container: Hoisted outside AnimatePresence to prevent re-mount conflicts */}
+        <div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden">
+          {getReelYoutubeId(currentReel || initialMetadata) ? (
+            <div className="w-full h-full relative z-10 bg-transparent">
+              <div id="youtube-player-container" className="w-full h-full" />
+            </div>
+          ) : (
+            <>
+              {(() => { isYoutubeRef.current = false; })()}
+              {(currentReel || initialMetadata)?.videoUrl && (
+                <video
+                  ref={videoRef}
+                  src={(currentReel || initialMetadata).videoUrl}
+                  poster={(currentReel || initialMetadata).thumbnailUrl}
+                  className="w-full h-full object-cover relative z-10"
+                  autoPlay
+                  loop
+                  preload="auto"
+                  playsInline
+                  muted={isMuted}
+                  crossOrigin="anonymous"
+                  onPlaying={() => {
+                    setIsBuffering(false);
+                    setIsPlaying(true);
+                    setControlsVisible(false);
+                  }}
+                  onPlay={() => { setIsPlaying(true); setControlsVisible(false); }}
+                  onPause={() => { setIsPlaying(false); setControlsVisible(true); }}
+                  onWaiting={() => setIsBuffering(true)}
+                  onLoadStart={() => setIsBuffering(true)}
+                />
+              )}
+            </>
+          )}
+        </div>
+
         <AnimatePresence>
           {(currentReel || initialMetadata) && (
             <motion.div
@@ -591,72 +695,49 @@ export default function ReelFeed() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0"
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 z-20 pointer-events-none"
             >
-              <div className="h-full w-full flex items-center justify-center bg-black relative">
+              <div className="h-full w-full flex items-center justify-center relative">
                 {/* Immediate Feedback Thumbnail layer - stays visible until video is ready */}
-                <div className={`absolute inset-0 z-20 transition-opacity duration-500 ${(isBuffering || loading) ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <div className={`absolute inset-0 z-20 transition-opacity duration-700 ${(isBuffering || loading) ? 'opacity-100' : 'opacity-0'}`}>
                   <img
                     src={getReelYoutubeId(currentReel || initialMetadata) 
                       ? `https://img.youtube.com/vi/${getReelYoutubeId(currentReel || initialMetadata)}/maxresdefault.jpg` 
                       : ((currentReel || initialMetadata)?.thumbnailUrl || "/placeholder-reel.jpg")
                     }
-                    className="w-full h-full object-cover blur-sm brightness-50"
+                    className="w-full h-full object-cover blur-md brightness-50"
                     alt=""
                   />
                   {(isBuffering || loading) && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                     </div>
                   )}
                 </div>
 
-                {getReelYoutubeId(currentReel || initialMetadata) ? (
-                  <div className="w-full h-full relative z-10 bg-transparent">
-                    <div id="youtube-player-container" className="w-full h-full" />
-                  </div>
-                ) : (
-                  <>
-                    {(() => { isYoutubeRef.current = false; })()}
-                    {(currentReel || initialMetadata)?.videoUrl && (
-                      <video
-                        ref={videoRef}
-                        src={(currentReel || initialMetadata).videoUrl}
-                        poster={(currentReel || initialMetadata).thumbnailUrl}
-                        className="w-full h-full object-cover relative z-10"
-                        autoPlay
-                        loop
-                        preload="auto"
-                        playsInline
-                        muted={isMuted}
-                        crossOrigin="anonymous"
-                        onPlaying={() => {
-                          setIsBuffering(false);
-                          setIsPlaying(true);
-                        }}
-                        onPlay={() => setIsPlaying(true)}
-                        onPause={() => setIsPlaying(false)}
-                        onWaiting={() => setIsBuffering(true)}
-                        onLoadStart={() => setIsBuffering(true)}
-                      />
-                    )}
-                  </>
-                )}
-
-                {/* Interaction blocker/event catcher for iframes */}
-                <div 
-                  className="absolute inset-0 z-[15] cursor-pointer" 
-                  onClick={togglePlay}
+                {/* Interaction blocker/event catcher for iframes - enables play on tap */}
+                <div
+                  className="absolute inset-0 z-[25] cursor-pointer pointer-events-auto"
+                  onClick={() => {
+                    if (controlsVisible) {
+                      togglePlay();
+                    } else {
+                      // Show controls briefly on tap
+                      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+                      setControlsVisible(true);
+                      controlsTimeoutRef.current = setTimeout(() => setControlsVisible(false), 2000);
+                    }
+                  }}
                 />
 
-                {/* Play/Pause/Skip Controls Overlay - Always visible except during auto-play */}
+                {/* Play/Pause/Skip Controls Overlay - Only visible after user interaction or when paused */}
                 <div
-                  className="absolute inset-0 z-[25] flex items-center justify-center gap-8"
+                  className={`absolute inset-0 z-[30] flex items-center justify-center gap-8 transition-all duration-300 pointer-events-none ${controlsVisible || !isPlaying ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
                 >
                   <button
                     onClick={(e) => { e.stopPropagation(); handleSkip('prev'); }}
-                    className={`p-4 rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10 transition-all active:scale-90 ${!hasPrev ? 'opacity-30' : 'hover:bg-black/40'}`}
+                    className={`p-4 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all active:scale-90 pointer-events-auto ${!hasPrev ? 'opacity-30' : 'hover:bg-black/60 shadow-xl'}`}
                     disabled={!hasPrev}
                   >
                     <FiSkipBack className="text-2xl" />
@@ -664,7 +745,7 @@ export default function ReelFeed() {
 
                   <button
                     onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-                    className="w-20 h-20 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-xl text-white border border-white/20 shadow-2xl transition-all hover:scale-110 active:scale-95"
+                    className="w-20 h-20 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-xl text-white border border-white/20 shadow-2xl transition-all hover:scale-110 active:scale-95 pointer-events-auto"
                   >
                     {isPlaying ? (
                       <FiPause className="text-4xl" />
@@ -675,13 +756,14 @@ export default function ReelFeed() {
 
                   <button
                     onClick={(e) => { e.stopPropagation(); handleSkip('next'); }}
-                    className={`p-4 rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10 transition-all active:scale-90 ${(!hasNext && !hasMore) ? 'opacity-30' : 'hover:bg-black/40'}`}
+                    className={`p-4 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all active:scale-90 pointer-events-auto ${(!hasNext && !hasMore) ? 'opacity-30' : 'hover:bg-black/60 shadow-xl'}`}
                     disabled={!hasNext && !hasMore}
                   >
                     <FiSkipForward className="text-2xl" />
                   </button>
                 </div>
               </div>
+
 
               {/* OVERLAYS INSIDE MOTION DIV */}
               <div className="absolute bottom-0 left-0 right-0 p-4 pb-[calc(110px+env(safe-area-inset-bottom))] bg-gradient-to-t from-black/80 z-20 transition-opacity duration-300" style={{ opacity: (currentReel || initialMetadata) ? 1 : 0 }}>
