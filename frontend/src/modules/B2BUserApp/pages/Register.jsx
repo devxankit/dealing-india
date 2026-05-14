@@ -17,6 +17,7 @@ const B2BUserRegister = () => {
         const saved = localStorage.getItem('b2b_user_register_draft');
         let initialData = {
             name: '',
+            businessName: '',
             email: '',
             phone: location.state?.phone ? location.state.phone.replace('+91', '') : '',
             password: '',
@@ -93,6 +94,11 @@ const B2BUserRegister = () => {
             newErrors.name = 'Name should only contain alphabets';
         }
 
+        // Business Name Validation
+        if (!formData.businessName.trim()) {
+            newErrors.businessName = 'Business Name is required';
+        }
+
         // 2. Business Email Validation: Optional, but format check if provided
         const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
         if (formData.email.trim() && !emailRegex.test(formData.email)) {
@@ -143,6 +149,7 @@ const B2BUserRegister = () => {
                 phone: formData.phone,
                 password: formData.password,
                 businessInfo: {
+                    companyName: formData.businessName,
                     address: {
                         city: formData.address.city,
                     }
@@ -237,6 +244,23 @@ const B2BUserRegister = () => {
                             />
                         </div>
                         {errors.name && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors.name}</p>}
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">Business Name</label>
+                        <div className="relative group">
+                            <FiBriefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <input
+                                type="text"
+                                name="businessName"
+                                value={formData.businessName}
+                                onChange={handleChange}
+                                placeholder="Example Corp"
+                                className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${errors.businessName ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
+                                    }`}
+                            />
+                        </div>
+                        {errors.businessName && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors.businessName}</p>}
                     </div>
 
                     <div className="space-y-1.5">

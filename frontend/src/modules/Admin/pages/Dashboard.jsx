@@ -66,7 +66,7 @@ const Dashboard = () => {
               { label: 'Total Products', value: apiData.totalProducts, trend: '+18%', trendType: 'up', icon: 'FiPackage', color: 'purple', link: '/admin/b2b-vendors/products' },
               { label: 'Total Properties', value: apiData.totalProperties, trend: '+8%', trendType: 'up', icon: 'FiHome', color: 'orange', link: '/admin/b2b-vendors/properties' },
               { label: 'Lot Slots', value: apiData.totalLotSlots || 0, trend: '+15%', trendType: 'up', icon: 'FiZap', color: 'indigo', link: '/admin/b2b-vendors/lot-slots' },
-              { label: 'Total Reels', value: apiData.totalReels || 0, trend: '+10%', trendType: 'up', icon: 'FiVideo', color: 'rose', link: '/admin/reels/moderation' },
+              { label: 'Total Reels', value: apiData.totalReels || 0, trend: '+10%', trendType: 'up', icon: 'FiVideo', color: 'rose', link: '/admin/reels' },
               { label: 'Live Banners', value: apiData.activeBanners, trend: '-3%', trendType: 'down', icon: 'FiImage', color: 'pink', link: '/admin/b2b-vendors/banner-bookings' }
             ],
             vendorDistribution: vendorDist || [],
@@ -232,7 +232,10 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {/* Products */}
             <div className="space-y-6">
-              <h4 className="flex items-center gap-2 text-primary-600 font-black uppercase text-xs tracking-widest">
+              <h4 
+                onClick={() => navigate('/admin/b2b-vendors/products')}
+                className="flex items-center gap-2 text-primary-600 font-black uppercase text-xs tracking-widest cursor-pointer hover:underline"
+              >
                 <FiPackage /> Products
               </h4>
               <div className="grid grid-cols-2 gap-4">
@@ -248,7 +251,10 @@ const Dashboard = () => {
             </div>
             {/* Properties */}
             <div className="space-y-6">
-              <h4 className="flex items-center gap-2 text-indigo-600 font-black uppercase text-xs tracking-widest">
+              <h4 
+                onClick={() => navigate('/admin/b2b-vendors/properties')}
+                className="flex items-center gap-2 text-indigo-600 font-black uppercase text-xs tracking-widest cursor-pointer hover:underline"
+              >
                 <FiHome /> Properties
               </h4>
               <div className="grid grid-cols-2 gap-4">
@@ -264,7 +270,10 @@ const Dashboard = () => {
             </div>
             {/* Lot Slots */}
             <div className="space-y-6">
-              <h4 className="flex items-center gap-2 text-purple-600 font-black uppercase text-xs tracking-widest">
+              <h4 
+                onClick={() => navigate('/admin/b2b-vendors/lot-slots')}
+                className="flex items-center gap-2 text-purple-600 font-black uppercase text-xs tracking-widest cursor-pointer hover:underline"
+              >
                 <FiZap /> Lot Slots
               </h4>
               <div className="grid grid-cols-2 gap-4">
@@ -280,7 +289,10 @@ const Dashboard = () => {
             </div>
             {/* Reels */}
             <div className="space-y-6">
-              <h4 className="flex items-center gap-2 text-rose-600 font-black uppercase text-xs tracking-widest">
+              <h4 
+                onClick={() => navigate('/admin/reels')}
+                className="flex items-center gap-2 text-rose-600 font-black uppercase text-xs tracking-widest cursor-pointer hover:underline"
+              >
                 <FiVideo /> Reels
               </h4>
               <div className="grid grid-cols-2 gap-4">
