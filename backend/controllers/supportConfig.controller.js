@@ -22,7 +22,7 @@ export const getSupportConfig = async (req, res) => {
             config = await SupportConfig.create({});
         }
 
-        console.log(`[SupportConfig] Returning config ID: ${config._id}`);
+        // console.log(`[SupportConfig] Returning config ID: ${config._id}`);
         res.status(200).json({
             success: true,
             data: config

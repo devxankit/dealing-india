@@ -344,6 +344,46 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     await connectDB();
+    
+    // Auto self-healing database indexes on startup
+    try {
+      const db = mongoose.connection.db;
+      
+      // Repair Users Email Index
+      const usersCollection = db.collection('users');
+      const userIndexes = await usersCollection.indexes();
+      if (userIndexes.some(idx => idx.name === 'email_1')) {
+        await usersCollection.dropIndex('email_1');
+        console.log('⚡ Refreshed legacy User email index');
+      }
+      // Clean literal nulls and empty strings so sparse constraint succeeds
+      await usersCollection.updateMany(
+        { $or: [{ email: null }, { email: "" }] },
+        { $unset: { email: "" } }
+      );
+
+      // Repair Vendors GST Index
+      const vendorsCollection = db.collection('vendors');
+      const vendorIndexes = await vendorsCollection.indexes();
+      if (vendorIndexes.some(idx => idx.name === 'gstNumber_1')) {
+        await vendorsCollection.dropIndex('gstNumber_1');
+        console.log('⚡ Refreshed legacy Vendor gstNumber index');
+      }
+      await vendorsCollection.updateMany(
+        { $or: [{ gstNumber: null }, { gstNumber: "" }] },
+        { $unset: { gstNumber: "" } }
+      );
+
+      // Trigger mongoose to rebuild sparse indexes
+      await Promise.all([
+        mongoose.model('User').createIndexes(),
+        mongoose.model('Vendor').createIndexes()
+      ]);
+      console.log('✅ Database sparse indexes successfully self-healed');
+    } catch (indexErr) {
+      console.warn('⚠️ Note on startup db healing:', indexErr.message);
+    }
+
     await connectRedis();
     const io = setupSocketIO(httpServer, corsOrigins);
     app.set("io", io);

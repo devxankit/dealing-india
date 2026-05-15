@@ -118,6 +118,7 @@ const vendorSchema = new mongoose.Schema(
       type: String,
       trim: true,
       uppercase: true,
+      set: v => (v === '' || v === null || v === undefined) ? undefined : v,
       validate: {
         validator: function (v) {
           if (!v) return true; // Optional field

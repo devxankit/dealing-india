@@ -24,7 +24,7 @@ export const optionalAuthenticate = async (req, res, next) => {
     try {
       const decoded = verifyToken(token);
       req.user = decoded;
-      console.log(`[Optional Auth Debug] Token Verified. Role: ${decoded.role}, ID: ${decoded.id || decoded.vendorId}`);
+      // console.log(`[Optional Auth Debug] Token Verified. Role: ${decoded.role}, ID: ${decoded.id || decoded.vendorId}`);
 
       // Optionally fetch user document if token is valid
       if (decoded.role === 'vendor' && decoded.vendorId) {
@@ -64,7 +64,7 @@ export const authenticate = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     // DEBUG: Log arrival of request and header presence
-    console.log(`[Auth Debug] ${req.method} ${req.url} - Auth Header: ${authHeader ? (authHeader.substring(0, 20) + '...') : 'MISSING'}`);
+    // console.log(`[Auth Debug] ${req.method} ${req.url} - Auth Header: ${authHeader ? (authHeader.substring(0, 20) + '...') : 'MISSING'}`);
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       console.warn(`[Auth Warning] Missing or malformed header for ${req.url}`);
@@ -95,7 +95,7 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    console.log(`[Auth Debug] Token Verified. Role: ${decoded.role}, ID: ${decoded.vendorId || decoded.adminId || decoded.id}`);
+    // console.log(`[Auth Debug] Token Verified. Role: ${decoded.role}, ID: ${decoded.vendorId || decoded.adminId || decoded.id}`);
 
     // Attach user info to request based on role
     req.user = decoded;

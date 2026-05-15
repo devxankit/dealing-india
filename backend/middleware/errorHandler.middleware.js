@@ -8,18 +8,20 @@ export const errorHandler = (err, req, res, next) => {
 
   // Log error for debugging (skip expected policy 404s)
   if (!isPolicy404) {
-    console.error('❌ Error:', {
-      message: err.message,
-      name: err.name,
-      code: err.code,
-      status: err.status || err.statusCode || 500,
-      url: req.originalUrl,
-      method: req.method,
-      body: req.body ? JSON.stringify(req.body).substring(0, 200) : undefined,
-      params: req.params ? JSON.stringify(req.params) : undefined,
-      query: req.query ? JSON.stringify(req.query) : undefined,
-      stack: err.stack, // Always log stack for production debugging
-    });
+    const status = err.status || err.statusCode || 500;
+    
+    if (status >= 500) {
+      console.error(`❌ Server Error [${req.method} ${req.originalUrl}]:`, {
+        message: err.message,
+        name: err.name,
+        code: err.code,
+        status,
+        stack: err.stack,
+      });
+    } else {
+      // Quieter logs for expected client errors (400, 401, 409, etc.)
+      console.warn(`⚠️ Client Error [${req.method} ${req.originalUrl}] Status ${status}: ${err.message}`);
+    }
   }
 
   // Default error status and message

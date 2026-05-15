@@ -17,7 +17,11 @@ import smsService from './sms.service.js';
  * Register a new user
  */
 export const registerUser = async (userData) => {
-    const { name, email, password, phone, userType, businessInfo, referralCode, agreedToTerms } = userData;
+    let { name, email, password, phone, userType, businessInfo, referralCode, agreedToTerms } = userData;
+    
+    // Sanitize optional email field
+    email = (email && typeof email === 'string' && email.trim()) ? email.trim().toLowerCase() : undefined;
+
     const normalizedReferralCode = String(referralCode || '').trim().toUpperCase();
 
     if (normalizedReferralCode) {
@@ -56,7 +60,7 @@ export const registerUser = async (userData) => {
         const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
         const fullPhone = phone.startsWith('+91') ? phone : `+91${phone}`;
 
-        console.log(`[RegisterUser Audit] Creating User in DB with phone: ${phone}, isPhoneVerified: false`);
+        // console.log(`[RegisterUser Audit] Creating User in DB with phone: ${phone}, isPhoneVerified: false`);
         const user = await User.create({
             name,
             email,
@@ -74,7 +78,7 @@ export const registerUser = async (userData) => {
             otpExpiresAt: expiresAt
         });
 
-        console.log(`[RegisterUser Audit] User created successfully. ID: ${user._id}, isPhoneVerified: ${user.isPhoneVerified}`);
+        // console.log(`[RegisterUser Audit] User created successfully. ID: ${user._id}, isPhoneVerified: ${user.isPhoneVerified}`);
 
         await ensureReferralCodeForOwner({ userId: user._id, userModel: 'User' });
 

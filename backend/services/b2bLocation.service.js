@@ -61,25 +61,15 @@ export const getB2BAvailableLocations = async (options = {}) => {
     const areasSet = new Set(); // Set of unique areas
     const marketsSet = new Set(); // Set of unique markets
 
-    console.log(`📍 Processing ${vendorsWithActiveProducts.length} vendors with active products`);
-    console.log(`📍 Full vendor addresses:`, vendorsWithActiveProducts.map(v => ({
-      id: v._id,
-      state: v.address?.state,
-      city: v.address?.city,
-      fullAddress: v.address
-    })));
-
     vendorsWithActiveProducts.forEach(vendor => {
       const address = vendor.address;
       if (address && address.state && address.state.trim()) {
-        console.log(`\n  🔍 Vendor ${vendor._id}: state="${address.state}", city="${address.city || 'NULL/EMPTY'}"`);
         // Clean state name - remove pincode if present (e.g., "Madhya Pradesh 450001" -> "Madhya Pradesh")
         // Also handle cases where only pincode is stored (e.g., "450001" -> skip)
         let state = address.state.trim();
 
         // Check if state is only a pincode (6 digits) - this means data is incorrectly stored
         if (/^\d{6}$/.test(state)) {
-          console.log(`  ⚠️ State field contains pincode "${state}" - data is incorrectly stored`);
           // If state is only a pincode, try to extract full state name from city
           if (address.city && address.city.trim()) {
             const cityText = address.city.trim();
@@ -99,18 +89,13 @@ export const getB2BAvailableLocations = async (options = {}) => {
             );
 
             if (foundState) {
-              console.log(`  ✅ Found state "${foundState}" in city field, using it`);
               state = foundState;
-              // Also swap: use the pincode from state field as pincode, and use landmark or street as city if available
-              // But for now, we'll use the state we found and try to get city from other fields
             } else {
               // If no full state found, skip this vendor
-              console.log(`  ❌ Could not find state in city field, skipping vendor`);
               return;
             }
           } else {
             // Skip if no city and state is just pincode
-            console.log(`  ❌ No city field available, skipping vendor`);
             return;
           }
         } else {
@@ -147,12 +132,10 @@ export const getB2BAvailableLocations = async (options = {}) => {
               state = foundState;
             } else {
               // Skip if we can't reconstruct the full state name
-              console.warn(`⚠️ Skipping partial state name: "${state}" for vendor ${vendor._id}`);
               return;
             }
           } else {
             // Skip partial state names if no city to reconstruct from
-            console.warn(`⚠️ Skipping partial state name: "${state}" for vendor ${vendor._id}`);
             return;
           }
         }
@@ -171,18 +154,12 @@ export const getB2BAvailableLocations = async (options = {}) => {
           const originalCity = address.city.trim();
           city = originalCity;
 
-          console.log(`  🔍 Processing city for vendor ${vendor._id}: "${originalCity}" in state "${state}"`);
-
           // Check if city is EXACTLY a state name (incorrect data storage)
           const isExactStateName = commonStates.some(s => city.toLowerCase() === s.toLowerCase());
           if (isExactStateName) {
-            console.log(`  ⚠️ City field contains state name "${city}" - data is incorrectly stored`);
-            console.log(`  🔄 Trying to get city from landmark or street fields...`);
-
             // Try to get city from landmark field
             if (address.landmark && address.landmark.trim() && !commonStates.some(s => address.landmark.trim().toLowerCase() === s.toLowerCase())) {
               city = address.landmark.trim();
-              console.log(`  ✅ Using landmark as city: "${city}"`);
             }
             // Try to get city from street field (sometimes city is in street)
             else if (address.street && address.street.trim()) {
@@ -195,13 +172,10 @@ export const getB2BAvailableLocations = async (options = {}) => {
               });
               if (potentialCity) {
                 city = potentialCity;
-                console.log(`  ✅ Using street part as city: "${city}"`);
               } else {
-                console.log(`  ❌ Could not find valid city in street field`);
                 city = null;
               }
             } else {
-              console.log(`  ❌ No valid city found in landmark or street, skipping city`);
               city = null;
             }
           } else {
@@ -236,14 +210,9 @@ export const getB2BAvailableLocations = async (options = {}) => {
 
             // Skip if city becomes empty or is only numbers
             if (!city || /^\d+$/.test(city)) {
-              console.log(`  ⚠️ Skipping city "${originalCity}" - became empty or only numbers after cleaning`);
               city = null;
-            } else {
-              console.log(`  ✅ City processed: "${originalCity}" -> "${city}"`);
             }
           }
-        } else {
-          console.log(`  ⚠️ No city for vendor ${vendor._id} - address.city is:`, address.city);
         }
 
         if (address && address.area && address.area.trim()) {
@@ -260,8 +229,6 @@ export const getB2BAvailableLocations = async (options = {}) => {
           if (cleanMarket.length > 0) {
             marketsSet.add(JSON.stringify({ name: cleanMarket, city: marketCity }));
           }
-        } else {
-          console.log(`  ⚠️ No market for vendor ${vendor._id}`);
         }
 
         // Normalize state name using alias map (handles misspellings, abbreviations)
@@ -269,26 +236,12 @@ export const getB2BAvailableLocations = async (options = {}) => {
 
         if (!locationMap.has(state)) {
           locationMap.set(state, new Set());
-          console.log(`  📍 Created new state entry: "${state}"`);
         }
 
         if (city && city.length > 0) {
           // Normalize city using alias map (handles misspellings + title case)
           const normalizedCity = normalizeCity(city);
           locationMap.get(state).add(normalizedCity);
-          console.log(`  ✅ Added city "${normalizedCity}" to state "${state}"`);
-        } else {
-          console.log(`  ❌ No city added for state "${state}" from vendor ${vendor._id}`);
-          console.log(`     Reason: city is ${city === null ? 'null' : 'empty'}, original city was: "${address?.city || 'N/A'}"`);
-
-          // If no city but we have a valid state, add a default city entry to ensure state shows up
-          // This is a fallback - ideally vendors should have proper city data
-          // But for now, we'll add the state name as a city so the dropdown isn't empty
-          if (address && address.city === null || address.city === undefined || address.city.trim() === '') {
-            console.log(`  🔄 Adding fallback: Using state name as city for vendor ${vendor._id}`);
-            // Don't add state as city - that would be confusing
-            // Instead, we'll just skip this vendor's city contribution
-          }
         }
       }
     });
@@ -300,12 +253,6 @@ export const getB2BAvailableLocations = async (options = {}) => {
         cities: Array.from(citiesSet).sort((a, b) => a.localeCompare(b)),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
-
-    // Debug logging
-    console.log('📍 B2B Locations - Total states:', states.length);
-    states.forEach(state => {
-      console.log(`  State: "${state.name}" - Cities: ${state.cities.length}`, state.cities.slice(0, 3));
-    });
 
     const areas = Array.from(areasSet).map(s => JSON.parse(s)).sort((a, b) => a.name.localeCompare(b.name));
     const markets = Array.from(marketsSet).map(s => JSON.parse(s)).sort((a, b) => a.name.localeCompare(b.name));

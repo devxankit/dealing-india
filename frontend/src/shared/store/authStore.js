@@ -19,7 +19,7 @@ export const useAuthStore = create(
         try {
           const response = await api.post('/auth/user/register', {
             name,
-            email,
+            email: (email && typeof email === 'string' && email.trim()) ? email.trim() : undefined,
             password,
             phone,
             userType,

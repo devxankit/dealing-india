@@ -23,9 +23,7 @@ class SMSService {
             return true;
         }
 
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`[SMS DEBUG v2] Attempting to send OTP ${otp} to ${phoneNumber} via ${this.apiUrl}`);
-        }
+            // console.log(`[SMS DEBUG v2] Attempting to send OTP ${otp} to ${phoneNumber} via ${this.apiUrl}`);
 
         try {
             // Clean phone number (remove + if present)
@@ -44,7 +42,7 @@ class SMSService {
 
             const response = await axios.get(this.apiUrl, { params });
             
-            console.log('[SMS Service] Response:', response.data);
+            // console.log('[SMS Service] Response:', response.data);
             
             // Handle various response formats from SMS India Hub
             const success = response.data.status === 'success' || 
