@@ -766,7 +766,7 @@ export default function ReelFeed() {
 
 
               {/* OVERLAYS INSIDE MOTION DIV */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 pb-[calc(110px+env(safe-area-inset-bottom))] bg-gradient-to-t from-black/80 z-20 transition-opacity duration-300" style={{ opacity: (currentReel || initialMetadata) ? 1 : 0 }}>
+              <div className="absolute bottom-0 left-0 right-0 p-4 pb-[calc(110px+env(safe-area-inset-bottom))] bg-gradient-to-t from-black/80 z-30 pointer-events-none transition-opacity duration-300" style={{ opacity: (currentReel || initialMetadata) ? 1 : 0 }}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -790,7 +790,7 @@ export default function ReelFeed() {
                     <button
                       type="button"
                       onClick={() => navigate(`/b2b/vendor/${(currentReel || initialMetadata).vendorId}`, { state: { fromReel: true } })}
-                      className="shrink-0 px-3 py-1.5 rounded-full bg-white/90 text-gray-900 text-xs font-semibold hover:bg-white"
+                      className="shrink-0 px-3 py-1.5 rounded-full bg-white/90 text-gray-900 text-xs font-semibold hover:bg-white pointer-events-auto"
                     >
                       Visit Store
                     </button>
@@ -798,10 +798,10 @@ export default function ReelFeed() {
                 </div>
               </div>
 
-              <div className="absolute right-3 bottom-[calc(170px+env(safe-area-inset-bottom))] flex flex-col gap-6 z-30 transition-opacity duration-300" style={{ opacity: (currentReel || initialMetadata) ? 1 : 0 }}>
+              <div className="absolute right-3 bottom-[calc(170px+env(safe-area-inset-bottom))] flex flex-col gap-6 z-30 pointer-events-none transition-opacity duration-300" style={{ opacity: (currentReel || initialMetadata) ? 1 : 0 }}>
                 <button
                   onClick={() => (currentReel || initialMetadata) && toggleLike(currentReel || initialMetadata)}
-                  className="flex flex-col items-center text-white"
+                  className="flex flex-col items-center text-white pointer-events-auto"
                 >
                   <FiHeart className={`text-3xl ${(currentReel || initialMetadata)?.userLiked ? "text-red-500 fill-red-500" : ""}`} />
                   <span className="text-xs">{(currentReel || initialMetadata)?.likeCount ?? 0}</span>
@@ -812,14 +812,14 @@ export default function ReelFeed() {
                 </div>
                 <button
                   onClick={handleShareClick}
-                  className="flex flex-col items-center text-white"
+                  className="flex flex-col items-center text-white pointer-events-auto"
                 >
                   <FiShare2 className="text-3xl" />
                   <span className="text-xs">Share</span>
                 </button>
                 <button
                   onClick={() => setIsMuted(!isMuted)}
-                  className="flex flex-col items-center text-white"
+                  className="flex flex-col items-center text-white pointer-events-auto"
                 >
                   {isMuted ? (
                     <FiVolumeX className="text-3xl" />
@@ -830,7 +830,7 @@ export default function ReelFeed() {
                 </button>
                 <button
                   onClick={() => setShowReportModal(true)}
-                  className="flex flex-col items-center text-white/70 hover:text-white transition-colors"
+                  className="flex flex-col items-center text-white/70 hover:text-white transition-colors pointer-events-auto"
                 >
                   <FiFlag className="text-3xl" />
                   <span className="text-xs">Report</span>
@@ -842,8 +842,8 @@ export default function ReelFeed() {
                       disabled={currentReel?.enquiryStatus && !currentReel.enquiryStatus.canAcceptEnquiries}
                       className={`flex flex-col items-center transition-all ${
                         currentReel?.enquiryStatus && !currentReel.enquiryStatus.canAcceptEnquiries
-                          ? "grayscale opacity-50 cursor-not-allowed"
-                          : "text-[#25D366] hover:scale-110 active:scale-95"
+                          ? "grayscale opacity-50 cursor-not-allowed pointer-events-none"
+                          : "text-[#25D366] hover:scale-110 active:scale-95 pointer-events-auto"
                       }`}
                     >
                       <FaWhatsapp className="text-5xl shadow-glow-green" />
