@@ -88,6 +88,10 @@ const B2BVendorRegister = () => {
         return defaultData;
     });
 
+    const businessTypeName = (formData.businessType || '').toString().trim().toLowerCase();
+    const isDeveloperBuilder = businessTypeName === 'developer / builder' || businessTypeName === 'developer/builder';
+    const docLabel = isDeveloperBuilder ? 'RERA' : 'PAN Card';
+
     // Persist form data and documents to sessionStorage
     useEffect(() => {
         sessionStorage.setItem('b2b_registration_data', JSON.stringify(formData));
@@ -208,7 +212,7 @@ const B2BVendorRegister = () => {
             return;
         }
 
-        const toastId = toast.loading(`Processing ${type === 'license' ? 'License' : 'PAN'}...`);
+        const toastId = toast.loading(`Processing ${type === 'license' ? 'License' : docLabel}...`);
 
         try {
             let data = null;
@@ -245,7 +249,7 @@ const B2BVendorRegister = () => {
 
             // Clear input value
             e.target.value = '';
-            toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} added`, { id: toastId });
+            toast.success(`${type === 'license' ? 'Business License' : docLabel} added`, { id: toastId });
         } catch (error) {
             console.error('[KYCUpload] Error:', error);
             e.target.value = '';
@@ -265,7 +269,7 @@ const B2BVendorRegister = () => {
                 } else {
                     setPanCard(docData);
                 }
-                toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} captured`);
+                toast.success(`${type === 'license' ? 'Business License' : docLabel} captured`);
                 return;
             }
         }
@@ -286,7 +290,7 @@ const B2BVendorRegister = () => {
                     } else {
                         setPanCard(docData);
                     }
-                    toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} added`);
+                    toast.success(`${type === 'license' ? 'Business License' : docLabel} added`);
                 }
             })();
             return;
@@ -431,12 +435,11 @@ const B2BVendorRegister = () => {
             newErrors['address.pincode'] = 'Enter valid 6-digit number';
         }
 
-        const businessTypeName = (formData.businessType || '').toString().trim().toLowerCase();
         const isBrokerType = BROKER_BUSINESS_TYPES.includes(businessTypeName);
 
         if (!isBrokerType) {
             if (!businessLicense) newErrors.businessLicense = 'Business License is required';
-            if (!panCard) newErrors.panCard = 'PAN Card is required';
+            if (!panCard) newErrors.panCard = `${docLabel} is required`;
 
             if (!formData.gstNumber || !formData.gstNumber.trim()) {
                 newErrors.gstNumber = 'GST Number is required';
@@ -717,7 +720,7 @@ const B2BVendorRegister = () => {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase">PAN Card {BROKER_BUSINESS_TYPES.includes((formData.businessType || '').toString().trim().toLowerCase()) ? '(Optional)' : <span className="text-red-500">*</span>}</label>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase">{docLabel} {BROKER_BUSINESS_TYPES.includes(businessTypeName) ? '(Optional)' : <span className="text-red-500">*</span>}</label>
                                 {!panCard ? (
                                     <div className="space-y-3">
                                         <div className="grid grid-cols-2 gap-3">
@@ -759,7 +762,7 @@ const B2BVendorRegister = () => {
                                                 <FiCheck className="text-white text-xs" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[10px] font-bold text-green-700 uppercase">PAN Card</span>
+                                                <span className="text-[10px] font-bold text-green-700 uppercase">{docLabel}</span>
                                                 <span className="text-[9px] text-green-600 truncate max-w-[100px]">{panCard.name}</span>
                                             </div>
                                         </div>

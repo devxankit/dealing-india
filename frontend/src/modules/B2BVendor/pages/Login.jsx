@@ -106,13 +106,13 @@ const B2BVendorLogin = () => {
                     <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                         <FiBriefcase className="text-white text-xl" />
                     </div>
-                    <h1 className="text-2xl font-extrabold text-white mb-1">Vendor Login</h1>
-                    <p className="text-sm text-gray-400 font-medium">Access your B2B vendor portal</p>
+                    <h1 className="text-2xl font-extrabold text-gray-900 mb-1">Vendor Login</h1>
+                    <p className="text-sm text-gray-500 font-medium">Access your B2B vendor portal</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-400 ml-1 uppercase tracking-wider">Phone or Email</label>
+                        <label className="text-xs font-bold text-gray-500 ml-1 uppercase tracking-wider">Phone or Email</label>
                         <div className="relative group">
                             <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
@@ -122,13 +122,13 @@ const B2BVendorLogin = () => {
                                 value={formData.identifier}
                                 onChange={handleChange}
                                 placeholder="Phone number or Email"
-                                className="w-full pl-10 pr-4 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl focus:border-primary-500 focus:bg-slate-800 transition-all font-medium text-sm text-white"
+                                className="w-full pl-10 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-50 transition-all font-medium text-sm text-gray-900 placeholder:text-gray-400"
                             />
                         </div>
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-400 ml-1 uppercase tracking-wider">Password</label>
+                        <label className="text-xs font-bold text-gray-500 ml-1 uppercase tracking-wider">Password</label>
                         <div className="relative group">
                             <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
@@ -138,12 +138,12 @@ const B2BVendorLogin = () => {
                                 value={formData.password}
                                 onChange={handleChange}
                                 placeholder="••••••••"
-                                className="w-full pl-10 pr-12 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl focus:border-primary-500 focus:bg-slate-800 transition-all font-medium text-sm text-white"
+                                className="w-full pl-10 pr-12 py-3.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-50 transition-all font-medium text-sm text-gray-900 placeholder:text-gray-400"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-400 transition-colors"
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                             >
                                 {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                             </button>
@@ -156,9 +156,9 @@ const B2BVendorLogin = () => {
                                 type="checkbox"
                                 checked={rememberMe}
                                 onChange={(e) => setRememberMe(e.target.checked)}
-                                className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-primary-600 focus:ring-primary-500"
+                                className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                             />
-                            <span className="text-xs text-gray-400 group-hover:text-gray-300 transition-colors font-bold">Remember me</span>
+                            <span className="text-xs text-gray-500 group-hover:text-gray-700 transition-colors font-bold">Remember me</span>
                         </label>
                         <Link to="/b2b-vendor/forgot-password" className="text-xs font-bold text-primary-500 hover:text-primary-400">
                             Forgot Password?
@@ -173,8 +173,8 @@ const B2BVendorLogin = () => {
                         {isButtonLoading ? 'Signing in...' : 'Sign In'}
                     </button>
 
-                    <div className="pt-6 border-t border-slate-700 text-center space-y-4">
-                        <p className="text-xs text-gray-400 font-medium">
+                    <div className="pt-6 border-t border-gray-100 text-center space-y-4">
+                        <p className="text-xs text-gray-500 font-medium">
                             Don't have a vendor account?{' '}
                             <Link
                                 to="/b2b-vendor/register"
@@ -186,7 +186,7 @@ const B2BVendorLogin = () => {
                         <div className="pt-2">
                             <Link
                                 to="/b2b/login"
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 text-gray-400 rounded-lg font-bold hover:bg-slate-700 transition-all text-xs border border-slate-700"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-lg font-bold hover:bg-gray-100 transition-all text-xs border border-gray-200"
                             >
                                 <FiShoppingBag /> Login as Buyer
                             </Link>

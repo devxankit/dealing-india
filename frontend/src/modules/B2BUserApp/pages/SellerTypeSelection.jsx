@@ -22,6 +22,11 @@ const SellerTypeSelection = () => {
     }, [user, navigate]);
 
     const handleVendorTypeSelection = async (vendorType) => {
+        if (useB2BVendorAuthStore.getState().isAuthenticated) {
+            navigate('/b2b-vendor/dashboard');
+            return;
+        }
+
         if (!user?.email) {
             toast.error('User email not found');
             return;

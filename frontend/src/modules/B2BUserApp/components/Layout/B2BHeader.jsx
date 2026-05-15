@@ -8,6 +8,7 @@ import realEstateIcon from '../../../../assets/icon/WhatsApp Image 2026-02-28 at
 import { debounce } from '../../../../shared/utils/helpers';
 import api from '../../../../shared/utils/api';
 import { useAuthStore } from '../../../../shared/store/authStore';
+import { useB2BVendorAuthStore } from '../../../B2BVendor/store/b2bVendorAuthStore';
 
 const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true, searchQuery: propSearchQuery, onSearchChange, onSearchSubmit, hideSearch = false, customNav, searchPlaceholder = "SEARCH PRODUCTS AND SHOPS", suggestionEndpoint = "/products/b2b-suggestions", transparent = false, minimal = false }) => {
     const navigate = useNavigate();
@@ -15,6 +16,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
     const [currentSearchParams] = useSearchParams();
     const currentItemType = currentSearchParams.get('itemType') || null;
     const { isAuthenticated, user } = useAuthStore();
+    const { isAuthenticated: isVendorAuthenticated } = useB2BVendorAuthStore();
     const [localSearchQuery, setLocalSearchQuery] = useState(propSearchQuery || '');
 
     const handlePosterRedirect = () => {
@@ -340,8 +342,8 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             
                             {/* Become Seller (Prominent on small screens too) */}
                             <Link
-                                to="/b2b-vendor/register"
-                                state={{ userData: user, isUpgrade: true }}
+                                to={isVendorAuthenticated ? "/b2b-vendor/dashboard" : "/b2b-vendor/register"}
+                                state={!isVendorAuthenticated ? { userData: user, isUpgrade: true } : undefined}
                                 className="px-3 py-1.5 bg-black text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-gray-800 transition-colors whitespace-nowrap"
                             >
                                 Seller
@@ -374,11 +376,11 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         {/* Desktop (lg+) Profile & Extended Actions */}
                         <div className="hidden lg:flex items-center gap-2 xl:gap-5">
                             <Link
-                                to="/b2b-vendor/register"
-                                state={{ userData: user, isUpgrade: true }}
+                                to={isVendorAuthenticated ? "/b2b-vendor/dashboard" : "/b2b-vendor/register"}
+                                state={!isVendorAuthenticated ? { userData: user, isUpgrade: true } : undefined}
                                 className="hidden lg:flex bg-gray-900 text-white px-4 xl:px-7 py-3 xl:py-3.5 rounded-xl xl:rounded-[1.2rem] font-black text-[10px] uppercase tracking-wider xl:tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 whitespace-nowrap"
                             >
-                                <span className="hidden xl:inline">Become a Seller</span>
+                                <span className="hidden xl:inline">{isVendorAuthenticated ? "Vendor Panel" : "Become a Seller"}</span>
                                 <span className="xl:hidden">Seller</span>
                             </Link>
 

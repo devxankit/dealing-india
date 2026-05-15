@@ -135,6 +135,18 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                    {/* User App Link */}
+                    <div className="relative flex-shrink-0">
+                        <Link 
+                            to="/b2b/catalog" 
+                            className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-full font-black text-[10px] sm:text-[11px] uppercase tracking-wider sm:tracking-[0.15em] transition-all shadow-sm hover:-translate-y-0.5 shrink-0 group whitespace-nowrap"
+                            title="Open User App"
+                        >
+                            <FiShoppingBag size={14} className="group-hover:scale-110 transition-transform duration-300 flex-shrink-0 text-primary-600" />
+                            <span className="hidden sm:inline">User App</span>
+                        </Link>
+                    </div>
+
                     {/* Poster Studio Shortcut */}
                     <div className="relative flex-shrink-0">
                         <button 

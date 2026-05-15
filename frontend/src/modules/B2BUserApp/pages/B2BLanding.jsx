@@ -21,12 +21,14 @@ import { debounce, getGoogleMapsUrl } from '../../../shared/utils/helpers';
 import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { useB2BLocationStore } from '../../../shared/store/b2bLocationStore';
+import { useB2BVendorAuthStore } from '../../B2BVendor/store/b2bVendorAuthStore';
 
 
 const B2BLanding = () => {
     const navigate = useNavigate();
     const { categories, initialize: fetchCategories } = useB2BCategoryStore();
     const { isAuthenticated } = useAuthStore();
+    const { isAuthenticated: isVendorAuthenticated } = useB2BVendorAuthStore();
 
     // Navigation helper: requires login for any navigation from landing page (except login/register)
     const navigateWithAuth = (path) => {
@@ -967,10 +969,10 @@ const B2BLanding = () => {
                             </div>
                             <div className="flex items-center gap-2 xl:gap-4">
                                 <Link
-                                    to="/b2b-vendor/register"
+                                    to={isVendorAuthenticated ? "/b2b-vendor/dashboard" : "/b2b-vendor/register"}
                                     className="hidden lg:flex bg-gray-900 text-white px-4 xl:px-8 py-2 xl:py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider xl:tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 whitespace-nowrap"
                                 >
-                                    <span className="hidden xl:inline">Become a Seller</span>
+                                    <span className="hidden xl:inline">{isVendorAuthenticated ? "Vendor Panel" : "Become a Seller"}</span>
                                     <span className="xl:hidden">Seller</span>
                                 </Link>
                                 <div className="h-6 w-px bg-gray-200" />
@@ -1262,7 +1264,7 @@ const B2BLanding = () => {
                                     <img src={realEstateIcon} alt="Real Estate" className="h-5 w-auto object-contain" /> <span>Real Estate</span>
                                 </button>
                                 <button
-                                    onClick={() => navigate('/b2b-vendor/register')}
+                                    onClick={() => navigate(isVendorAuthenticated ? '/b2b-vendor/dashboard' : '/b2b-vendor/register')}
                                     className="px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-black text-white whitespace-nowrap"
                                 >
                                     Seller
@@ -1325,8 +1327,8 @@ const B2BLanding = () => {
                             </div>
 
                             <div className="pt-6 border-t border-gray-50 space-y-3">
-                                <button onClick={() => { navigate('/b2b-vendor/register'); setIsMobileMenuOpen(false); }} className="w-full py-4 font-black transition-all bg-black text-white rounded-2xl uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-gray-200 hover:bg-gray-800">
-                                    Become Seller
+                                <button onClick={() => { navigate(isVendorAuthenticated ? '/b2b-vendor/dashboard' : '/b2b-vendor/register'); setIsMobileMenuOpen(false); }} className="w-full py-4 font-black transition-all bg-black text-white rounded-2xl uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-gray-200 hover:bg-gray-800">
+                                    {isVendorAuthenticated ? "Vendor Panel" : "Become Seller"}
                                 </button>
                                 {!isAuthenticated && (
                                     <button onClick={() => { navigate('/b2b/login'); setIsMobileMenuOpen(false); }} className="w-full py-4 font-black transition-all bg-primary-600 text-white rounded-2xl uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-primary-100 hover:bg-primary-700">

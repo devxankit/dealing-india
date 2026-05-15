@@ -6,6 +6,7 @@ import { handleShare } from '../../../shared/utils/share';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import { useAuthStore } from '../../../shared/store/authStore';
+import { useB2BVendorAuthStore } from '../../B2BVendor/store/b2bVendorAuthStore';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import { getMyReferralSummary } from '../../../shared/services/referralService';
@@ -15,6 +16,7 @@ import { useScrollLock } from '../../../shared/hooks/useScrollLock';
 const Profile = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuthStore();
+    const { isAuthenticated: isVendorAuthenticated } = useB2BVendorAuthStore();
     const [referralData, setReferralData] = useState(null);
     const [referralLoading, setReferralLoading] = useState(false);
     const [referralError, setReferralError] = useState('');
@@ -152,7 +154,7 @@ const Profile = () => {
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.1 }}
                     whileTap={{ scale: 0.97 }}
-                    onClick={() => navigate('/b2b/seller-selection')}
+                    onClick={() => navigate(isVendorAuthenticated ? '/b2b-vendor/dashboard' : '/b2b/seller-selection')}
                     className="w-full bg-gradient-to-r from-primary-600 to-primary-800 rounded-3xl p-6 text-white shadow-xl mb-8 relative overflow-hidden cursor-pointer"
                 >
                     <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-6 -mt-6 blur-2xl" />
@@ -163,10 +165,10 @@ const Profile = () => {
                             </div>
                             <div>
                                 <h3 className="font-bold text-lg leading-tight">
-                                    Become a Seller
+                                    {isVendorAuthenticated ? 'Vendor Dashboard' : 'Become a Seller'}
                                 </h3>
                                 <p className="text-xs text-primary-100 font-medium opacity-80">
-                                    Start selling on our platform
+                                    {isVendorAuthenticated ? 'Access your vendor panel' : 'Start selling on our platform'}
                                 </p>
                             </div>
                         </div>
