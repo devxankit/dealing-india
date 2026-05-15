@@ -21,7 +21,9 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
 
     const handlePosterRedirect = () => {
         const returnUrl = window.location.origin + '/b2b/catalog';
-        window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}`;
+        const mobile = user?.mobileNumber || user?.phone || '';
+        const name = user?.name || '';
+        window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}&mobile=${encodeURIComponent(mobile)}&name=${encodeURIComponent(name)}`;
     };
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);

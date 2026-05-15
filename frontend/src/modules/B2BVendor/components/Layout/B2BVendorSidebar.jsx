@@ -304,7 +304,9 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                         className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer text-purple-300 hover:bg-slate-700 hover:text-white group"
                         onClick={() => {
                             const returnUrl = window.location.origin + '/b2b-vendor/dashboard';
-                            window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}`;
+                            const mobile = vendor?.phone || '';
+                            const name = vendor?.name || '';
+                            window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}&mobile=${encodeURIComponent(mobile)}&name=${encodeURIComponent(name)}`;
                         }}
                     >
                         <FiImage className="text-xl flex-shrink-0 text-purple-400 group-hover:scale-110 transition-transform duration-200" />
