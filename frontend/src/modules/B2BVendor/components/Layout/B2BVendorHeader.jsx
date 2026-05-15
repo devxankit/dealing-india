@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { FiMenu, FiBell, FiLogOut, FiBriefcase, FiUser, FiSettings, FiChevronDown, FiShoppingBag } from "react-icons/fi";
+import { FiMenu, FiBell, FiLogOut, FiBriefcase, FiUser, FiSettings, FiChevronDown, FiShoppingBag, FiImage } from "react-icons/fi";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -135,6 +135,21 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                    {/* Poster Studio Shortcut */}
+                    <div className="relative flex-shrink-0">
+                        <button 
+                            onClick={() => {
+                                const returnUrl = window.location.origin + '/b2b-vendor/dashboard';
+                                window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}`;
+                            }} 
+                            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-full font-black text-[10px] sm:text-[11px] uppercase tracking-wider sm:tracking-[0.15em] transition-all shadow-md shadow-red-100 hover:-translate-y-0.5 border border-red-500 shrink-0 group whitespace-nowrap" 
+                            title="Poster Studio"
+                        >
+                            <FiImage size={14} className="group-hover:scale-110 transition-transform duration-300 flex-shrink-0" />
+                            <span className="hidden sm:inline">Poster Studio</span>
+                        </button>
+                    </div>
+
                     <div className="relative flex-shrink-0">
                         <Button onClick={() => setShowNotifications(!showNotifications)} variant="icon" className="text-gray-700 hover:bg-gray-100" icon={FiBell} />
                         {unreadCount > 0 && (

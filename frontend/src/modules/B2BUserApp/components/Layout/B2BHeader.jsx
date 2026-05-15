@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout, FiHome, FiVideo } from 'react-icons/fi';
+import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout, FiHome, FiVideo, FiImage } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { appLogo } from '../../../../data/logos';
 import lotSlotIcon from '../../../../assets/icon/WhatsApp Image 2026-02-28 at 2.14.53 PM.jpeg';
@@ -16,6 +16,11 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
     const currentItemType = currentSearchParams.get('itemType') || null;
     const { isAuthenticated, user } = useAuthStore();
     const [localSearchQuery, setLocalSearchQuery] = useState(propSearchQuery || '');
+
+    const handlePosterRedirect = () => {
+        const returnUrl = window.location.origin + '/b2b/catalog';
+        window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}`;
+    };
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
@@ -342,6 +347,18 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                 Seller
                             </Link>
                             
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
 
 
 
@@ -364,6 +381,8 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                 <span className="hidden xl:inline">Become a Seller</span>
                                 <span className="xl:hidden">Seller</span>
                             </Link>
+
+
 
                             <div className="h-8 xl:h-10 w-px bg-gray-100 hidden lg:block"></div>
 

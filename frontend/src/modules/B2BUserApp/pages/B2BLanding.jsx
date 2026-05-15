@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiSearch, FiX, FiChevronDown, FiGrid, FiShoppingBag,
     FiUser, FiArrowRight, FiArrowLeft, FiBriefcase, FiTrendingUp, FiHome, FiMapPin, FiFilter,
-    FiTruck, FiPhone, FiShoppingCart, FiVideo
+    FiTruck, FiPhone, FiShoppingCart, FiVideo, FiImage
 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { appLogo } from '../../../data/logos';
@@ -1172,47 +1172,62 @@ const B2BLanding = () => {
                                 </div>
                             </div>
                             {/* Search bar - full width on web */}
-                            <div className="relative flex-1" ref={searchRef}>
-                                <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 py-1.5 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
-                                    <FiSearch className="text-gray-400 mr-2 flex-shrink-0" size={16} />
-                                    <input
-                                        type="text"
-                                        placeholder="SEARCH PRODUCTS AND SHOPS"
-                                        className="w-full bg-transparent py-1.5 text-sm font-bold text-gray-700 outline-none placeholder:text-gray-400 uppercase tracking-tight"
-                                        value={searchQuery}
-                                        onChange={handleSearchChange}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleSearchProductPopup(searchQuery)}
-                                        onFocus={() => setShowSuggestions(true)}
-                                    />
+                            <div className="flex-1 flex items-center gap-3" ref={searchRef}>
+                                <div className="relative flex-1">
+                                    <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 py-1.5 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
+                                        <FiSearch className="text-gray-400 mr-2 flex-shrink-0" size={16} />
+                                        <input
+                                            type="text"
+                                            placeholder="SEARCH PRODUCTS AND SHOPS"
+                                            className="w-full bg-transparent py-1.5 text-sm font-bold text-gray-700 outline-none placeholder:text-gray-400 uppercase tracking-tight"
+                                            value={searchQuery}
+                                            onChange={handleSearchChange}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleSearchProductPopup(searchQuery)}
+                                            onFocus={() => setShowSuggestions(true)}
+                                        />
+                                    </div>
+                                    <AnimatePresence>
+                                        {(showSuggestions && suggestions.length > 0) && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: 10 }}
+                                                className="absolute top-full left-0 right-0 mt-2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+                                            >
+                                                <div className="max-h-60 overflow-y-auto">
+                                                    {suggestions.map((s, i) => (
+                                                        <div
+                                                            key={i}
+                                                            onClick={() => handleSearchProductPopup(s)}
+                                                            className="px-4 py-3 hover:bg-primary-50 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors"
+                                                        >
+                                                            <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center text-primary-400">
+                                                                {s.type === 'property' || s.isRealEstate ? <FiHome size={14} className="text-primary-500" /> : <FiShoppingBag />}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[11px] font-black text-gray-800 uppercase tracking-tight">{s.text}</p>
+                                                                <p className="text-[8px] text-gray-500 uppercase tracking-widest">{s.context}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
-                                <AnimatePresence>
-                                    {(showSuggestions && suggestions.length > 0) && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: 10 }}
-                                            className="absolute top-full left-0 right-0 mt-2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
-                                        >
-                                            <div className="max-h-60 overflow-y-auto">
-                                                {suggestions.map((s, i) => (
-                                                    <div
-                                                        key={i}
-                                                        onClick={() => handleSearchProductPopup(s)}
-                                                        className="px-4 py-3 hover:bg-primary-50 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors"
-                                                    >
-                                                        <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center text-primary-400">
-                                                            {s.type === 'property' || s.isRealEstate ? <FiHome size={14} className="text-primary-500" /> : <FiShoppingBag />}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[11px] font-black text-gray-800 uppercase tracking-tight">{s.text}</p>
-                                                            <p className="text-[8px] text-gray-500 uppercase tracking-widest">{s.context}</p>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+
+                                {/* Desktop Toolbar Poster Studio Button */}
+                                <button
+                                    onClick={() => {
+                                        const returnUrl = window.location.origin + '/b2b/catalog';
+                                        window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}`;
+                                    }}
+                                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-wider transition-all shadow-md shadow-red-100 hover:-translate-y-0.5 whitespace-nowrap group shrink-0 border border-red-500"
+                                    title="Open Poster Studio"
+                                >
+                                    <FiImage size={14} className="group-hover:scale-110 transition-transform duration-300" />
+                                    <span>Poster Studio</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1531,17 +1546,30 @@ const B2BLanding = () => {
 
                     {/* 2. Product Search (Full Width) */}
                     <div className="flex-[2] md:flex-[4] relative order-first md:order-none" ref={searchRef}>
-                        <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 md:px-4 py-0 md:py-0.5 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
-                            <FiSearch className="text-gray-400 mr-2" size={16} />
-                            <input
-                                type="text"
-                                placeholder="SEARCH PRODUCTS AND SHOPS"
-                                className="w-full bg-transparent py-1.5 md:py-2.5 text-[10px] md:text-sm font-bold text-gray-700 outline-none placeholder:text-gray-400 h-9 md:h-10 uppercase tracking-tight"
-                                value={searchQuery}
-                                onChange={handleSearchChange}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSearchProductPopup(searchQuery)}
-                                onFocus={() => setShowSuggestions(true)}
-                            />
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 md:px-4 py-0 md:py-0.5 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
+                                <FiSearch className="text-gray-400 mr-2" size={16} />
+                                <input
+                                    type="text"
+                                    placeholder="SEARCH PRODUCTS AND SHOPS"
+                                    className="w-full bg-transparent py-1.5 md:py-2.5 text-[10px] md:text-sm font-bold text-gray-700 outline-none placeholder:text-gray-400 h-9 md:h-10 uppercase tracking-tight"
+                                    value={searchQuery}
+                                    onChange={handleSearchChange}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSearchProductPopup(searchQuery)}
+                                    onFocus={() => setShowSuggestions(true)}
+                                />
+                            </div>
+                            {/* Sticky Mobile Toolbar Poster Button */}
+                            <button
+                                onClick={() => {
+                                    const returnUrl = window.location.origin + '/b2b/catalog';
+                                    window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}`;
+                                }}
+                                className="flex-shrink-0 w-9 h-9 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md shadow-red-100 transition-all flex items-center justify-center border border-red-500"
+                                title="Poster Studio"
+                            >
+                                <FiImage size={14} />
+                            </button>
                         </div>
                         {/* Suggestions */}
                         <AnimatePresence>

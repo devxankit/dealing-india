@@ -297,6 +297,21 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
             </div>
             <nav className="flex-1 overflow-y-auto p-3 pb-32 scrollbar-admin">
                 {filteredMenu.map(renderMenuItem)}
+                
+                {/* External Poster Studio Link */}
+                <div className="mt-1 border-t border-slate-700/50 pt-2">
+                    <div
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer text-purple-300 hover:bg-slate-700 hover:text-white group"
+                        onClick={() => {
+                            const returnUrl = window.location.origin + '/b2b-vendor/dashboard';
+                            window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}`;
+                        }}
+                    >
+                        <FiImage className="text-xl flex-shrink-0 text-purple-400 group-hover:scale-110 transition-transform duration-200" />
+                        <span className="font-medium flex-1 text-sm">Poster Studio</span>
+                    </div>
+                </div>
+
                 <div className="mt-8 pt-8 border-t border-slate-700">
                     <button
                         onClick={handleLogout}
