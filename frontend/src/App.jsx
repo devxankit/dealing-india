@@ -714,12 +714,10 @@ const queryClient = new QueryClient({
 function App() {
   useEffect(() => {
     if (!ENABLE_FCM) {
-      console.log("[@App] Firebase/FCM is disabled");
       return;
     }
 
     initializePushNotifications();
-    console.log("[@App] Initialized push notifications");
     
     try {
       const hasAuth =
@@ -729,15 +727,8 @@ function App() {
       const hasFCM = localStorage.getItem("fcm_token_web");
       if (hasAuth && !hasFCM && ENABLE_FCM) {
         registerFCMToken(true)
-          .then((t) =>
-            console.log("[@App] FCM token registered on startup")
-          )
-          .catch((e) =>
-            console.error(
-              "[@App] FCM token register failed on startup",
-              e?.message || e,
-            ),
-          );
+          .then((t) => {})
+          .catch((e) => {});
       }
     } catch { }
   }, []);

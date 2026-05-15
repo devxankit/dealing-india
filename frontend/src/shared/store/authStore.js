@@ -82,9 +82,7 @@ export const useAuthStore = create(
         }
       },
 
-      // Login action
       login: async (identifier, password, rememberMe = false, userType = 'b2b') => {
-        console.log('[AuthStore] Login attempt for:', identifier);
         set({ isLoading: true });
         try {
           const response = await api.post('/auth/user/login', {
@@ -94,7 +92,6 @@ export const useAuthStore = create(
           });
 
           if (response.success && response.data) {
-            console.log('[AuthStore] Login successful');
             const { user, token } = response.data;
 
             const userData = {
@@ -124,11 +121,9 @@ export const useAuthStore = create(
 
             return { success: true, user: userData };
           } else {
-            console.warn('[AuthStore] Login failed response:', response.message);
             throw new Error(response.message || 'Login failed');
           }
         } catch (error) {
-          console.error('[AuthStore] Login exception:', error);
           set({ isLoading: false });
           
           const responseData = error?.response?.data;
@@ -300,7 +295,6 @@ export const useAuthStore = create(
 
       // Logout action
       logout: async () => {
-        console.log('[AuthStore] Logging out...');
         try {
           const token = get().token;
           if (token) {
@@ -330,7 +324,6 @@ export const useAuthStore = create(
 
       // Initialize
       initialize: async () => {
-        console.log('[AuthStore] Initializing session...');
         const token = localStorage.getItem('token');
         if (token) {
           try {
@@ -338,7 +331,6 @@ export const useAuthStore = create(
             if (tokenParts.length === 3) {
               const payload = JSON.parse(atob(tokenParts[1]));
               if (payload.exp <= Math.floor(Date.now() / 1000)) {
-                console.warn('[AuthStore] Session expired during initialization');
                 get().logout();
                 return;
               }
@@ -348,7 +340,6 @@ export const useAuthStore = create(
           try {
             const response = await api.get('/auth/user/me');
             if (response.success && response.data) {
-              console.log('[AuthStore] Session restored from server');
               const { user } = response.data;
               const userData = {
                 id: user._id || user.id,
@@ -370,15 +361,12 @@ export const useAuthStore = create(
                 isHydrated: true
               });
             } else {
-              console.warn('[AuthStore] Session invalid on server');
               get().logout();
             }
           } catch (error) {
-            console.error('[AuthStore] Initialization failed:', error);
             get().logout();
           }
         } else {
-          console.log('[AuthStore] No session token found');
           set({ isHydrated: true });
         }
       },
@@ -389,7 +377,6 @@ export const useAuthStore = create(
       name: 'auth-storage',
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
-        console.log('[AuthStore] Rehydration complete. Auth state:', state?.isAuthenticated);
         state?.setHydrated();
       },
       partialize: (state) => ({

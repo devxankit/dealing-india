@@ -15,8 +15,6 @@ if (typeof window !== 'undefined') {
     console.error('❌ CRITICAL: API_BASE_URL is localhost in production!');
     console.error('Current API_BASE_URL:', API_BASE_URL);
     console.error('Please set VITE_API_BASE_URL in Vercel environment variables.');
-  } else if (process.env.NODE_ENV === 'development') {
-    console.log('🔗 API Base URL:', API_BASE_URL);
   }
 }
 
@@ -102,10 +100,7 @@ api.interceptors.request.use(
       }
     }
 
-    // DEBUG: Log token selection result
-    if (process.env.NODE_ENV === 'development' || true) {
-      console.log(`[API Request] ${config.method?.toUpperCase()} ${url} - Token: ${token ? 'PRESENT (' + (isB2BRoute ? 'B2B' : isAdminRoute ? 'Admin' : 'User') + ')' : 'MISSING'}`);
-    }
+
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

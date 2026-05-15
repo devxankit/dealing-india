@@ -68,23 +68,6 @@ const B2BVendorHeader = ({ onMenuClick }) => {
         navigate("/b2b-vendor/login");
     };
 
-    const handleSwitch = (path) => {
-        setShowUserMenu(false);
-
-        // 1. Logout from Buyer session (Fire and forget)
-        useAuthStore.getState().logout().catch(console.error);
-
-        // 2. Manually clear Vendor session data from storage
-        // We do this manually instead of calling logout() to avoid triggering 
-        // the ProtectedRoute's immediate redirect before our navigation happens.
-        localStorage.removeItem('b2b-vendor-token');
-        localStorage.removeItem('b2b-vendor-auth-storage');
-        sessionStorage.removeItem('b2b-vendor-login-timestamp');
-
-        // 3. Hard redirect to the target page
-        window.location.href = path;
-    };
-
     const getPageName = (pathname) => {
         const path = pathname.split("/").pop() || "dashboard";
         const pageNames = {
@@ -140,10 +123,10 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                         <Link 
                             to="/b2b/catalog" 
                             className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-full font-black text-[10px] sm:text-[11px] uppercase tracking-wider sm:tracking-[0.15em] transition-all shadow-sm hover:-translate-y-0.5 shrink-0 group whitespace-nowrap"
-                            title="Open User App"
+                            title="Open Buyer App"
                         >
                             <FiShoppingBag size={14} className="group-hover:scale-110 transition-transform duration-300 flex-shrink-0 text-primary-600" />
-                            <span className="hidden sm:inline">User App</span>
+                            <span className="hidden sm:inline">Buyer App</span>
                         </Link>
                     </div>
 
@@ -204,12 +187,13 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                                     <div className="h-px bg-gray-50 my-1"></div>
 
 
-                                    <button
-                                        onClick={() => handleSwitch('/b2b/login')}
+                                    <Link
+                                        to="/b2b/catalog"
+                                        onClick={() => setShowUserMenu(false)}
                                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
                                         <FiBriefcase className="text-lg text-purple-500" />
                                         <span className="font-medium">Switch to B2B Buyer</span>
-                                    </button>
+                                    </Link>
 
                                     <div className="h-px bg-gray-50 my-1"></div>
                                     <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">

@@ -22,10 +22,7 @@ export const useB2BVendorAuthStore = create(
                         set({ loading: false, error: error.message });
                         return { success: false, message: error.message };
                     }
-
-                    console.log('[B2B Vendor Login] Attempting login for:', email);
                     const response = await api.post('/auth/vendor/login', { email, password });
-                    console.log('[B2B Vendor Login] Full API Response:', JSON.stringify(response, null, 2));
 
                     // Handle different response structures
                     // API interceptor returns response.data, so response is already unwrapped
@@ -35,14 +32,11 @@ export const useB2BVendorAuthStore = create(
                         // Standard structure: { success: true, data: { vendor, token } }
                         vendor = response.data.vendor;
                         token = response.data.token;
-                        console.log('[B2B Vendor Login] Using standard response structure');
                     } else if (response && response.vendor && response.token) {
                         // Direct structure: { vendor, token }
                         vendor = response.vendor;
                         token = response.token;
-                        console.log('[B2B Vendor Login] Using direct response structure');
                     } else {
-                        console.error('[B2B Vendor Login] Unexpected response structure:', response);
                         const errorMessage = response?.message || 'Login failed - invalid response structure';
                         set({ loading: false, error: errorMessage });
                         return { success: false, message: errorMessage };
@@ -50,20 +44,14 @@ export const useB2BVendorAuthStore = create(
 
                     // Validate vendor exists
                     if (!vendor) {
-                        console.error('[B2B Vendor Login] No vendor data in response');
                         const errorMessage = 'Login failed - vendor data not received';
                         set({ loading: false, error: errorMessage });
                         return { success: false, message: errorMessage };
                     }
 
-                    console.log('[B2B Vendor Login] Vendor data received:', vendor);
-                    console.log('[B2B Vendor Login] Vendor Type:', vendor.vendorType, 'Type:', typeof vendor.vendorType);
-                    console.log('[B2B Vendor Login] Token received:', token ? 'Yes' : 'No');
-
                     // Validate vendor type for B2B login (check for exact match, handle string comparison)
                     const vendorType = String(vendor.vendorType || '').toLowerCase().trim();
                     if (vendorType !== 'b2b') {
-                        console.error('[B2B Vendor Login] Vendor type mismatch. Expected: b2b, Got:', vendorType, 'Raw:', vendor.vendorType);
                         const error = new Error('This account is not a B2B vendor account. Please contact support if you believe this is an error.');
                         set({ loading: false, error: error.message });
                         return { success: false, message: error.message };
@@ -93,19 +81,15 @@ export const useB2BVendorAuthStore = create(
                     };
 
                     if (!token) {
-                        console.error('[B2B Vendor Login] No token received');
                         const errorMessage = 'Login failed - no authentication token received';
                         set({ loading: false, error: errorMessage });
                         return { success: false, message: errorMessage };
                     }
 
-                    console.log('[B2B Vendor Login] Login successful, setting token and vendor data');
-
                     // Set token in localStorage FIRST (before Zustand state update)
                     localStorage.setItem('b2b-vendor-token', token);
                     // Store login timestamp to prevent immediate redirects
                     sessionStorage.setItem('b2b-vendor-login-timestamp', Date.now().toString());
-                    console.log('[B2B Vendor Login] Token set in localStorage');
 
                     // Update Zustand state - this will trigger persist middleware
                     set({
@@ -116,13 +100,9 @@ export const useB2BVendorAuthStore = create(
                         error: null
                     });
 
-                    console.log('[B2B Vendor Login] State updated via set()');
-
                     // Clear any stale state from previous sessions
                     useSubscriptionStore.getState().clearStatus();
                     useDashboardStore.getState().clearDashboard();
-
-                    console.log('[B2B Vendor Login] Token in localStorage after set:', localStorage.getItem('b2b-vendor-token') ? 'Yes' : 'No');
 
                     return { success: true };
                 } catch (error) {

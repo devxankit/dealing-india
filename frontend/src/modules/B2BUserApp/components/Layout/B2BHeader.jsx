@@ -380,8 +380,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                 state={!isVendorAuthenticated ? { userData: user, isUpgrade: true } : undefined}
                                 className="hidden lg:flex bg-gray-900 text-white px-4 xl:px-7 py-3 xl:py-3.5 rounded-xl xl:rounded-[1.2rem] font-black text-[10px] uppercase tracking-wider xl:tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 whitespace-nowrap"
                             >
-                                <span className="hidden xl:inline">{isVendorAuthenticated ? "Vendor Panel" : "Become a Seller"}</span>
-                                <span className="xl:hidden">Seller</span>
+                                <span>{isVendorAuthenticated ? "Seller" : "Become a Seller"}</span>
                             </Link>
 
 

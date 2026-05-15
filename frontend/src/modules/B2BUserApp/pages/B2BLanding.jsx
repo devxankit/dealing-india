@@ -972,8 +972,7 @@ const B2BLanding = () => {
                                     to={isVendorAuthenticated ? "/b2b-vendor/dashboard" : "/b2b-vendor/register"}
                                     className="hidden lg:flex bg-gray-900 text-white px-4 xl:px-8 py-2 xl:py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider xl:tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 whitespace-nowrap"
                                 >
-                                    <span className="hidden xl:inline">{isVendorAuthenticated ? "Vendor Panel" : "Become a Seller"}</span>
-                                    <span className="xl:hidden">Seller</span>
+                                    <span>{isVendorAuthenticated ? "Seller" : "Become a Seller"}</span>
                                 </Link>
                                 <div className="h-6 w-px bg-gray-200" />
                                 {isAuthenticated ? (
@@ -1328,7 +1327,7 @@ const B2BLanding = () => {
 
                             <div className="pt-6 border-t border-gray-50 space-y-3">
                                 <button onClick={() => { navigate(isVendorAuthenticated ? '/b2b-vendor/dashboard' : '/b2b-vendor/register'); setIsMobileMenuOpen(false); }} className="w-full py-4 font-black transition-all bg-black text-white rounded-2xl uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-gray-200 hover:bg-gray-800">
-                                    {isVendorAuthenticated ? "Vendor Panel" : "Become Seller"}
+                                    {isVendorAuthenticated ? "Seller" : "Become Seller"}
                                 </button>
                                 {!isAuthenticated && (
                                     <button onClick={() => { navigate('/b2b/login'); setIsMobileMenuOpen(false); }} className="w-full py-4 font-black transition-all bg-primary-600 text-white rounded-2xl uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-primary-100 hover:bg-primary-700">
