@@ -27,7 +27,7 @@ import { useB2BVendorAuthStore } from '../../B2BVendor/store/b2bVendorAuthStore'
 const B2BLanding = () => {
     const navigate = useNavigate();
     const { categories, initialize: fetchCategories } = useB2BCategoryStore();
-    const { isAuthenticated, user } = useAuthStore();
+    const { isAuthenticated } = useAuthStore();
     const { isAuthenticated: isVendorAuthenticated } = useB2BVendorAuthStore();
 
     // Navigation helper: requires login for any navigation from landing page (except login/register)
@@ -1221,15 +1221,12 @@ const B2BLanding = () => {
                                 <button
                                     onClick={() => {
                                         const returnUrl = window.location.origin + '/b2b/catalog';
-                                        const mobile = user?.mobileNumber || user?.phone || '';
-                                        const name = user?.name || '';
-                                        window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}&mobile=${encodeURIComponent(mobile)}&name=${encodeURIComponent(name)}`;
+                                        window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}`;
                                     }}
                                     className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-wider transition-all shadow-md shadow-red-100 hover:-translate-y-0.5 whitespace-nowrap group shrink-0 border border-red-500"
-                                    title="Open Poster Studio"
+                                    title="poster studio"
                                 >
-                                    <FiImage size={14} className="group-hover:scale-110 transition-transform duration-300" />
-                                    <span>Poster Studio</span>
+                                    <span>poster studio</span>
                                 </button>
                             </div>
                         </div>
@@ -1566,14 +1563,12 @@ const B2BLanding = () => {
                             <button
                                 onClick={() => {
                                     const returnUrl = window.location.origin + '/b2b/catalog';
-                                    const mobile = user?.mobileNumber || user?.phone || '';
-                                    const name = user?.name || '';
-                                    window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}&mobile=${encodeURIComponent(mobile)}&name=${encodeURIComponent(name)}`;
+                                    window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}`;
                                 }}
-                                className="flex-shrink-0 h-9 px-3 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md shadow-red-100 transition-all flex items-center justify-center border border-red-500 text-[10px] font-extrabold lowercase tracking-wider"
-                                title="Poster Studio"
+                                className="flex-shrink-0 px-3 h-9 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md shadow-red-100 transition-all flex items-center justify-center border border-red-500 font-bold text-[10px]"
+                                title="poster studio"
                             >
-                                poster
+                                poster studio
                             </button>
                         </div>
                         {/* Suggestions */}
