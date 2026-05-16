@@ -135,15 +135,12 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                         <button 
                             onClick={() => {
                                 const returnUrl = window.location.origin + '/b2b-vendor/dashboard';
-                                const mobile = vendor?.phone || '';
-                                const name = vendor?.name || '';
-                                window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}&mobile=${encodeURIComponent(mobile)}&name=${encodeURIComponent(name)}`;
+                                window.location.href = `https://poster.dealingindia.com/?return_url=${encodeURIComponent(returnUrl)}`;
                             }} 
                             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-full font-black text-[10px] sm:text-[11px] uppercase tracking-wider sm:tracking-[0.15em] transition-all shadow-md shadow-red-100 hover:-translate-y-0.5 border border-red-500 shrink-0 group whitespace-nowrap" 
-                            title="Poster Studio"
+                            title="poster studio"
                         >
-                            <FiImage size={14} className="group-hover:scale-110 transition-transform duration-300 flex-shrink-0" />
-                            <span className="hidden sm:inline">Poster Studio</span>
+                            <span>poster studio</span>
                         </button>
                     </div>
 
