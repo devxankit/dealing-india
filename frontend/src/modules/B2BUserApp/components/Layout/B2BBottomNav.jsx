@@ -11,8 +11,8 @@ const B2BBottomNav = () => {
     const navItems = [
         { icon: FiHome, label: 'Home', path: '/b2b/landing', requireAuth: false },
         { icon: FiVideo, label: 'Reels', path: '/b2b/reels', requireAuth: true },
+        { icon: FiBriefcase, label: 'Jobs', path: '/b2b/jobs', requireAuth: true },
         { icon: FiGrid, label: 'Browse', path: '/b2b/catalog?open=categories', requireAuth: true },
-        { icon: FiBriefcase, label: 'Business', path: '/b2b/catalog?open=business', requireAuth: true },
         { icon: FiUser, label: 'Profile', path: '/b2b/profile', requireAuth: true },
     ];
 

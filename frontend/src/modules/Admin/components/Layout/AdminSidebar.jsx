@@ -29,6 +29,7 @@ import {
   FiAlertTriangle,
   FiDollarSign,
   FiMessageSquare,
+  FiBriefcase
 } from "react-icons/fi";
 import { useAdminAuthStore } from "../../store/adminStore";
 import adminMenu from "../../config/adminMenu.json";
@@ -48,6 +49,8 @@ const iconMap = {
   Subscriptions: FiTag,
   "Add-on Plans": FiPackage,
   Categories: FiLayers,
+  "Job Categories": FiBriefcase,
+  "Job Listings": FiBriefcase,
   "Banner Bookings": FiImage,
   "Business Config": FiSettings,
   Notifications: FiBell,

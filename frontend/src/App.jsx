@@ -122,6 +122,12 @@ const AdminReelReports = lazyWithRetry(
 const AdminFeedbacks = lazyWithRetry(
   () => import("./modules/Admin/pages/Feedbacks"),
 );
+const AdminJobCategories = lazyWithRetry(
+  () => import("./modules/Admin/pages/b2b-vendors/JobCategories"),
+);
+const AdminJobListings = lazyWithRetry(
+  () => import("./modules/Admin/pages/b2b-vendors/JobListings"),
+);
 const RouteWrapper = lazyWithRetry(
   () => import("./shared/components/RouteWrapper"),
 );
@@ -254,6 +260,9 @@ const B2BVendorWallet = lazyWithRetry(
 const B2BVendorSupport = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/VendorSupport"),
 );
+const VendorJobs = lazyWithRetry(
+  () => import("./modules/B2BVendor/pages/VendorJobs"),
+);
 
 // B2B User App Routes
 const B2BUserLogin = lazyWithRetry(
@@ -297,6 +306,9 @@ const B2BSupport = lazyWithRetry(
 );
 const B2BProductDetail = lazyWithRetry(
   () => import("./modules/B2BUserApp/pages/ProductDetail"),
+);
+const JobsPage = lazyWithRetry(
+  () => import("./modules/B2BUserApp/pages/JobsPage"),
 );
 const B2BVendorStore = lazyWithRetry(
   () => import("./modules/B2BUserApp/pages/B2BVendorStore"),
@@ -435,6 +447,8 @@ const AppRoutes = () => {
             <Route path="subscriptions" element={<AdminB2BSubscriptions />} />
             <Route path="addon-plans" element={<AdminB2BAddonPlans />} />
             <Route path="categories" element={<AdminB2BCategories />} />
+            <Route path="job-categories" element={<AdminJobCategories />} />
+            <Route path="job-listings" element={<AdminJobListings />} />
             <Route
               path="banner-bookings"
               element={<AdminB2BBannerManagement />}
@@ -503,6 +517,14 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute>
               <B2BProductCatalog />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/b2b/jobs"
+          element={
+            <ProtectedRoute>
+              <JobsPage />
             </ProtectedRoute>
           }
         />
@@ -648,6 +670,7 @@ const AppRoutes = () => {
           </Route>
 
           <Route path="shop-listing" element={<B2BVendorShopListing />} />
+          <Route path="jobs" element={<VendorJobs />} />
 
           <Route path="properties">
             <Route index element={<B2BVendorProperties />} />

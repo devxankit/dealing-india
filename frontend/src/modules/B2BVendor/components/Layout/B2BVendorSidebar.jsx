@@ -52,6 +52,7 @@ const iconMap = {
     Profile: FiUser,
     Security: FiLock,
     Reels: FiVideo,
+    Jobs: FiBriefcase,
     Followers: FiUsers,
     Referral: FiGift,
     "Billing & Invoices": FiCreditCard,
@@ -135,6 +136,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
             "Property Management": "property",
             "Lot/Slot Listings": "lotslot",
             "Shop Listing": "shop-listing",
+            "Jobs": "jobs",
         };
         const moduleKey = moduleMap[item.title];
         if (!moduleKey) return true;

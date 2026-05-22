@@ -22,6 +22,7 @@ const businessTypeSettingsSchema = new mongoose.Schema(
                     'lotslot',
                     'notifications',
                     'shop-listing',
+                    'jobs',
                 ],
             },
         ],

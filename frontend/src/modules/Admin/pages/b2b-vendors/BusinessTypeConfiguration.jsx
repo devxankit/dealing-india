@@ -568,7 +568,7 @@ const BusinessTypeConfiguration = () => {
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Enabled Modules</label>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {['product', 'property', 'shop-listing', 'lotslot', 'subscription', 'banner', 'notifications', 'profile', 'settings'].map(module => (
+                                    {['product', 'property', 'shop-listing', 'lotslot', 'jobs', 'subscription', 'banner', 'notifications', 'profile', 'settings'].map(module => (
                                         <button
                                             key={module}
                                             onClick={() => toggleModule(module)}

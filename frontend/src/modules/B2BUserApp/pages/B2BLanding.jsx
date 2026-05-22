@@ -965,6 +965,16 @@ const B2BLanding = () => {
                                         <span className="hidden xl:inline">All Reels</span>
                                         <span className="xl:hidden">Reels</span>
                                     </button>
+                                    <button
+                                        onClick={() => navigateWithAuth('/b2b/jobs')}
+                                        className="px-3 xl:px-4 py-2 rounded-xl text-[10px] xl:text-xs font-black uppercase tracking-wider bg-primary-50 border border-primary-100 text-primary-800 flex items-center gap-1.5 xl:gap-2 hover:bg-primary-100 transition-all whitespace-nowrap"
+                                    >
+                                        <div className="w-6 xl:h-8 flex items-center justify-center">
+                                            <FiBriefcase className="text-primary-600" size={16} />
+                                        </div>
+                                        <span className="hidden xl:inline">Jobs</span>
+                                        <span className="xl:hidden">Jobs</span>
+                                    </button>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 xl:gap-4">
@@ -1385,36 +1395,16 @@ const B2BLanding = () => {
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-1 md:py-1.5 flex flex-col md:flex-row items-stretch md:items-center gap-2">
 
                     <div className="flex gap-2 w-full md:w-auto">
-                        {/* 1. Category Dropdown */}
-                        <div className="relative flex-1 md:flex-none" ref={categoryRef}>
+                        {/* 1. Jobs Button */}
+                        <div className="relative flex-1 md:flex-none">
                             <button
-                                onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                                className="flex items-center justify-between gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-[10px] md:text-sm font-black text-gray-800 transition-colors w-full uppercase tracking-wider md:tracking-widest"
+                                onClick={() => navigateWithAuth('/b2b/jobs')}
+                                className="flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-primary-50 hover:bg-primary-100 border border-primary-100 rounded-xl text-[10px] md:text-sm font-black text-primary-800 transition-colors w-full uppercase tracking-wider md:tracking-widest"
                             >
                                 <div className="flex items-center gap-2">
-                                    <FiGrid className="text-primary-600" /> <span className="hidden sm:inline">Categories</span><span className="sm:hidden">Cat.</span>
+                                    <FiBriefcase className="text-primary-600" /> <span>Jobs</span>
                                 </div>
-                                <FiChevronDown className={`transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
                             </button>
-
-                            <AnimatePresence>
-                                {isCategoryDropdownOpen && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                                        className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 max-h-[70vh] overflow-y-auto"
-                                    >
-                                        {rootCategories.map(cat => (
-                                            <button
-                                                key={cat.id}
-                                                onClick={() => handleCategoryClick(cat)}
-                                                className="w-full text-left px-5 py-3 hover:bg-primary-50 text-[11px] font-black text-gray-700 border-b border-gray-50 last:border-0 uppercase tracking-wider"
-                                            >
-                                                {cat.name}
-                                            </button>
-                                        ))}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
                         </div>
 
 

@@ -36,6 +36,11 @@
         ]
     },
     {
+        "title": "Jobs",
+        "route": "/b2b-vendor/jobs",
+        "children": []
+    },
+    {
         "title": "Subscription",
         "route": "/b2b-vendor/subscription",
         "children": []

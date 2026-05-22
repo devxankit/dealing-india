@@ -85,6 +85,10 @@ import musicRoutes from "./routes/music.routes.js";
 import vendorFollowRoutes from "./routes/vendorFollow.routes.js";
 import adminTransactionsRoutes from "./routes/adminTransactions.routes.js";
 import vendorWalletRoutes from "./routes/vendorWallet.routes.js";
+import adminJobCategoryRoutes from "./routes/adminJobCategory.routes.js";
+import adminJobsRoutes from "./routes/adminJobs.routes.js";
+import vendorJobRoutes from "./routes/vendorJob.routes.js";
+import publicJobRoutes from "./routes/publicJob.routes.js";
 
 // Initialize Express app
 const app = express();
@@ -322,6 +326,10 @@ app.use("/api/admin/reports", adminDashboardRoutes);
 app.use("/api/admin/transactions", adminTransactionsRoutes);
 app.use("/api/admin/notifications", adminNotificationRoutes);
 app.use("/api/admin/users", adminUserRoutes);
+app.use("/api/admin/job-categories", adminJobCategoryRoutes);
+app.use("/api/admin/jobs", adminJobsRoutes);
+app.use("/api/vendor/jobs", vendorJobRoutes);
+app.use("/api/jobs", publicJobRoutes);
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout, FiHome, FiVideo, FiImage } from 'react-icons/fi';
+import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout, FiHome, FiVideo, FiImage, FiBriefcase } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { appLogo } from '../../../../data/logos';
 import lotSlotIcon from '../../../../assets/icon/WhatsApp Image 2026-02-28 at 2.14.53 PM.jpeg';
@@ -211,6 +211,19 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                     <div className="flex flex-col">
                                         <span className={`text-[9px] xl:text-[10px] font-black uppercase tracking-[0.1em] ${location.pathname.includes('/reels') ? 'text-primary-700' : 'text-gray-800'}`}>All Reels</span>
                                         <span className="text-[7px] xl:text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500 hidden xl:block">Short Videos</span>
+                                    </div>
+                                </Link>
+                                <Link
+                                    to="/b2b/jobs"
+                                    onClick={(e) => handleNavClick(e, '/b2b/jobs')}
+                                    className={`px-3 xl:px-4 py-2 rounded-xl flex items-center gap-2 xl:gap-3 transition-all group whitespace-nowrap border ${location.pathname.includes('/jobs') ? 'border-primary-200 bg-primary-50/50' : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100'}`}
+                                >
+                                    <div className="flex items-center justify-center text-primary-600">
+                                        <FiBriefcase size={18} />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className={`text-[9px] xl:text-[10px] font-black uppercase tracking-[0.1em] ${location.pathname.includes('/jobs') ? 'text-primary-700' : 'text-gray-800'}`}>Jobs</span>
+                                        <span className="text-[7px] xl:text-[8px] font-bold text-gray-400 uppercase tracking-tighter group-hover:text-primary-500 hidden xl:block">Find Work</span>
                                     </div>
                                 </Link>
                                 <div className="w-px h-8 bg-gray-100 mx-1 hidden lg:block"></div>
