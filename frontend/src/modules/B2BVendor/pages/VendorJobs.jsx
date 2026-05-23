@@ -4,8 +4,12 @@ import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiMapPin, FiBriefcase, FiX } from 
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import ConfirmModal from '../../Admin/components/ConfirmModal';
+import { useSubscriptionStore } from '../store/subscriptionStore';
+import SubscriptionGate from '../components/SubscriptionGate';
+import QuotaBanner from '../components/QuotaBanner';
 
 const VendorJobs = () => {
+    const { fetchStatus, canCreateJob, refreshStatus } = useSubscriptionStore();
     const [jobs, setJobs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [categories, setCategories] = useState([]);
@@ -31,6 +35,7 @@ const VendorJobs = () => {
     const [errors, setErrors] = useState({});
 
     useEffect(() => {
+        fetchStatus();
         fetchJobs();
         fetchCategories();
     }, []);
@@ -114,7 +119,10 @@ const VendorJobs = () => {
                 if (res.success) toast.success('Job updated successfully');
             } else {
                 const res = await api.post('/vendor/jobs', payload);
-                if (res.success) toast.success('Job created successfully');
+                if (res.success) {
+                    toast.success('Job created successfully');
+                    refreshStatus(); // Refresh subscription limits
+                }
             }
             closeModal();
             fetchJobs();
@@ -140,6 +148,7 @@ const VendorJobs = () => {
     };
 
     const openModal = (job = null) => {
+
         if (job) {
             setEditingId(job._id);
             setFormData({
@@ -182,13 +191,17 @@ const VendorJobs = () => {
                     <h1 className="text-2xl md:text-3xl font-black text-slate-800 uppercase tracking-tight">Job Listings</h1>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Manage your job vacancies</p>
                 </div>
-                <button
-                    onClick={() => openModal()}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200 w-full md:w-auto"
-                >
-                    <FiPlus /> Post a Job
-                </button>
+                <SubscriptionGate action="jobs">
+                    <button
+                        onClick={() => openModal()}
+                        className="flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200 w-full md:w-auto"
+                    >
+                        <FiPlus /> Post a Job
+                    </button>
+                </SubscriptionGate>
             </div>
+
+            <QuotaBanner action="jobs" />
 
             <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-4 md:p-6 space-y-6">
                 <div className="relative">

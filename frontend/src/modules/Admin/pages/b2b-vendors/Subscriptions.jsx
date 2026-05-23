@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX, FiShoppingBag, FiDownload, FiHome, FiMail } from "react-icons/fi";
+import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX, FiShoppingBag, FiDownload, FiHome, FiMail, FiBriefcase } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import { getB2BPlans, updateB2BPlan, createB2BPlan, initializeDefaultPlans } from "../../../../shared/utils/b2bPlanManager";
@@ -132,6 +132,7 @@ const Subscriptions = () => {
                     imagesPerListing: editingPlan.imagesPerListing,
                     propertyLimit: editingPlan.propertyLimit,
                     enquiryLimit: editingPlan.enquiryLimit,
+                    jobLimit: editingPlan.jobLimit,
                     shopSlideshow: editingPlan.shopSlideshow,
                 });
                 toast.success('Plan updated successfully');
@@ -151,6 +152,7 @@ const Subscriptions = () => {
                     imagesPerListing: editingPlan.imagesPerListing,
                     propertyLimit: editingPlan.propertyLimit,
                     enquiryLimit: editingPlan.enquiryLimit,
+                    jobLimit: editingPlan.jobLimit,
                     shopSlideshow: editingPlan.shopSlideshow,
                 });
                 toast.success('Plan created successfully');
@@ -699,6 +701,7 @@ const Subscriptions = () => {
                                         { id: 'lotSlotLimit', label: 'Lot/Slot Pack', icon: FiPlus },
                                         { id: 'imagesPerListing', label: 'Images per Listing', icon: FiSettings },
                                         { id: 'enquiryLimit', label: 'Enquiries per Cycle', icon: FiMail },
+                                        { id: 'jobLimit', label: 'Job Listings', icon: FiBriefcase },
                                     ].map(feat => {
                                         const val = editingPlan[feat.id];
                                         const isEnabled = val !== 0 && val !== false;

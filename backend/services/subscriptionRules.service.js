@@ -404,6 +404,66 @@ class SubscriptionRulesService {
     }
 
     /**
+     * Check if vendor can create a job
+     * @param {String} vendorId - Vendor ID
+     * @returns {Object} { allowed, useAddon, addonCount }
+     */
+    async canCreateJob(vendorId) {
+        try {
+            const [subData, addonCount] = await Promise.all([
+                this.getActiveSubscription(vendorId),
+                vendorAddonService.getTotalAvailableAddonUnits(vendorId, 'jobs')
+            ]);
+
+            let subLimit = 0;
+            let currentCount = 0;
+            if (subData) {
+                const plan = subData.plan || {};
+                const sinceDate = subData.subscription?.startDate || new Date(0);
+                const { default: Job } = await import('../models/Job.model.js');
+                currentCount = await Job.countDocuments({
+                    vendorId,
+                    isDeleted: false,
+                    createdAt: { $gte: sinceDate }
+                });
+                subLimit = plan.jobLimit === 'unlimited' ? -1 : (Number(plan.jobLimit) || 0);
+            } else {
+                if (addonCount === 0) {
+                    return { 
+                        allowed: false, 
+                        message: 'An active subscription plan or add-on is required to post jobs.',
+                        subscriptionRequired: true
+                    };
+                }
+                subLimit = 0;
+                const { default: Job } = await import('../models/Job.model.js');
+                currentCount = await Job.countDocuments({
+                    vendorId,
+                    isDeleted: false
+                });
+            }
+
+            if (subLimit === -1 || (subLimit > 0 && currentCount < subLimit)) {
+                return { allowed: true, useAddon: false, currentCount, limit: subLimit };
+            }
+
+            if (addonCount > 0) {
+                return { allowed: true, useAddon: true, currentCount, limit: subLimit, addonCount };
+            }
+
+            return { 
+                allowed: false, 
+                message: 'Job posting limit reached. Purchase a Job Add-on to upload more.',
+                requiresAddon: true,
+                featureType: 'jobs'
+            };
+        } catch (error) {
+            console.error('Error in canCreateJob:', error);
+            return { allowed: false, message: 'Limit check failed.' };
+        }
+    }
+
+    /**
      * Check if vendor can upload a reel
      * @param {String} vendorId - Vendor ID
      * @returns {Object} { allowed, useAddon, addonCount }
@@ -575,7 +635,8 @@ class SubscriptionRulesService {
             products: { total: 0, used: 0, remaining: 0 },
             lot_slot: { total: 0, used: 0, remaining: 0 },
             property: { total: 0, used: 0, remaining: 0 },
-            enquiry: { total: 0, used: 0, remaining: 0 }
+            enquiry: { total: 0, used: 0, remaining: 0 },
+            jobs: { total: 0, used: 0, remaining: 0 }
         });
 
         // For backward compatibility within some logic
@@ -584,7 +645,8 @@ class SubscriptionRulesService {
             products: addonStats.products.remaining,
             lot_slot: addonStats.lot_slot.remaining,
             property: addonStats.property.remaining,
-            enquiry: addonStats.enquiry.remaining
+            enquiry: addonStats.enquiry.remaining,
+            jobs: addonStats.jobs.remaining
         };
 
         if (!subData) {
@@ -596,6 +658,9 @@ class SubscriptionRulesService {
             const reelCount = await this.getReelCount(vendorId);
             const lotSlotCount = await this.getLotSlotCount(vendorId);
             const propertyCount = await Property.countDocuments({ vendorId, isActive: { $ne: false } });
+            
+            const { default: Job } = await import('../models/Job.model.js');
+            const jobCount = await Job.countDocuments({ vendorId, isDeleted: false });
 
             // Check if admin hasn't configured any plans for this business type
             const shopCheck = await this.canListShop(vendorId);
@@ -606,6 +671,7 @@ class SubscriptionRulesService {
         const lotSlotUsage = calculateFeatureUsage(0, lotSlotCount, addonStats.lot_slot);
         const propertyUsage = calculateFeatureUsage(0, propertyCount, addonStats.property);
         const reelUsage = calculateFeatureUsage(0, reelCount, addonStats.reels);
+        const jobUsage = calculateFeatureUsage(0, jobCount, addonStats.jobs);
 
         return {
             isActive: hasAddons,
@@ -650,6 +716,13 @@ class SubscriptionRulesService {
                         planLimit: 0,
                         addonUnits: addonStats.enquiry.remaining,
                         isUnlimited: false
+                    },
+                    jobs: {
+                        allowed: jobUsage.limit !== 0,
+                        limit: jobUsage.limit,
+                        current: jobUsage.current,
+                        remaining: jobUsage.remaining,
+                        hasAddon: addonStats.jobs.total > 0
                     }
                 },
                 addons: addonBalances
@@ -667,6 +740,13 @@ class SubscriptionRulesService {
             isActive: { $ne: false },
             createdAt: { $gte: sinceDate }
         });
+        
+        const { default: Job } = await import('../models/Job.model.js');
+        const jobCount = await Job.countDocuments({ 
+            vendorId, 
+            isDeleted: false,
+            createdAt: { $gte: sinceDate }
+        });
 
         // 🔹 Rule: Total Capacity = Plan Limit + ALL Addon Quantities
         const subProductLimit = plan.productLimit === 'unlimited' ? -1 : (Number(plan.productLimit) || 0);
@@ -674,11 +754,13 @@ class SubscriptionRulesService {
         const subLotSlotLimit = plan.lotSlotLimit === 'unlimited' ? -1 : (Number(plan.lotSlotLimit) || 0);
         const subReelLimit = plan.reelsLimit === 'unlimited' ? -1 : (Number(plan.reelsLimit) || 0);
         const subEnquiryLimit = plan.enquiryLimit === 'unlimited' ? -1 : (Number(plan.enquiryLimit) || 0);
+        const subJobLimit = plan.jobLimit === 'unlimited' ? -1 : (Number(plan.jobLimit) || 0);
 
         const productUsage = calculateFeatureUsage(subProductLimit, productCount, addonStats.products);
         const lotSlotUsage = calculateFeatureUsage(subLotSlotLimit, lotSlotCount, addonStats.lot_slot);
         const propertyUsage = calculateFeatureUsage(subPropertyLimit, propertyCount, addonStats.property);
         const reelUsage = calculateFeatureUsage(subReelLimit, reelCount, addonStats.reels);
+        const jobUsage = calculateFeatureUsage(subJobLimit, jobCount, addonStats.jobs);
 
         const imagesPerListing = plan.imagesPerListing === 'unlimited' ? -1 : (Number(plan.imagesPerListing) || 0);
         const shopSlideshow = !!plan.shopSlideshow;
@@ -735,6 +817,13 @@ class SubscriptionRulesService {
                     // Effective: if plan says unlimited → unlimited; else plan + addon pool
                     effectiveLimit: subEnquiryLimit === -1 ? -1 : (subEnquiryLimit + addonStats.enquiry.remaining),
                     allowed: subEnquiryLimit !== 0 || addonStats.enquiry.remaining > 0
+                },
+                jobs: {
+                    allowed: jobUsage.limit !== 0,
+                    limit: jobUsage.limit,
+                    current: jobUsage.current,
+                    remaining: jobUsage.remaining,
+                    hasAddon: addonStats.jobs.total > 0
                 }
             },
             addons: addonBalances

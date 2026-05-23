@@ -16,7 +16,7 @@ const vendorAddonSchema = new mongoose.Schema(
     featureType: {
       type: String,
       required: [true, 'Feature type is required'],
-      enum: ['reels', 'products', 'lot_slot', 'property', 'enquiry'],
+      enum: ['reels', 'products', 'lot_slot', 'property', 'enquiry', 'jobs'],
       index: true,
     },
     totalQuantity: {

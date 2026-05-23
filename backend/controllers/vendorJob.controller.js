@@ -18,6 +18,13 @@ export const createJob = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid vacancy count' });
         }
 
+        const { default: subscriptionRulesService } = await import('../services/subscriptionRules.service.js');
+        const canCreate = await subscriptionRulesService.canCreateJob(vendorId);
+        
+        if (!canCreate.allowed) {
+            return res.status(403).json({ success: false, message: canCreate.message });
+        }
+
         const job = await Job.create({
             vendorId,
             jobTitle,
@@ -31,6 +38,11 @@ export const createJob = async (req, res) => {
             isActive: true, // Default to true, admin can hide it
             isDeleted: false
         });
+
+        if (canCreate.useAddon) {
+            const { default: vendorAddonService } = await import('../services/vendorAddon.service.js');
+            await vendorAddonService.consumeAddonUnit(vendorId, 'jobs');
+        }
 
         res.status(201).json({ success: true, message: 'Job created successfully', data: job });
     } catch (error) {

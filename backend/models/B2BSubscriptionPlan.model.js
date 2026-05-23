@@ -82,6 +82,10 @@ const b2bSubscriptionPlanSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed, // Number or 'unlimited'
       default: 0,
     },
+    jobLimit: {
+      type: mongoose.Schema.Types.Mixed, // Number or 'unlimited'
+      default: 0,
+    },
     enquiryPrice: {
       type: Number,
       default: 0,

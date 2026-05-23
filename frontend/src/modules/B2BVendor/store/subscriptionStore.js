@@ -226,6 +226,43 @@ export const useSubscriptionStore = create((set, get) => ({
         };
     },
 
+    canCreateJob: () => {
+        const state = get();
+        if (!state.status?.hasSubscription) return { allowed: false, message: 'Please purchase a subscription plan or job add-on to post jobs.' };
+
+        const limits = state.status?.limits?.jobs;
+        if (!limits?.allowed && !limits?.hasAddon) {
+            return {
+                allowed: false,
+                requiresAddon: true,
+                featureType: 'jobs',
+                message: 'Job posting requires an active plan or a Job Add-on pack.'
+            };
+        }
+
+        // Check limits
+        const remaining = limits.remaining;
+        
+        if (limits.limit !== -1 && remaining !== undefined && remaining <= 0) {
+            return {
+                allowed: false,
+                requiresAddon: true,
+                featureType: 'jobs',
+                message: `Job limit reached (${limits.current}/${limits.limit}). Please buy a Job Add-on.`,
+                current: limits.current,
+                limit: limits.limit,
+                remaining: limits.remaining
+            };
+        }
+
+        return {
+            allowed: true,
+            remaining: limits.remaining ?? 0,
+            current: limits.current ?? 0,
+            limit: limits.limit ?? 0
+        };
+    },
+
     // Get plan info
     getPlanInfo: () => {
         const state = get();

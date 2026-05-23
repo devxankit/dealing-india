@@ -4,7 +4,7 @@ import {
     FiCheck, FiStar, FiInfo, FiCreditCard, FiCheckCircle,
     FiRefreshCw, FiX, FiCalendar, FiAlertTriangle, FiClock,
     FiDollarSign, FiPackage, FiShield, FiExternalLink, FiPlusCircle, FiGrid,
-    FiArrowRight, FiArrowUpRight, FiHome, FiAlertCircle
+    FiArrowRight, FiArrowUpRight, FiHome, FiAlertCircle, FiBriefcase
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { getActiveB2BPlans, getB2BPlanByIdSync } from '../../../shared/utils/b2bPlanManager';
@@ -1019,11 +1019,13 @@ const B2BVendorSubscription = () => {
                                     addon.featureType === 'reels' ? 'bg-rose-50 text-rose-600' : 
                                     addon.featureType === 'products' ? 'bg-blue-50 text-blue-600' : 
                                     addon.featureType === 'property' ? 'bg-indigo-50 text-indigo-600' :
+                                    addon.featureType === 'jobs' ? 'bg-emerald-50 text-emerald-600' :
                                     'bg-amber-50 text-amber-600'
                                 }`}>
                                     {addon.featureType === 'reels' ? <FiPackage className="text-3xl" /> : 
                                      addon.featureType === 'products' ? <FiPlusCircle className="text-3xl" /> : 
                                      addon.featureType === 'property' ? <FiHome className="text-3xl" /> :
+                                     addon.featureType === 'jobs' ? <FiBriefcase className="text-3xl" /> :
                                      <FiGrid className="text-3xl" />}
                                 </div>
 

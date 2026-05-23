@@ -218,6 +218,7 @@ const AddonPlans = () => {
                                     plan.featureType === 'products' ? 'bg-blue-50 text-blue-600' :
                                     plan.featureType === 'property' ? 'bg-indigo-50 text-indigo-600' :
                                     plan.featureType === 'enquiry' ? 'bg-purple-50 text-purple-600' :
+                                    plan.featureType === 'jobs' ? 'bg-emerald-50 text-emerald-600' :
                                     'bg-amber-50 text-amber-600'
                                 } group-hover:scale-110 transition-transform`}>
                                     <FiPackage />
@@ -295,6 +296,7 @@ const AddonPlans = () => {
                                             <option value="lot_slot">Lot/Slot</option>
                                             <option value="property">Property</option>
                                             <option value="enquiry">Enquiry</option>
+                                            <option value="jobs">Jobs</option>
                                         </select>
                                     </div>
                                     <div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiLock, FiAlertCircle, FiArrowRight, FiRefreshCw, FiPlus, FiCheckCircle, FiPackage, FiCreditCard, FiX, FiHome, FiPlusCircle, FiArrowUpRight, FiInfo } from 'react-icons/fi';
+import { FiLock, FiAlertCircle, FiArrowRight, FiRefreshCw, FiPlus, FiCheckCircle, FiPackage, FiCreditCard, FiX, FiHome, FiPlusCircle, FiArrowUpRight, FiInfo, FiBriefcase } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useVendorSettings } from '../hooks/useVendorSettings';
 import { useSubscriptionStore } from '../store/subscriptionStore';
@@ -25,6 +25,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         canCreateLotSlot,
         canCreateProperty,
         canUploadReel,
+        canCreateJob,
         hasShop
     } = useSubscriptionStore();
 
@@ -55,7 +56,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         const limits = status?.limits?.[action === 'lotslot' ? 'lotSlot' : (action === 'product' ? 'products' : (action === 'property' ? 'properties' : action))];
         if (!limits?.allowed) return false; 
         
-        return ['product', 'property', 'lotslot', 'reels'].includes(action);
+        return ['product', 'property', 'lotslot', 'reels', 'jobs'].includes(action);
     }, [action, status]);
 
     const loading = settingsLoading || subscriptionLoading;
@@ -73,6 +74,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             case 'property': return settings.enabledModules.includes('property');
             case 'lotslot': return settings.enabledModules.includes('lotslot');
             case 'reels': return true;
+            case 'jobs': return true;
             default: return true;
         }
     };
@@ -95,6 +97,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             case 'product': return { color: 'blue', icon: <FiPlusCircle /> };
             case 'reels': return { color: 'rose', icon: <FiPackage /> };
             case 'lotslot': return { color: 'amber', icon: <FiPlus /> };
+            case 'jobs': return { color: 'emerald', icon: <FiBriefcase /> };
             default: return { color: 'primary', icon: <FiPackage /> };
         }
     };
@@ -111,7 +114,8 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                 product: 'products',
                 lotslot: 'lot_slot',
                 reels: 'reels',
-                property: 'property'
+                property: 'property',
+                jobs: 'jobs'
             };
 
             const promises = [
@@ -302,9 +306,10 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             case 'lotslot': return canCreateLotSlot();
             case 'property': return canCreateProperty();
             case 'reels': return canUploadReel();
+            case 'jobs': return canCreateJob();
             default: return { allowed: true };
         }
-    }, [action, canCreateProduct, canCreateLotSlot, canCreateProperty, canUploadReel, status]);
+    }, [action, canCreateProduct, canCreateLotSlot, canCreateProperty, canUploadReel, canCreateJob, status]);
 
     useEffect(() => {
         if (fullPage && (!status?.isActive || !permission.allowed) && !fetchAttempted.current && !loadingAddons) {
@@ -570,7 +575,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
 
                         <div className="space-y-6">
                             <h3 className={`text-xs font-black text-${theme.color}-600 uppercase tracking-[0.2em] flex items-center gap-2 justify-center lg:justify-start`}>
-                                <FiPackage /> {action === 'property' ? 'Property' : (action === 'product' ? 'Product' : (action === 'reels' ? 'Reels' : 'Feature'))} Add-ons
+                                <FiPackage /> {action === 'property' ? 'Property' : (action === 'product' ? 'Product' : (action === 'reels' ? 'Reels' : (action === 'jobs' ? 'Jobs' : 'Feature')))} Add-ons
                             </h3>
                             <div className="grid grid-cols-1 gap-3">
                                 {addonPlans.length > 0 ? addonPlans.map(plan => (
@@ -723,7 +728,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
 
                     <button 
                         onClick={() => {
-                            const featureTypeMap = { product: 'products', lotslot: 'lot_slot', reels: 'reels', property: 'property' };
+                            const featureTypeMap = { product: 'products', lotslot: 'lot_slot', reels: 'reels', property: 'property', jobs: 'jobs' };
                             navigate(`/b2b-vendor/subscription?feature=${featureTypeMap[action] || action}`);
                         }} 
                         className="mt-12 text-xs font-black text-gray-400 hover:text-gray-900 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto transition-colors"
@@ -739,7 +744,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                 {renderWalletModal()}
                 <button
                     onClick={permission.requiresAddon ? () => handleFetchAddonsAndPlans(false) : () => {
-                        const featureTypeMap = { product: 'products', lotslot: 'lot_slot', reels: 'reels', property: 'property' };
+                        const featureTypeMap = { product: 'products', lotslot: 'lot_slot', reels: 'reels', property: 'property', jobs: 'jobs' };
                         navigate(`/b2b-vendor/subscription?feature=${featureTypeMap[action] || action}`);
                     }}
                     className={`flex items-center gap-2 px-5 py-2.5 bg-${theme.color}-50 text-${theme.color}-600 rounded-xl font-bold border border-${theme.color}-200 hover:bg-${theme.color}-100 transition-all`}

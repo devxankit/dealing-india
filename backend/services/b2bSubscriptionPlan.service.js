@@ -200,6 +200,7 @@ class B2BSubscriptionPlanService {
         lotSlotLimit: planData.lotSlotLimit || 0,
         imagesPerListing: planData.imagesPerListing || 5,
         enquiryLimit: planData.enquiryLimit || 0,
+        jobLimit: planData.jobLimit || 0,
         enquiryPrice: planData.enquiryPrice || 0,
         shopSlideshow: !!planData.shopSlideshow,
         isActive: true,
@@ -239,7 +240,7 @@ class B2BSubscriptionPlanService {
       }
  
       // 🔹 Validate structured numeric features if provided
-      const structuredNumericFields = ['reelsLimit', 'productLimit', 'propertyLimit', 'lotSlotLimit', 'imagesPerListing', 'enquiryLimit'];
+      const structuredNumericFields = ['reelsLimit', 'productLimit', 'propertyLimit', 'lotSlotLimit', 'imagesPerListing', 'enquiryLimit', 'jobLimit'];
       for (const field of structuredNumericFields) {
         if (updateData[field] !== undefined && updateData[field] !== 'unlimited') {
           const val = Number(updateData[field]);
@@ -374,6 +375,10 @@ class B2BSubscriptionPlanService {
       if (updateData.enquiryLimit !== undefined) {
         plan.enquiryLimit = updateData.enquiryLimit;
         plan.markModified('enquiryLimit');
+      }
+      if (updateData.jobLimit !== undefined) {
+        plan.jobLimit = updateData.jobLimit;
+        plan.markModified('jobLimit');
       }
       if (updateData.enquiryPrice !== undefined) {
         plan.enquiryPrice = parseFloat(updateData.enquiryPrice) || 0;
