@@ -11,8 +11,8 @@ const B2BBottomNav = () => {
     const navItems = [
         { icon: FiHome, label: 'Home', path: '/b2b/landing', requireAuth: false },
         { icon: FiVideo, label: 'Reels', path: '/b2b/reels', requireAuth: true },
-        { icon: FiBriefcase, label: 'Jobs', path: '/b2b/jobs', requireAuth: true },
         { icon: FiGrid, label: 'Browse', path: '/b2b/catalog?open=categories', requireAuth: true },
+        { icon: FiBriefcase, label: 'Business', path: '/b2b/catalog?open=business', requireAuth: true },
         { icon: FiUser, label: 'Profile', path: '/b2b/profile', requireAuth: true },
     ];
 
@@ -27,8 +27,8 @@ const B2BBottomNav = () => {
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-[100] lg:hidden pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
             <div className="flex justify-around items-center h-16">
                 {navItems.map((item) => {
-                    const isActive = location.pathname === item.path.split('?')[0] && 
-                                   (item.path.includes('?') ? location.search.includes(item.path.split('?')[1]) : location.search === '');
+                    const isActive = location.pathname === item.path.split('?')[0] &&
+                        (item.path.includes('?') ? location.search.includes(item.path.split('?')[1]) : location.search === '');
                     const isReels = item.label === 'Reels';
 
                     return (
@@ -46,8 +46,8 @@ const B2BBottomNav = () => {
                             {isReels && (
                                 <div className={`
                                     absolute inset-x-1 inset-y-1 rounded-xl -z-10 transition-all duration-500
-                                    ${isActive 
-                                        ? 'bg-gradient-to-br from-primary-100 via-purple-100 to-pink-100 shadow-[0_0_20px_rgba(124,58,237,0.2)]' 
+                                    ${isActive
+                                        ? 'bg-gradient-to-br from-primary-100 via-purple-100 to-pink-100 shadow-[0_0_20px_rgba(124,58,237,0.2)]'
                                         : 'bg-gradient-to-br from-primary-50 via-purple-50 to-pink-50 group-hover:from-primary-100 group-hover:via-purple-100 group-hover:to-pink-100 shadow-[0_0_15px_rgba(124,58,237,0.1)]'}
                                 `} />
                             )}
@@ -57,7 +57,7 @@ const B2BBottomNav = () => {
                                 ${isActive ? 'scale-110 text-primary-600' : (isReels ? 'scale-110 text-indigo-600 group-hover:scale-125 drop-shadow-[0_0_8px_rgba(124,58,237,0.4)]' : 'group-hover:scale-110')}
                                 ${isReels && !isActive ? 'animate-pulse text-purple-600' : ''}
                             `} />
-                            
+
                             <span className={`
                                 text-[10px] font-black uppercase tracking-tight text-center transition-all duration-300
                                 ${isActive ? 'text-primary-700 opacity-100' : (isReels ? 'text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 opacity-100' : 'opacity-70 group-hover:opacity-100')}

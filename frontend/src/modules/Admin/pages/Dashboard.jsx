@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiUsers, FiUserCheck, FiPackage, FiHome, FiZap, FiImage,
   FiTrendingUp, FiTrendingDown, FiPhone, FiMessageCircle,
-  FiAlertCircle, FiCheckCircle, FiClock, FiXCircle, FiUserPlus, FiVideo
+  FiAlertCircle, FiCheckCircle, FiClock, FiXCircle, FiUserPlus, FiVideo, FiBriefcase
 } from 'react-icons/fi';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
@@ -47,6 +47,7 @@ const Dashboard = () => {
     FiUserPlus: <FiUserPlus />,
     FiTrendingUp: <FiTrendingUp />,
     FiVideo: <FiVideo />,
+    FiBriefcase: <FiBriefcase />,
   };
 
   useEffect(() => {
@@ -67,6 +68,7 @@ const Dashboard = () => {
               { label: 'Total Properties', value: apiData.totalProperties, trend: '+8%', trendType: 'up', icon: 'FiHome', color: 'orange', link: '/admin/b2b-vendors/properties' },
               { label: 'Lot Slots', value: apiData.totalLotSlots || 0, trend: '+15%', trendType: 'up', icon: 'FiZap', color: 'indigo', link: '/admin/b2b-vendors/lot-slots' },
               { label: 'Total Reels', value: apiData.totalReels || 0, trend: '+10%', trendType: 'up', icon: 'FiVideo', color: 'rose', link: '/admin/reels' },
+              { label: 'Total Jobs', value: apiData.totalJobs || 0, trend: '+12%', trendType: 'up', icon: 'FiBriefcase', color: 'teal', link: '/admin/b2b-vendors/job-listings' },
               { label: 'Live Banners', value: apiData.activeBanners, trend: '-3%', trendType: 'down', icon: 'FiImage', color: 'pink', link: '/admin/b2b-vendors/banner-bookings' }
             ],
             vendorDistribution: vendorDist || [],

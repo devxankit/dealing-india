@@ -82,7 +82,7 @@ const JobsPage = () => {
         if (!phone.startsWith("91") && phone.length === 10) phone = `91${phone}`;
 
         const lines = [
-            `Hi ${vendor.businessName || vendor.name},`,
+            `Hi ${vendor.storeName || vendor.businessName || vendor.name},`,
             `I'm interested in the *${job.jobTitle}* position listed on Dealing India.`,
             `Location: ${job.city}`,
             `Please let me know how I can apply.`,
@@ -117,6 +117,17 @@ const JobsPage = () => {
                 <div className="max-w-7xl mx-auto p-4 md:p-6 relative z-20">
                     {/* Filters Card */}
                     <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-4 md:p-6 mb-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Filter Jobs</h2>
+                            {(filters.search || filters.category || filters.city || filters.subCategory) && (
+                                <button 
+                                    onClick={() => setFilters({ search: '', category: '', subCategory: '', city: '' })}
+                                    className="text-[10px] font-bold text-red-500 hover:text-red-600 uppercase tracking-widest bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors"
+                                >
+                                    Reset Filters
+                                </button>
+                            )}
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="relative md:col-span-1">
                                 <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -186,7 +197,7 @@ const JobsPage = () => {
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
                                             <h3 className="text-xl font-bold text-slate-800 line-clamp-1 group-hover:text-primary-600 transition-colors">{job.jobTitle}</h3>
-                                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">{job.vendorId?.businessName || job.vendorId?.name}</p>
+                                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Firm - {job.vendorId?.storeName || job.vendorId?.businessName || job.vendorId?.name}</p>
                                         </div>
                                     </div>
                                     

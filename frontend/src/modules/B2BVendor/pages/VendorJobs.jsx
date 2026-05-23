@@ -229,7 +229,7 @@ const VendorJobs = () => {
                                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">{job.subCategory}</span>
                                         </div>
                                     </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex gap-1 transition-opacity">
                                         <button onClick={() => openModal(job)} className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg"><FiEdit2 size={14}/></button>
                                         <button onClick={() => { setJobToDelete(job._id); setDeleteModalOpen(true); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><FiTrash2 size={14}/></button>
                                     </div>

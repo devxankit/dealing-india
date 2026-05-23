@@ -14,7 +14,8 @@ import {
     FiMapPin,
     FiArrowUpRight,
     FiCreditCard,
-    FiVideo
+    FiVideo,
+    FiBriefcase
 } from "react-icons/fi";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../hooks/useVendorSettings";
@@ -43,7 +44,8 @@ const B2BVendorDashboard = () => {
             products: dashboardData?.counts?.products || { total: 0, approved: 0, pending: 0 },
             lotSlot: dashboardData?.counts?.lotSlot || { total: 0, approved: 0, pending: 0 },
             properties: dashboardData?.counts?.properties || { total: 0, approved: 0, pending: 0 },
-            reels: dashboardData?.counts?.reels || { total: 0, approved: 0, pending: 0 }
+            reels: dashboardData?.counts?.reels || { total: 0, approved: 0, pending: 0 },
+            jobs: dashboardData?.counts?.jobs || { total: 0, approved: 0, pending: 0 }
         },
         subscriptions: dashboardData?.subscriptions || [],
         banners: dashboardData?.banners || [],
@@ -104,6 +106,7 @@ const B2BVendorDashboard = () => {
         enableBanner: settings.enabledModules?.includes('banner'),
         enableShopListing: settings.enabledModules?.includes('shop-listing') || false,
         enableReels: true, // Reels are currently always enabled for vendors
+        enableJobListing: true, // Always enable job listings
 
         // Subscription Flags (Usually map to listing modules)
         enableProductSubscription: settings.enabledModules?.includes('product'),
@@ -125,6 +128,7 @@ const B2BVendorDashboard = () => {
         enableProductSubscription: true,
         enablePropertySubscription: true,
         enableBannerSubscription: true,
+        enableJobListing: true,
         widgets: ['stats', 'listings_overview', 'subscription_status', 'banner_promo', 'alerts', 'quick_actions']
     };
 
@@ -302,6 +306,23 @@ const B2BVendorDashboard = () => {
                                             <div className="text-right">
                                                 <p className="text-[10px] font-bold text-emerald-500 uppercase">{dashboard.counts.reels.approved} Approved</p>
                                                 <p className="text-[10px] font-bold text-amber-500 uppercase">{dashboard.counts.reels.pending} Review</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {config.enableJobListing && (
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden cursor-pointer" onClick={() => navigate('/b2b-vendor/jobs')}>
+                                        <div className="flex justify-between items-start mb-6">
+                                            <div className="p-3 bg-teal-100 text-teal-600 rounded-xl"><FiBriefcase size={24} /></div>
+                                            <button className="text-slate-400 group-hover:text-slate-900 transition-colors"><FiArrowUpRight size={20} /></button>
+                                        </div>
+                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Job Postings</h3>
+                                        <div className="flex items-end justify-between">
+                                            <p className="text-4xl font-black text-slate-900">{dashboard.counts.jobs.total}</p>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-bold text-emerald-500 uppercase">{dashboard.counts.jobs.approved} Active</p>
+                                                <p className="text-[10px] font-bold text-amber-500 uppercase">{dashboard.counts.jobs.pending} Hidden</p>
                                             </div>
                                         </div>
                                     </div>

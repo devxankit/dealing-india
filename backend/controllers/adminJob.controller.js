@@ -3,7 +3,7 @@ import Vendor from '../models/Vendor.model.js';
 
 export const getAllJobs = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search, category, status, city } = req.query;
+        const { page = 1, limit = 10, search, category, subCategory, status, city } = req.query;
         
         const query = { isDeleted: false };
         
@@ -13,6 +13,10 @@ export const getAllJobs = async (req, res) => {
         
         if (category) {
             query.category = category;
+        }
+        
+        if (subCategory) {
+            query.subCategory = subCategory;
         }
         
         if (city) {
@@ -26,7 +30,7 @@ export const getAllJobs = async (req, res) => {
         const skip = (Number(page) - 1) * Number(limit);
 
         const jobs = await Job.find(query)
-            .populate('vendorId', 'name businessName phone email')
+            .populate('vendorId', 'name storeName businessName phone email')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(Number(limit));

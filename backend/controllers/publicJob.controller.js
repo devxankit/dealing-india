@@ -27,7 +27,7 @@ export const getPublicJobs = async (req, res) => {
         const skip = (Number(page) - 1) * Number(limit);
 
         const jobs = await Job.find(query)
-            .populate('vendorId', 'name businessName phone email profilePicture')
+            .populate('vendorId', 'name storeName businessName phone email profilePicture')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(Number(limit));

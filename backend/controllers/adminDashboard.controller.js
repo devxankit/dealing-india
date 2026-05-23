@@ -13,6 +13,7 @@ import Reel from '../models/Reel.model.js';
 import ReelReport from '../models/ReelReport.model.js';
 import VendorWalletTransaction from '../models/VendorWalletTransaction.model.js';
 import Feedback from '../models/Feedback.model.js';
+import Job from '../models/Job.model.js';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1'];
 
@@ -45,7 +46,8 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         totalLotSlots,
         activeLotSlots,
         totalReels,
-        activeReels
+        activeReels,
+        totalJobs
     ] = await Promise.all([
         User.countDocuments(),
         Vendor.countDocuments({ vendorType: { $ne: 'admin' } }),
@@ -106,7 +108,8 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         LotSlot.countDocuments(),
         LotSlot.countDocuments({ isActive: true }),
         Reel.countDocuments(),
-        Reel.countDocuments({ status: 'approved' })
+        Reel.countDocuments({ status: 'approved' }),
+        Job.countDocuments()
     ]);
 
     // Format vendor distribution for frontend based on business type
@@ -308,7 +311,8 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
                 totalLotSlots,
                 activeLotSlots,
                 totalReels,
-                activeReels
+                activeReels,
+                totalJobs
             },
             vendorDistribution: formattedVendorDistribution,
             recentVendors,

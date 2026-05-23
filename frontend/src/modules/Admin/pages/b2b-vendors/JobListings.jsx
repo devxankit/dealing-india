@@ -12,7 +12,7 @@ const AdminJobListings = () => {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [filters, setFilters] = useState({ search: '', status: '', category: '' });
+    const [filters, setFilters] = useState({ search: '', status: '', category: '', subCategory: '' });
     const [categories, setCategories] = useState([]);
     
     const [toggleModalOpen, setToggleModalOpen] = useState(false);
@@ -25,7 +25,7 @@ const AdminJobListings = () => {
 
     useEffect(() => {
         fetchJobs();
-    }, [page, filters.status, filters.category]);
+    }, [page, filters.status, filters.category, filters.subCategory]);
 
     // Handle search debounce
     useEffect(() => {
@@ -62,7 +62,8 @@ const AdminJobListings = () => {
                 limit: 10,
                 ...(filters.search && { search: filters.search }),
                 ...(filters.status && { status: filters.status }),
-                ...(filters.category && { category: filters.category })
+                ...(filters.category && { category: filters.category }),
+                ...(filters.subCategory && { subCategory: filters.subCategory })
             });
 
             const res = await api.get(`/admin/jobs?${query.toString()}`);
@@ -130,12 +131,25 @@ const AdminJobListings = () => {
                 </div>
                 <select
                     value={filters.category}
-                    onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                    onChange={(e) => setFilters({ ...filters, category: e.target.value, subCategory: '' })}
                     className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary-500/20 outline-none uppercase tracking-wider"
                 >
                     <option value="">All Categories</option>
                     {categories.map(c => <option key={c._id} value={c.name}>{c.name}</option>)}
                 </select>
+                
+                {filters.category && (
+                    <select
+                        value={filters.subCategory}
+                        onChange={(e) => setFilters({ ...filters, subCategory: e.target.value })}
+                        className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary-500/20 outline-none uppercase tracking-wider"
+                    >
+                        <option value="">All Roles</option>
+                        {categories.find(c => c.name === filters.category)?.subcategories.map(s => (
+                            <option key={s} value={s}>{s}</option>
+                        ))}
+                    </select>
+                )}
                 <select
                     value={filters.status}
                     onChange={(e) => setFilters({ ...filters, status: e.target.value })}
@@ -184,7 +198,7 @@ const AdminJobListings = () => {
                                         <td className="p-4">
                                             {job.vendorId ? (
                                                 <>
-                                                    <p className="font-bold text-slate-800 text-xs">{job.vendorId.businessName || job.vendorId.name}</p>
+                                                    <p className="font-bold text-slate-800 text-xs">{job.vendorId.storeName || job.vendorId.businessName || job.vendorId.name}</p>
                                                     <p className="text-[10px] text-slate-500">{job.vendorId.phone}</p>
                                                 </>
                                             ) : (
