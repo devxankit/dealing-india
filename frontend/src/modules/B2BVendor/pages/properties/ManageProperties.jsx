@@ -52,7 +52,8 @@ const ManageProperties = () => {
 
         // Priority 1: Explicit types
         if (type === 'flat') return 'flat';
-        if (type === 'villa' || type === 'plot') return 'villa';
+        if (type === 'plot') return 'plot';
+        if (type === 'villa' || type === 'row house') return 'villa';
 
         // Priority 2: Commercial types
         const commercialTypes = ['shop', 'office', 'showroom', 'godown', 'factory', 'commercial building', 'industrial shed', 'warehouse'];
@@ -105,6 +106,7 @@ const ManageProperties = () => {
                             <option value="all">All Types</option>
                             <option value="flat">Flat</option>
                             <option value="villa">Villa</option>
+                            <option value="plot">Plot</option>
                             <option value="commercial">Commercial</option>
                         </select>
                         <SubscriptionGate action="property">
@@ -139,12 +141,19 @@ const ManageProperties = () => {
                             className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group"
                         >
                             {/* Top: Image Section */}
-                            <div className="relative h-60 overflow-hidden">
-                                <img
-                                    src={(property.images && property.images.length > 0 ? property.images[0] : property.media?.[0]?.url) || 'https://via.placeholder.com/400x300'}
-                                    alt={property.title}
-                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                />
+                            <div className="relative h-60 overflow-hidden bg-gray-100 flex items-center justify-center">
+                                {((property.images && property.images.length > 0) || property.media?.length > 0) ? (
+                                    <img
+                                        src={property.images?.length > 0 ? property.images[0] : property.media[0].url}
+                                        alt={property.title}
+                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                                        <FiMapPin size={32} className="mb-2 opacity-50" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest opacity-50">Image Not Provided</span>
+                                    </div>
+                                )}
 
                                 {/* Image Count Badge */}
                                 <div className="absolute top-4 right-4 px-3 py-1.5 bg-black/60 backdrop-blur-md text-white text-[10px] font-black uppercase rounded-full flex items-center gap-1.5">
@@ -253,13 +262,22 @@ const ManageProperties = () => {
                                         <p className="text-lg font-black text-slate-900 leading-none">
                                             {(() => {
                                                 if (property.listingType === 'Sale') {
-                                                    const min = Number(property.saleDetails?.priceMin || 0).toLocaleString();
-                                                    const max = Number(property.saleDetails?.priceMax || 0).toLocaleString();
-                                                    return `₹${min} - ${max} ${property.saleDetails?.priceUnit || ''}`;
+                                                    const min = property.saleDetails?.priceMin || 0;
+                                                    const max = property.saleDetails?.priceMax || 0;
+                                                    const unit = property.saleDetails?.priceUnit || '';
+                                                    if (max && max !== min && Number(max) > 0) return `₹${Number(min).toLocaleString('en-IN')} - ${Number(max).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`.trim();
+                                                    return `₹${Number(min).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`.trim();
                                                 }
-                                                if (property.listingType === 'Rent') return `₹${Number(property.rentDetails?.monthlyRent || 0).toLocaleString()} ${property.rentDetails?.rentUnit || ''}`;
-                                                if (property.listingType === 'Lease') return `₹${Number(property.leaseDetails?.monthlyLeaseRate || 0).toLocaleString()} ${property.leaseDetails?.leaseUnit || ''}`;
-                                                return `₹${Number(property.price?.amount || 0).toLocaleString()}`;
+                                                if (property.listingType === 'Rent') {
+                                                    const unit = property.rentDetails?.rentUnit || '';
+                                                    return `₹${Number(property.rentDetails?.monthlyRent || 0).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}/mo`.replace(' /mo', '/mo');
+                                                }
+                                                if (property.listingType === 'Lease') {
+                                                    const unit = property.leaseDetails?.leaseUnit || '';
+                                                    return `₹${Number(property.leaseDetails?.monthlyLeaseRate || 0).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}/mo`.replace(' /mo', '/mo');
+                                                }
+                                                const unit = property.price?.unit || property.price?.priceUnit || '';
+                                                return `₹${Number(property.price?.amount || 0).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`.trim();
                                             })()}
                                         </p>
                                     </div>
@@ -312,18 +330,34 @@ const ManageProperties = () => {
                                     <FiX size={20} />
                                 </button>
 
-                                <div className="flex-1 relative overflow-hidden flex items-center justify-center">
+                                <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-slate-800">
                                     <AnimatePresence mode="wait">
-                                        <motion.img
-                                            key={activeImageIndex}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            src={(() => {
-                                                const imgs = selectedProperty.images?.length > 0 ? selectedProperty.images : (selectedProperty.media?.map(m => m.url) || []);
-                                                return imgs[activeImageIndex] || 'https://via.placeholder.com/800x600';
-                                            })()}
-                                            className="w-full h-full object-cover"
-                                        />
+                                        {(() => {
+                                            const imgs = selectedProperty.images?.length > 0 ? selectedProperty.images : (selectedProperty.media?.map(m => m.url) || []);
+                                            if (imgs.length > 0) {
+                                                return (
+                                                    <motion.img
+                                                        key={activeImageIndex}
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        src={imgs[activeImageIndex]}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                );
+                                            } else {
+                                                return (
+                                                    <motion.div
+                                                        key="no-image"
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        className="w-full h-full flex flex-col items-center justify-center text-gray-500"
+                                                    >
+                                                        <FiMapPin size={48} className="mb-4 opacity-30" />
+                                                        <span className="text-xs font-black uppercase tracking-widest opacity-30">Image Not Provided</span>
+                                                    </motion.div>
+                                                );
+                                            }
+                                        })()}
                                     </AnimatePresence>
                                 </div>
 
@@ -398,13 +432,22 @@ const ManageProperties = () => {
                                                     {(() => {
                                                         const p = selectedProperty;
                                                         if (p.listingType === 'Sale') {
-                                                            const min = Number(p.saleDetails?.priceMin || 0).toLocaleString();
-                                                            const max = Number(p.saleDetails?.priceMax || 0).toLocaleString();
-                                                            return `₹${min} - ${max} ${p.saleDetails?.priceUnit || ''}`;
+                                                            const min = p.saleDetails?.priceMin || 0;
+                                                            const max = p.saleDetails?.priceMax || 0;
+                                                            const unit = p.saleDetails?.priceUnit || '';
+                                                            if (max && max !== min && Number(max) > 0) return `₹${Number(min).toLocaleString('en-IN')} - ${Number(max).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`.trim();
+                                                            return `₹${Number(min).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`.trim();
                                                         }
-                                                        if (p.listingType === 'Rent') return `₹${Number(p.rentDetails?.monthlyRent || 0).toLocaleString()} ${p.rentDetails?.rentUnit || ''}`;
-                                                        if (p.listingType === 'Lease') return `₹${Number(p.leaseDetails?.monthlyLeaseRate || 0).toLocaleString()} ${p.leaseDetails?.leaseUnit || ''}`;
-                                                        return `₹${Number(p.price?.amount || 0).toLocaleString()}`;
+                                                        if (p.listingType === 'Rent') {
+                                                            const unit = p.rentDetails?.rentUnit || '';
+                                                            return `₹${Number(p.rentDetails?.monthlyRent || 0).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}/mo`.replace(' /mo', '/mo');
+                                                        }
+                                                        if (p.listingType === 'Lease') {
+                                                            const unit = p.leaseDetails?.leaseUnit || '';
+                                                            return `₹${Number(p.leaseDetails?.monthlyLeaseRate || 0).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}/mo`.replace(' /mo', '/mo');
+                                                        }
+                                                        const unit = p.price?.unit || p.price?.priceUnit || '';
+                                                        return `₹${Number(p.price?.amount || 0).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`.trim();
                                                     })()}
                                                 </p>
                                                 {/* Additional Pricing Info */}

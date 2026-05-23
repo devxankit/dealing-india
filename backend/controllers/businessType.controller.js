@@ -46,7 +46,7 @@ export const createBusinessType = asyncHandler(async (req, res) => {
     await BusinessTypeSettings.create({
         businessTypeId: businessType._id,
         enabledModules: ['subscription', 'profile', 'settings'], // Minimal defaults
-        propertyForms: ['property', 'flat', 'villa'],
+        propertyForms: ['property', 'flat', 'villa', 'plot'],
     });
 
     res.status(201).json({

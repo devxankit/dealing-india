@@ -77,53 +77,40 @@ const PropertyDetail = () => {
         ...(property.media?.map(m => m.url) || []),
         ...(property.images || [])
     ];
-    if (propertyImages.length === 0) propertyImages.push('https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=1200');
+    
+    const isPlot = property.propertyType === 'Plot';
+
+    if (propertyImages.length === 0 && !isPlot) {
+        propertyImages.push('https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=1200');
+    }
 
     const formatPrice = (p) => {
         if (!p) return 'Request Price';
 
-        const getMultiplier = (unit) => {
-            switch (unit) {
-                case 'Rs': return 1;
-                case 'Thousand': return 1000;
-                case 'Lakh': return 100000;
-                case 'Crore': return 10000000;
-                default: return 1;
-            }
-        };
-
         if (p.listingType === 'Sale') {
-            if (p.saleDetails?.priceMin) {
-                const multiplier = getMultiplier(p.saleDetails.priceUnit);
-                const min = p.saleDetails.priceMin * multiplier;
-                const max = p.saleDetails.priceMax * multiplier;
-
-                if (max && max !== min) {
-                    if (multiplier >= 100000) {
-                        return `₹${p.saleDetails.priceMin}-${p.saleDetails.priceMax} ${p.saleDetails.priceUnit}`;
-                    }
-                    return `₹${min.toLocaleString('en-IN')}-${max.toLocaleString('en-IN')}`;
+            if (p.saleDetails?.priceMin && Number(p.saleDetails.priceMin) > 0) {
+                const min = p.saleDetails.priceMin;
+                const max = p.saleDetails.priceMax;
+                const unit = p.saleDetails.priceUnit || '';
+                
+                if (max && max !== min && Number(max) > 0) {
+                    return `₹${Number(min).toLocaleString('en-IN')} - ${Number(max).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`.trim();
                 }
-
-                if (multiplier >= 100000) {
-                    return `₹${p.saleDetails.priceMin} ${p.saleDetails.priceUnit}`;
-                }
-                return `₹${min.toLocaleString('en-IN')}`;
+                return `₹${Number(min).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`.trim();
             }
-        } else if (p.listingType === 'Rent') {
-            if (p.rentDetails?.monthlyRent) {
-                const multiplier = getMultiplier(p.rentDetails.rentUnit);
-                const amount = p.rentDetails.monthlyRent * multiplier;
-                return `₹${amount.toLocaleString('en-IN')}/mo`;
-            }
-        } else if (p.listingType === 'Lease') {
-            if (p.leaseDetails?.monthlyLeaseRate) {
-                const multiplier = getMultiplier(p.leaseDetails.leaseUnit);
-                const amount = p.leaseDetails.monthlyLeaseRate * multiplier;
-                return `₹${amount.toLocaleString('en-IN')}/mo`;
-            }
+        } else if (p.listingType === 'Rent' && p.rentDetails?.monthlyRent && Number(p.rentDetails.monthlyRent) > 0) {
+            const unit = p.rentDetails.rentUnit || 'Thousand';
+            return `₹${Number(p.rentDetails.monthlyRent).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}/mo`.replace(' /mo', '/mo');
+        } else if (p.listingType === 'Lease' && p.leaseDetails?.monthlyLeaseRate && Number(p.leaseDetails.monthlyLeaseRate) > 0) {
+            const unit = p.leaseDetails.leaseUnit || 'Lakh';
+            return `₹${Number(p.leaseDetails.monthlyLeaseRate).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}/mo`.replace(' /mo', '/mo');
         }
-        return p.price?.amount ? `₹${p.price.amount.toLocaleString('en-IN')}` : 'Request Price';
+        
+        if (p.price?.amount && Number(p.price.amount) > 0) {
+            const unit = p.price.unit || p.price.priceUnit || 'Rs';
+            return `₹${Number(p.price.amount).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`.trim();
+        }
+        return 'Request Price';
     };
 
     const sellerName = property.vendorId?.storeName || 'Verified Developer';
@@ -220,11 +207,18 @@ const PropertyDetail = () => {
                                 animate={{ opacity: 1, scale: 1 }}
                                 className="aspect-[16/9] rounded-3xl md:rounded-[3.5rem] overflow-hidden bg-gray-50 shadow-xl border border-gray-100"
                             >
-                                <img
-                                    src={propertyImages[selectedImage]}
-                                    alt={property.title}
-                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.01]"
-                                />
+                                {propertyImages.length > 0 ? (
+                                    <img
+                                        src={propertyImages[selectedImage]}
+                                        alt={property.title}
+                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.01]"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-400">
+                                        <FiMapPin size={64} className="mb-4 opacity-50" />
+                                        <span className="text-sm font-black uppercase tracking-widest opacity-50">Image Not Provided</span>
+                                    </div>
+                                )}
 
                                 {/* Status Overlays */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
@@ -320,16 +314,16 @@ const PropertyDetail = () => {
                                 {[
                                     {
                                         label: 'Built up Area',
-                                        val: (property.specifications?.builtUpArea || property.flatDetails?.builtUpArea || property.plotDetails?.builtUpArea)
+                                        val: property.propertyType === 'Plot' ? null : ((property.specifications?.builtUpArea || property.flatDetails?.builtUpArea || property.plotDetails?.builtUpArea)
                                             ? `${property.specifications?.builtUpArea || property.flatDetails?.builtUpArea || property.plotDetails?.builtUpArea} ${property.specifications?.builtUpAreaUnit || property.flatDetails?.carpetAreaUnit || property.plotDetails?.builtUpAreaUnit || ''}`
-                                            : null,
+                                            : null),
                                         icon: <FiMaximize />
                                     },
                                     {
                                         label: 'Common Area',
-                                        val: (property.flatDetails?.commonArea || property.plotDetails?.commonArea)
+                                        val: property.propertyType === 'Plot' ? null : ((property.flatDetails?.commonArea || property.plotDetails?.commonArea)
                                             ? `${property.flatDetails?.commonArea || property.plotDetails?.commonArea} ${property.flatDetails?.carpetAreaUnit || property.plotDetails?.builtUpAreaUnit || ''}`
-                                            : null,
+                                            : null),
                                         icon: <FiMaximize />
                                     },
                                     {
@@ -337,16 +331,16 @@ const PropertyDetail = () => {
                                         val: property.totalArea || (property.plotDetails?.plotArea ? `${property.plotDetails.plotArea} ${property.plotDetails?.plotAreaUnit || ''}` : null),
                                         icon: <FiMaximize />
                                     },
-                                    { label: 'Floor Level', val: property.specifications?.floorNumber || property.flatDetails?.floorNumber, icon: <FiLayers /> },
-                                    { label: 'Total Floors', val: property.specifications?.totalFloors || property.flatDetails?.totalFloors || property.plotDetails?.floors, icon: <FiGrid /> },
-                                    { label: 'Flat Type', val: property.flatDetails?.flatType, icon: <FiHome /> },
-                                    { label: 'Bedrooms', val: property.plotDetails?.bedrooms, icon: <FiBox /> },
-                                    { label: 'Bathrooms', val: property.plotDetails?.bathrooms, icon: <FiUnlock /> },
-                                    { label: 'Balcony', val: property.plotDetails?.balcony, icon: <FiLayers /> },
+                                    { label: 'Floor Level', val: property.propertyType === 'Plot' ? null : (property.specifications?.floorNumber || property.flatDetails?.floorNumber), icon: <FiLayers /> },
+                                    { label: 'Total Floors', val: property.propertyType === 'Plot' ? null : (property.specifications?.totalFloors || property.flatDetails?.totalFloors || property.plotDetails?.floors), icon: <FiGrid /> },
+                                    { label: 'Flat Type', val: property.propertyType === 'Plot' ? null : property.flatDetails?.flatType, icon: <FiHome /> },
+                                    { label: 'Bedrooms', val: property.propertyType === 'Plot' ? null : property.plotDetails?.bedrooms, icon: <FiBox /> },
+                                    { label: 'Bathrooms', val: property.propertyType === 'Plot' ? null : property.plotDetails?.bathrooms, icon: <FiUnlock /> },
+                                    { label: 'Balcony', val: property.propertyType === 'Plot' ? null : property.plotDetails?.balcony, icon: <FiLayers /> },
 
-                                    { label: 'Possession', val: property.flatDetails?.possessionType || property.plotDetails?.possessionType, icon: <FiHome /> },
-                                    { label: 'Age of Prop.', val: property.status?.propertyCondition || property.flatDetails?.ageOfProperty || property.plotDetails?.ageOfProperty, icon: <FiClock /> },
-                                    { label: 'Furnishing', val: property.status?.furnishing || property.flatDetails?.furnishing || property.plotDetails?.furnishing, icon: <FiBox /> },
+                                    { label: 'Possession', val: property.propertyType === 'Plot' ? null : (property.flatDetails?.possessionType || property.plotDetails?.possessionType), icon: <FiHome /> },
+                                    { label: 'Age of Prop.', val: property.propertyType === 'Plot' ? null : (property.status?.propertyCondition || property.flatDetails?.ageOfProperty || property.plotDetails?.ageOfProperty), icon: <FiClock /> },
+                                    { label: 'Furnishing', val: property.propertyType === 'Plot' ? null : (property.status?.furnishing || property.flatDetails?.furnishing || property.plotDetails?.furnishing), icon: <FiBox /> },
                                 ].map((spec, i) => (spec.val || spec.val === '0') && (
                                     <div key={i} className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group flex items-start gap-4 md:gap-5">
                                         <div className="w-10 h-10 md:w-12 md:h-12 bg-primary-50 text-primary-600 rounded-xl md:rounded-2xl flex items-center justify-center group-hover:bg-primary-600 group-hover:text-white transition-all transform group-hover:rotate-6">

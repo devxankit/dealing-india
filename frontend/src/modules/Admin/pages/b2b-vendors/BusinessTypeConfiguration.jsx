@@ -595,7 +595,8 @@ const BusinessTypeConfiguration = () => {
                                         {[
                                             { id: 'property', label: 'Property Form' },
                                             { id: 'flat', label: 'Flat Form' },
-                                            { id: 'villa', label: 'Villa Form' }
+                                            { id: 'villa', label: 'Villa Form' },
+                                            { id: 'plot', label: 'Plot Form' }
                                         ].map((form) => (
                                             <button
                                                 key={form.id}

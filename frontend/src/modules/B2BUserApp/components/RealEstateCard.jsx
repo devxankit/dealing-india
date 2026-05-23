@@ -31,7 +31,9 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
         ...(property.images || [])
     ];
 
-    if (allImages.length === 0) {
+    const isPlot = property.propertyType === 'Plot';
+
+    if (allImages.length === 0 && !isPlot) {
         allImages.push('https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=1200');
     }
 
@@ -109,7 +111,16 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
         if (!p) return 'Price on Request';
 
         if (p.listingType === 'Sale') {
-            if (p.saleDetails?.priceMin) {
+            if (p.saleDetails?.priceMin && Number(p.saleDetails.priceMin) > 0) {
+                if (selectedPriceUnit === 'All') {
+                    const min = p.saleDetails.priceMin;
+                    const max = p.saleDetails.priceMax;
+                    const unit = p.saleDetails.priceUnit || '';
+                    if (max && max !== min && Number(max) > 0) {
+                        return `₹${Number(min).toLocaleString('en-IN')} - ${Number(max).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`;
+                    }
+                    return `₹${Number(min).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`;
+                }
                 const min = toRupees(p.saleDetails.priceMin, p.saleDetails.priceUnit || 'Lakh');
                 const max = toRupees(p.saleDetails.priceMax, p.saleDetails.priceUnit || 'Lakh');
                 if (max && max !== min) {
@@ -117,15 +128,27 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                 }
                 return `${formatBySelectedUnit(min, selectedPriceUnit)} onwards`;
             }
-        } else if (p.listingType === 'Rent' && p.rentDetails?.monthlyRent) {
+        } else if (p.listingType === 'Rent' && p.rentDetails?.monthlyRent && Number(p.rentDetails.monthlyRent) > 0) {
+            if (selectedPriceUnit === 'All') {
+                const unit = p.rentDetails.rentUnit || 'Thousand';
+                return `₹${Number(p.rentDetails.monthlyRent).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}/mo`;
+            }
             const amount = toRupees(p.rentDetails.monthlyRent, p.rentDetails.rentUnit || 'Thousand');
             return `${formatBySelectedUnit(amount, selectedPriceUnit)}/mo`;
-        } else if (p.listingType === 'Lease' && p.leaseDetails?.monthlyLeaseRate) {
+        } else if (p.listingType === 'Lease' && p.leaseDetails?.monthlyLeaseRate && Number(p.leaseDetails.monthlyLeaseRate) > 0) {
+            if (selectedPriceUnit === 'All') {
+                const unit = p.leaseDetails.leaseUnit || 'Lakh';
+                return `₹${Number(p.leaseDetails.monthlyLeaseRate).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}/mo`;
+            }
             const amount = toRupees(p.leaseDetails.monthlyLeaseRate, p.leaseDetails.leaseUnit || 'Lakh');
             return `${formatBySelectedUnit(amount, selectedPriceUnit)}/mo`;
         }
 
-        if (p.price?.amount) {
+        if (p.price?.amount && Number(p.price.amount) > 0) {
+            if (selectedPriceUnit === 'All') {
+                const unit = p.price.unit || p.price.priceUnit || 'Rs';
+                return `₹${Number(p.price.amount).toLocaleString('en-IN')} ${unit !== 'Rs' ? unit : ''}`;
+            }
             const amountInRupees = toRupees(p.price.amount, p.price.unit || p.price.priceUnit || 'Rs');
             return formatBySelectedUnit(amountInRupees, selectedPriceUnit);
         }
@@ -184,16 +207,29 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
             {/* Image Container with Slider */}
             <div className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50 group/image">
                 <AnimatePresence mode="wait">
-                    <motion.img
-                        key={currentImageIndex}
-                        src={allImages[currentImageIndex]}
-                        alt={property.title}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3 }}
-                        className="w-full h-full object-cover"
-                    />
+                    {allImages.length > 0 ? (
+                        <motion.img
+                            key={currentImageIndex}
+                            src={allImages[currentImageIndex]}
+                            alt={property.title}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.3 }}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <motion.div
+                            key="no-image"
+                            className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-400"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                        >
+                            <FiMapPin size={48} className="mb-2 opacity-50" />
+                            <span className="text-[10px] font-black uppercase tracking-widest opacity-50">Image Not Provided</span>
+                        </motion.div>
+                    )}
                 </AnimatePresence>
 
                 {/* Slider Controls - Only if multiple images */}

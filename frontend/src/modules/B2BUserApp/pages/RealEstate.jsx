@@ -48,6 +48,8 @@ const RealEstate = () => {
                     params.category = 'Commercial Properties';
                 } else if (selectedPropertyType.includes('Flat')) {
                     params.category = 'Flat Properties';
+                } else if (selectedPropertyType.includes('Plot')) {
+                    params.category = 'Plot Properties';
                 } else {
                     params.category = selectedPropertyType;
                 }
@@ -150,7 +152,7 @@ const RealEstate = () => {
                 city: selectedCity === 'All Cities' ? '' : selectedCity,
                 area: selectedArea === 'All Areas' ? '' : selectedArea,
                 market: selectedMarket === 'All Markets' ? '' : selectedMarket,
-                propertyType: (selectedPropertyType.includes('Villa') ? 'Villa' : (selectedPropertyType.includes('Flat') ? 'Flat' : (selectedPropertyType.includes('Commercial') ? 'Commercial' : (selectedPropertyType === 'All' ? '' : selectedPropertyType)))),
+                propertyType: (selectedPropertyType.includes('Villa') ? 'Villa' : (selectedPropertyType.includes('Flat') ? 'Flat' : (selectedPropertyType.includes('Commercial') ? 'Commercial' : (selectedPropertyType.includes('Plot') ? 'Plot' : (selectedPropertyType === 'All' ? '' : selectedPropertyType))))),
                 flatType: (selectedPropertyType.includes('Flat') && selectedFlatType !== 'All') ? selectedFlatType : '',
                 floors: (selectedPropertyType.includes('Villa') && selectedFloors !== 'All') ? selectedFloors : '',
                 minPrice: appliedPrice.min,
@@ -172,6 +174,8 @@ const RealEstate = () => {
                     let selected = selectedPropertyType.toLowerCase();
                     if (selected.includes('villa')) selected = 'villa';
                     if (selected.includes('flat')) selected = 'flat';
+                    if (selected.includes('commercial')) selected = 'commercial';
+                    if (selected.includes('plot')) selected = 'plot';
                     const normalizedSelectedFlatType = String(selectedFlatType || 'All').replace(/\s+/g, '').toUpperCase();
 
                     nextProperties = nextProperties.filter((property) => {
@@ -182,7 +186,7 @@ const RealEstate = () => {
                             : [];
 
                         // Priority 1: Explicit Match
-                        if (selected === 'villa' && (type === 'villa' || type === 'plot' || type === 'row house')) {
+                        if (selected === 'villa' && (type === 'villa' || type === 'row house')) {
                             if (selectedFloors === 'All') return true;
                             return String(property?.plotDetails?.floors || '').toLowerCase() === selectedFloors.toLowerCase();
                         }
@@ -198,7 +202,7 @@ const RealEstate = () => {
                         if (selected === 'commercial' && commercialTypes.includes(type)) return true;
 
                         // Priority 3: Structural Match (for legacy/missing types)
-                        if (selected === 'villa' && property?.plotDetails?.plotArea > 0) {
+                        if (selected === 'villa' && type !== 'plot' && property?.plotDetails?.plotArea > 0) {
                             if (selectedFloors === 'All') return true;
                             return String(property?.plotDetails?.floors || '').toLowerCase() === selectedFloors.toLowerCase();
                         }
@@ -516,7 +520,7 @@ const RealEstate = () => {
                             className="overflow-hidden"
                         >
                             <div className="p-4 space-y-2">
-                                {['All', 'Flat Properties', 'Villa / Row house Properties', 'Commercial Properties'].map((type) => (
+                                {['All', 'Flat Properties', 'Villa / Row house Properties', 'Commercial Properties', 'Plot Properties'].map((type) => (
 
                                     <button
                                         key={type}
