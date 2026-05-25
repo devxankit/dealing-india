@@ -158,10 +158,11 @@ const propertySchema = new mongoose.Schema(
             }
         }],
 
-        // Plot Specific Details
         plotDetails: {
             plotArea: Number,
             plotAreaUnit: { type: String, enum: ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'], default: 'Sq. Ft.' },
+            length: Number,
+            width: Number,
             builtUpArea: Number,
             builtUpAreaUnit: { type: String, enum: ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'], default: 'Sq. Ft.' },
             floors: String,

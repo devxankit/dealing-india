@@ -10,7 +10,7 @@ import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { openFlutterCamera, openFlutterGallery, isFlutterApp } from "../../../shared/utils/flutterBridge";
 import { useFormPersist } from "../../../shared/hooks/useFormPersist";
 
-const PlotForm = ({ initialData, isEdit, formType = "Plot" }) => {
+const VillaForm = ({ initialData, isEdit }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
@@ -18,11 +18,12 @@ const PlotForm = ({ initialData, isEdit, formType = "Plot" }) => {
     const cameraInputRef = useRef(null);
     const { vendor } = useB2BVendorAuthStore();
     const vendorId = vendor?._id || vendor?.id || "anonymous";
-    const DRAFT_KEY = `b2b_plot_add_draft_${vendorId}`;
+    const DRAFT_KEY = `b2b_villa_add_draft_${vendorId}`;
+    const formType = "Row house / Villa";
 
     const [media, setMedia] = useState([]);
 
-    const initialPropertyType = "Plot";
+    const initialPropertyType = "Villa";
 
     const [formData, setFormData] = useState({
         title: '', listingType: 'Sale', description: '', propertyType: initialPropertyType,
@@ -30,7 +31,9 @@ const PlotForm = ({ initialData, isEdit, formType = "Plot" }) => {
         rentDetails: { monthlyRent: '', rentUnit: 'Thousand', depositAmount: '', depositUnit: 'Thousand', maintenance: 'Excluded', veraBill: 'Excluded' },
         leaseDetails: { monthlyLeaseRate: '', leaseUnit: 'Lakh', depositAmount: '', depositUnit: 'Thousand', leaseDurationYears: '' },
         plotDetails: {
-            length: '', width: '', plotArea: '', plotAreaUnit: 'Sq. Ft.'
+            plotArea: '', plotAreaUnit: 'Sq. Ft.',
+            builtUpArea: '', builtUpAreaUnit: 'Sq. Ft.',
+            bedrooms: '', bathrooms: '', floors: '', possessionType: 'Ready to Move'
         },
         location: { address: '', area: '', state: '', city: '', mapUrl: '' }
     });
@@ -64,50 +67,18 @@ const PlotForm = ({ initialData, isEdit, formType = "Plot" }) => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
-        
-        setFormData(prev => {
-            const newState = { ...prev };
-            if (name.includes('.')) {
-                const parts = name.split('.');
+        if (name.includes('.')) {
+            const parts = name.split('.');
+            if (parts.length === 2) {
                 const [parent, child] = parts;
-                newState[parent] = { ...newState[parent], [child]: value };
-            } else {
-                newState[name] = value;
+                setFormData(prev => ({
+                    ...prev,
+                    [parent]: { ...prev[parent], [child]: value }
+                }));
             }
-
-            // Automatic Plot Area Calculation
-            if (name === 'plotDetails.length' || name === 'plotDetails.width') {
-                const len = parseFloat(name === 'plotDetails.length' ? value : newState.plotDetails.length) || 0;
-                const wid = parseFloat(name === 'plotDetails.width' ? value : newState.plotDetails.width) || 0;
-                if (len > 0 && wid > 0) {
-                    newState.plotDetails.plotArea = (len * wid).toString();
-                } else {
-                    newState.plotDetails.plotArea = '';
-                }
-            }
-            
-            // Unit conversion
-            if (name === 'plotDetails.plotAreaUnit') {
-                const oldUnit = prev.plotDetails.plotAreaUnit;
-                const newUnit = value;
-                const currentArea = parseFloat(newState.plotDetails.plotArea);
-                if (!isNaN(currentArea) && currentArea > 0 && oldUnit !== newUnit) {
-                    const toSqFt = {
-                        'Sq. Ft.': 1,
-                        'Sq. Mt.': 10.7639,
-                        'Sq. Yd.': 9,
-                        'Acre': 43560,
-                        'Gaj': 9
-                    };
-                    const sqFt = currentArea * (toSqFt[oldUnit] || 1);
-                    const newArea = sqFt / (toSqFt[newUnit] || 1);
-                    // round to 2 decimal places to avoid long repeating decimals
-                    newState.plotDetails.plotArea = parseFloat(newArea.toFixed(2)).toString();
-                }
-            }
-
-            return newState;
-        });
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleNumberKeyPress = (e, allowDot = false) => {
@@ -251,10 +222,14 @@ const PlotForm = ({ initialData, isEdit, formType = "Plot" }) => {
                 rentDetails: formData.rentDetails,
                 leaseDetails: formData.leaseDetails,
                 plotDetails: {
-                    length: parseNumber(formData.plotDetails.length),
-                    width: parseNumber(formData.plotDetails.width),
                     plotArea: parseNumber(formData.plotDetails.plotArea),
-                    plotAreaUnit: formData.plotDetails.plotAreaUnit
+                    plotAreaUnit: formData.plotDetails.plotAreaUnit,
+                    builtUpArea: parseNumber(formData.plotDetails.builtUpArea),
+                    builtUpAreaUnit: formData.plotDetails.builtUpAreaUnit,
+                    bedrooms: parseNumber(formData.plotDetails.bedrooms),
+                    bathrooms: parseNumber(formData.plotDetails.bathrooms),
+                    floors: formData.plotDetails.floors,
+                    possessionType: formData.plotDetails.possessionType,
                 },
                 location: formData.location,
                 media: media.map(m => ({ url: m.data || m.url }))
@@ -324,15 +299,7 @@ const PlotForm = ({ initialData, isEdit, formType = "Plot" }) => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Plot Dimensions</label>
-                                    <div className="flex items-center gap-2">
-                                        <input type="text" name="plotDetails.length" value={formData.plotDetails.length} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl font-bold`} placeholder="Length" />
-                                        <span className="font-black text-slate-300">×</span>
-                                        <input type="text" name="plotDetails.width" value={formData.plotDetails.width} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl font-bold`} placeholder="Width" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Calculated Plot Area <span className="text-red-500">*</span></label>
+                                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Plot Area <span className="text-red-500">*</span></label>
                                     <div className="grid grid-cols-2 gap-3">
                                         <input type="text" name="plotDetails.plotArea" value={formData.plotDetails.plotArea} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors['plotDetails.plotArea'] ? 'border-red-500 bg-red-50' : 'border-transparent'} rounded-2xl font-bold`} placeholder="E.g. 2000" />
                                         <select name="plotDetails.plotAreaUnit" value={formData.plotDetails.plotAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
@@ -341,7 +308,36 @@ const PlotForm = ({ initialData, isEdit, formType = "Plot" }) => {
                                     </div>
                                     {errors['plotDetails.plotArea'] && <p className="text-[8px] text-red-500 font-bold mt-1 ml-1">{errors['plotDetails.plotArea']}</p>}
                                 </div>
-
+                                
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Built-up Area</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <input type="text" name="plotDetails.builtUpArea" value={formData.plotDetails.builtUpArea} onFocus={handleFocus} onKeyPress={(e) => handleNumberKeyPress(e, true)} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl font-bold" placeholder="E.g. 1500" />
+                                        <select name="plotDetails.builtUpAreaUnit" value={formData.plotDetails.builtUpAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
+                                            {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Bedrooms</label>
+                                    <input type="text" name="plotDetails.bedrooms" value={formData.plotDetails.bedrooms} onFocus={handleFocus} onKeyPress={handleNumberKeyPress} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl font-bold" placeholder="E.g. 3" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Bathrooms</label>
+                                    <input type="text" name="plotDetails.bathrooms" value={formData.plotDetails.bathrooms} onFocus={handleFocus} onKeyPress={handleNumberKeyPress} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl font-bold" placeholder="E.g. 2" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Total Floors</label>
+                                    <input type="text" name="plotDetails.floors" value={formData.plotDetails.floors} onFocus={handleFocus} onKeyPress={handleNumberKeyPress} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl font-bold" placeholder="E.g. 2" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Possession Type</label>
+                                    <select name="plotDetails.possessionType" value={formData.plotDetails.possessionType} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl font-bold text-slate-600">
+                                        <option value="Ready to Move">Ready to Move</option>
+                                        <option value="Under Construction">Under Construction</option>
+                                    </select>
+                                </div>
+                                    
                                 <div className="md:col-span-2">
                                     <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Description <span className="text-red-500">*</span></label>
                                     <textarea name="description" value={formData.description} onChange={handleChange} className={`w-full px-6 py-4 bg-slate-50 border-2 ${errors.description ? 'border-red-500 bg-red-50' : 'border-transparent'} focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-700 min-h-[100px]`} placeholder="Brief description..." />
@@ -501,4 +497,4 @@ const PlotForm = ({ initialData, isEdit, formType = "Plot" }) => {
     );
 };
 
-export default PlotForm;
+export default VillaForm;

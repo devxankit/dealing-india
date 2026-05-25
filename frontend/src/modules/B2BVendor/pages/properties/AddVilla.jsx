@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import PlotForm from "../../components/PlotForm";
+import VillaForm from "../../components/VillaForm";
 import SubscriptionGate from "../../components/SubscriptionGate";
 import QuotaBanner from "../../components/QuotaBanner";
 
@@ -23,7 +23,7 @@ const AddVilla = () => {
             </div>
 
             <SubscriptionGate action="property" showLimitInfo={false} fullPage={true}>
-                <PlotForm formType="Row house / Villa" />
+                <VillaForm />
             </SubscriptionGate>
         </motion.div>
     );

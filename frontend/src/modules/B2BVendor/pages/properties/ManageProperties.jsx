@@ -242,8 +242,12 @@ const ManageProperties = () => {
                                                 <p className="text-[10px] font-black text-slate-700 truncate">{property.plotDetails?.plotArea ? `${property.plotDetails.plotArea} sqft` : 'N/A'}</p>
                                             </div>
                                             <div className="text-center border-x border-slate-200">
-                                                <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Floor/Total</p>
-                                                <p className="text-[10px] font-black text-slate-700 truncate">{property.plotDetails?.floors ?? '—'}</p>
+                                                <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">
+                                                    {property.propertyType === 'Plot' ? '-' : 'Floor/Total'}
+                                                </p>
+                                                <p className="text-[10px] font-black text-slate-700 truncate">
+                                                    {property.propertyType === 'Plot' ? '-' : (property.plotDetails?.floors || '—')}
+                                                </p>
                                             </div>
                                             <div className="text-center">
                                                 <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Type</p>
@@ -551,18 +555,22 @@ const ManageProperties = () => {
                                                                 <span className="text-xs font-bold text-slate-400">Area</span>
                                                                 <span className="text-xs font-black text-slate-900">{selectedProperty.plotDetails?.plotArea ? `${selectedProperty.plotDetails.plotArea} sq ft` : 'N/A'}</span>
                                                             </div>
-                                                            <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                                <span className="text-xs font-bold text-slate-400">Floor/Type</span>
-                                                                <span className="text-xs font-black text-slate-900">{selectedProperty.plotDetails?.floors ? `${selectedProperty.plotDetails.floors} floors` : '—'}</span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                                <span className="text-xs font-bold text-slate-400">Age</span>
-                                                                <span className="text-xs font-black text-slate-900">{selectedProperty.plotDetails?.ageOfProperty || selectedProperty.status?.propertyCondition || 'N/A'}</span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                                <span className="text-xs font-bold text-slate-400">Furnishing</span>
-                                                                <span className="text-xs font-black text-slate-900">{selectedProperty.plotDetails?.furnishing || selectedProperty.status?.furnishing || 'N/A'}</span>
-                                                            </div>
+                                                            {selectedProperty.propertyType !== 'Plot' && (
+                                                                <>
+                                                                    <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                        <span className="text-xs font-bold text-slate-400">Floor/Type</span>
+                                                                        <span className="text-xs font-black text-slate-900">{selectedProperty.plotDetails?.floors ? `${selectedProperty.plotDetails.floors} floors` : '—'}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                        <span className="text-xs font-bold text-slate-400">Age</span>
+                                                                        <span className="text-xs font-black text-slate-900">{selectedProperty.plotDetails?.ageOfProperty || selectedProperty.status?.propertyCondition || 'N/A'}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
+                                                                        <span className="text-xs font-bold text-slate-400">Furnishing</span>
+                                                                        <span className="text-xs font-black text-slate-900">{selectedProperty.plotDetails?.furnishing || selectedProperty.status?.furnishing || 'N/A'}</span>
+                                                                    </div>
+                                                                </>
+                                                            )}
                                                         </>
                                                     );
                                                 })()}
