@@ -9,7 +9,10 @@ export const getPublicJobs = async (req, res) => {
         const query = { isDeleted: false, isActive: true };
         
         if (search) {
-            query.jobTitle = { $regex: search, $options: 'i' };
+            query.$or = [
+                { jobTitle: { $regex: search, $options: 'i' } },
+                { city: { $regex: search, $options: 'i' } }
+            ];
         }
         
         if (category) {
