@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { FiSearch, FiMapPin, FiBriefcase, FiPhone, FiInfo, FiChevronLeft } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -24,6 +24,20 @@ const JobsPage = () => {
     });
 
     const [jobDerivedCities, setJobDerivedCities] = useState([]);
+
+    const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
+    const [citySearchTerm, setCitySearchTerm] = useState('');
+    const cityDropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
+                setIsCityDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     // Debounce search
     const [debouncedFilters, setDebouncedFilters] = useState(filters);
@@ -181,15 +195,62 @@ const JobsPage = () => {
                                         {activeCategory?.subcategories.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
 
-                                    <div className="relative">
-                                        <FiMapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <div className="relative" ref={cityDropdownRef}>
+                                        <FiMapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
                                         <input
                                             type="text"
-                                            placeholder="City..."
-                                            value={filters.city}
-                                            onChange={(e) => setFilters({ ...filters, city: e.target.value })}
+                                            placeholder="Search or select city..."
+                                            value={isCityDropdownOpen ? citySearchTerm : filters.city}
+                                            onChange={(e) => {
+                                                setCitySearchTerm(e.target.value);
+                                                setIsCityDropdownOpen(true);
+                                                setFilters({ ...filters, city: e.target.value });
+                                            }}
+                                            onFocus={() => {
+                                                setIsCityDropdownOpen(true);
+                                                setCitySearchTerm('');
+                                            }}
                                             className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                                         />
+                                        
+                                        {isCityDropdownOpen && (
+                                            <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-white border border-slate-100 shadow-xl rounded-xl max-h-60 overflow-y-auto z-50 py-2">
+                                                {jobDerivedCities.length > 0 ? (
+                                                    <>
+                                                        <div
+                                                            className={`px-4 py-2 cursor-pointer text-sm font-medium hover:bg-primary-50 hover:text-primary-600 transition-colors ${!filters.city ? 'bg-primary-50 text-primary-600' : 'text-slate-600'}`}
+                                                            onClick={() => {
+                                                                setFilters({ ...filters, city: '' });
+                                                                setCitySearchTerm('');
+                                                                setIsCityDropdownOpen(false);
+                                                            }}
+                                                        >
+                                                            All Cities
+                                                        </div>
+                                                        {jobDerivedCities
+                                                            .filter(city => city.toLowerCase().includes(citySearchTerm.toLowerCase()))
+                                                            .map((city, index) => (
+                                                                <div
+                                                                    key={index}
+                                                                    className={`px-4 py-2 cursor-pointer text-sm font-medium hover:bg-primary-50 hover:text-primary-600 transition-colors ${filters.city === city ? 'bg-primary-50 text-primary-600' : 'text-slate-600'}`}
+                                                                    onClick={() => {
+                                                                        setFilters({ ...filters, city: city });
+                                                                        setCitySearchTerm(city);
+                                                                        setIsCityDropdownOpen(false);
+                                                                    }}
+                                                                >
+                                                                    {city}
+                                                                </div>
+                                                            ))}
+                                                    </>
+                                                ) : null}
+                                                {jobDerivedCities.filter(city => city.toLowerCase().includes(citySearchTerm.toLowerCase())).length === 0 && (
+                                                    <div className="px-4 py-3 text-sm text-slate-400 text-center">
+                                                        {citySearchTerm ? `Press enter to search "${citySearchTerm}"` : "No cities available"}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
