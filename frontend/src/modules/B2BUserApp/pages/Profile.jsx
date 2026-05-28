@@ -73,21 +73,22 @@ const Profile = () => {
     }, [user?._id]);
 
     const handleShareReferral = async () => {
-        if (!referralData?.referralLink) return;
+        if (!referralData?.referralCode) return;
         await handleShare({
             title: 'Join Dealing India',
             text: `Join Dealing India using my referral code: ${referralData.referralCode}`,
-            url: referralData.referralLink,
+            url: 'https://play.google.com/store/apps/details?id=com.dealingindia.app',
         });
     };
 
     const copyReferralLink = async () => {
-        if (!referralData?.referralLink) return;
+        if (!referralData?.referralCode) return;
         try {
-            await navigator.clipboard.writeText(referralData.referralLink);
-            toast.success('Referral link copied');
+            const shareText = `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`;
+            await navigator.clipboard.writeText(shareText);
+            toast.success('Referral info copied');
         } catch (error) {
-            toast.error('Failed to copy link');
+            toast.error('Failed to copy info');
         }
     };
 
@@ -133,14 +134,14 @@ const Profile = () => {
                     <div className="mt-4 flex gap-2">
                         <button
                             onClick={copyReferralLink}
-                            disabled={!referralData?.referralLink}
+                            disabled={!referralData?.referralCode}
                             className="px-3 py-2 rounded-xl bg-white text-emerald-700 text-xs font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <FiCopy /> Copy Link
+                            <FiCopy /> Copy Info
                         </button>
                         <button
                             onClick={handleShareReferral}
-                            disabled={!referralData?.referralLink}
+                            disabled={!referralData?.referralCode}
                             className="px-3 py-2 rounded-xl bg-emerald-900/30 text-white text-xs font-bold flex items-center gap-2 border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <FiShare2 /> Share

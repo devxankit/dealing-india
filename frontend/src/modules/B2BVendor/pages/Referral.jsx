@@ -33,21 +33,22 @@ const B2BVendorReferral = () => {
     }, [vendor?._id]);
 
     const handleShareReferral = async () => {
-        if (!referralData?.referralLink) return;
+        if (!referralData?.referralCode) return;
         await handleShare({
             title: "Join Dealing India",
             text: `Join Dealing India using my referral code: ${referralData.referralCode}`,
-            url: referralData.referralLink
+            url: "https://play.google.com/store/apps/details?id=com.dealingindia.app"
         });
     };
 
     const copyReferralLink = async () => {
-        if (!referralData?.referralLink) return;
+        if (!referralData?.referralCode) return;
         try {
-            await navigator.clipboard.writeText(referralData.referralLink);
-            toast.success("Referral link copied");
+            const shareText = `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`;
+            await navigator.clipboard.writeText(shareText);
+            toast.success("Referral info copied");
         } catch (error) {
-            toast.error("Failed to copy link");
+            toast.error("Failed to copy info");
         }
     };
 
@@ -128,7 +129,7 @@ const B2BVendorReferral = () => {
                             <div className="flex flex-wrap gap-4 pt-2">
                                 <button
                                     onClick={handleShareReferral}
-                                    disabled={!referralData?.referralLink}
+                                    disabled={!referralData?.referralCode}
                                     className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-bold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <FiShare2 className="text-lg" /> Share Now
