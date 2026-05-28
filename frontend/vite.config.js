@@ -3,6 +3,22 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import fs from "fs";
 
+// Auto-copy logo to public/ so it's served as favicon
+function copyLogoPlugin() {
+  return {
+    name: "copy-logo-to-public",
+    buildStart() {
+      const src = path.resolve(__dirname, "data/logos/dealing-india-logo.png");
+      const dest = path.resolve(__dirname, "public/dealing-india-logo.png");
+      if (fs.existsSync(src)) {
+        fs.copyFileSync(src, dest);
+        console.log("[copy-logo] dealing-india-logo.png → public/dealing-india-logo.png");
+      }
+    },
+  };
+}
+
+
 // Inject Firebase config into SW at build time (SW cannot use import.meta.env)
 function firebaseSwPlugin() {
   return {
@@ -27,7 +43,7 @@ function firebaseSwPlugin() {
 }
 
 export default defineConfig({
-  plugins: [react(), firebaseSwPlugin()],
+  plugins: [react(), copyLogoPlugin(), firebaseSwPlugin()],
   resolve: {
     alias: {
       "@modules": path.resolve(__dirname, "./src/modules"),
