@@ -171,7 +171,7 @@ const ManageB2BVendors = () => {
         },
         { key: "businessType", label: "Business Type" },
         { key: "email", label: "Email" },
-        { key: "phone", label: "Mobile Number", render: (val) => val || 'N/A' },
+        { key: "phone", label: "Phone", render: (val) => val || 'N/A' },
         {
             key: "status",
             label: "Status",
