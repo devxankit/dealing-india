@@ -219,7 +219,7 @@ const AdminVendorDashboardView = () => {
                 <div className="grid grid-cols-2 gap-4 lg:w-96">
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-left">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Email Address</p>
-                        <p className="text-sm font-black text-slate-800 truncate">{vendor?.email}</p>
+                        <p className="text-sm font-black text-slate-800 break-all">{vendor?.email}</p>
                     </div>
                     <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 text-left">
                         <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Nearest Expiry</p>
