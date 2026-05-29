@@ -159,7 +159,7 @@ const ManageB2BVendors = () => {
                         <p className="font-bold text-gray-800">{val || row.storeName || row.name || 'N/A'}</p>
                         <Link
                             to={(row._id || row.id) ? `/admin/b2b-vendors/manage/${row._id || row.id}/dashboard` : '#'}
-                            onClick={(e) => { if (!(row._id || row.id)) { e.preventDefault(); toast.error("Vendor ID missing"); } }}
+                            onClick={(e) => { e.stopPropagation(); if (!(row._id || row.id)) { e.preventDefault(); toast.error("Vendor ID missing"); } }}
                             className="text-xs text-primary-600 font-bold hover:underline flex items-center gap-1 group/link"
                         >
                             {row.name}
@@ -194,7 +194,7 @@ const ManageB2BVendors = () => {
             label: "Followers",
             render: (val, row) => (
                 <button
-                    onClick={() => handleViewFollowers(row)}
+                    onClick={(e) => { e.stopPropagation(); handleViewFollowers(row); }}
                     className="flex items-center gap-1.5 font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-lg w-fit hover:bg-primary-100 transition-all border border-transparent hover:border-primary-200"
                     title="Click to view followers"
                 >
@@ -215,21 +215,21 @@ const ManageB2BVendors = () => {
             render: (_, row) => (
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => handleViewDetails(row)}
+                        onClick={(e) => { e.stopPropagation(); handleViewDetails(row); }}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="View Full Details"
                     >
                         <FiEye />
                     </button>
                     <button
-                        onClick={() => handleToggleActive(row._id || row.id)}
+                        onClick={(e) => { e.stopPropagation(); handleToggleActive(row._id || row.id); }}
                         className={`p-2 rounded-lg transition-colors ${row.isActive ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}
                         title={row.isActive ? 'Mark Inactive' : 'Mark Active'}
                     >
                         {row.isActive ? <FiToggleRight className="text-xl" /> : <FiToggleLeft className="text-xl" />}
                     </button>
                     <button
-                        onClick={() => handleDelete(row._id || row.id)}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(row._id || row.id); }}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Delete Vendor"
                     >

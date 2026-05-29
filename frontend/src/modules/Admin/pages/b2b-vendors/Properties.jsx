@@ -45,6 +45,8 @@ const B2BVendorProperties = () => {
         setLoading(true);
         try {
             const params = {
+                page: 1,
+                limit: 100,
                 loading: false
             };
             if (listingType !== 'all') {
@@ -233,7 +235,7 @@ const B2BVendorProperties = () => {
                     <DataTable
                         data={filteredProperties}
                         columns={columns}
-                        pagination={true}
+                        pagination={filteredProperties.length > 10}
                         itemsPerPage={10}
                     />
                 )}

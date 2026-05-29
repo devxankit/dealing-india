@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 
 const B2BCategories = () => {
     const [categories, setCategories] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingCategory, setEditingCategory] = useState(null);
@@ -281,11 +282,28 @@ const B2BCategories = () => {
         }
     };
 
+    const filteredCategories = categories.filter(category => {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesCategory = category.name?.toLowerCase().includes(searchLower);
+        const matchesSubcategory = category.subcategories?.some(sub => 
+            sub.name?.toLowerCase().includes(searchLower)
+        );
+        return matchesCategory || matchesSubcategory;
+    });
+
     return (
         <div className="p-6 space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div></div>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="relative w-full sm:w-auto">
+                    <input
+                        type="text"
+                        placeholder="Search categories or subcategories..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full sm:w-80 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-100 shadow-sm"
+                    />
+                </div>
 
                 <button
                     onClick={() => {
@@ -527,8 +545,14 @@ const B2BCategories = () => {
                     </button>
                 </div>
             ) : !loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {categories.map((category) => (
+                <>
+                {filteredCategories.length === 0 ? (
+                    <div className="text-center py-10 bg-white rounded-2xl border border-gray-100">
+                        <p className="text-gray-500 font-medium">No categories found matching "{searchTerm}"</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredCategories.map((category) => (
                         <motion.div
                             key={category.id}
                             initial={{ opacity: 0, y: 20 }}
@@ -828,7 +852,9 @@ const B2BCategories = () => {
                             </div>
                         </motion.div>
                     ))}
-                </div>
+                    </div>
+                )}
+                </>
             ) : null}
         </div>
     );

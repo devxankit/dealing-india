@@ -26,6 +26,7 @@ import {
 import api from "../../../../shared/utils/api";
 import { getBusinessTypes } from "../../../../shared/utils/businessTypeCache";
 import toast from "react-hot-toast";
+import B2BVendorDetailModal from "./components/B2BVendorDetailModal";
 
 const AdminVendorDashboardView = () => {
     const { id } = useParams();
@@ -34,6 +35,7 @@ const AdminVendorDashboardView = () => {
     const [settings, setSettings] = useState(null);
     const [billingHistory, setBillingHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchAll = async () => {
@@ -178,6 +180,13 @@ const AdminVendorDashboardView = () => {
                     <span className="px-3 py-1 bg-primary-100 text-primary-700 text-[10px] font-black uppercase tracking-widest rounded-full">
                         Live Data
                     </span>
+                    <button
+                        onClick={() => setIsProfileModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors shadow-sm ml-2"
+                    >
+                        <FiFileText size={14} />
+                        View Profile Details
+                    </button>
                 </div>
             </div>
 
@@ -513,6 +522,12 @@ const AdminVendorDashboardView = () => {
                     )}
                 </div>
             </div>
+
+            <B2BVendorDetailModal
+                isOpen={isProfileModalOpen}
+                onClose={() => setIsProfileModalOpen(false)}
+                vendor={vendor}
+            />
         </motion.div>
     );
 };

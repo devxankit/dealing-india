@@ -38,15 +38,16 @@ const B2BVendorProfile = () => {
         if (!referralData?.referralLink) return;
         await handleShare({
             title: "Join Dealing India",
-            text: `Join Dealing India using my referral code: ${referralData.referralCode}`,
-            url: referralData.referralLink
+            text: `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`,
+            url: referralData.referralLink || "https://www.dealingindia.in"
         });
     };
 
     const copyReferralLink = async () => {
         if (!referralData?.referralLink) return;
         try {
-            await navigator.clipboard.writeText(referralData.referralLink);
+            const shareText = `Join Dealing India using my referral code: ${referralData.referralCode}\n\n${referralData.referralLink || "https://www.dealingindia.in"}\n\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`;
+            await navigator.clipboard.writeText(shareText);
             toast.success("Referral link copied");
         } catch (error) {
             toast.error("Failed to copy link");

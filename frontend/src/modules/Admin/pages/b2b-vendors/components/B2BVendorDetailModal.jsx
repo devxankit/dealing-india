@@ -40,15 +40,20 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
 
         const toastId = toast.loading('Starting download...');
 
+        let finalUrl = url;
+        if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.startsWith('data:')) {
+            finalUrl = 'https://' + finalUrl;
+        }
+
         try {
             // Check if it's a Cloudinary URL
-            if (url.includes('cloudinary.com')) {
+            if (finalUrl.includes('cloudinary.com')) {
                 // User requirement: Public raw Cloudinary URLs must be used as-is.
                 // User requirement: Filename should be set using the download attribute.
 
                 // Use anchor tag with download attribute
                 const link = document.createElement("a");
-                link.href = url;
+                link.href = finalUrl;
                 link.setAttribute('download', filename || 'document');
                 link.target = "_blank"; // Important for cross-origin to try and trigger download or open in new tab if blocked
                 document.body.appendChild(link);
@@ -61,9 +66,9 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
 
             // Fallback for non-Cloudinary or if API fails silently
             // For base64, keep existing logic
-            if (url.startsWith('data:')) {
+            if (finalUrl.startsWith('data:')) {
                 const link = document.createElement("a");
-                link.href = url;
+                link.href = finalUrl;
                 link.download = filename;
                 document.body.appendChild(link);
                 link.click();
@@ -74,7 +79,7 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
 
             // For all other URLs, use the anchor tag with download attribute
             const link = document.createElement("a");
-            link.href = url;
+            link.href = finalUrl;
             link.setAttribute('download', filename || 'document');
             link.target = "_blank";
             document.body.appendChild(link);
@@ -84,7 +89,7 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
 
         } catch (err) {
             console.error('Download error:', err);
-            window.open(url, '_blank'); // Fallback to opening in new tab if download fails
+            window.open(finalUrl, '_blank'); // Fallback to opening in new tab if download fails
             toast.error('Download might act differently. Opening in new tab.', { id: toastId });
         }
     };
@@ -99,32 +104,44 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
         const isPDF = docType === 'application/pdf' || url.toLowerCase().includes('.pdf');
         const toastId = toast.loading(`Opening ${isPDF ? 'PDF' : 'document'}...`);
 
+        let finalUrl = url;
+        if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.startsWith('data:')) {
+            finalUrl = 'https://' + finalUrl;
+        }
+
         try {
             // Check if it's a Cloudinary URL
-            if (url.includes('cloudinary.com')) {
+            if (finalUrl.includes('cloudinary.com')) {
                 // User requirement: Public raw Cloudinary URLs must be used as-is.
-                window.open(url, '_blank');
+                // Fix: Browsers (like Edge) sometimes fail to open Cloudinary PDFs due to 
+                // conversion issues or security headers. Viewing it as a .jpg ensures it renders perfectly inline.
+                let viewUrl = finalUrl;
+                if (viewUrl.toLowerCase().endsWith('.pdf')) {
+                    viewUrl = viewUrl.replace(/\.pdf$/i, '.jpg');
+                }
+                
+                window.open(viewUrl, '_blank');
                 toast.success('Opening in new tab...', { id: toastId });
                 return;
             }
 
             // For base64 data URLs
-            if (url.startsWith('data:')) {
+            if (finalUrl.startsWith('data:')) {
                 const newWindow = window.open();
                 newWindow.document.write(
-                    `<iframe src="${url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
+                    `<iframe src="${finalUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
                 );
                 toast.success('Document opened', { id: toastId });
                 return;
             }
 
             // Fallback
-            window.open(url, '_blank');
+            window.open(finalUrl, '_blank');
             toast.success('Opening in new tab...', { id: toastId });
 
         } catch (err) {
             console.error('View error:', err);
-            window.open(url, '_blank');
+            window.open(finalUrl, '_blank');
             toast.dismiss(toastId);
         }
     };

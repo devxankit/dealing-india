@@ -19,6 +19,8 @@ const B2BVendorLotSlots = () => {
         try {
             const response = await api.get('/admin/lot-slots', {
                 params: {
+                    page: 1,
+                    limit: 100,
                     loading: false // Suppress global loading if needed
                 }
             });
@@ -137,7 +139,11 @@ const B2BVendorLotSlots = () => {
                             item.vendor?.name?.toLowerCase().includes(searchQuery.toLowerCase())
                         )}
                         columns={columns}
-                        pagination={true}
+                        pagination={lotSlots.filter(item =>
+                            item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            item.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            item.vendor?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+                        ).length > 10}
                         itemsPerPage={10}
                     />
                 )}
