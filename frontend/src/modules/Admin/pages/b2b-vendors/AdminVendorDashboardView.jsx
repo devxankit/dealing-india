@@ -60,7 +60,7 @@ const AdminVendorDashboardView = () => {
                 const vendorType = businessTypes.find(t =>
                     t.name === dashboardData.vendor.businessType ||
                     t.slug === dashboardData.vendor.businessType ||
-                    t._id === dashboardData.vendor.businessTypeRef
+                    t._id === (dashboardData.vendor.businessTypeRef?._id || dashboardData.vendor.businessTypeRef)
                 );
 
                 if (vendorType) {

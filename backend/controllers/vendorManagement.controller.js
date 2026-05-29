@@ -469,7 +469,7 @@ export const getVendorDashboardForAdmin = async (req, res, next) => {
       realWhatsappClicks,
       realMapClicks
     ] = await Promise.all([
-      Vendor.findById(vendorId).select('name storeName businessType businessTypeRef email analytics').lean(),
+      Vendor.findById(vendorId).select('-password').populate('businessTypeRef', 'name').lean(),
       Product.countDocuments({ vendorId }),
       Product.countDocuments({ vendorId, isActive: true }),
       Property.countDocuments({ vendorId }),
