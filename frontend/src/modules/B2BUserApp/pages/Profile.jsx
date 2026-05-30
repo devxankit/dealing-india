@@ -77,14 +77,13 @@ const Profile = () => {
         await handleShare({
             title: 'Join Dealing India',
             text: `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`,
-            url: referralData.referralLink || 'https://www.dealingindia.in',
         });
     };
 
     const copyReferralLink = async () => {
         if (!referralData?.referralCode) return;
         try {
-            const shareText = `Join Dealing India using my referral code: ${referralData.referralCode}\n\n${referralData.referralLink || 'https://www.dealingindia.in'}\n\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`;
+            const shareText = `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`;
             await navigator.clipboard.writeText(shareText);
             toast.success('Referral info copied');
         } catch (error) {

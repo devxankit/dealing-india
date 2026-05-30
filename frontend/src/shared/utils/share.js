@@ -44,18 +44,19 @@ export const handleShare = async ({ title, text, url }) => {
 
   // 3. Fallback: Copy to Clipboard
   try {
+    const copyContent = url || text || title || '';
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(url);
-      toast.success('Link copied to clipboard');
+      await navigator.clipboard.writeText(copyContent);
+      toast.success('Content copied to clipboard');
     } else {
       // Legacy fallback for older browsers
       const textArea = document.createElement("textarea");
-      textArea.value = url;
+      textArea.value = copyContent;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      toast.success('Link copied to clipboard');
+      toast.success('Content copied to clipboard');
     }
   } catch (error) {
     console.error('[Share] Clipboard fallback failed:', error);
