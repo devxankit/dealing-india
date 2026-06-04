@@ -42,6 +42,8 @@ body::-webkit-scrollbar {
 
 #root {
   min-height: 100vh;
+  min-height: -webkit-fill-available; /* iOS Safari fix */
+  padding-bottom: env(safe-area-inset-bottom); /* iPhone notch/home bar fix */
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;

@@ -3,6 +3,26 @@
 
 <head>
   <meta charset="UTF-8" />
+  <script>
+    (function() {
+      if (typeof navigator !== 'undefined' && !navigator.serviceWorker) {
+        try {
+          Object.defineProperty(navigator, 'serviceWorker', {
+            configurable: true,
+            enumerable: true,
+            value: {
+              register: function() { return Promise.reject("Mock SW"); },
+              addEventListener: function() {},
+              removeEventListener: function() {},
+              ready: new Promise(function(res) { res({}); }),
+              getRegistration: function() { return Promise.resolve(null); },
+              getRegistrations: function() { return Promise.resolve([]); }
+            }
+          });
+        } catch (e) { console.warn(e); }
+      }
+    })();
+  </script>
 
   <!-- Favicon for Browser Tab & Google Search -->
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
