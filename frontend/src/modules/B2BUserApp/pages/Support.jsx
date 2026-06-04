@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiHelpCircle, FiPhoneCall, FiMail, FiMessageSquare, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import { getSupportConfig } from '../../../shared/services/supportService';
 import { submitFeedback } from '../../../shared/services/feedbackService';
+import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 
 const FAQItem = ({ question, answer }) => {
@@ -29,6 +31,8 @@ const FAQItem = ({ question, answer }) => {
 };
 
 const Support = () => {
+    const navigate = useNavigate();
+    const { isAuthenticated } = useAuthStore();
     const [config, setConfig] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
     const [submitting, setSubmitting] = React.useState(false);
@@ -36,6 +40,11 @@ const Support = () => {
 
     const handleFeedbackSubmit = async (e) => {
         e.preventDefault();
+        if (!isAuthenticated) {
+            toast.error('Please login to send feedback');
+            navigate('/b2b/login');
+            return;
+        }
         if (!feedback.subject || !feedback.message) {
             return toast.error('Please fill in all fields');
         }
@@ -101,7 +110,9 @@ const Support = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
-            <B2BHeader title={heroTitle} showBack={false} />
+            <div className={!isAuthenticated ? 'pointer-events-none' : ''}>
+                <B2BHeader title={heroTitle} showBack={false} />
+            </div>
 
             <main className="max-w-4xl mx-auto px-4 py-8 space-y-10">
 

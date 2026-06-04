@@ -608,11 +608,7 @@ const AppRoutes = () => {
         />
         <Route
           path="/b2b/support"
-          element={
-            <ProtectedRoute>
-              <B2BSupport />
-            </ProtectedRoute>
-          }
+          element={<B2BSupport />}
         />
         <Route
           path="/b2b/how-to-use"
