@@ -1,11 +1,13 @@
-import { FiMapPin, FiPhone, FiMail, FiEdit2, FiCheckCircle, FiCopy, FiShare2, FiShield, FiArrowRight } from "react-icons/fi";
-import { motion } from "framer-motion";
+import { FiMapPin, FiPhone, FiMail, FiEdit2, FiCheckCircle, FiCopy, FiShare2, FiShield, FiArrowRight, FiX } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { getMyReferralSummary } from "../../../shared/services/referralService";
 import { useNavigate } from "react-router-dom";
 import { handleShare } from "../../../shared/utils/share";
+import api from "../../../shared/utils/api";
+import { useScrollLock } from "../../../shared/hooks/useScrollLock";
 
 const B2BVendorProfile = () => {
     const { vendor } = useB2BVendorAuthStore();
@@ -13,6 +15,10 @@ const B2BVendorProfile = () => {
     const [referralData, setReferralData] = useState(null);
     const [referralLoading, setReferralLoading] = useState(false);
     const [referralError, setReferralError] = useState("");
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    useScrollLock(showDeleteModal);
 
     useEffect(() => {
         const loadReferral = async () => {
@@ -50,6 +56,23 @@ const B2BVendorProfile = () => {
             toast.success("Referral link copied");
         } catch (error) {
             toast.error("Failed to copy link");
+        }
+    };
+
+    const confirmDeleteAccount = async () => {
+        try {
+            setIsDeleting(true);
+            const res = await api.delete('/auth/vendor/delete-account');
+            if (res.success) {
+                toast.success('Account deleted successfully');
+                useB2BVendorAuthStore.getState().logout();
+                navigate('/b2b/login');
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to delete account');
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteModal(false);
         }
     };
 
@@ -178,6 +201,21 @@ const B2BVendorProfile = () => {
                             </div>
                             <FiArrowRight className="text-gray-300 group-hover:text-primary-500 transition-all group-hover:translate-x-1" />
                         </button>
+                        <button 
+                            onClick={() => setShowDeleteModal(true)}
+                            className="w-full mt-4 p-4 border border-red-100 rounded-xl flex items-center justify-between group hover:border-red-200 hover:bg-red-50/30 transition-all"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-500 group-hover:bg-red-100 transition-colors">
+                                    <FiX size={20} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-bold text-red-600 text-sm md:text-base">Delete Account</p>
+                                    <p className="text-[10px] font-medium text-red-400">Permanently remove your vendor account</p>
+                                </div>
+                            </div>
+                            <FiArrowRight className="text-red-300 group-hover:text-red-500 transition-all group-hover:translate-x-1" />
+                        </button>
                     </div>
 
                     <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-4 md:p-6 text-white shadow-sm">
@@ -230,6 +268,59 @@ const B2BVendorProfile = () => {
                     )}
                 </div>
             </div>
+            
+            {/* Delete Account Confirmation Modal */}
+            <AnimatePresence>
+                {showDeleteModal && (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => !isDeleting && setShowDeleteModal(false)}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50"></div>
+                            
+                            <div className="flex flex-col items-center text-center relative z-10">
+                                <div className="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center mb-6 shadow-inner">
+                                    <FiX className="text-red-500 text-3xl" />
+                                </div>
+                                
+                                <h3 className="text-2xl font-black text-gray-900 mb-2 leading-tight">
+                                    Delete Account?
+                                </h3>
+                                <p className="text-gray-500 font-medium mb-8 leading-relaxed">
+                                    Are you sure you want to permanently delete your account? This action cannot be undone and you will lose all your data.
+                                </p>
+                                
+                                <div className="flex flex-col w-full gap-3">
+                                    <button
+                                        onClick={confirmDeleteAccount}
+                                        disabled={isDeleting}
+                                        className="w-full py-4 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-100 active:scale-[0.98] disabled:opacity-50"
+                                    >
+                                        {isDeleting ? 'Deleting...' : 'Yes, Delete Account'}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowDeleteModal(false)}
+                                        disabled={isDeleting}
+                                        className="w-full py-4 bg-gray-50 text-gray-700 rounded-2xl font-bold hover:bg-gray-100 transition-all active:scale-[0.98] disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </motion.div>
     );
 };

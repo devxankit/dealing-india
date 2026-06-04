@@ -517,3 +517,21 @@ export const checkVendorStatusByEmail = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Delete vendor account
+ * DELETE /api/auth/vendor/delete-account
+ */
+export const deleteAccount = async (req, res, next) => {
+  try {
+    const Vendor = (await import('../models/Vendor.model.js')).default;
+    await Vendor.findByIdAndDelete(req.user.vendorId);
+    res.status(200).json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

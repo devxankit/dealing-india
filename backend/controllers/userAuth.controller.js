@@ -292,3 +292,17 @@ export const resetPasswordByPhone = asyncHandler(async (req, res) => {
         message: 'Password reset successfully'
     });
 });
+
+/**
+ * Delete Account
+ * DELETE /api/auth/user/delete-account
+ */
+export const deleteAccount = asyncHandler(async (req, res) => {
+    const User = (await import('../models/User.model.js')).default;
+    await User.findByIdAndDelete(req.user.id);
+    res.status(200).json({
+        success: true,
+        message: 'Account deleted successfully'
+    });
+});
+

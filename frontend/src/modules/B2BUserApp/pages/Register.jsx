@@ -354,7 +354,7 @@ const B2BUserRegister = () => {
                                 <FiCheck className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none text-[10px]" />
                             </div>
                             <span className="text-xs text-gray-600 leading-tight">
-                                I agree to the <Link to="/terms?type=user" className="text-primary-600 font-bold hover:underline">Terms & Conditions</Link>
+                                I agree to the <Link to="/terms?type=user" className="text-primary-600 font-bold hover:underline">Terms & Conditions</Link> and <Link to="/user-privacy-policy" className="text-primary-600 font-bold hover:underline">Privacy Policy</Link>
                             </span>
                         </label>
                         {errors.agreedToTerms && <p className="text-rose-500 text-[10px] ml-7 font-bold">{errors.agreedToTerms}</p>}

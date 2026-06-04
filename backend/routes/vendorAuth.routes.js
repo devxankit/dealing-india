@@ -12,6 +12,7 @@ import {
   resetPasswordByPhone,
   checkSubscriptionByEmail,
   checkVendorStatusByEmail,
+  deleteAccount
 } from '../controllers/vendorAuth.controller.js';
 import {
   registerWithPayment,
@@ -49,6 +50,7 @@ router.post('/reset-password-phone', rateLimiter('vendor-reset-password', 20, 60
 router.post('/logout', optionalAuthenticate, asyncHandler(logout));
 router.get('/me', authenticate, vendorApproved, asyncHandler(getMe));
 router.put('/profile', authenticate, vendorApproved, asyncHandler(updateProfile));
+router.delete('/delete-account', authenticate, vendorApproved, asyncHandler(deleteAccount));
 
 export default router;
 

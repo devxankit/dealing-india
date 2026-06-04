@@ -143,6 +143,9 @@ const ErrorBoundary = lazyWithRetry(
 const TermsAndConditions = lazyWithRetry(
   () => import("./shared/pages/TermsAndConditions"),
 );
+const PrivacyPolicy = lazyWithRetry(
+  () => import("./shared/pages/PrivacyPolicy"),
+);
 // Mobile App Routes
 
 // B2B Vendor Routes
@@ -392,6 +395,8 @@ const AppRoutes = () => {
       }>
       <Routes>
         <Route path="/terms" element={<TermsAndConditions />} />
+        <Route path="/user-privacy-policy" element={<PrivacyPolicy type="user" />} />
+        <Route path="/vendor-privacy-policy" element={<PrivacyPolicy type="vendor" />} />
         <Route path="/" element={<Navigate to="/b2b/landing" replace />} />
         <Route
           path="/b2b-vendors"

@@ -11,7 +11,8 @@ import {
     verifyEmail,
     resendOTP,
     getAddresses,
-    addAddress
+    addAddress,
+    deleteAccount
 } from '../controllers/userAuth.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
@@ -32,5 +33,6 @@ router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
 router.get('/addresses', authenticate, getAddresses);
 router.post('/addresses', authenticate, addAddress);
+router.delete('/delete-account', authenticate, deleteAccount);
 
 export default router;

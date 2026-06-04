@@ -22,9 +22,11 @@ const Profile = () => {
     const [referralError, setReferralError] = useState('');
     const [supportConfig, setSupportConfig] = useState(null);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
-    // Lock scroll when logout modal is open
-    useScrollLock(showLogoutModal);
+    // Lock scroll when modals are open
+    useScrollLock(showLogoutModal || showDeleteModal);
 
     const menuItems = [
         { icon: FiBriefcase, label: 'Company Profile', desc: 'Manage your business details & GST', path: '/b2b/company' },
@@ -42,6 +44,23 @@ const Profile = () => {
         logout();
         toast.success('Logged out successfully');
         navigate('/b2b/login'); // Changed from /app/login to match existing B2B routes
+    };
+
+    const confirmDeleteAccount = async () => {
+        try {
+            setIsDeleting(true);
+            const res = await api.delete('/auth/user/delete-account');
+            if (res.success) {
+                toast.success('Account deleted successfully');
+                logout();
+                navigate('/b2b/login');
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to delete account');
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteModal(false);
+        }
     };
 
     useEffect(() => {
@@ -218,6 +237,25 @@ const Profile = () => {
                         </div>
                         <FiArrowRight className="text-red-200 group-hover:translate-x-1 transition-all" />
                     </motion.button>
+                    
+                    <motion.button
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.35 }}
+                        onClick={() => setShowDeleteModal(true)}
+                        className="w-full bg-red-50 p-5 rounded-3xl border border-red-100 shadow-sm flex items-center justify-between group hover:bg-red-100 transition-all mt-4"
+                    >
+                        <div className="flex items-center gap-5">
+                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-red-500 shadow-sm group-hover:scale-105 transition-transform">
+                                <FiX size={22} />
+                            </div>
+                            <div className="text-left">
+                                <p className="font-bold text-red-600 leading-none">Delete Account</p>
+                                <p className="text-xs text-red-400 font-medium mt-1">Permanently remove account</p>
+                            </div>
+                        </div>
+                        <FiArrowRight className="text-red-200 group-hover:translate-x-1 transition-all" />
+                    </motion.button>
                 </div>
 
                 {/* Quick Help Section */}
@@ -353,6 +391,59 @@ const Profile = () => {
                                         className="w-full py-4 bg-gray-50 text-gray-700 rounded-2xl font-bold hover:bg-gray-100 transition-all active:scale-[0.98]"
                                     >
                                         Stay Logged In
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Delete Account Confirmation Modal */}
+            <AnimatePresence>
+                {showDeleteModal && (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => !isDeleting && setShowDeleteModal(false)}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50"></div>
+                            
+                            <div className="flex flex-col items-center text-center relative z-10">
+                                <div className="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center mb-6 shadow-inner">
+                                    <FiX className="text-red-500 text-3xl" />
+                                </div>
+                                
+                                <h3 className="text-2xl font-black text-gray-900 mb-2 leading-tight">
+                                    Delete Account?
+                                </h3>
+                                <p className="text-gray-500 font-medium mb-8 leading-relaxed">
+                                    Are you sure you want to permanently delete your account? This action cannot be undone and you will lose all your data.
+                                </p>
+                                
+                                <div className="flex flex-col w-full gap-3">
+                                    <button
+                                        onClick={confirmDeleteAccount}
+                                        disabled={isDeleting}
+                                        className="w-full py-4 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-100 active:scale-[0.98] disabled:opacity-50"
+                                    >
+                                        {isDeleting ? 'Deleting...' : 'Yes, Delete Account'}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowDeleteModal(false)}
+                                        disabled={isDeleting}
+                                        className="w-full py-4 bg-gray-50 text-gray-700 rounded-2xl font-bold hover:bg-gray-100 transition-all active:scale-[0.98] disabled:opacity-50"
+                                    >
+                                        Cancel
                                     </button>
                                 </div>
                             </div>
