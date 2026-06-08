@@ -12,9 +12,9 @@ const imageFileFilter = (req, file, cb) => {
   );
   // Strictly check MIME type as well
   const allowedMimetypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-  const mimetype = allowedMimetypes.includes(file.mimetype);
+  const mimetype = file.mimetype && (allowedMimetypes.includes(file.mimetype) || file.mimetype.startsWith('image/'));
 
-  if (mimetype && extname) {
+  if (mimetype || extname) {
     return cb(null, true);
   } else {
     cb(new Error('Invalid file type. ONLY IMAGE FILES are allowed (jpeg, jpg, png, webp) - DEBUG: IMAGE_FILTER_HIT'));

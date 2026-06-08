@@ -10,6 +10,7 @@ import {
     FiInfo,
     FiCreditCard,
     FiEye,
+    FiCamera,
 } from "react-icons/fi";
 import { BiWallet } from "react-icons/bi";
 import { motion, AnimatePresence } from "framer-motion";
