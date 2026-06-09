@@ -102,6 +102,7 @@ const B2BUserVerification = () => {
         try {
             const result = await verifyOTP(phone, otp);
             if (result.success) {
+                localStorage.removeItem('b2b_user_register_draft');
                 toast.success('Mobile verified successfully! Please sign in with your password.');
                 navigate('/b2b/login', { 
                     state: { 

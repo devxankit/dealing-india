@@ -96,7 +96,7 @@ export const validateReferralCode = async (referralCode) => {
     return ReferralCode.findOne({ referralCode: code }).lean();
 };
 
-export const processSuccessfulUserReferral = async ({ referredUserId, referralCode }) => {
+export const processSuccessfulUserReferral = async ({ referredUserId, referralCode, referredModel = 'User' }) => {
     const settings = await getReferralSettings();
     const normalizedCode = normalizeReferralCode(referralCode);
     if (!normalizedCode) return null;
@@ -107,19 +107,20 @@ export const processSuccessfulUserReferral = async ({ referredUserId, referralCo
         throw new Error('Invalid referral code');
     }
 
-    if (referrerCode.userModel === 'User' && String(referrerCode.userId) === String(referredUserObjectId)) {
+    if (referrerCode.userModel === referredModel && String(referrerCode.userId) === String(referredUserObjectId)) {
         throw new Error('Self referral is not allowed');
     }
 
     const existingHistory = await ReferralHistory.findOne({ referredUserId: referredUserObjectId });
     if (existingHistory) {
-        throw new Error('Referral for this user is already recorded');
+        throw new Error('Referral for this user/vendor is already recorded');
     }
 
     const history = await ReferralHistory.create({
         referrerId: referrerCode.userId,
         referrerModel: referrerCode.userModel,
         referredUserId: referredUserObjectId,
+        referredModel,
         referralCode: normalizedCode,
         date: new Date(),
         status: 'completed',
@@ -146,13 +147,23 @@ export const processSuccessfulUserReferral = async ({ referredUserId, referralCo
         );
     }
 
-    await creditUserPoints({
-        userId: referredUserObjectId,
-        points: settings.newUserRewardPoints,
-        description: 'Welcome referral points',
-        sourceType: 'referral_welcome',
-        sourceId: history._id.toString(),
-    });
+    if (referredModel === 'User') {
+        await creditUserPoints({
+            userId: referredUserObjectId,
+            points: settings.newUserRewardPoints,
+            description: 'Welcome referral points',
+            sourceType: 'referral_welcome',
+            sourceId: history._id.toString(),
+        });
+    } else {
+        await vendorWalletService.creditWallet(
+            referredUserObjectId,
+            settings.newUserRewardPoints,
+            'Welcome referral points',
+            history._id.toString(),
+            'referral_welcome'
+        );
+    }
 
     return {
         referrerId: referrerCode.userId,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiLock, FiAlertCircle, FiArrowRight, FiRefreshCw, FiPlus, FiCheckCircle, FiPackage, FiCreditCard, FiX, FiHome, FiPlusCircle, FiArrowUpRight, FiInfo, FiBriefcase } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +20,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
     const {
         status,
         loading: subscriptionLoading,
+        error: subscriptionError,
         fetchStatus,
         canCreateProduct,
         canCreateLotSlot,
@@ -62,10 +63,10 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
     const loading = settingsLoading || subscriptionLoading;
 
     useEffect(() => {
-        if (!status && !subscriptionLoading) {
+        if (!status && !subscriptionLoading && !subscriptionError) {
             fetchStatus();
         }
-    }, [status, subscriptionLoading, fetchStatus]);
+    }, [status, subscriptionLoading, subscriptionError, fetchStatus]);
 
     const isModuleEnabled = () => {
         if (!settings || !settings.enabledModules) return true;
@@ -142,6 +143,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             fetchAttempted.current = false;
         } finally {
             if (!silent) setLoadingAddons(false);
+            fetchAttempted.current = false;
         }
     }, [action, fullPage, hideBasePlans]);
 
@@ -193,6 +195,8 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
 
     const handleBuyAddon = async (planId, planPrice) => {
         if (processingAddonId) return;
+
+        setShowAddonModal(false);
 
         // Force wallet usage for addons
         const plan = addonPlans.find(p => p._id === planId);
@@ -502,13 +506,25 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             );
         }
 
+        const handleRestrictedClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowShopModal(true);
+        };
+
+        const clonedChildren = React.Children.map(children, child => {
+            if (React.isValidElement(child)) {
+                return React.cloneElement(child, {
+                    onClick: handleRestrictedClick
+                });
+            }
+            return child;
+        });
+
         return (
             <div className="relative group">
                 {renderWalletModal()}
-                <button onClick={() => setShowShopModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-400 rounded-xl font-bold cursor-not-allowed border border-gray-200">
-                    <FiLock className="text-lg" />
-                    Complete Shop Listing
-                </button>
+                {clonedChildren}
                 <AnimatePresence>
                     {showShopModal && (
                         <Modal onClose={() => setShowShopModal(false)}>
@@ -580,22 +596,24 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                             <div className="grid grid-cols-1 gap-3">
                                 {addonPlans.length > 0 ? addonPlans.map(plan => (
                                     <div key={plan._id} className="space-y-3">
-                                        <div className={`flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20`}>
+                                        <button
+                                            onClick={() => handleBuyAddon(plan._id, plan.price)}
+                                            disabled={!!processingAddonId}
+                                            className={`w-full flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20 text-left outline-none focus:outline-none`}
+                                        >
                                             <div className="text-left">
                                                 <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
                                                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.quantity} Extra Units</p>
                                             </div>
                                             <div className="flex items-center gap-4 text-right">
                                                 <span className={`font-black text-lg text-${theme.color}-600`}>₹{plan.price}</span>
-                                                <button 
-                                                    onClick={() => handleBuyAddon(plan._id, plan.price)} 
-                                                    disabled={!!processingAddonId}
+                                                <div 
                                                     className={`w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white group-hover/item:border-${theme.color}-600 transition-all shadow-sm`}
                                                 >
                                                     {processingAddonId === plan._id ? <FiRefreshCw className="animate-spin" size={18} /> : theme.icon}
-                                                </button>
+                                                </div>
                                             </div>
-                                        </div>
+                                        </button>
                                     </div>
                                 )) : (
                                     <div className="p-8 border-2 border-dashed border-gray-100 rounded-3xl text-center">
@@ -681,27 +699,25 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                     const isInsufficient = walletBalance < plan.price;
                                     return (
                                         <div key={plan._id} className="space-y-2">
-                                            <div className={`w-full flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item bg-gray-50/20`}>
-                                                <div className="text-left">
-                                                    <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
-                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.quantity} Extra Units</p>
-                                                </div>
-                                                <div className="flex items-center gap-4">
-
-
-
-
-
-                                                    <span className="font-black text-lg text-amber-600">₹{plan.price}</span>
-                                                    <button 
-                                                        onClick={() => handleBuyAddon(plan._id, plan.price)} 
-                                                        disabled={!!processingAddonId || isRecharging} 
-                                                        className={`w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white group-hover/item:border-${theme.color}-600 transition-all shadow-sm`}
-                                                    >
-                                                        {processingAddonId === plan._id || isRecharging ? <FiRefreshCw className="animate-spin" size={18} /> : (isInsufficient ? <FiPlusCircle /> : theme.icon)}
-                                                    </button>
-                                                </div>
-                                            </div>
+                                            <button
+                                         key={plan._id}
+                                         onClick={() => handleBuyAddon(plan._id, plan.price)}
+                                         disabled={!!processingAddonId}
+                                         className={`w-full flex items-center justify-between p-5 border-2 border-gray-100 rounded-[2rem] hover:border-${theme.color}-500 hover:bg-${theme.color}-50/30 transition-all group/item bg-gray-50/20 text-left outline-none focus:outline-none mb-3`}
+                                     >
+                                         <div className="text-left">
+                                             <p className="font-black text-gray-900 uppercase text-[11px] tracking-tight">{plan.name}</p>
+                                             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{plan.quantity} Extra Units</p>
+                                         </div>
+                                         <div className="flex items-center gap-4 text-right">
+                                             <span className={`font-black text-lg text-${theme.color}-600`}>₹{plan.price}</span>
+                                             <div 
+                                                 className={`w-10 h-10 bg-white border border-gray-100 rounded-2xl flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white group-hover/item:border-${theme.color}-600 transition-all shadow-sm`}
+                                             >
+                                                 {processingAddonId === plan._id || isRecharging ? <FiRefreshCw className="animate-spin" size={18} /> : (isInsufficient ? <FiPlusCircle /> : theme.icon)}
+                                             </div>
+                                         </div>
+                                     </button>
                                             {isInsufficient && (
                                                 <div className="flex items-center justify-between px-4 pb-2">
                                                     <p className="text-[9px] font-black text-rose-500 uppercase tracking-tighter italic">Insufficient Balance (₹{walletBalance})</p>
@@ -739,19 +755,30 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
             );
         }
 
+        const handleRestrictedClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (permission.requiresAddon) {
+                handleFetchAddonsAndPlans(false);
+            } else {
+                const featureTypeMap = { product: 'products', lotslot: 'lot_slot', reels: 'reels', property: 'property', jobs: 'jobs' };
+                navigate(`/b2b-vendor/subscription?feature=${featureTypeMap[action] || action}`);
+            }
+        };
+
+        const clonedChildren = React.Children.map(children, child => {
+            if (React.isValidElement(child)) {
+                return React.cloneElement(child, {
+                    onClick: handleRestrictedClick
+                });
+            }
+            return child;
+        });
+
         return (
             <div className="relative group">
                 {renderWalletModal()}
-                <button
-                    onClick={permission.requiresAddon ? () => handleFetchAddonsAndPlans(false) : () => {
-                        const featureTypeMap = { product: 'products', lotslot: 'lot_slot', reels: 'reels', property: 'property', jobs: 'jobs' };
-                        navigate(`/b2b-vendor/subscription?feature=${featureTypeMap[action] || action}`);
-                    }}
-                    className={`flex items-center gap-2 px-5 py-2.5 bg-${theme.color}-50 text-${theme.color}-600 rounded-xl font-bold border border-${theme.color}-200 hover:bg-${theme.color}-100 transition-all`}
-                >
-                    <FiAlertCircle className="text-lg" />
-                    {permission.requiresAddon ? 'Buy Extra Units' : 'Upgrade Plan'}
-                </button>
+                {clonedChildren}
                 
                 <AnimatePresence>
                     {showAddonModal && (
@@ -765,27 +792,25 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
                                 
                                 <div className="grid grid-cols-1 gap-3 mb-6">
                                     {addonPlans.map(plan => (
-                                        <div className={`flex items-center justify-between p-4 border-2 border-gray-100 rounded-2xl hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item`}>
+                                        <button
+                                            key={plan._id}
+                                            onClick={() => handleBuyAddon(plan._id, plan.price)}
+                                            disabled={!!processingAddonId}
+                                            className={`w-full flex items-center justify-between p-4 border-2 border-gray-100 rounded-2xl hover:border-${theme.color}-500 hover:bg-${theme.color}-50 transition-all group/item text-left outline-none focus:outline-none`}
+                                        >
                                             <div className="text-left">
                                                 <p className="font-bold text-gray-800">{plan.name}</p>
                                                 <p className="text-xs text-gray-500">{plan.quantity} Units</p>
                                             </div>
                                             <div className="flex items-center gap-3">
-
-
-
-
-
-                                                <span className="font-bold text-primary-600 text-sm">₹{plan.price}</span>
-                                                <button 
-                                                    onClick={() => handleBuyAddon(plan._id, plan.price)} 
-                                                    disabled={!!processingAddonId}
+                                                <span className={`font-bold text-${theme.color}-600 text-sm`}>₹{plan.price}</span>
+                                                <div 
                                                     className={`w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center group-hover/item:bg-${theme.color}-600 group-hover/item:text-white transition-colors`}
                                                 >
                                                     {processingAddonId === plan._id ? <FiRefreshCw className="animate-spin" /> : theme.icon}
-                                                </button>
+                                                </div>
                                             </div>
-                                        </div>
+                                        </button>
                                     ))}
                                     {addonPlans.length === 0 && !loadingAddons && <p className="text-gray-400 text-sm italic">No add-on packs available.</p>}
                                     {loadingAddons && <div className="animate-spin h-8 w-8 border-2 border-primary-600 border-t-transparent rounded-full mx-auto"></div>}
@@ -805,7 +830,7 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true, fullPage = f
         <div className={fullPage ? "w-full" : "flex items-center gap-4"}>
             {children}
             {showLimitInfo && permission.limit !== undefined && permission.limit !== -1 && !fullPage && (
-                <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
                     <span className={`font-bold ${permission.isAddon ? 'text-primary-600' : ''}`}>{permission.current}/{permission.limit}</span>
                     <span>{permission.isAddon ? 'addons used' : 'used'}</span>
                 </div>
@@ -824,8 +849,8 @@ const Modal = ({ children, onClose }) => (
 );
 
 export const SubscriptionStatusBadge = () => {
-    const { status, loading, fetchStatus, refreshStatus } = useSubscriptionStore();
-    useEffect(() => { if (!status && !loading) fetchStatus(); }, [status, loading, fetchStatus]);
+    const { status, loading, error, fetchStatus, refreshStatus } = useSubscriptionStore();
+    useEffect(() => { if (!status && !loading && !error) fetchStatus(); }, [status, loading, error, fetchStatus]);
     if (loading && !status) return <div className="animate-pulse h-6 w-20 bg-gray-200 rounded-lg"></div>;
     if (!status?.hasSubscription) return <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => refreshStatus()}><FiCheckCircle size={12} className="text-emerald-500" />Verified Account</span>;
     return <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg cursor-pointer hover:bg-indigo-100 transition-colors" onClick={() => refreshStatus()} title="Click to refresh"><FiRefreshCw size={12} className={loading ? 'animate-spin' : ''} />{status.plan?.name || 'Active'}</span>;

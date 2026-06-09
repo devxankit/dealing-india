@@ -338,7 +338,7 @@ export const useAuthStore = create(
           } catch (e) { }
 
           try {
-            const response = await api.get('/auth/user/me');
+            const response = await api.get('/auth/user/me', { silent: true });
             if (response.success && response.data) {
               const { user } = response.data;
               const userData = {

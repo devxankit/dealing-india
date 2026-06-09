@@ -86,7 +86,9 @@ export const getB2BSubscriptionDetails = async (req, res, next) => {
 export const cancelB2BSubscription = async (req, res, next) => {
     try {
         const { subscriptionId } = req.params;
-        res.status(200).json({ success: true, message: 'Subscription cancelled (placeholder)' });
+        const vendorId = req.user?.role === 'admin' ? null : (req.user?.vendorId || req.user?.id);
+        const result = await SubscriptionService.cancelB2BSubscription(subscriptionId, vendorId);
+        res.status(200).json({ success: true, message: 'Subscription cancelled successfully', data: result });
     } catch (error) {
         next(error);
     }

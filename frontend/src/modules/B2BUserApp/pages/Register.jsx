@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiBriefcase, FiMapPin, FiArrowLeft, FiCheck } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiBriefcase, FiMapPin, FiArrowLeft, FiCheck, FiTag } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
@@ -24,6 +24,7 @@ const B2BUserRegister = () => {
             address: {
                 city: '',
             },
+            referralCode: new URLSearchParams(location.search).get('ref') || '',
             agreedToTerms: false
         };
 
@@ -52,7 +53,7 @@ const B2BUserRegister = () => {
 
         // Custom filtering for Name and Phone
         if (name === 'name') {
-            const alphaValue = value.replace(/[^a-zA-Z\s]/g, '');
+            const alphaValue = value.replace(/[^a-zA-Z\s]/g, '').slice(0, 50);
             setFormData(prev => ({ ...prev, [name]: alphaValue }));
             return;
         }
@@ -60,6 +61,12 @@ const B2BUserRegister = () => {
         if (name === 'phone') {
             const digitsOnly = value.replace(/[^0-9]/g, '').slice(0, 10);
             setFormData(prev => ({ ...prev, [name]: digitsOnly }));
+            return;
+        }
+
+        if (name === 'email') {
+            const lowerEmail = value.toLowerCase().trim();
+            setFormData(prev => ({ ...prev, [name]: lowerEmail }));
             return;
         }
 
@@ -97,12 +104,18 @@ const B2BUserRegister = () => {
         // Business Name Validation
         if (!formData.businessName.trim()) {
             newErrors.businessName = 'Business Name is required';
+        } else if (!/[a-zA-Z0-9]/.test(formData.businessName)) {
+            newErrors.businessName = 'Business Name must contain at least one letter or number';
         }
 
-        // 2. Business Email Validation: Optional, but format check if provided
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
-        if (formData.email.trim() && !emailRegex.test(formData.email)) {
-            newErrors.email = 'Enter a valid email (e.g., name@company.com)';
+        // 2. Business Email Validation: Required
+        if (!formData.email.trim()) {
+            newErrors.email = 'Business Email is required';
+        } else {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
+            if (!emailRegex.test(formData.email)) {
+                newErrors.email = 'Enter a valid email (e.g., name@company.com)';
+            }
         }
 
         // 3. Phone Number Validation: Exactly 10 digits
@@ -164,12 +177,11 @@ const B2BUserRegister = () => {
                 payload.phone,
                 payload.userType,
                 payload.businessInfo,
-                referralCode,
+                formData.referralCode,
                 formData.agreedToTerms
             );
 
             if (result.success) {
-                localStorage.removeItem('b2b_user_register_draft');
                 if (result.otpSent) {
                     toast.success('Registration successful! Please verify your mobile number.');
                     navigate('/b2b/verification', { 
@@ -180,6 +192,7 @@ const B2BUserRegister = () => {
                         replace: true 
                     });
                 } else {
+                    localStorage.removeItem('b2b_user_register_draft');
                     toast.success('Registration successful! Welcome to Dealing India.');
                     navigate('/b2b/catalog', { replace: true });
                 }
@@ -239,6 +252,7 @@ const B2BUserRegister = () => {
                                 value={formData.name}
                                 onChange={handleChange}
                                 placeholder="John Doe"
+                                maxLength={50}
                                 className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 rounded-xl transition-all font-medium text-sm ${errors.name ? 'border-rose-500 focus:border-rose-500 bg-rose-50/30' : 'border-transparent focus:border-primary-500 focus:bg-white'
                                     }`}
                             />
@@ -339,6 +353,21 @@ const B2BUserRegister = () => {
                             />
                         </div>
                         {errors['address.city'] && <p className="text-[10px] font-bold text-rose-500 ml-1">{errors['address.city']}</p>}
+                    </div>
+
+                    <div className="md:col-span-2 space-y-1.5 pt-2">
+                        <label className="text-xs font-bold text-gray-700 ml-1">Referral Code (Optional)</label>
+                        <div className="relative group">
+                            <FiTag className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <input
+                                type="text"
+                                name="referralCode"
+                                value={formData.referralCode}
+                                onChange={handleChange}
+                                placeholder="Enter Referral Code"
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-xl transition-all font-medium text-sm outline-none"
+                            />
+                        </div>
                     </div>
 
                     <div className="md:col-span-2 flex flex-col gap-1 px-1">

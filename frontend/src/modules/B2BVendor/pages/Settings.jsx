@@ -64,11 +64,18 @@ const B2BVendorSettings = () => {
         // Handle nested address fields
         if (name.startsWith('address.')) {
             const addressField = name.split('.')[1];
+            let finalValue = value;
+            
+            // Fix state field spaces and invalid characters (allow only letters and spaces)
+            if (addressField === 'state') {
+                finalValue = value.replace(/[^a-zA-Z\s]/g, '');
+            }
+            
             setFormData(prev => ({
                 ...prev,
                 address: {
                     ...prev.address,
-                    [addressField]: value
+                    [addressField]: finalValue
                 }
             }));
         } else if (name === 'gstNumber') {
@@ -106,13 +113,33 @@ const B2BVendorSettings = () => {
             return;
         }
 
+        const isSpecialCharOnly = (str) => {
+            if (!str) return false;
+            return !/[a-zA-Z0-9]/.test(str);
+        };
+
         if (!formData.name.trim()) {
             toast.error("Contact Person Name is required");
             return;
         }
 
+        if (isSpecialCharOnly(formData.name)) {
+            toast.error("Contact Person Name cannot contain only special characters");
+            return;
+        }
+
         if (!formData.storeName.trim()) {
             toast.error("Company Name is required");
+            return;
+        }
+
+        if (isSpecialCharOnly(formData.storeName)) {
+            toast.error("Company Name cannot contain only special characters");
+            return;
+        }
+
+        if (formData.mfgOfWork && isSpecialCharOnly(formData.mfgOfWork)) {
+            toast.error("Mfg Of Work cannot contain only special characters");
             return;
         }
 
@@ -135,10 +162,29 @@ const B2BVendorSettings = () => {
         setLoading(true);
         try {
             // Validate required address fields
-            if (!formData.address.city || !formData.address.state) {
+            if (!formData.address.city?.trim() || !formData.address.state?.trim()) {
                 toast.error("City and State are required");
                 setLoading(false);
                 return;
+            }
+
+            // Validate address fields for special characters
+            const addressFieldsToCheck = [
+                { key: 'street', label: 'Street Address' },
+                { key: 'area', label: 'Area / Locality' },
+                { key: 'market', label: 'Market' },
+                { key: 'landmark', label: 'Landmark' },
+                { key: 'city', label: 'City' },
+                { key: 'state', label: 'State' },
+                { key: 'country', label: 'Country' }
+            ];
+
+            for (const field of addressFieldsToCheck) {
+                if (formData.address[field.key] && isSpecialCharOnly(formData.address[field.key])) {
+                    toast.error(`${field.label} cannot contain only special characters`);
+                    setLoading(false);
+                    return;
+                }
             }
 
             // Clean and prepare address object

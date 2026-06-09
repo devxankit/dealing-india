@@ -53,6 +53,32 @@ const B2BVendorSubscription = () => {
     // Lock scroll when any modal is open
     useScrollLock(showCancelModal || showDetailsModal || showPayModal || showAddMoneyModal);
 
+    // Sync modal visibility with browser history for hardware/browser back buttons
+    useEffect(() => {
+        const handlePopState = (e) => {
+            setShowPayModal(false);
+            setShowCancelModal(false);
+            setShowDetailsModal(false);
+            setShowAddMoneyModal(false);
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    useEffect(() => {
+        const isAnyModalOpen = showPayModal || showCancelModal || showDetailsModal || showAddMoneyModal;
+        if (isAnyModalOpen) {
+            if (window.history.state?.modal !== 'open') {
+                window.history.pushState({ modal: 'open' }, '');
+            }
+        } else {
+            if (window.history.state?.modal === 'open') {
+                window.history.back();
+            }
+        }
+    }, [showPayModal, showCancelModal, showDetailsModal, showAddMoneyModal]);
+
     useEffect(() => {
         loadSubscriptionData();
         loadAddonData();
@@ -1198,22 +1224,22 @@ const B2BVendorSubscription = () => {
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => setShowCancelModal(false)}
-                                    className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                                    className="flex-1 h-12 flex items-center justify-center bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
                                 >
                                     Keep Subscription
                                 </button>
                                 <button
                                     onClick={handleCancelSubscription}
                                     disabled={cancellingSubscription}
-                                    className="flex-1 py-3 px-4 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                    className="flex-1 h-12 flex items-center justify-center gap-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
                                 >
                                     {cancellingSubscription ? (
                                         <>
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                            Cancelling...
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                                            <span>Cancelling...</span>
                                         </>
                                     ) : (
-                                        'Yes, Cancel'
+                                        <span>Yes, Cancel</span>
                                     )}
                                 </button>
                             </div>
@@ -1346,10 +1372,10 @@ const B2BVendorSubscription = () => {
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden"
+                            className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
                         >
                             {/* Modal Header */}
-                            <div className="bg-primary-600 p-8 text-white relative">
+                            <div className="bg-primary-600 p-8 text-white relative flex-shrink-0">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
                                 <button 
                                     onClick={() => setShowPayModal(false)}
@@ -1363,7 +1389,7 @@ const B2BVendorSubscription = () => {
                             </div>
 
                             {/* Modal Content */}
-                            <div className="p-8">
+                            <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
                                 <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100">
                                     <div className="flex justify-between items-center mb-6">
                                         <div className="flex flex-col">

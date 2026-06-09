@@ -2346,7 +2346,7 @@ const ProductCatalog = () => {
                 onChange={(e) => setCitySearchQuery(e.target.value)}
               />
             </div>
-            <div className="space-y-2 max-h-[52vh] overflow-y-auto custom-scrollbar pr-1">
+            <div className="space-y-2 max-h-[52vh] overflow-y-auto custom-scrollbar pr-1 pb-28">
               <button
                 onClick={() => {
                   setSelectedCity("All Cities");
@@ -2405,7 +2405,7 @@ const ProductCatalog = () => {
                 onChange={(e) => setCategorySearchQuery(e.target.value)}
               />
             </div>
-            <div className="max-h-[55vh] overflow-y-auto custom-scrollbar pr-1 space-y-2">
+            <div className="max-h-[55vh] overflow-y-auto custom-scrollbar pr-1 space-y-2 pb-28">
               <button
                 className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${selectedCategory === "All" ? "bg-primary-50 text-primary-600" : "bg-gray-50 text-gray-700"}`}
                 onClick={() => {
@@ -2486,7 +2486,7 @@ const ProductCatalog = () => {
                 Close
               </button>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1 space-y-2">
+            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1 space-y-2 pb-28">
               <button
                 className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${!selectedBusinessType ? "bg-primary-50 text-primary-600" : "bg-gray-50 text-gray-700"}`}
                 onClick={() => {

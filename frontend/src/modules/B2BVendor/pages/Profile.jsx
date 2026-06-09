@@ -80,10 +80,10 @@ const B2BVendorProfile = () => {
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             {/* Cover/Header Section */}
-            <div className="relative h-48 md:h-64 bg-slate-200 rounded-3xl overflow-hidden shadow-inner">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary-600/20 to-primary-900/40" />
-                <div className="absolute -bottom-10 md:-bottom-12 left-4 md:left-10 flex items-end gap-4 md:gap-6">
-                    <div className="w-28 h-28 md:w-40 md:h-40 rounded-3xl bg-white p-2 shadow-xl border-4 border-white overflow-hidden shrink-0">
+            <div className="relative h-48 md:h-64 bg-slate-200 rounded-3xl shadow-inner">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary-600/20 to-primary-900/40 rounded-3xl" />
+                <div className="absolute bottom-4 md:bottom-8 left-4 md:left-10 flex items-center gap-4 md:gap-6 w-[calc(100%-2rem)] md:w-[calc(100%-5rem)]">
+                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white p-2 shadow-xl border-4 border-white overflow-hidden shrink-0 z-10">
                         {vendor?.storeLogo ? (
                             <img src={vendor.storeLogo} alt="Logo" className="w-full h-full object-cover rounded-2xl" />
                         ) : (
@@ -92,17 +92,19 @@ const B2BVendorProfile = () => {
                             </div>
                         )}
                     </div>
-                    <div className="mb-12 md:mb-14">
+                    <div className="z-10 flex flex-col justify-center flex-1 min-w-0">
                         <h1 className="text-xl md:text-3xl font-black text-white flex items-center gap-2 drop-shadow-md">
-                            {vendor?.storeName || vendor?.companyName || vendor?.name}
-                            <FiCheckCircle className="text-white fill-green-500 text-base md:text-xl shrink-0" />
+                            <span className="truncate">{vendor?.storeName || vendor?.companyName || vendor?.name}</span>
+                            <div className="flex items-center justify-center shrink-0 mt-0.5 md:mt-1">
+                                <FiCheckCircle className="text-white fill-green-500 text-lg md:text-2xl" />
+                            </div>
                         </h1>
-                        <p className="text-white/90 text-sm md:text-base font-medium drop-shadow-sm">Verified B2B Vendor</p>
+                        <p className="text-white/90 text-sm md:text-base font-medium drop-shadow-sm mt-0.5 md:mt-1">Verified B2B Vendor</p>
                     </div>
                 </div>
                 <button
                     onClick={() => navigate("/b2b-vendor/settings/profile")}
-                    className="absolute top-4 right-4 md:top-auto md:bottom-10 md:right-10 flex items-center gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-white text-gray-800 text-sm md:text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
+                    className="absolute top-4 right-4 md:top-auto md:bottom-10 md:right-10 flex items-center gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-white text-gray-800 text-sm md:text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all z-10"
                 >
                     <FiEdit2 /> <span className="hidden sm:inline">Edit Profile</span><span className="sm:hidden">Edit</span>
                 </button>

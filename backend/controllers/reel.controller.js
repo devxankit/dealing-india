@@ -888,6 +888,12 @@ export const getFeed = asyncHandler(async (req, res) => {
     .limit(limit)
     .lean();
 
+  console.log("=== GET FEED DEBUG ===");
+  console.log("Filter used:", JSON.stringify(filter, null, 2));
+  console.log("Reels found:", reels.length);
+  const allReels = await Reel.countDocuments();
+  console.log("Total reels in DB (any status):", allReels);
+
   const vendorIds = reels
     .filter((r) => r.uploaderType === 'vendor')
     .map((r) => r.uploaderId);
@@ -904,6 +910,15 @@ export const getFeed = asyncHandler(async (req, res) => {
         .lean(),
       B2BSettings.findOne().sort({ createdAt: -1 }).lean()
     ]);
+    
+    // DEBUG: If vendors returned are empty, fetch the raw vendors to see what properties they actually have
+    if (vendors.length === 0 && vendorIds.length > 0) {
+        const rawVendors = await Vendor.find({ _id: { $in: vendorIds } }).lean();
+        console.log("=== VENDOR FILTER DIAGNOSTIC ===");
+        rawVendors.forEach(v => {
+            console.log(`Vendor ${v._id}: status='${v.status}', isActive=${v.isActive}, vendorType='${v.vendorType}'`);
+        });
+    }
     
     // Enrich with enquiry status in a more optimized way
     // We pass the pre-fetched settings to avoid N+1 queries for settings
@@ -943,8 +958,11 @@ export const getFeed = asyncHandler(async (req, res) => {
         : null;
 
     // Filter out vendor reels where the vendor is no longer approved or active
-    if (r.uploaderType === 'vendor' && !vendorInfo) return null;
-
+    if (r.uploaderType === 'vendor' && !vendorInfo) {
+       console.log(`[Reel Debug] Reel ${r._id} filtered out because uploader ${r.uploaderId} (Type: ${r.uploaderType}) was not found in approved/active b2b vendors map.`);
+       return null;
+    }
+    
     return {
       ...r,
       likeCount: likeMap.get(r._id.toString()) || 0,
@@ -960,6 +978,9 @@ export const getFeed = asyncHandler(async (req, res) => {
   }).filter(Boolean);
 
   const total = await Reel.countDocuments(filter);
+  
+  console.log("Final feed length after vendor filter:", feed.length);
+
   res.status(200).json({
     success: true,
     data: { 
@@ -1490,6 +1511,20 @@ export const adminResolveReelReport = asyncHandler(async (req, res) => {
             await ReelComment.deleteMany({ reelId: reel._id });
             await ReelView.deleteMany({ reelId: reel._id });
             await Reel.findByIdAndDelete(reel._id);
+            
+            // Resolve all other pending reports for this reel
+            await ReelReport.updateMany(
+                { reelId: reel._id, status: 'pending', _id: { $ne: report._id } },
+                {
+                    $set: {
+                        status: 'resolved',
+                        actionTaken: 'deleted',
+                        resolvedBy: adminId,
+                        resolvedAt: new Date(),
+                        comment: 'Automatically resolved because the reel was deleted.'
+                    }
+                }
+            );
 
             try {
                 const io = req.app.get('io');
@@ -1520,7 +1555,7 @@ export const adminResolveReelReport = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         success: true,
-        message: action === 'delete' ? 'Reel deleted and report resolved' : 'Report dismissed',
+        message: action === 'delete' ? 'Reel deleted and all related reports resolved' : 'Report dismissed',
         data: { report }
     });
 });

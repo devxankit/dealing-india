@@ -293,7 +293,7 @@ export default function Reels() {
                 initial={{ opacity: 0, y: 4, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 4, scale: 0.98 }}
-                className="absolute z-50 right-0 mt-2 w-64 bg-white border border-gray-100 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[400px]"
+                className="absolute z-50 left-0 sm:left-auto sm:right-0 mt-2 w-64 bg-white border border-gray-100 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[400px]"
               >
                 <div className="p-3 border-b border-gray-50 bg-gray-50/50 sticky top-0">
                   <div className="relative">

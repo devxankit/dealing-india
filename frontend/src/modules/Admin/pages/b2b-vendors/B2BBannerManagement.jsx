@@ -259,30 +259,39 @@ const B2BBannerManagement = () => {
     };
 
     const handleUpdateSettings = async () => {
-        if (settingsForm.universalDisplayTime < 500) {
+        const payload = {
+            universalDisplayTime: parseInt(settingsForm.universalDisplayTime) || 3000,
+            bookingWindowDays: parseInt(settingsForm.bookingWindowDays) || 30,
+            minDurationHours: parseInt(settingsForm.minDurationHours) || 24,
+            maxDurationHours: parseInt(settingsForm.maxDurationHours) || 720,
+            defaultPricePerDay: parseFloat(settingsForm.defaultPricePerDay) || 2999
+        };
+
+        if (payload.universalDisplayTime < 500) {
             toast.error("Display time must be at least 500ms");
             return;
         }
-        if (settingsForm.bookingWindowDays < 1 || settingsForm.bookingWindowDays > 365) {
+        if (payload.bookingWindowDays < 1 || payload.bookingWindowDays > 365) {
             toast.error("Booking window must be between 1 and 365 days");
             return;
         }
-        if (settingsForm.minDurationHours < 1) {
+        if (payload.minDurationHours < 1) {
             toast.error("Minimum duration must be at least 1 hour");
             return;
         }
-        if (settingsForm.maxDurationHours < settingsForm.minDurationHours) {
+        if (payload.maxDurationHours < payload.minDurationHours) {
             toast.error("Maximum duration must be greater than or equal to minimum duration");
             return;
         }
-        if (settingsForm.defaultPricePerDay < 0) {
+        if (payload.defaultPricePerDay < 0) {
             toast.error("Default price per day cannot be negative");
             return;
         }
 
         try {
-            await updateBannerSettings(settingsForm);
-            setSettings(settingsForm);
+            await updateBannerSettings(payload);
+            setSettings(payload);
+            setSettingsForm(payload);
             setShowSettingsPanel(false);
             toast.success("B2B Banner settings updated successfully");
         } catch (error) {
@@ -511,7 +520,7 @@ const B2BBannerManagement = () => {
                                             min="500"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                             value={settingsForm.universalDisplayTime}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, universalDisplayTime: parseInt(e.target.value) || 3000 })}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, universalDisplayTime: e.target.value })}
                                         />
                                         <p className="mt-1 text-xs text-gray-500">Minimum: 500ms</p>
                                     </div>
@@ -527,7 +536,7 @@ const B2BBannerManagement = () => {
                                             max="365"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                             value={settingsForm.bookingWindowDays}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, bookingWindowDays: parseInt(e.target.value) || 30 })}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, bookingWindowDays: e.target.value })}
                                         />
                                         <p className="mt-1 text-xs text-gray-500">Range: 1-365 days</p>
                                     </div>
@@ -542,7 +551,7 @@ const B2BBannerManagement = () => {
                                             min="1"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                             value={settingsForm.minDurationHours}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, minDurationHours: parseInt(e.target.value) || 24 })}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, minDurationHours: e.target.value })}
                                         />
                                         <p className="mt-1 text-xs text-gray-500">Minimum: 24 hours (1 day)</p>
                                     </div>
@@ -557,7 +566,7 @@ const B2BBannerManagement = () => {
                                             min="1"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                             value={settingsForm.maxDurationHours}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, maxDurationHours: parseInt(e.target.value) || 720 })}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, maxDurationHours: e.target.value })}
                                         />
                                         <p className="mt-1 text-xs text-gray-500">Maximum: 720 hours (30 days)</p>
                                     </div>
@@ -573,7 +582,7 @@ const B2BBannerManagement = () => {
                                             step="0.01"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                             value={settingsForm.defaultPricePerDay}
-                                            onChange={(e) => setSettingsForm({ ...settingsForm, defaultPricePerDay: parseFloat(e.target.value) || 2999 })}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, defaultPricePerDay: e.target.value })}
                                         />
                                         <p className="mt-1 text-xs text-gray-500">Used when no specific pricing entry exists for a duration</p>
                                     </div>

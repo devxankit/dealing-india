@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiHeart, FiVideo, FiShare2, FiEye, FiCopy, FiX, FiFilter, FiChevronDown, FiVolume2, FiVolumeX, FiFlag, FiPlay, FiPause, FiSkipBack, FiSkipForward } from "react-icons/fi";
+import { FiHeart, FiVideo, FiVideoOff, FiShare2, FiEye, FiCopy, FiX, FiFilter, FiChevronDown, FiVolume2, FiVolumeX, FiFlag, FiPlay, FiPause, FiSkipBack, FiSkipForward } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
@@ -260,8 +260,13 @@ export default function ReelFeed() {
           setCurrentIndex(0);
         }
       })
-      .catch((err) => console.error("Error fetching shared reel:", err));
-  }, [loading, reelIdFromUrl, reels]);
+      .catch((err) => {
+        console.error("Error fetching shared reel:", err);
+        toast.error("The requested reel is no longer available.");
+        const search = searchParams.toString();
+        navigate(`/b2b/reels${search ? `?${search}` : ""}`, { replace: true });
+      });
+  }, [loading, reelIdFromUrl, reels, navigate, searchParams]);
 
   const loadMore = useCallback(() => {
     if (loadingMoreRef.current || !hasMore) return;
@@ -546,7 +551,23 @@ export default function ReelFeed() {
         ytPlayerRef.current = null;
       }
     };
-  }, [currentYoutubeId, isMuted]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentYoutubeId]);
+
+  // Handle mute toggle for YouTube player without recreating it
+  useEffect(() => {
+    if (ytPlayerRef.current && isYoutubeRef.current) {
+      try {
+        if (isMuted) {
+          if (typeof ytPlayerRef.current.mute === 'function') ytPlayerRef.current.mute();
+        } else {
+          if (typeof ytPlayerRef.current.unMute === 'function') ytPlayerRef.current.unMute();
+        }
+      } catch (err) {
+        console.warn("YouTube player mute error:", err);
+      }
+    }
+  }, [isMuted]);
 
   const togglePlay = useCallback(() => {
     const newPlaying = !isPlaying;
@@ -647,6 +668,33 @@ export default function ReelFeed() {
             <div className="absolute inset-0 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
           </div>
           <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px] animate-pulse">Initializing Feed</p>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && reels.length === 0 && !initialMetadata && (
+        <div className="absolute inset-0 z-[100] bg-black flex flex-col items-center justify-center gap-4 text-center p-6">
+          <div className="w-20 h-20 bg-gray-900 rounded-full flex items-center justify-center mb-2 shadow-2xl border border-white/5">
+             <FiVideoOff className="text-4xl text-gray-500" />
+          </div>
+          <h2 className="text-2xl font-black text-white tracking-tight">No Reels Available</h2>
+          <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
+            We couldn't find any reels matching your criteria at the moment. Please check back later or clear your filters.
+          </p>
+          <button 
+             onClick={() => {
+                if (activeCategory) {
+                    navigate('/b2b/reels');
+                    setActiveCategory("");
+                    setCategorySearch("");
+                } else {
+                    navigate('/b2b/home');
+                }
+             }}
+             className="mt-6 px-8 py-3.5 bg-primary-600 text-white rounded-2xl font-bold text-sm hover:bg-primary-500 transition-all shadow-[0_0_20px_rgba(var(--color-primary-500),0.3)] hover:scale-105 active:scale-95 flex items-center gap-2 uppercase tracking-wider"
+          >
+            {activeCategory ? "Clear Filters" : "Go to Home"}
+          </button>
         </div>
       )}
 
@@ -984,14 +1032,14 @@ export default function ReelFeed() {
                       <textarea
                         value={reportComment}
                         onChange={(e) => setReportComment(e.target.value)}
-                        placeholder="Tell us more (optional)..."
-                        className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-gray-500 focus:border-primary-500 outline-none transition-all resize-none"
+                        placeholder={reportReason === "Other" ? "Please provide a reason (mandatory)..." : "Tell us more (optional)..."}
+                        className={`w-full h-24 bg-white/5 border rounded-xl p-3 text-sm text-white placeholder:text-gray-500 focus:border-primary-500 outline-none transition-all resize-none ${reportReason === "Other" && !reportComment.trim() ? "border-red-500/50" : "border-white/10"}`}
                       />
                     </motion.div>
                   )}
 
                   <button
-                    disabled={!reportReason || isReporting}
+                    disabled={!reportReason || isReporting || (reportReason === "Other" && !reportComment.trim())}
                     onClick={submitReport}
                     className="w-full py-4 bg-primary-600 disabled:bg-gray-700 text-white rounded-2xl font-bold text-base shadow-lg shadow-primary-900/20 active:scale-95 transition-all mt-4 flex items-center justify-center gap-2"
                   >

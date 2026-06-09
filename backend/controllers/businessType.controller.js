@@ -33,7 +33,35 @@ export const getActiveBusinessTypes = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/business-types
 // @access  Admin
 export const createBusinessType = asyncHandler(async (req, res) => {
-    const { name, slug, description } = req.body;
+    let { name, slug, description } = req.body;
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ success: false, message: 'Name is required' });
+    }
+
+    name = name.trim();
+    if (description) description = description.trim();
+
+    if (/^\d+$/.test(name)) {
+        return res.status(400).json({ success: false, message: 'Name cannot be only numbers' });
+    }
+
+    if (!/[a-zA-Z]/.test(name)) {
+        return res.status(400).json({ success: false, message: 'Name must contain letters' });
+    }
+
+    const hasHTML = /<[^>]*>?/gm;
+    if (hasHTML.test(name) || (description && hasHTML.test(description))) {
+        return res.status(400).json({ success: false, message: 'HTML tags are not allowed' });
+    }
+
+    if (name.length > 50) {
+        return res.status(400).json({ success: false, message: 'Name must be 50 characters or less' });
+    }
+    
+    if (description && description.length > 200) {
+        return res.status(400).json({ success: false, message: 'Description must be 200 characters or less' });
+    }
 
     const businessType = await BusinessType.create({
         name,

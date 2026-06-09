@@ -28,6 +28,7 @@ export const useNotifications = (options = {}) => {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    removeNotificationLocally,
     handleNewNotification,
     handleNotificationRead
   } = useNotificationStore();
@@ -77,7 +78,7 @@ export const useNotifications = (options = {}) => {
 
       // Listen for notification deleted
       socket.on('notification_deleted', ({ notificationId }) => {
-        deleteNotification(notificationId);
+        removeNotificationLocally(notificationId);
       });
 
       // Listen for read notifications deleted
@@ -89,7 +90,7 @@ export const useNotifications = (options = {}) => {
     return () => {
       // Socket logic remains persistent
     };
-  }, [enableSocket, handleNewNotification, handleNotificationRead, markAllAsRead, deleteNotification, fetchNotifications]);
+  }, [enableSocket, handleNewNotification, handleNotificationRead, markAllAsRead, deleteNotification, removeNotificationLocally, fetchNotifications]);
 
   // Auto-fetch on mount
   useEffect(() => {

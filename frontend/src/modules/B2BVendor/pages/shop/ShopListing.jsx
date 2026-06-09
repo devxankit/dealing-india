@@ -38,7 +38,7 @@ const ShopListing = () => {
     const handleShopSubmit = async (payload) => {
         setSubmitting(true);
         try {
-            const response = await api.post('/b2b-vendor/shop-units', payload);
+            const response = await api.post('/b2b-vendor/shop-units', payload, { silent: true });
             if (response.success) {
                 toast.success(response.data?._id ? "Shop updated successfully!" : "Shop created successfully!");
                 // Refresh subscription status to update hasShop across the app

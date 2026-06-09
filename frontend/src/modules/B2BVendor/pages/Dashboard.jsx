@@ -240,10 +240,10 @@ const B2BVendorDashboard = () => {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 {config.enableProductListing && (
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden">
+                                    <div onClick={() => navigate('/b2b-vendor/products')} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden cursor-pointer transition-all hover:shadow-md hover:border-slate-200">
                                         <div className="flex justify-between items-start mb-6">
                                             <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><FiPackage size={24} /></div>
-                                            <button onClick={() => navigate('/b2b-vendor/products')} className="text-slate-400 hover:text-slate-900"><FiArrowUpRight size={20} /></button>
+                                            <button className="text-slate-400 group-hover:text-slate-900 transition-colors"><FiArrowUpRight size={20} /></button>
                                         </div>
                                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Product Catalog</h3>
                                         <div className="flex items-end justify-between">
@@ -257,10 +257,10 @@ const B2BVendorDashboard = () => {
                                 )}
 
                                 {config.enablePropertyListing && (
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden">
+                                    <div onClick={() => navigate('/b2b-vendor/properties')} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden cursor-pointer transition-all hover:shadow-md hover:border-slate-200">
                                         <div className="flex justify-between items-start mb-6">
                                             <div className="p-3 bg-purple-100 text-purple-600 rounded-xl"><FiHome size={24} /></div>
-                                            <button onClick={() => navigate('/b2b-vendor/properties')} className="text-slate-400 hover:text-slate-900"><FiArrowUpRight size={20} /></button>
+                                            <button className="text-slate-400 group-hover:text-slate-900 transition-colors"><FiArrowUpRight size={20} /></button>
                                         </div>
                                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Commercial Portfolio</h3>
                                         <div className="flex items-end justify-between">
@@ -274,13 +274,10 @@ const B2BVendorDashboard = () => {
                                 )}
 
                                 {config.enableLotSlotListing && (
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden">
+                                    <div onClick={() => navigate('/b2b-vendor/lotslot')} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden cursor-pointer transition-all hover:shadow-md hover:border-slate-200">
                                         <div className="flex justify-between items-start mb-6">
                                             <div className="p-3 bg-amber-100 text-amber-600 rounded-xl"><FiHash size={24} /></div>
-                                            <button 
-                                                onClick={() => navigate('/b2b-vendor/lotslot')}
-                                                className="text-slate-400 hover:text-slate-900"
-                                            >
+                                            <button className="text-slate-400 group-hover:text-slate-900 transition-colors">
                                                 <FiArrowUpRight size={20} />
                                             </button>
                                         </div>
@@ -295,10 +292,10 @@ const B2BVendorDashboard = () => {
                                 )}
 
                                 {config.enableReels && (
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden">
+                                    <div onClick={() => navigate('/b2b-vendor/reels')} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden cursor-pointer transition-all hover:shadow-md hover:border-slate-200">
                                         <div className="flex justify-between items-start mb-6">
                                             <div className="p-3 bg-rose-100 text-rose-600 rounded-xl"><FiVideo size={24} /></div>
-                                            <button onClick={() => navigate('/b2b-vendor/reels')} className="text-slate-400 hover:text-slate-900"><FiArrowUpRight size={20} /></button>
+                                            <button className="text-slate-400 group-hover:text-slate-900 transition-colors"><FiArrowUpRight size={20} /></button>
                                         </div>
                                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Reels & Media</h3>
                                         <div className="flex items-end justify-between">
@@ -312,7 +309,7 @@ const B2BVendorDashboard = () => {
                                 )}
 
                                 {config.enableJobListing && (
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden cursor-pointer" onClick={() => navigate('/b2b-vendor/jobs')}>
+                                    <div onClick={() => navigate('/b2b-vendor/jobs')} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden cursor-pointer transition-all hover:shadow-md hover:border-slate-200">
                                         <div className="flex justify-between items-start mb-6">
                                             <div className="p-3 bg-teal-100 text-teal-600 rounded-xl"><FiBriefcase size={24} /></div>
                                             <button className="text-slate-400 group-hover:text-slate-900 transition-colors"><FiArrowUpRight size={20} /></button>
@@ -461,7 +458,7 @@ const B2BVendorDashboard = () => {
                                             <span className="text-[10px] font-black uppercase tracking-tight">Add Product</span>
                                         </button>
                                         <button
-                                            onClick={() => config.enableLotSlotListing && navigate('/b2b-vendor/lots/add')}
+                                            onClick={() => config.enableLotSlotListing && navigate('/b2b-vendor/lotslot/add-lotslot')}
                                             className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${config.enableLotSlotListing ? 'bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700' : 'opacity-30 cursor-not-allowed bg-slate-800'}`}
                                         >
                                             <FiPlus size={20} />

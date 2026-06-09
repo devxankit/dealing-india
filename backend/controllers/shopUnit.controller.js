@@ -16,6 +16,83 @@ export const createOrUpdateUnit = async (req, res, next) => {
         const { name, description, images, minPrice, maxPrice, details, businessCategory, mapUrl } = req.body;
         const vendorId = req.user.vendorId;
 
+        // 1. Basic input validation
+        const trimmedName = name ? name.trim() : "";
+        if (!trimmedName) {
+            return res.status(400).json({ success: false, message: 'Shop Name is required and cannot be empty spaces' });
+        }
+        if (trimmedName.length > 100) {
+            return res.status(400).json({ success: false, message: 'Shop Name must be 100 characters or less' });
+        }
+        if (/^[0-9\s!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/.test(trimmedName) || !/[a-zA-Z]/.test(trimmedName)) {
+            return res.status(400).json({ success: false, message: 'Shop Name must contain letters and cannot be only special characters/numbers' });
+        }
+
+        const trimmedDesc = description ? description.trim() : "";
+        if (!trimmedDesc) {
+            return res.status(400).json({ success: false, message: 'Description is required and cannot be empty spaces' });
+        }
+        if (trimmedDesc.length > 1000) {
+            return res.status(400).json({ success: false, message: 'Description must be 1000 characters or less' });
+        }
+
+        if (!businessCategory || !businessCategory.trim()) {
+            return res.status(400).json({ success: false, message: 'Business Category is required' });
+        }
+
+        const parsedMin = minPrice ? parseFloat(minPrice) : 0;
+        const parsedMax = maxPrice ? parseFloat(maxPrice) : 0;
+        if (isNaN(parsedMin) || isNaN(parsedMax) || parsedMin < 0 || parsedMax < 0) {
+            return res.status(400).json({ success: false, message: 'Prices cannot be negative numbers' });
+        }
+        if (parsedMax < parsedMin) {
+            return res.status(400).json({ success: false, message: 'Max Price cannot be less than Min Price' });
+        }
+
+        if (mapUrl && mapUrl.trim()) {
+            const mapRegex = /^(https?:\/\/)?(www\.)?(google\.[a-z]+(\.[a-z]+)?\/maps|maps\.app\.goo\.gl|maps\.google\.[a-z]+)\/.*$/i;
+            if (!mapRegex.test(mapUrl.trim())) {
+                return res.status(400).json({ success: false, message: 'Please enter a valid Google Maps Location URL' });
+            }
+        }
+
+        // 2. Validate Staff Details & Duplicate Checks
+        const validDetails = (details || []).filter(d => d.name?.trim() || d.post?.trim() || d.mobile?.trim());
+        if (validDetails.length === 0) {
+            return res.status(400).json({ success: false, message: 'At least one staff contact detail is required' });
+        }
+
+        const seenMobile = new Set();
+        const seenName = new Set();
+        for (const detail of validDetails) {
+            if (!detail.name?.trim()) {
+                return res.status(400).json({ success: false, message: 'Staff name is required for all added contact rows' });
+            }
+            if (!/^[a-zA-Z\s]+$/.test(detail.name)) {
+                return res.status(400).json({ success: false, message: `Staff name "${detail.name}" should only contain alphabets` });
+            }
+            if (detail.post?.trim() && !/^[a-zA-Z\s]+$/.test(detail.post)) {
+                return res.status(400).json({ success: false, message: `Staff post/role "${detail.post}" should only contain alphabets` });
+            }
+            if (!detail.mobile?.trim()) {
+                return res.status(400).json({ success: false, message: `Mobile number is required for "${detail.name}"` });
+            }
+            if (!/^\d{10}$/.test(detail.mobile)) {
+                return res.status(400).json({ success: false, message: `Mobile number for "${detail.name}" must be exactly 10 digits` });
+            }
+
+            const nameKey = detail.name.toLowerCase().trim();
+            const mobileKey = detail.mobile.trim();
+            if (seenMobile.has(mobileKey)) {
+                return res.status(400).json({ success: false, message: 'Duplicate staff mobile numbers are not allowed' });
+            }
+            if (seenName.has(nameKey)) {
+                return res.status(400).json({ success: false, message: 'Duplicate staff names are not allowed' });
+            }
+            seenMobile.add(mobileKey);
+            seenName.add(nameKey);
+        }
+
         // Ensure eligibility before listing shop
         const eligibilityCheck = await subscriptionRulesService.canListShop(vendorId);
         if (!eligibilityCheck.allowed) {
@@ -56,16 +133,16 @@ export const createOrUpdateUnit = async (req, res, next) => {
         }
 
         const shopData = {
-            name: name.trim(),
-            description,
-            details: Array.isArray(details) ? details : [],
+            name: trimmedName,
+            description: trimmedDesc,
+            details: validDetails,
             images: imageUrls,
             imagesPublicIds: imagePublicIds,
-            minPrice: minPrice ? parseFloat(minPrice) : 0,
-            maxPrice: maxPrice ? parseFloat(maxPrice) : 0,
+            minPrice: parsedMin,
+            maxPrice: parsedMax,
             vendorId,
-            businessCategory: businessCategory && businessCategory.trim() ? businessCategory.trim() : null,
-            mapUrl: mapUrl && mapUrl.trim ? mapUrl.trim() : mapUrl || null,
+            businessCategory: businessCategory.trim(),
+            mapUrl: mapUrl && mapUrl.trim() ? mapUrl.trim() : null,
         };
 
         if (shop) {

@@ -59,9 +59,9 @@ export const trackContactClick = async (req, res, next) => {
 
         if (isBillableClick) {
             if (userId) {
-                // Has this user already contacted this vendor today (any clickType)?
+                // Has this user already contacted this vendor today (any clickType) for this category?
                 const existingToday = await VendorContactClick.findOne(
-                    { vendorId, userId, dateKey, isNewEnquiry: true },
+                    { vendorId, userId, dateKey, category, isNewEnquiry: true },
                     { _id: 1 }
                 ).lean();
 

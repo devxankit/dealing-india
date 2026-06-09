@@ -780,6 +780,7 @@ function App() {
             gutter={8}
             containerStyle={{
               zIndex: 99999,
+              top: 'max(48px, env(safe-area-inset-top, 24px))',
             }}
             toastOptions={{
               duration: 3000,

@@ -137,7 +137,7 @@ const JobsPage = () => {
         <div className="min-h-screen bg-slate-50 flex flex-col">
             <B2BHeader />
 
-            <main className="">
+            <main className="pb-32">
                 {/* Mobile Header */}
                 <div className="bg-white px-4 py-3 border-b border-gray-100 flex items-center gap-3 lg:hidden sticky top-[60px] z-20 shadow-sm">
                     <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-50 text-slate-600">

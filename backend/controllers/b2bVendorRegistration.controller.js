@@ -26,6 +26,7 @@ export const register = async (req, res, next) => {
       businessType,
       businessTypeRef,
       agreedToTerms,
+      referralCode,
     } = req.body;
 
     // Validate required fields
@@ -51,6 +52,7 @@ export const register = async (req, res, next) => {
       businessType,
       businessTypeRef,
       agreedToTerms,
+      referralCode,
     });
 
     res.status(201).json({
@@ -102,6 +104,7 @@ export const registerWithPayment = async (req, res, next) => {
       agreedToTerms,
       subscriptionPlan,
       paymentData, // { razorpayOrderId, razorpayPaymentId, razorpaySignature }
+      referralCode,
     } = req.body;
 
     // Validate required fields
@@ -152,6 +155,7 @@ export const registerWithPayment = async (req, res, next) => {
         businessType,
         businessTypeRef,
         agreedToTerms,
+        referralCode,
       },
       subscriptionPlan,
       paymentData

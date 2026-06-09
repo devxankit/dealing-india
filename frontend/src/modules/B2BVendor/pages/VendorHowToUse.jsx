@@ -48,9 +48,13 @@ const VendorHowToUse = () => {
                         <FiChevronLeft className="group-hover:-translate-x-1 transition-transform" />
                         <span className="font-semibold">Back to Dashboard</span>
                     </button>
-                    <div className="px-4 py-1.5 bg-primary-500/10 border border-primary-500/20 rounded-full text-primary-400 text-xs font-bold uppercase tracking-widest">
+                    <button 
+                        onClick={() => navigate('/b2b-vendor/support')}
+                        className="px-4 py-1.5 bg-primary-500/10 border border-primary-500/20 rounded-full text-primary-400 text-xs font-bold uppercase tracking-widest hover:bg-primary-500/20 hover:text-primary-300 transition-colors cursor-pointer"
+                        title="Go to Support & Feedback"
+                    >
                         Vendor Support
-                    </div>
+                    </button>
                 </div>
 
                 <div className="space-y-2">

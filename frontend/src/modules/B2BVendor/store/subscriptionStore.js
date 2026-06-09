@@ -228,7 +228,7 @@ export const useSubscriptionStore = create((set, get) => ({
 
     canCreateJob: () => {
         const state = get();
-        if (!state.status?.hasSubscription) return { allowed: false, message: 'Please purchase a subscription plan or job add-on to post jobs.' };
+        if (!state.status?.hasSubscription && !state.status?.limits?.jobs?.hasAddon) return { allowed: false, message: 'Please purchase a subscription plan or job add-on to post jobs.' };
 
         const limits = state.status?.limits?.jobs;
         if (!limits?.allowed && !limits?.hasAddon) {

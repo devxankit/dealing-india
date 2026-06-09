@@ -99,6 +99,25 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     }, []);
 
     useEffect(() => {
+        const handleFocus = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+                setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            }
+        };
+        const formEl = document.querySelector('form');
+        if (formEl) {
+            formEl.addEventListener('focus', handleFocus, true);
+        }
+        return () => {
+            if (formEl) {
+                formEl.removeEventListener('focus', handleFocus, true);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
         fetchCategories();
         if (isEdit && id) {
             fetchLotSlotDetails();
@@ -238,7 +257,11 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
 
     const updateSpec = (index, field, value) => {
         const updated = [...formData.specifications];
-        updated[index][field] = value;
+        if (field === 'value') {
+            updated[index][field] = value.replace(/[^0-9.]/g, '');
+        } else {
+            updated[index][field] = value;
+        }
         setFormData(prev => ({ ...prev, specifications: updated }));
     };
 
@@ -351,7 +374,25 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
         const newErrors = {};
 
         if (formData.images.length === 0) newErrors.images = "Please upload at least one image";
-        if (!formData.name?.trim()) newErrors.name = "Title is required";
+        if (!formData.name?.trim()) {
+            newErrors.name = "Title is required";
+        } else if (!/[a-zA-Z0-9]/.test(formData.name)) {
+            newErrors.name = "Title cannot consist only of special characters";
+        }
+
+        if (formData.brand?.trim() && !/[a-zA-Z0-9]/.test(formData.brand)) {
+            newErrors.brand = "Brand name cannot consist only of special characters";
+        }
+
+        formData.specifications.forEach((spec, idx) => {
+            const isDynamic = dynamicFields.some(df => df.label?.toLowerCase() === spec.name?.toLowerCase());
+            if (!isDynamic && spec.name?.trim()) {
+                if (!/[a-zA-Z0-9]/.test(spec.name)) {
+                    newErrors[`spec_name_${idx}`] = "Attribute cannot consist only of special characters";
+                }
+            }
+        });
+
         if (!formData.price) newErrors.price = "Price is required";
         if (!formData.category) newErrors.category = "Category is required";
         if (!formData.description?.trim()) newErrors.description = "Description is required";
@@ -693,9 +734,10 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                     name="brand"
                                     value={formData.brand}
                                     onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                    className={`w-full px-4 py-2.5 bg-slate-50 border ${errors.brand ? 'border-red-500 bg-red-50' : 'border-gray-200'} focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none`}
                                     placeholder="e.g. Tata Steel"
                                 />
+                                {errors.brand && <p className="text-[10px] text-red-500 font-bold mt-1 ml-1">{errors.brand}</p>}
                             </div>
 
                             <div>
@@ -738,7 +780,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                 <div className="p-1.5 bg-orange-50 text-orange-600 rounded-lg text-sm">
                                     <FiInfo />
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-800">Technical Specifications</h3>
+                                <h3 className="text-lg font-bold text-gray-800">Product Specifications</h3>
                             </div>
                             <button
                                 type="button"
@@ -764,22 +806,36 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                             key={index}
                                             className="flex gap-3 group"
                                         >
-                                            <div className="flex-1 grid grid-cols-2 gap-3 bg-slate-50 p-2.5 rounded-xl border border-gray-100 group-hover:border-orange-100 group-hover:bg-white transition-all">
-                                                <input
-                                                    type="text"
-                                                    value={spec.name}
-                                                    onChange={(e) => updateSpec(index, 'name', e.target.value)}
-                                                    className="bg-transparent border-none focus:ring-0 text-xs font-bold text-gray-700 outline-none"
-                                                    placeholder="Attribute (e.g. Material)"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={spec.value}
-                                                    onChange={(e) => updateSpec(index, 'value', e.target.value)}
-                                                    className="bg-transparent border-none focus:ring-0 text-xs text-gray-600 outline-none"
-                                                    placeholder="Value (e.g. 100% Pure Silk)"
-                                                />
+                                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div className={`bg-slate-50 px-4 py-2 rounded-xl border ${errors[`spec_name_${index}`] ? 'border-red-500 bg-red-50' : 'border-gray-100'} focus-within:border-orange-200 focus-within:bg-white transition-all`}>
+                                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Attribute</label>
+                                                    <input
+                                                        type="text"
+                                                        value={spec.name}
+                                                        onChange={(e) => {
+                                                            updateSpec(index, 'name', e.target.value);
+                                                            if (errors[`spec_name_${index}`]) setErrors(prev => ({ ...prev, [`spec_name_${index}`]: null }));
+                                                        }}
+                                                        className="w-full bg-transparent border-none focus:ring-0 text-xs font-bold text-gray-700 outline-none p-0"
+                                                        placeholder="Material"
+                                                    />
+                                                </div>
+                                                <div className="bg-slate-50 px-4 py-2 rounded-xl border border-gray-100 focus-within:border-orange-200 focus-within:bg-white transition-all">
+                                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Value (Numbers only)</label>
+                                                    <input
+                                                        type="text"
+                                                        value={spec.value}
+                                                        onChange={(e) => updateSpec(index, 'value', e.target.value)}
+                                                        className="w-full bg-transparent border-none focus:ring-0 text-xs text-gray-600 outline-none p-0"
+                                                        placeholder="100"
+                                                    />
+                                                </div>
                                             </div>
+                                            {errors[`spec_name_${index}`] && (
+                                                <div className="col-span-2 text-[10px] text-red-500 font-bold ml-1">
+                                                    {errors[`spec_name_${index}`]}
+                                                </div>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={() => removeSpec(index)}

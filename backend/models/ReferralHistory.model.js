@@ -14,8 +14,14 @@ const referralHistorySchema = new mongoose.Schema(
         },
         referredUserId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'User',
             required: true,
+            refPath: 'referredModel',
+        },
+        referredModel: {
+            type: String,
+            required: true,
+            enum: ['User', 'Vendor'],
+            default: 'User',
         },
         referralCode: {
             type: String,

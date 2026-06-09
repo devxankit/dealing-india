@@ -9,7 +9,7 @@ import notificationService from './notification.service.js';
 import mongoose from 'mongoose';
 import subscriptionService from './subscription.service.js';
 import { geocodeAddress } from '../utils/geocoding.util.js';
-import { ensureReferralCodeForOwner } from './referral.service.js';
+import { ensureReferralCodeForOwner, validateReferralCode } from './referral.service.js';
 import SMSOTP from '../models/SMSOTP.model.js';
 import smsService from './sms.service.js';
 
@@ -36,7 +36,16 @@ export const registerB2BVendor = async (vendorData) => {
       businessType,
       businessTypeRef,
       selectedSubTypes,
+      referralCode,
     } = vendorData;
+
+    const normalizedReferralCode = String(referralCode || '').trim().toUpperCase();
+    if (normalizedReferralCode) {
+        const validReferral = await validateReferralCode(normalizedReferralCode);
+        if (!validReferral) {
+            throw new Error('Invalid referral code');
+        }
+    }
 
     // Validate required fields
     if (!name || !email || !phone || !password || !storeName) {
@@ -140,6 +149,7 @@ export const registerB2BVendor = async (vendorData) => {
       businessTypeRef: businessTypeRef || undefined,
       selectedSubTypes: selectedSubTypes || [],
       agreedToTerms: !!vendorData.agreedToTerms,
+      referredByCode: normalizedReferralCode || undefined,
     };
 
     try {
@@ -205,7 +215,15 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { name, email, phone, password, storeName, storeDescription, address, documents, gstNumber, businessType, businessTypeRef, selectedSubTypes } = vendorData;
+    const { name, email, phone, password, storeName, storeDescription, address, documents, gstNumber, businessType, businessTypeRef, selectedSubTypes, referralCode } = vendorData;
+
+    const normalizedReferralCode = String(referralCode || '').trim().toUpperCase();
+    if (normalizedReferralCode) {
+        const validReferral = await validateReferralCode(normalizedReferralCode);
+        if (!validReferral) {
+            throw new Error('Invalid referral code');
+        }
+    }
 
     // Check existing sub
     let existingSubscription = null;
@@ -246,6 +264,7 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       businessTypeRef: businessTypeRef || undefined,
       selectedSubTypes: selectedSubTypes || [],
       agreedToTerms: !!vendorData.agreedToTerms,
+      referredByCode: normalizedReferralCode || undefined,
     };
 
     const vendor = await Vendor.create([newVendorData], { session });

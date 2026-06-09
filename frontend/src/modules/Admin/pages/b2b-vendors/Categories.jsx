@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiTrash2, FiEdit2, FiX, FiCheck, FiSave } from 'react-icons/fi';
 import api from '../../../../shared/utils/api';
@@ -65,6 +66,20 @@ const B2BCategories = () => {
     useEffect(() => {
         loadCategories();
     }, []);
+
+    useEffect(() => {
+        if (showAddForm || deleteConfirm.show) {
+            document.documentElement.classList.add('no-scroll');
+            document.body.classList.add('no-scroll');
+        } else {
+            document.documentElement.classList.remove('no-scroll');
+            document.body.classList.remove('no-scroll');
+        }
+        return () => {
+            document.documentElement.classList.remove('no-scroll');
+            document.body.classList.remove('no-scroll');
+        };
+    }, [showAddForm, deleteConfirm.show]);
 
     const loadCategories = async () => {
         try {
@@ -317,209 +332,215 @@ const B2BCategories = () => {
             </div>
 
             {/* Modals Container */}
-            <AnimatePresence>
-                {/* Add Category Form Modal */}
-                {showAddForm && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl my-8"
-                        >
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-2xl font-bold text-gray-800">Add New Category</h2>
-                                <button
-                                    onClick={() => {
-                                        setShowAddForm(false);
-                                        setFormData({ categoryName: '', subcategoryName: '' });
-                                        setFields([{ label: "", type: "text", options: [], required: false }]);
-                                    }}
-                                    className="p-2 hover:bg-gray-100 rounded-lg text-gray-400"
-                                >
-                                    <FiX className="text-xl" />
-                                </button>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Category Name <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.categoryName}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, categoryName: e.target.value }))}
-                                        placeholder="e.g., Electronics"
-                                        className="w-full px-4 py-3.5 text-base font-semibold text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-100 shadow-sm"
-                                        autoFocus
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Subcategory Name <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.subcategoryName}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, subcategoryName: e.target.value }))}
-                                        placeholder="e.g., Smart Devices"
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-100 shadow-sm"
-                                    />
-                                </div>
-
-                                {/* Fields Manager in Modal */}
-                                <div className="pt-4 border-t border-gray-100">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <label className="text-sm font-bold text-gray-800">Dynamic Fields</label>
-                                        <button
-                                            type="button"
-                                            onClick={addField}
-                                            className="text-xs text-primary-600 font-bold hover:underline flex items-center gap-1"
-                                        >
-                                            <FiPlus /> Add Field
-                                        </button>
-                                    </div>
-
-                                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2 text-left">
-                                        {fields.map((field, idx) => (
-                                            <div key={idx} className="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-200 relative group">
-                                                <button
-                                                    onClick={() => removeField(idx)}
-                                                    className="absolute top-2 right-2 p-1 text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    <FiX />
-                                                </button>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <input
-                                                        type="text"
-                                                        value={field.label}
-                                                        onChange={(e) => updateField(idx, 'label', e.target.value)}
-                                                        placeholder="Label (e.g. Fabric)"
-                                                        className="px-3 py-2.5 text-sm font-semibold text-gray-900 placeholder:text-gray-400 bg-white border border-gray-200 rounded-lg outline-none focus:border-primary-400"
-                                                    />
-                                                    <select
-                                                        value={field.type}
-                                                        onChange={(e) => updateField(idx, 'type', e.target.value)}
-                                                        className="px-3 py-2.5 text-sm font-semibold text-gray-900 bg-white border border-gray-200 rounded-lg outline-none focus:border-primary-400"
-                                                    >
-                                                        <option value="text">Text</option>
-                                                        <option value="number">Number</option>
-                                                        <option value="select">Select</option>
-                                                        <option value="multi-select">Multi-Select</option>
-                                                    </select>
-                                                </div>
-                                                {(field.type === 'select' || field.type === 'multi-select') && (
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-[10px] text-gray-400 font-bold">Options</span>
-                                                            <button onClick={() => addOption(idx)} className="text-[10px] text-primary-600">+ Add Option</button>
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-1.5">
-                                                            {(field.options || []).map((opt, optIdx) => (
-                                                                <div key={optIdx} className="relative group/opt">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={opt}
-                                                                        onChange={(e) => updateOption(idx, optIdx, e.target.value)}
-                                                                        className="px-2 py-1 text-[10px] bg-white border border-gray-200 rounded w-20 pr-5"
-                                                                        placeholder={`Opt ${optIdx + 1}`}
-                                                                    />
-                                                                    <button
-                                                                        onClick={() => removeOption(idx, optIdx)}
-                                                                        className="absolute right-1 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-600 opacity-0 group-hover/opt:opacity-100 transition-opacity"
-                                                                    >
-                                                                        <FiX size={10} />
-                                                                    </button>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 mt-8">
-                                <button
-                                    onClick={() => {
-                                        setShowAddForm(false);
-                                        setFormData({ categoryName: '', subcategoryName: '' });
-                                        setFields([{ label: "", type: "text", options: [], required: false }]);
-                                    }}
-                                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleAddCategory}
-                                    className="flex-1 px-4 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 shadow-md shadow-primary-200"
-                                >
-                                    Add Category
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-
-                {/* Secure Delete Confirmation Modal */}
-                {deleteConfirm.show && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl border border-red-50"
-                        >
-                            <div className="flex flex-col items-center text-center">
-                                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                                    <FiTrash2 className="text-4xl text-red-500" />
-                                </div>
-                                <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Serious Action Required</h2>
-                                <p className="text-gray-500 mb-8 font-medium">
-                                    You are about to delete <span className="text-red-600 font-bold">"{deleteConfirm.name}"</span>. 
-                                    This action is permanent and will affect all associated products.
-                                </p>
-                                
-                                <div className="w-full text-left space-y-3 mb-8">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2">Type name to confirm</label>
-                                    <input
-                                        type="text"
-                                        value={deleteConfirm.inputName}
-                                        onChange={(e) => setDeleteConfirm(prev => ({ ...prev, inputName: e.target.value }))}
-                                        placeholder={deleteConfirm.name}
-                                        className="w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-red-500 focus:bg-white transition-all outline-none font-bold text-gray-900 shadow-inner dark:placeholder:text-gray-300"
-                                        autoFocus
-                                    />
-                                </div>
-
-                                <div className="flex gap-4 w-full">
+            {createPortal(
+                <AnimatePresence>
+                    {showAddForm && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl my-8"
+                            >
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-2xl font-bold text-gray-800">Add New Category</h2>
                                     <button
-                                        onClick={() => setDeleteConfirm({ show: false, type: null, id: null, name: '', parentId: null, inputName: '' })}
-                                        className="flex-1 px-4 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-colors"
+                                        onClick={() => {
+                                            setShowAddForm(false);
+                                            setFormData({ categoryName: '', subcategoryName: '' });
+                                            setFields([{ label: "", type: "text", options: [], required: false }]);
+                                        }}
+                                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-400"
+                                    >
+                                        <FiX className="text-xl" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Category Name <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.categoryName}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, categoryName: e.target.value }))}
+                                            placeholder="e.g., Electronics"
+                                            className="w-full px-4 py-3.5 text-base font-semibold text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-100 shadow-sm"
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Subcategory Name <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.subcategoryName}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, subcategoryName: e.target.value }))}
+                                            placeholder="e.g., Smart Devices"
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-100 shadow-sm"
+                                        />
+                                    </div>
+
+                                    {/* Fields Manager in Modal */}
+                                    <div className="pt-4 border-t border-gray-100">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <label className="text-sm font-bold text-gray-800">Dynamic Fields</label>
+                                            <button
+                                                type="button"
+                                                onClick={addField}
+                                                className="text-xs text-primary-600 font-bold hover:underline flex items-center gap-1"
+                                            >
+                                                <FiPlus /> Add Field
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-3 max-h-60 overflow-y-auto pr-2 text-left">
+                                            {fields.map((field, idx) => (
+                                                <div key={idx} className="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-200 relative group">
+                                                    <button
+                                                        onClick={() => removeField(idx)}
+                                                        className="absolute top-2 right-2 p-1 text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <FiX />
+                                                    </button>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <input
+                                                            type="text"
+                                                            value={field.label}
+                                                            onChange={(e) => updateField(idx, 'label', e.target.value)}
+                                                            placeholder="Label (e.g. Fabric)"
+                                                            className="px-3 py-2.5 text-sm font-semibold text-gray-900 placeholder:text-gray-400 bg-white border border-gray-200 rounded-lg outline-none focus:border-primary-400"
+                                                        />
+                                                        <select
+                                                            value={field.type}
+                                                            onChange={(e) => updateField(idx, 'type', e.target.value)}
+                                                            className="px-3 py-2.5 text-sm font-semibold text-gray-900 bg-white border border-gray-200 rounded-lg outline-none focus:border-primary-400"
+                                                        >
+                                                            <option value="text">Text</option>
+                                                            <option value="number">Number</option>
+                                                            <option value="select">Select</option>
+                                                            <option value="multi-select">Multi-Select</option>
+                                                        </select>
+                                                    </div>
+                                                    {(field.type === 'select' || field.type === 'multi-select') && (
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[10px] text-gray-400 font-bold">Options</span>
+                                                                <button onClick={() => addOption(idx)} className="text-[10px] text-primary-600">+ Add Option</button>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {(field.options || []).map((opt, optIdx) => (
+                                                                    <div key={optIdx} className="relative group/opt">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={opt}
+                                                                            onChange={(e) => updateOption(idx, optIdx, e.target.value)}
+                                                                            className="px-2 py-1 text-[10px] bg-white border border-gray-200 rounded w-20 pr-5"
+                                                                            placeholder={`Opt ${optIdx + 1}`}
+                                                                        />
+                                                                        <button
+                                                                            onClick={() => removeOption(idx, optIdx)}
+                                                                            className="absolute right-1 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-600 opacity-0 group-hover/opt:opacity-100 transition-opacity"
+                                                                        >
+                                                                            <FiX size={10} />
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 mt-8">
+                                    <button
+                                        onClick={() => {
+                                            setShowAddForm(false);
+                                            setFormData({ categoryName: '', subcategoryName: '' });
+                                            setFields([{ label: "", type: "text", options: [], required: false }]);
+                                        }}
+                                        className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50"
                                     >
                                         Cancel
                                     </button>
                                     <button
-                                        onClick={executeDelete}
-                                        disabled={deleteConfirm.inputName !== deleteConfirm.name || loading}
-                                        className={`flex-1 px-4 py-4 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-lg ${
-                                            deleteConfirm.inputName === deleteConfirm.name 
-                                            ? 'bg-red-600 text-white shadow-red-200 hover:bg-red-700' 
-                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                                        }`}
+                                        onClick={handleAddCategory}
+                                        className="flex-1 px-4 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 shadow-md shadow-primary-200"
                                     >
-                                        {loading ? 'Deleting...' : 'Delete Forever'}
+                                        Add Category
                                     </button>
                                 </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
+
+            {createPortal(
+                <AnimatePresence>
+                    {deleteConfirm.show && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                                className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl border border-red-50"
+                            >
+                                <div className="flex flex-col items-center text-center">
+                                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                                        <FiTrash2 className="text-4xl text-red-500" />
+                                    </div>
+                                    <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Serious Action Required</h2>
+                                    <p className="text-gray-500 mb-8 font-medium">
+                                        You are about to delete <span className="text-red-600 font-bold">"{deleteConfirm.name}"</span>. 
+                                        This action is permanent and will affect all associated products.
+                                    </p>
+                                    
+                                    <div className="w-full text-left space-y-3 mb-8">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2">Type name to confirm</label>
+                                        <input
+                                            type="text"
+                                            value={deleteConfirm.inputName}
+                                            onChange={(e) => setDeleteConfirm(prev => ({ ...prev, inputName: e.target.value }))}
+                                            placeholder={deleteConfirm.name}
+                                            className="w-full px-5 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-red-500 focus:bg-white transition-all outline-none font-bold text-gray-900 shadow-inner dark:placeholder:text-gray-300"
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-4 w-full">
+                                        <button
+                                            onClick={() => setDeleteConfirm({ show: false, type: null, id: null, name: '', parentId: null, inputName: '' })}
+                                            className="flex-1 px-4 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-gray-200 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={executeDelete}
+                                            disabled={deleteConfirm.inputName !== deleteConfirm.name || loading}
+                                            className={`flex-1 px-4 py-4 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-lg ${
+                                                deleteConfirm.inputName === deleteConfirm.name 
+                                                ? 'bg-red-600 text-white shadow-red-200 hover:bg-red-700' 
+                                                : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                                            }`}
+                                        >
+                                            {loading ? 'Deleting...' : 'Delete Forever'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
 
             {/* Loading State */}
             {loading && categories.length === 0 && (

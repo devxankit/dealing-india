@@ -113,6 +113,13 @@ export const useNotificationStore = create((set, get) => ({
         });
     },
 
+    removeNotificationLocally: (id) => {
+        set((state) => ({
+            notifications: state.notifications.filter(n => n._id !== id)
+        }));
+        get().fetchUnreadCount();
+    },
+
     handleNotificationRead: (notificationId) => {
         set((state) => {
             const notif = state.notifications.find(n => n._id === notificationId);

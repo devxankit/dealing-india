@@ -257,6 +257,23 @@ export const verifyOTP = asyncHandler(async (req, res) => {
         } catch (e) {
           console.error('[VerifyOTP] Failed to send admin notification:', e.message);
         }
+
+        // Process referral if registered with one
+        if (updatedProfile.referredByCode) {
+          try {
+            const { processSuccessfulUserReferral } = await import('../services/referral.service.js');
+            await processSuccessfulUserReferral({
+              referredUserId: updatedProfile._id.toString(),
+              referralCode: updatedProfile.referredByCode,
+              referredModel: 'Vendor'
+            });
+            updatedProfile.referredByCode = null;
+            await updatedProfile.save();
+            console.log(`[VerifyOTP] Vendor referral processed successfully for vendor ${updatedProfile._id}`);
+          } catch (referralError) {
+            console.error('[VerifyOTP] Vendor Referral processing skipped/failed:', referralError.message);
+          }
+        }
       }
     }
 

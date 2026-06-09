@@ -190,6 +190,10 @@ const vendorSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    referredByCode: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

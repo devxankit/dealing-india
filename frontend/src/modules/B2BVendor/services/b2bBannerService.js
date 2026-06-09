@@ -34,11 +34,7 @@ export const getVendorBannerBookingDetails = async (bookingId) => {
  * @param {FormData} formData - Booking data including image
  */
 export const createBannerBooking = async (formData) => {
-  const response = await api.post('/vendor/hero-banners/book', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await api.post('/vendor/hero-banners/book', formData);
   return response;
 };
 

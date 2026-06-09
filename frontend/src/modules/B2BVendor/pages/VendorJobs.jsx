@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiMapPin, FiBriefcase, FiX } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiMapPin, FiBriefcase, FiX, FiRefreshCw } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import ConfirmModal from '../../Admin/components/ConfirmModal';
@@ -33,11 +33,44 @@ const VendorJobs = () => {
     const [formData, setFormData] = useState(initialFormState);
     const [editingId, setEditingId] = useState(null);
     const [errors, setErrors] = useState({});
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         fetchStatus();
         fetchJobs();
         fetchCategories();
+    }, []);
+
+    useEffect(() => {
+        let touchStart = 0;
+        const handleTouchStart = (e) => {
+            if (window.scrollY === 0) {
+                touchStart = e.touches[0].clientY;
+            } else {
+                touchStart = 0;
+            }
+        };
+        const handleTouchMove = async (e) => {
+            if (touchStart === 0) return;
+            const touchMove = e.touches[0].clientY;
+            const distance = touchMove - touchStart;
+            if (distance > 150) {
+                touchStart = 0; // Reset
+                toast.loading('Refreshing jobs list...', { id: 'pull-refresh' });
+                try {
+                    await Promise.all([fetchJobs(), refreshStatus()]);
+                    toast.success('Refreshed successfully', { id: 'pull-refresh' });
+                } catch (err) {
+                    toast.error('Failed to refresh', { id: 'pull-refresh' });
+                }
+            }
+        };
+        window.addEventListener('touchstart', handleTouchStart);
+        window.addEventListener('touchmove', handleTouchMove);
+        return () => {
+            window.removeEventListener('touchstart', handleTouchStart);
+            window.removeEventListener('touchmove', handleTouchMove);
+        };
     }, []);
 
     const fetchJobs = async () => {
@@ -67,8 +100,8 @@ const VendorJobs = () => {
 
     const validateForm = () => {
         const newErrors = {};
-        if (!formData.jobTitle.trim() || !/^[a-zA-Z\s]{3,}$/.test(formData.jobTitle)) {
-            newErrors.jobTitle = 'Job title must contain only letters and be at least 3 chars';
+        if (!formData.jobTitle.trim() || !/^[a-zA-Z\s]{3,50}$/.test(formData.jobTitle.trim())) {
+            newErrors.jobTitle = 'Job title must contain only letters/spaces and be 3 to 50 characters';
         }
         if (!formData.category) newErrors.category = 'Category is required';
         if (!formData.subCategory) newErrors.subCategory = 'Sub category is required';
@@ -84,8 +117,8 @@ const VendorJobs = () => {
         if (isNaN(sMin) || sMin < 0) newErrors.salaryMin = 'Valid minimum salary is required';
         if (isNaN(sMax) || sMax <= sMin) newErrors.salaryMax = 'Maximum salary must be greater than minimum';
         
-        if (!formData.city.trim() || !/^[a-zA-Z\s]+$/.test(formData.city)) {
-            newErrors.city = 'City must contain only letters';
+        if (!formData.city.trim() || !/^[a-zA-Z\s]{1,50}$/.test(formData.city.trim())) {
+            newErrors.city = 'City must contain only letters/spaces and be up to 50 characters';
         }
         
         const vCount = parseInt(formData.vacancyCount);
@@ -97,6 +130,7 @@ const VendorJobs = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submitting) return;
         if (!validateForm()) return;
 
         const payload = {
@@ -114,6 +148,7 @@ const VendorJobs = () => {
         };
 
         try {
+            setSubmitting(true);
             if (editingId) {
                 const res = await api.put(`/vendor/jobs/${editingId}`, payload);
                 if (res.success) toast.success('Job updated successfully');
@@ -128,6 +163,8 @@ const VendorJobs = () => {
             fetchJobs();
         } catch (error) {
             toast.error(error.message || 'Failed to save job');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -148,7 +185,6 @@ const VendorJobs = () => {
     };
 
     const openModal = (job = null) => {
-
         if (job) {
             setEditingId(job._id);
             setFormData({
@@ -234,15 +270,15 @@ const VendorJobs = () => {
                                     </div>
                                 )}
                                 
-                                <div className="flex justify-between items-start mb-3">
-                                    <div className={!job.isActive ? 'opacity-60' : ''}>
-                                        <h3 className="font-bold text-slate-800 line-clamp-1">{job.jobTitle}</h3>
-                                        <div className="flex gap-2 mt-1">
+                                <div className="flex justify-between items-start gap-4 mb-3">
+                                    <div className={`min-w-0 flex-1 ${!job.isActive ? 'opacity-60' : ''}`}>
+                                        <h3 className="font-bold text-slate-800 break-words line-clamp-2">{job.jobTitle}</h3>
+                                        <div className="flex flex-wrap gap-2 mt-1">
                                             <span className="text-[10px] font-bold uppercase tracking-widest text-primary-600 bg-primary-50 px-2 py-0.5 rounded-md">{job.category}</span>
                                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">{job.subCategory}</span>
                                         </div>
                                     </div>
-                                    <div className="flex gap-1 transition-opacity">
+                                    <div className="flex gap-1 flex-shrink-0">
                                         <button onClick={() => openModal(job)} className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg"><FiEdit2 size={14}/></button>
                                         <button onClick={() => { setJobToDelete(job._id); setDeleteModalOpen(true); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><FiTrash2 size={14}/></button>
                                     </div>
@@ -278,8 +314,8 @@ const VendorJobs = () => {
             <AnimatePresence>
                 {isModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                        <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="bg-white rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-                            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                        <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="bg-white rounded-[2rem] w-full max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+                            <div className="p-6 pt-7 sm:pt-6 border-b border-slate-100 flex justify-between items-center">
                                 <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{editingId ? 'Edit Job' : 'Post New Job'}</h2>
                                 <button onClick={closeModal} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><FiX size={20}/></button>
                             </div>
@@ -287,7 +323,14 @@ const VendorJobs = () => {
                             <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-5">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Job Title *</label>
-                                    <input type="text" value={formData.jobTitle} onChange={e => setFormData({...formData, jobTitle: e.target.value})} className={`w-full px-4 py-3 rounded-xl border text-sm font-medium outline-none transition-colors ${errors.jobTitle ? 'border-red-300 focus:border-red-500' : 'border-slate-200 focus:border-primary-500'}`} placeholder="e.g. Sales Executive" />
+                                    <input 
+                                        type="text" 
+                                        value={formData.jobTitle} 
+                                        maxLength={50} 
+                                        onChange={e => setFormData({...formData, jobTitle: e.target.value.replace(/[^a-zA-Z\s]/g, '')})} 
+                                        className={`w-full px-4 py-3 rounded-xl border text-sm font-medium outline-none transition-colors ${errors.jobTitle ? 'border-red-300 focus:border-red-500' : 'border-slate-200 focus:border-primary-500'}`} 
+                                        placeholder="e.g. Sales Executive" 
+                                    />
                                     {errors.jobTitle && <p className="text-red-500 text-xs mt-1">{errors.jobTitle}</p>}
                                 </div>
 
@@ -344,7 +387,14 @@ const VendorJobs = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">City *</label>
-                                        <input type="text" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className={`w-full px-4 py-3 rounded-xl border text-sm font-medium outline-none ${errors.city ? 'border-red-300' : 'border-slate-200'}`} placeholder="e.g. Mumbai" />
+                                        <input 
+                                            type="text" 
+                                            value={formData.city} 
+                                            maxLength={50} 
+                                            onChange={e => setFormData({...formData, city: e.target.value.replace(/[^a-zA-Z\s]/g, '')})} 
+                                            className={`w-full px-4 py-3 rounded-xl border text-sm font-medium outline-none ${errors.city ? 'border-red-300' : 'border-slate-200'}`} 
+                                            placeholder="e.g. Mumbai" 
+                                        />
                                         {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
                                     </div>
                                     <div>
@@ -357,8 +407,20 @@ const VendorJobs = () => {
 
                             <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-4">
                                 <button type="button" onClick={closeModal} className="flex-1 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold uppercase tracking-widest hover:bg-slate-50 transition-colors">Cancel</button>
-                                <button type="button" onClick={handleSubmit} className="flex-1 py-3 bg-primary-600 text-white rounded-xl font-black uppercase tracking-widest hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200">
-                                    {editingId ? 'Update Job' : 'Post Job'}
+                                <button 
+                                    type="button" 
+                                    onClick={handleSubmit} 
+                                    disabled={submitting} 
+                                    className="flex-1 py-3 bg-primary-600 text-white rounded-xl font-black uppercase tracking-widest hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {submitting ? (
+                                        <>
+                                            <FiRefreshCw className="animate-spin" />
+                                            {editingId ? 'Updating...' : 'Posting...'}
+                                        </>
+                                    ) : (
+                                        editingId ? 'Update Job' : 'Post Job'
+                                    )}
                                 </button>
                             </div>
                         </motion.div>

@@ -42,13 +42,13 @@ const Followers = () => {
 
     return (
         <div className="p-4 md:p-8 space-y-8">
-            <div className="flex justify-end">
-                <div className="relative">
+            <div className="flex justify-end w-full">
+                <div className="relative w-full md:w-80">
                     <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input 
                         type="text" 
                         placeholder="Search followers..."
-                        className="pl-12 pr-6 py-3 bg-white border border-gray-200 rounded-2xl w-full md:w-80 outline-none focus:border-primary-500 transition-all font-medium text-sm shadow-sm"
+                        className="pl-12 pr-6 py-3 bg-white border border-gray-200 rounded-2xl w-full outline-none focus:border-primary-500 transition-all font-medium text-sm shadow-sm"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />

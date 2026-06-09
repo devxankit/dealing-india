@@ -118,7 +118,22 @@ export default function UploadReel() {
       .map(cat => cat.name);
 
     const extra = ['Flat Properties', 'Villa / Row house Properties', 'Commercial Properties'];
-    const merged = [...subNames, ...catNames, ...extra];
+    
+    // Check vendor's business types to filter categories
+    const vendorTypes = vendor?.businessTypes?.map(b => typeof b === 'string' ? b : b.name) || [];
+    if (vendor?.businessType) vendorTypes.push(vendor.businessType);
+    
+    const isRealEstate = vendorTypes.some(t => t?.toLowerCase().includes('real estate') || t?.toLowerCase().includes('property'));
+    const isTextile = vendorTypes.length === 0 || vendorTypes.some(t => t?.toLowerCase().includes('textile') || t?.toLowerCase().includes('b2b'));
+
+    let merged = [];
+    if (isRealEstate && !isTextile) {
+      merged = [...extra];
+    } else if (isTextile && !isRealEstate) {
+      merged = [...subNames, ...catNames];
+    } else {
+      merged = [...subNames, ...catNames, ...extra];
+    }
 
     const unique = Array.from(
       new Map(
@@ -130,7 +145,7 @@ export default function UploadReel() {
     );
 
     return unique.sort((a, b) => a.localeCompare(b));
-  }, [allCategories]);
+  }, [allCategories, vendor]);
 
   const filteredPlaylistCategories = useMemo(() => {
     if (!categorySearchQuery.trim()) return playlistCategories;

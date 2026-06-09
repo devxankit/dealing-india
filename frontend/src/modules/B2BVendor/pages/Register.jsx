@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiMapPin, FiBriefcase, FiUpload, FiFile, FiX, FiCheck, FiPlus, FiArrowLeft, FiCamera } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiMapPin, FiBriefcase, FiUpload, FiFile, FiX, FiCheck, FiPlus, FiArrowLeft, FiCamera, FiTag } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import imageCompression from 'browser-image-compression';
@@ -74,6 +74,7 @@ const B2BVendorRegister = () => {
                 country: 'India',
                 mapUrl: '',
             },
+            referralCode: new URLSearchParams(location.search).get('ref') || '',
             agreedToTerms: false,
         };
 
@@ -161,7 +162,7 @@ const B2BVendorRegister = () => {
             if (buyerToken) {
                 const fetchBuyerProfile = async () => {
                     try {
-                        const response = await api.get('/auth/user/me');
+                        const response = await api.get('/auth/user/me', { silent: true });
                         if (response.success && response.data?.user) {
                             const buyer = response.data.user;
                             setFormData(prev => ({
@@ -489,7 +490,8 @@ const B2BVendorRegister = () => {
                     panCard: panCard ? { data: panCard.data, name: panCard.name, type: panCard.type } : {},
                     businessLicense: businessLicense ? { data: businessLicense.data, name: businessLicense.name, type: businessLicense.type } : {}
                 },
-                agreedToTerms: formData.agreedToTerms
+                agreedToTerms: formData.agreedToTerms,
+                referralCode: formData.referralCode
             };
 
             const response = await api.post('/auth/vendor/register', registrationData);
@@ -882,6 +884,27 @@ const B2BVendorRegister = () => {
                                 </div>
                                 {errors.confirmPassword && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors.confirmPassword}</p>}
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Referral Code (Optional) */}
+                    <div className="bg-white/50 p-4 rounded-xl border border-gray-100 shadow-sm">
+                        <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-pink-100 flex items-center justify-center">
+                                <FiTag className="text-pink-600 size-4" />
+                            </div>
+                            Referral (Optional)
+                        </h3>
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Referral Code</label>
+                            <input
+                                type="text"
+                                name="referralCode"
+                                value={formData.referralCode}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm"
+                                placeholder="Enter Referral Code"
+                            />
                         </div>
                     </div>
 

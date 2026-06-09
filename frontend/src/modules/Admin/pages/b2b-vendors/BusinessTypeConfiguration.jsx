@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { FiEdit2, FiSave, FiCheckCircle, FiXCircle, FiSettings, FiActivity, FiPlus, FiTrash2 } from "react-icons/fi";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { getAddonPlans } from "../../../../shared/utils/b2bAddonManager";
 import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api";
@@ -33,6 +34,20 @@ const BusinessTypeConfiguration = () => {
             fetchedRef.current = true;
         }
     }, []);
+
+    useEffect(() => {
+        if (editingSettings || isAddingNew) {
+            document.documentElement.classList.add('no-scroll');
+            document.body.classList.add('no-scroll');
+        } else {
+            document.documentElement.classList.remove('no-scroll');
+            document.body.classList.remove('no-scroll');
+        }
+        return () => {
+            document.documentElement.classList.remove('no-scroll');
+            document.body.classList.remove('no-scroll');
+        };
+    }, [editingSettings, isAddingNew]);
 
     const fetchPlans = async () => {
         try {
@@ -70,9 +85,29 @@ const BusinessTypeConfiguration = () => {
     };
 
     const handleCreate = async () => {
-        if (!newType.name) return toast.error('Name is required');
+        const nameStr = newType.name.trim();
+        const descStr = newType.description.trim();
+
+        if (!nameStr) return toast.error('Name is required and cannot be only spaces');
+        
+        if (/^\d+$/.test(nameStr)) return toast.error('Name cannot be only numbers');
+        if (!/[a-zA-Z]/.test(nameStr)) return toast.error('Name must contain letters');
+        
+        const hasHTML = /<[^>]*>?/gm;
+        if (hasHTML.test(nameStr) || hasHTML.test(descStr)) {
+            return toast.error('HTML tags are not allowed');
+        }
+
+        if (nameStr.length > 50) return toast.error('Name must be 50 characters or less');
+        if (descStr.length > 200) return toast.error('Description must be 200 characters or less');
+
         try {
-            const response = await api.post('/business-types/admin', newType);
+            const payload = {
+                ...newType,
+                name: nameStr,
+                description: descStr
+            };
+            const response = await api.post('/business-types/admin', payload);
             if (response.success) {
                 toast.success('Business category created');
                 setIsAddingNew(false);
@@ -321,10 +356,10 @@ const BusinessTypeConfiguration = () => {
                             </div>
                         </div>
 
-                        <h3 className="text-xl font-bold text-slate-800 mb-1">
+                        <h3 className="text-xl font-bold text-slate-800 mb-1 break-all line-clamp-2" title={settings.businessTypeId?.name}>
                             {settings.businessTypeId?.name?.toUpperCase() === 'TAXTILE' ? 'TEXTILE' : settings.businessTypeId?.name}
                         </h3>
-                        <p className="text-sm text-gray-500 mb-4">{settings.businessTypeId?.description}</p>
+                        <p className="text-sm text-gray-500 mb-4 break-all line-clamp-3" title={settings.businessTypeId?.description}>{settings.businessTypeId?.description}</p>
 
                         <div className="space-y-4">
                             <div>
@@ -424,155 +459,164 @@ const BusinessTypeConfiguration = () => {
             </div>
 
             {/* Add New Business Type Modal */}
-            {isAddingNew && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                    <motion.div
-                        initial={{ opacity: 0, y: 100 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-white rounded-[2.5rem] w-full max-w-xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col"
-                    >
-                        {/* Header */}
-                        <div className="p-8 pb-4 border-b border-slate-50 flex items-center justify-between bg-white">
-                            <div>
-                                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
-                                    Add New Business Type
-                                </h2>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                                    Create a new business category
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    setIsAddingNew(false);
-                                    setNewType({ name: '', description: '' });
-                                }}
-                                className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full transition-all"
+            {createPortal(
+                <AnimatePresence>
+                    {isAddingNew && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                            <motion.div
+                                initial={{ opacity: 0, y: 100 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 100 }}
+                                className="bg-white rounded-[2.5rem] w-full max-w-xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col"
                             >
-                                <FiXCircle size={24} />
-                            </button>
-                        </div>
-
-                        {/* Body */}
-                        <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-6 custom-scrollbar">
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                                        Business Type Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={newType.name}
-                                        onChange={(e) => setNewType({ ...newType, name: e.target.value })}
-                                        placeholder="e.g. Textile Manufacturer"
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
-                                    />
+                                {/* Header */}
+                                <div className="p-8 pb-4 border-b border-slate-50 flex items-center justify-between bg-white">
+                                    <div>
+                                        <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
+                                            Add New Business Type
+                                        </h2>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                            Create a new business category
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setIsAddingNew(false);
+                                            setNewType({ name: '', description: '' });
+                                        }}
+                                        className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full transition-all"
+                                    >
+                                        <FiXCircle size={24} />
+                                    </button>
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                                        Description (optional)
-                                    </label>
-                                    <textarea
-                                        rows={3}
-                                        value={newType.description}
-                                        onChange={(e) => setNewType({ ...newType, description: e.target.value })}
-                                        placeholder="Short description to help admins understand this category."
-                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 resize-none"
-                                    />
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Footer */}
-                        <div className="p-8 pt-4 border-t border-slate-50 bg-slate-50/50">
-                            <button
-                                onClick={handleCreate}
-                                className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center gap-3"
-                            >
-                                <FiSave /> Save Business Type
-                            </button>
+                                {/* Body */}
+                                <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-6 custom-scrollbar">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                                                Business Type Name
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={newType.name}
+                                                onChange={(e) => setNewType({ ...newType, name: e.target.value })}
+                                                placeholder="e.g. Textile Manufacturer"
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                                                Description (optional)
+                                            </label>
+                                            <textarea
+                                                rows={3}
+                                                value={newType.description}
+                                                onChange={(e) => setNewType({ ...newType, description: e.target.value })}
+                                                placeholder="Short description to help admins understand this category."
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 resize-none"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Footer */}
+                                <div className="p-8 pt-4 border-t border-slate-50 bg-slate-50/50">
+                                    <button
+                                        onClick={handleCreate}
+                                        className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center gap-3"
+                                    >
+                                        <FiSave /> Save Business Type
+                                    </button>
+                                </div>
+                            </motion.div>
                         </div>
-                    </motion.div>
-                </div>
+                    )}
+                </AnimatePresence>,
+                document.body
             )}
 
             {/* Edit Modal */}
-            {editingSettings && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                    <motion.div
-                        initial={{ opacity: 0, y: 100 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col"
-                    >
-                        {/* Header - Fixed */}
-                        <div className="p-8 pb-4 border-b border-slate-50 flex items-center justify-between bg-white z-10">
-                            <div>
-                                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
-                                    Configure {editingSettings.businessTypeId?.name?.toUpperCase() === 'TAXTILE' ? 'TEXTILE' : editingSettings.businessTypeId?.name}
-                                </h2>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Vendor Panel Settings</p>
-                            </div>
-                            <button
-                                onClick={() => setEditingSettings(null)}
-                                className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full transition-all"
+            {createPortal(
+                <AnimatePresence>
+                    {editingSettings && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                            <motion.div
+                                initial={{ opacity: 0, y: 100 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 100 }}
+                                className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col"
                             >
-                                <FiXCircle size={24} />
-                            </button>
-                        </div>
-
-                        {/* Body - Scrollable */}
-                        <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
-                            {/* Business Type Info (Name & Description) */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
-                                    Business Type Details
-                                </label>
-                                <div className="space-y-4">
+                                {/* Header - Fixed */}
+                                <div className="p-8 pb-4 border-b border-slate-50 flex items-center justify-between bg-white z-10">
                                     <div>
-                                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">
-                                            Name
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={editingSettings.businessTypeId?.name || ''}
-                                            onChange={(e) => {
-                                                const current = editingSettings.businessTypeId || {};
-                                                setEditingSettings({
-                                                    ...editingSettings,
-                                                    businessTypeId: { ...current, name: e.target.value }
-                                                });
-                                            }}
-                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
-                                        />
+                                        <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
+                                            Configure {editingSettings.businessTypeId?.name?.toUpperCase() === 'TAXTILE' ? 'TEXTILE' : editingSettings.businessTypeId?.name}
+                                        </h2>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Vendor Panel Settings</p>
                                     </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">
-                                            Description
-                                        </label>
-                                        <textarea
-                                            rows={3}
-                                            value={editingSettings.businessTypeId?.description || ''}
-                                            onChange={(e) => {
-                                                const current = editingSettings.businessTypeId || {};
-                                                setEditingSettings({
-                                                    ...editingSettings,
-                                                    businessTypeId: { ...current, description: e.target.value }
-                                                });
-                                            }}
-                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 resize-none"
-                                        />
-                                    </div>
+                                    <button
+                                        onClick={() => setEditingSettings(null)}
+                                        className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full transition-all"
+                                    >
+                                        <FiXCircle size={24} />
+                                    </button>
                                 </div>
-                            </div>
 
-                            {/* Modules Selection */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Enabled Modules</label>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {['product', 'property', 'shop-listing', 'lotslot', 'jobs', 'subscription', 'banner', 'notifications', 'profile', 'settings'].map(module => (
-                                        <button
-                                            key={module}
-                                            onClick={() => toggleModule(module)}
-                                            className={`px-4 py-3 rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-between ${editingSettings.enabledModules?.includes(module)
+                                {/* Body - Scrollable */}
+                                <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
+                                    {/* Business Type Info (Name & Description) */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
+                                            Business Type Details
+                                        </label>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                                                    Name
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={editingSettings.businessTypeId?.name || ''}
+                                                    onChange={(e) => {
+                                                        const current = editingSettings.businessTypeId || {};
+                                                        setEditingSettings({
+                                                            ...editingSettings,
+                                                            businessTypeId: { ...current, name: e.target.value }
+                                                        });
+                                                    }}
+                                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                                                    Description
+                                                </label>
+                                                <textarea
+                                                    rows={3}
+                                                    value={editingSettings.businessTypeId?.description || ''}
+                                                    onChange={(e) => {
+                                                        const current = editingSettings.businessTypeId || {};
+                                                        setEditingSettings({
+                                                            ...editingSettings,
+                                                            businessTypeId: { ...current, description: e.target.value }
+                                                        });
+                                                    }}
+                                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 resize-none"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Modules Selection */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Enabled Modules</label>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                            {['product', 'property', 'shop-listing', 'lotslot', 'jobs', 'subscription', 'banner', 'notifications', 'profile', 'settings'].map(module => (
+                                                <button
+                                                    key={module}
+                                                    onClick={() => toggleModule(module)}
+                                                    className={`px-4 py-3 rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-between ${editingSettings.enabledModules?.includes(module)
                                                 ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
                                                 : 'bg-slate-50 text-slate-400 border border-slate-100 hover:border-primary-300'
                                                 }`}
@@ -814,7 +858,10 @@ const BusinessTypeConfiguration = () => {
                             </button>
                         </div>
                     </motion.div>
-                </div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
             )}
         </motion.div>
     );

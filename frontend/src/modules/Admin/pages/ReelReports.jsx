@@ -274,7 +274,7 @@ export default function ReelReports() {
                   <button
                     disabled={isProcessing}
                     onClick={() => handleResolve(selectedReport._id, 'dismiss')}
-                    className="py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl font-bold transition-all flex items-center justify-center gap-2"
+                    className="py-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-800 text-slate-300 rounded-2xl font-bold transition-all flex items-center justify-center gap-2"
                   >
                     {isProcessing ? <div className="w-4 h-4 border-2 border-slate-600 border-t-white rounded-full animate-spin" /> : <FiTrash2 />}
                     Dismiss Report
@@ -282,7 +282,7 @@ export default function ReelReports() {
                   <button
                     disabled={isProcessing}
                     onClick={() => handleResolve(selectedReport._id, 'delete')}
-                    className="py-4 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-bold shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2"
+                    className="py-4 bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600 text-white rounded-2xl font-bold shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2"
                   >
                     {isProcessing ? <div className="w-4 h-4 border-2 border-red-400 border-t-white rounded-full animate-spin" /> : <FiTrash2 />}
                     Delete Reel

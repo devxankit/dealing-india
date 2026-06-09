@@ -1026,6 +1026,41 @@ class SubscriptionService {
     }
   }
 
+  async cancelB2BSubscription(subscriptionId, vendorId = null) {
+    try {
+      const query = { _id: subscriptionId };
+      if (vendorId) query.vendorId = vendorId;
+
+      const sub = await VendorSubscription.findOne(query);
+      if (!sub) throw new Error('Subscription not found to cancel.');
+
+      sub.status = 'cancelled';
+      sub.autoRenew = false;
+      sub.cancellationDate = new Date();
+
+      // Stop Razorpay auto-pay
+      if (sub.razorpaySubscriptionId) {
+        try {
+          await razorpayService.cancelSubscription(sub.razorpaySubscriptionId);
+        } catch (err) {
+          console.error('[CancelB2B] Razorpay cancellation failed:', err.message);
+        }
+      }
+
+      sub.auditLogs.push({
+        action: 'vendor_cancelled_subscription',
+        timestamp: new Date(),
+        details: { message: 'Vendor cancelled subscription from panel' }
+      });
+
+      await sub.save();
+      return sub;
+    } catch (error) {
+      console.error('B2B Cancel error:', error);
+      throw error;
+    }
+  }
+
   async updateAutoRenewal(vendorId, autoRenew) {
     const sub = await VendorSubscription.findOne({ vendorId, status: 'active' });
     if (!sub) throw new Error('No active subscription');

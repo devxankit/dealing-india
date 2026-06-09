@@ -665,7 +665,7 @@ class SubscriptionRulesService {
             // Check if admin hasn't configured any plans for this business type
             const shopCheck = await this.canListShop(vendorId);
 
-        const hasAddons = (addonStats.products.total + addonStats.reels.total + addonStats.lot_slot.total + addonStats.property.total) > 0;
+        const hasAddons = (addonStats.products.total + addonStats.reels.total + addonStats.lot_slot.total + addonStats.property.total + addonStats.jobs.total) > 0;
 
         const productUsage = calculateFeatureUsage(0, productCount, addonStats.products);
         const lotSlotUsage = calculateFeatureUsage(0, lotSlotCount, addonStats.lot_slot);
