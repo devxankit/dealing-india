@@ -15,8 +15,8 @@ export const useDashboardStore = create((set, get) => ({
         // Skip if already loading
         if (state.loading) return state.data;
 
-        // Cache for 5 minutes
-        const CACHE_DURATION = 5 * 60 * 1000;
+        // Cache for 10 seconds
+        const CACHE_DURATION = 10 * 1000;
         if (!force && state.lastFetched && (Date.now() - state.lastFetched) < CACHE_DURATION) {
             return state.data;
         }

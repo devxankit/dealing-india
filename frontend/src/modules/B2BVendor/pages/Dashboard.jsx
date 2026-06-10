@@ -202,10 +202,11 @@ const B2BVendorDashboard = () => {
                 SECTION 2: COMMON OVERVIEW CARDS (STATS)
             ------------------------------------------ */}
             {config.widgets.includes('stats') && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
                     {[
                         { label: 'Total Call Inquiries', value: dashboard.overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50', analyticsType: 'call' },
                         { label: 'Total WhatsApp Clicks', value: dashboard.overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50', analyticsType: 'whatsapp' },
+                        { label: 'Total Map Clicks', value: dashboard.overview.mapClicks, icon: FiMapPin, color: 'text-orange-600', bg: 'bg-orange-50', analyticsType: 'map' },
                         { label: 'Wallet Balance', value: `₹${dashboard.walletBalance.toLocaleString('en-IN')}`, icon: FiCreditCard, color: 'text-blue-600', bg: 'bg-blue-50', action: () => navigate('/b2b-vendor/wallet') },
                     ].map((stat, i) => (
                         <button

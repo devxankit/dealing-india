@@ -32,14 +32,15 @@ const B2BLanding = () => {
 
     // Navigation helper: requires login for any navigation from landing page (except login/register)
     const navigateWithAuth = (path) => {
-        // Allow navigation to login/register without auth check
-        if (path === '/b2b/login' || path === '/b2b/register' || path === '/b2b-vendor/register' || path === '/b2b-vendor/login') {
-            navigate(path);
-            return;
-        }
+        const protectedPaths = [
+            '/b2b/profile',
+            '/b2b/cart',
+            '/b2b/real-estate/property/'
+        ];
 
-        // For all other routes, require authentication
-        if (!isAuthenticated) {
+        const isProtected = protectedPaths.some(p => path.startsWith(p));
+
+        if (isProtected && !isAuthenticated) {
             navigate('/b2b/login', { state: { from: { pathname: path } } });
             return;
         }
@@ -342,11 +343,6 @@ const B2BLanding = () => {
     };
 
     const handleSearchProductPopup = async (queryOrProduct) => {
-        if (!isAuthenticated) {
-            navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
-            return;
-        }
-
         const searchTerm = typeof queryOrProduct === 'string' ? queryOrProduct : queryOrProduct.text;
         const isStoreSuggestion = typeof queryOrProduct !== 'string' && queryOrProduct.type === 'store';
         const isPropertySuggestion = typeof queryOrProduct !== 'string' && queryOrProduct.type === 'property';

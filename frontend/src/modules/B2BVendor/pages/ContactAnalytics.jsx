@@ -310,7 +310,7 @@ const B2BVendorContactAnalytics = ({ mode = "vendor" }) => {
                         </div>
                     </div>
 
-                    <div className="inline-flex rounded-full bg-slate-100 p-1">
+                    <div className="inline-flex flex-wrap rounded-xl sm:rounded-full bg-slate-100 p-1 gap-1">
                         {Object.entries(CLICK_TYPES).map(([key, meta]) => {
                             const ActiveIcon = meta.icon;
                             const isActive = clickType === key;

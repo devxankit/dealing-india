@@ -36,14 +36,14 @@ const B2BVendorReferral = () => {
         if (!referralData?.referralCode) return;
         await handleShare({
             title: "Join Dealing India",
-            text: `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`
+            text: `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia`
         });
     };
 
     const copyReferralLink = async () => {
         if (!referralData?.referralCode) return;
         try {
-            const shareText = `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`;
+            const shareText = `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia`;
             await navigator.clipboard.writeText(shareText);
             toast.success("Referral info copied");
         } catch (error) {
@@ -151,9 +151,9 @@ const B2BVendorReferral = () => {
                         <div className="space-y-4">
                              <div>
                                 <p className="text-xs font-bold text-slate-500 uppercase mb-2">Referral Code</p>
-                                <div className="bg-slate-900 border border-slate-700 p-4 rounded-xl text-center">
-                                    <span className="text-2xl font-black text-primary-500 tracking-widest">{referralData?.referralCode || "----"}</span>
-                                </div>
+                                 <div className="bg-slate-900 border border-slate-700 p-4 rounded-xl text-center">
+                                     <span className="text-2xl font-black text-primary-500 tracking-widest break-words whitespace-normal">{referralData?.referralCode || "----"}</span>
+                                 </div>
                              </div>
                              
                              {!referralData?.milestoneUnlocked && (

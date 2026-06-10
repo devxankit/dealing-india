@@ -503,44 +503,24 @@ const AppRoutes = () => {
         <Route path="/b2b/landing" element={<B2BLanding />} />
         <Route
           path="/b2b/reels"
-          element={
-            <ProtectedRoute>
-              <ReelFeed />
-            </ProtectedRoute>
-          }
+          element={<ReelFeed />}
         />
         <Route
           path="/b2b/reels/:reelId"
-          element={
-            <ProtectedRoute>
-              <ReelFeed />
-            </ProtectedRoute>
-          }
+          element={<ReelFeed />}
         />
         <Route
           path="/b2b/catalog"
-          element={
-            <ProtectedRoute>
-              <B2BProductCatalog />
-            </ProtectedRoute>
-          }
+          element={<B2BProductCatalog />}
         />
         <Route
           path="/b2b/jobs"
-          element={
-            <ProtectedRoute>
-              <JobsPage />
-            </ProtectedRoute>
-          }
+          element={<JobsPage />}
         />
         <Route path="/b2b/real-estate">
           <Route
             index
-            element={
-              <ProtectedRoute>
-                <RealEstate />
-              </ProtectedRoute>
-            }
+            element={<RealEstate />}
           />
           <Route
             path="developers"
@@ -550,7 +530,14 @@ const AppRoutes = () => {
             path="brokers"
             element={<Navigate to="/b2b/real-estate" replace />}
           />
-          <Route path="property/:id" element={<PropertyDetail />} />
+          <Route
+            path="property/:id"
+            element={
+              <ProtectedRoute>
+                <PropertyDetail />
+              </ProtectedRoute>
+            }
+          />
         </Route>
         <Route
           path="/b2b/vendor/property-upload"
@@ -612,27 +599,15 @@ const AppRoutes = () => {
         />
         <Route
           path="/b2b/how-to-use"
-          element={
-            <ProtectedRoute>
-              <B2BHowToUse />
-            </ProtectedRoute>
-          }
+          element={<B2BHowToUse />}
         />
         <Route
           path="/b2b/product/:id"
-          element={
-            <ProtectedRoute>
-              <B2BProductDetail />
-            </ProtectedRoute>
-          }
+          element={<B2BProductDetail />}
         />
         <Route
           path="/b2b/vendor/:id"
-          element={
-            <ProtectedRoute>
-              <B2BVendorStore />
-            </ProtectedRoute>
-          }
+          element={<B2BVendorStore />}
         />
 
         {/* B2B Vendor Routes */}

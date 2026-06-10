@@ -10,9 +10,9 @@ const B2BBottomNav = () => {
 
     const navItems = [
         { icon: FiHome, label: 'Home', path: '/b2b/landing', requireAuth: false },
-        { icon: FiVideo, label: 'Reels', path: '/b2b/reels', requireAuth: true },
-        { icon: FiGrid, label: 'Browse', path: '/b2b/catalog?open=categories', requireAuth: true },
-        { icon: FiBriefcase, label: 'Business', path: '/b2b/catalog?open=business', requireAuth: true },
+        { icon: FiVideo, label: 'Reels', path: '/b2b/reels', requireAuth: false },
+        { icon: FiGrid, label: 'Browse', path: '/b2b/catalog?open=categories', requireAuth: false },
+        { icon: FiBriefcase, label: 'Business', path: '/b2b/catalog?open=business', requireAuth: false },
         { icon: FiUser, label: 'Profile', path: '/b2b/profile', requireAuth: true },
     ];
 

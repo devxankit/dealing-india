@@ -1023,6 +1023,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                             key={index}
                                             className="flex gap-3 group"
                                         >
+                                            <div className="flex-1 grid grid-cols-2 gap-3">
                                                 <div className={`bg-slate-50 px-4 py-2 rounded-xl border ${errors[`spec_name_${index}`] ? 'border-red-500 bg-red-50' : 'border-gray-100'} focus-within:border-orange-200 focus-within:bg-white transition-all`}>
                                                     <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Attribute</label>
                                                     <input
@@ -1046,12 +1047,12 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                                         placeholder="100"
                                                     />
                                                 </div>
+                                                {errors[`spec_name_${index}`] && (
+                                                    <div className="col-span-2 text-[10px] text-red-500 font-bold ml-1">
+                                                        {errors[`spec_name_${index}`]}
+                                                    </div>
+                                                )}
                                             </div>
-                                            {errors[`spec_name_${index}`] && (
-                                                <div className="col-span-2 text-[10px] text-red-500 font-bold ml-1">
-                                                    {errors[`spec_name_${index}`]}
-                                                </div>
-                                            )}
                                             <button
                                                 type="button"
                                                 onClick={() => removeSpec(index)}

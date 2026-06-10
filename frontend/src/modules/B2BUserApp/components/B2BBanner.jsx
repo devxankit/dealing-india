@@ -22,7 +22,7 @@ const B2BBanner = () => {
 
                 if (response.success && response.data) {
                     const bannerData = response.data.banners || [];
-                    
+
                     // Transform API data to component format
 
                     const transformedBanners = bannerData.map(banner => {
@@ -89,8 +89,8 @@ const B2BBanner = () => {
         if (banner.vendorId) {
             navigate(`/b2b/vendor/${banner.vendorId}`);
             return;
-        } 
-        
+        }
+
         // Priority 2: Use specific link if provided
         if (banner.link && banner.link !== '#' && banner.link !== '' && banner.link !== '/') {
             if (banner.link.startsWith('http')) {
@@ -126,7 +126,7 @@ const B2BBanner = () => {
                     ref={containerRef}
                     className="group relative w-full overflow-hidden rounded-xl"
                     style={{
-                        aspectRatio: "5/1",
+                        aspectRatio: "3/1",
                     }}>
                     <motion.div
                         className="flex h-full"
