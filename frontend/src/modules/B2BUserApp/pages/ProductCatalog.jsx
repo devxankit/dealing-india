@@ -192,32 +192,25 @@ const ProductCatalog = () => {
     const openParam = searchParams.get("open");
     if (!openParam) return;
 
+    // Immediately remove the param so this effect doesn't re-fire
     const newParams = new URLSearchParams(searchParams);
-    let handled = false;
+    newParams.delete("open");
+    setSearchParams(newParams, { replace: true });
 
     if (openParam === "categories") {
       setIsBusinessTypeDropdownOpen(false);
       setIsCityDropdownOpen(false);
       setIsMobileFilterOpen(false);
-      if (selectedCategory && selectedCategory !== "All") {
-        setExpandedCategory(selectedCategory);
-        setShowMobileSubcategoryCard(true);
-      } else {
-        setIsMainCategoryDropdownOpen(true);
-      }
-      handled = true;
+      setIsMainCategoryDropdownOpen(true);
     } else if (openParam === "business" && businessTypes?.length > 0) {
       setIsMainCategoryDropdownOpen(false);
       setIsCityDropdownOpen(false);
       setIsMobileFilterOpen(false);
       setShowMobileSubcategoryCard(false);
       setIsBusinessTypeDropdownOpen(true);
-      handled = true;
     }
+  }, [searchParams, businessTypes?.length]);
 
-    // We keep the param so the BottomNav stays active while the overlay is open
-    // It will be cleared when the overlay is closed manually
-  }, [searchParams, selectedCategory, businessTypes?.length]);
 
   useEffect(() => {
     if (!reelCategoryForFilter) {
@@ -1743,10 +1736,9 @@ const ProductCatalog = () => {
         setSelectedCategory(categoryName);
         setSelectedSubcategory(null); // Reset subcategory when switching main category
         
-        // On mobile, close the category list to show products immediately
+        // On mobile, we DO NOT close the category list, to allow the accordion to show.
         if (typeof window !== "undefined" && window.innerWidth < 1024) {
           setShowMobileSubcategoryCard(false);
-          closeMobileOverlays();
         }
       }
     } else {
@@ -2289,13 +2281,8 @@ const ProductCatalog = () => {
           <button
             onClick={() => {
               if (selectedCategory && selectedCategory !== "All") {
-                setShowMobileSubcategoryCard(!showMobileSubcategoryCard);
                 setExpandedCategory(selectedCategory);
-                // Ensure other overlays are closed
-                setIsMainCategoryDropdownOpen(false);
-                setIsBusinessTypeDropdownOpen(false);
-                setIsCityDropdownOpen(false);
-                setIsMobileFilterOpen(false);
+                openOverlay('categories');
               } else {
                 openOverlay('categories');
               }
@@ -2456,7 +2443,7 @@ const ProductCatalog = () => {
                                 className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${selectedSubcategory === (typeof sub === "string" ? sub : sub?.name) ? "bg-primary-600 text-white border-primary-600" : "bg-white text-gray-700 border-gray-200"}`}
                                 onClick={() => {
                                   handleSubcategoryClick(typeof sub === "string" ? sub : sub?.name, cat.name);
-                                  setIsMainCategoryDropdownOpen(false);
+                                  closeMobileOverlays();
                                 }}>
                                 {typeof sub === "string" ? sub : sub?.name}
                               </button>
