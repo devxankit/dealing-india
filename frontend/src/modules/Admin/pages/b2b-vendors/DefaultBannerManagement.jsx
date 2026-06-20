@@ -38,8 +38,8 @@ const DefaultBannerManagement = () => {
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            if (file.size > 400 * 1024) {
-                toast.error("Image size should be less than 400KB. Ideal size 250-400KB.");
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error("Image size should be less than 5MB.");
                 return;
             }
 
@@ -157,7 +157,7 @@ const DefaultBannerManagement = () => {
                             key={banner._id}
                             className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-xl transition-all duration-300"
                         >
-                            <div className="relative aspect-[3/1] bg-gray-100">
+                            <div className="relative aspect-[8/3] bg-gray-100">
                                 <img
                                     src={banner.image}
                                     alt={banner.title}
@@ -212,10 +212,10 @@ const DefaultBannerManagement = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Banner Image (3:1 recommended)</label>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Banner Image (16:6 or 8:3 recommended)</label>
                                     <div
                                         onClick={() => document.getElementById('banner-file').click()}
-                                        className={`relative w-full aspect-[3/1] rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden ${previewUrl ? 'border-primary-500' : 'border-gray-200 hover:border-primary-400 bg-gray-50'
+                                        className={`relative w-full aspect-[8/3] rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden ${previewUrl ? 'border-primary-500' : 'border-gray-200 hover:border-primary-400 bg-gray-50'
                                             }`}
                                     >
                                         {previewUrl ? (
