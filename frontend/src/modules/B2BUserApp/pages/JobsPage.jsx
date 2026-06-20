@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { FiSearch, FiMapPin, FiBriefcase, FiPhone, FiInfo, FiChevronLeft } from 'react-icons/fi';
+import { FiSearch, FiMapPin, FiBriefcase, FiPhone, FiInfo, FiChevronLeft, FiExternalLink } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../shared/utils/api';
@@ -308,19 +308,25 @@ const JobsPage = () => {
                                             className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm hover:shadow-xl transition-all group flex flex-col"
                                         >
                                             <div className="flex justify-between items-start mb-4">
-                                                <div>
+                                                <div className="flex-1 min-w-0">
                                                     <h3 className="text-xl font-bold text-slate-800 line-clamp-1 group-hover:text-primary-600 transition-colors">{job.jobTitle}</h3>
-                                                    <p 
-                                                        className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1 cursor-pointer hover:text-primary-600 transition-colors inline-block"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (job.vendorId?._id) {
-                                                                navigate(`/b2b/vendor/${job.vendorId._id}`);
-                                                            }
-                                                        }}
-                                                    >
-                                                        Firm - {job.vendorId?.storeName || job.vendorId?.businessName || job.vendorId?.name}
-                                                    </p>
+                                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                                                            Firm - {job.vendorId?.storeName || job.vendorId?.businessName || job.vendorId?.name}
+                                                        </p>
+                                                        {job.vendorId?._id && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    navigate(`/b2b/vendor/${job.vendorId._id}`);
+                                                                }}
+                                                                className="flex items-center gap-1 px-2 py-0.5 bg-primary-50 text-primary-600 border border-primary-100 rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-primary-600 hover:text-white transition-all"
+                                                            >
+                                                                <FiExternalLink size={9} />
+                                                                Visit Store
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
 

@@ -899,16 +899,27 @@ export const getFeed = asyncHandler(async (req, res) => {
         // --- Mode 1: ID-based lookup ---
         const cat = await B2BCategory.findById(categoryIdFilter).lean();
         if (cat) {
-          // Include root category name
-          categoryNamesToMatch.add(cat.name);
-          // Include ALL subcategory names (so "Cloth Textile" also catches "Kurti", "Banarasi Saree", etc.)
-          (cat.subcategories || []).forEach(sub => {
-            const subName = typeof sub === 'string' ? sub : sub?.name;
-            if (subName) categoryNamesToMatch.add(subName);
-          });
+          const requestedName = categoryName ? categoryName.trim() : '';
+          const isSubcategory = requestedName && cat.name.toLowerCase() !== requestedName.toLowerCase();
+          
+          if (isSubcategory) {
+            // If the user requested a specific subcategory name, do NOT expand to all siblings.
+            // Just strictly match the requested subcategory name.
+            categoryNamesToMatch.add(requestedName);
+          } else {
+            // Include root category name
+            categoryNamesToMatch.add(cat.name);
+            // Include ALL subcategory names (so "Cloth Textile" also catches "Kurti", "Banarasi Saree", etc.)
+            (cat.subcategories || []).forEach(sub => {
+              const subName = typeof sub === 'string' ? sub : sub?.name;
+              if (subName) categoryNamesToMatch.add(subName);
+            });
+            // Also add the original name param as a loose fallback
+            if (requestedName) categoryNamesToMatch.add(requestedName);
+          }
+        } else if (categoryName) {
+          categoryNamesToMatch.add(categoryName.trim());
         }
-        // Also add the original name param as a loose fallback (if provided alongside categoryId)
-        if (categoryName) categoryNamesToMatch.add(categoryName.trim());
       } else {
         // --- Mode 2: Name-based lookup (backward compat) ---
         let searchTerm = categoryName.trim();
@@ -919,33 +930,16 @@ export const getFeed = asyncHandler(async (req, res) => {
 
         categoryNamesToMatch.add(searchTerm);
 
-        // Check if this is a SUBCATEGORY name — if so, also include its parent
-        const parentCat = await B2BCategory.findOne({
-          subcategories: {
-            $elemMatch: { name: { $regex: new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }
-          }
+        // Check if it might be a ROOT category name — include all its subcategories
+        const rootCat = await B2BCategory.findOne({
+          name: { $regex: new RegExp('^' + searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') }
         }).lean();
 
-        if (parentCat) {
-          categoryNamesToMatch.add(parentCat.name);
-          categoryNamesToMatch.add(searchTerm); // Must include the search term itself!
-          if (parentCat.subcategories?.length) {
-            parentCat.subcategories.forEach(sub => {
-              const subName = typeof sub === 'string' ? sub : sub?.name;
-              if (subName) categoryNamesToMatch.add(subName);
-            });
-          }
-        } else {
-          // It might be a ROOT category name — include all its subcategories
-          const rootCat = await B2BCategory.findOne({
-            name: { $regex: new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }
-          }).lean();
-          if (rootCat?.subcategories?.length) {
-            rootCat.subcategories.forEach(sub => {
-              const subName = typeof sub === 'string' ? sub : sub?.name;
-              if (subName) categoryNamesToMatch.add(subName);
-            });
-          }
+        if (rootCat?.subcategories?.length) {
+          rootCat.subcategories.forEach(sub => {
+            const subName = typeof sub === 'string' ? sub : sub?.name;
+            if (subName) categoryNamesToMatch.add(subName);
+          });
         }
       }
     } catch (catErr) {

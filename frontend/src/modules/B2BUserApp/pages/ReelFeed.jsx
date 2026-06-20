@@ -187,10 +187,10 @@ export default function ReelFeed() {
       // Add root category itself
       if (cat.name) items.push({ _id: catId, name: cat.name, isRoot: true });
 
-      // Add each subcategory (use parent ID so backend can resolve all siblings)
+      // Add each subcategory
       (cat.subcategories || []).forEach(sub => {
         const subName = typeof sub === 'string' ? sub : sub?.name;
-        if (subName) items.push({ _id: catId, name: subName, isRoot: false });
+        if (subName) items.push({ _id: null, name: subName, isRoot: false });
       });
     });
 
@@ -217,6 +217,13 @@ export default function ReelFeed() {
   useEffect(() => {
     hasAppliedInitialReelRef.current = false;
     isShowingGeneralFeed.current = false;
+    // When category changes, clear any reel-specific URL so the feed starts fresh
+    // without forcing the previously-viewed reel to the top
+    if (activeCategory || activeCategoryId) {
+      // The navigate to /b2b/reels already clears the reelId from the URL
+      // but we also need to prevent the 'prepend missing reel' fallback below
+      hasAppliedInitialReelRef.current = true;
+    }
     fetchFeed(1, false, null, activeCategory);
   }, [activeCategory, activeCategoryId, fetchFeed]);
 
@@ -247,6 +254,13 @@ export default function ReelFeed() {
       return;
     }
 
+    // If a category filter is active, don't force-load the old reel ID.
+    // The feed is already filtered; just start at index 0.
+    if (activeCategory || activeCategoryId) {
+      hasAppliedInitialReelRef.current = true;
+      return;
+    }
+
     const idx = reels.findIndex((r) => r._id === reelIdFromUrl);
     if (idx >= 0) {
       setCurrentIndex(idx);
@@ -273,7 +287,7 @@ export default function ReelFeed() {
         const search = searchParams.toString();
         navigate(`/b2b/reels${search ? `?${search}` : ""}`, { replace: true });
       });
-  }, [loading, reelIdFromUrl, reels, navigate, searchParams]);
+  }, [loading, reelIdFromUrl, reels, navigate, searchParams, activeCategory, activeCategoryId]);
 
   const loadMore = useCallback(() => {
     if (loadingMoreRef.current || !hasMore) return;
@@ -1001,8 +1015,10 @@ export default function ReelFeed() {
                           <button
                             key={`${item._id}-${item.name}`}
                             onClick={() => {
-                              // Navigate with both ID (for stable filtering) and name (for display)
-                              navigate(`/b2b/reels?category=${encodeURIComponent(item.name)}&categoryId=${encodeURIComponent(item._id)}`);
+                              const params = new URLSearchParams();
+                              params.set("category", item.name);
+                              if (item._id) params.set("categoryId", item._id);
+                              navigate(`/b2b/reels?${params.toString()}`);
                               setShowCategoryDropdown(false);
                               setCategorySearch("");
                             }}
