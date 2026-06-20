@@ -876,8 +876,19 @@ const B2BLanding = () => {
 
 
 
+    const handleGlobalClickCapture = (e) => {
+        if (!isAuthenticated) {
+            e.stopPropagation();
+            e.preventDefault();
+            navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-white font-sans text-gray-900 flex flex-col scrollbar-hide">
+        <div 
+            className="min-h-screen bg-white font-sans text-gray-900 flex flex-col scrollbar-hide"
+            onClickCapture={handleGlobalClickCapture}
+        >
             {/* --- FIXED HEADER + TOOLBAR (Web) / HEADER ONLY (Mobile) --- */}
             <div ref={headerRef} className="fixed top-0 left-0 right-0 z-[1000] bg-white border-b border-gray-100 shadow-sm pt-safe pb-1">
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6">

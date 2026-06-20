@@ -8,6 +8,7 @@ import Vendor from '../models/Vendor.model.js';
 import User from '../models/User.model.js';
 import Music from '../models/Music.model.js';
 import B2BSettings from '../models/B2BSettings.model.js';
+import B2BCategory from '../models/B2BCategory.model.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadToCloudinary, deleteFromCloudinary, uploadUrlToCloudinary } from '../utils/cloudinary.util.js';
 import { publishReelToYouTube, fetchPlaylistItems, fetchVideoById, deleteVideoFromYouTube } from '../services/youtubeReel.service.js';
@@ -23,7 +24,7 @@ const REEL_ACTIVE_HOURS = 24; // kept for backwards compatibility only
  */
 function fixLegacyDynamicUrl(reel) {
   if (!reel.videoUrl || !reel.videoUrl.includes('cloudinary.com')) return reel.videoUrl;
-  
+
   // If it's already a frozen file, no need to touch it
   if (!reel.videoUrl.includes('/e_mute/') && !reel.videoUrl.includes('/ac_none/') && !reel.videoUrl.includes('l_video:') && !reel.videoUrl.includes('l_audio:')) {
     return reel.videoUrl;
@@ -35,13 +36,13 @@ function fixLegacyDynamicUrl(reel) {
     if (parts.length === 2) {
       const base = parts[0];
       const pathPart = parts[1].startsWith('/') ? parts[1].substring(1) : parts[1];
-      
+
       // Extract the music ID from the current broken URL if possible
       const musicMatch = reel.videoUrl.match(/l_(?:video|audio):([^/,]+)/);
       if (musicMatch) {
-         const musicIdPart = musicMatch[1];
-         // Reconstruct with ac_none
-         return `${base}/upload/ac_none/l_video:${musicIdPart}/fl_layer_apply/${pathPart}`;
+        const musicIdPart = musicMatch[1];
+        // Reconstruct with ac_none
+        return `${base}/upload/ac_none/l_video:${musicIdPart}/fl_layer_apply/${pathPart}`;
       }
     }
   }
@@ -57,13 +58,13 @@ function fixLegacyDynamicUrl(reel) {
 /** Detect if URL is YouTube or Direct Video */
 function detectReelLinkType(url) {
   if (!url) return { reelType: 'upload', externalLinkType: 'cloudinary' };
-  
+
   const isYouTube = url.includes('youtube.com/') || url.includes('youtu.be/') || url.includes('youtube-nocookie.com/');
   if (isYouTube) return { reelType: 'link', externalLinkType: 'youtube' };
-  
+
   const isCloudinary = url.includes('cloudinary.com/');
   if (isCloudinary) return { reelType: 'upload', externalLinkType: 'cloudinary' };
-  
+
   return { reelType: 'link', externalLinkType: 'direct' };
 }
 
@@ -80,7 +81,7 @@ async function getUploaderName(uploaderId, uploaderType) {
 
 export const uploadReel = asyncHandler(async (req, res) => {
   const { title, description, categoryId, categoryName, productId, propertyId, price, minimum, videoLink } = req.body;
-  
+
   const role = req.user.role;
   if (role !== 'vendor' && role !== 'user') {
     return res.status(403).json({ success: false, message: 'Only vendors or users can upload reels' });
@@ -225,10 +226,10 @@ export const getMyReels = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const { reelType, search, categoryName } = req.query;
-  const query = { 
+  const query = {
     uploaderId,
-    $nor: [ 
-        { reelType: 'link', externalLinkType: 'youtube', isYouTubeLinkValid: false } 
+    $nor: [
+      { reelType: 'link', externalLinkType: 'youtube', isYouTubeLinkValid: false }
     ]
   };
   if (reelType) query.reelType = reelType;
@@ -259,7 +260,7 @@ export const getMyReels = asyncHandler(async (req, res) => {
 export const adminListReels = asyncHandler(async (req, res) => {
   const { status, categoryName, categoryId, reelType, onlyBroken, search, page = 1, limit = 20 } = req.query;
   const filter = {};
-  
+
   if (onlyBroken === 'true') {
     filter.isYouTubeLinkValid = false;
   }
@@ -287,8 +288,8 @@ export const adminListReels = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: { 
-      reels: reels.map(r => ({ ...r, videoUrl: fixLegacyDynamicUrl(r) })) 
+    data: {
+      reels: reels.map(r => ({ ...r, videoUrl: fixLegacyDynamicUrl(r) }))
     },
     pagination: { page: parseInt(page), limit: limitNum, total, pages: Math.ceil(total / limitNum) },
   });
@@ -366,7 +367,7 @@ export const adminApproveReel = asyncHandler(async (req, res) => {
   reel.youtubeUploadFailed = youtubeUploadFailed;
   reel.youtubeUploadError = youtubeUploadError;
   await reel.save();
- 
+
   // Send notification to uploader
   try {
     const io = req.app.get('io');
@@ -439,7 +440,7 @@ export const adminBulkApproveReels = asyncHandler(async (req, res) => {
 
       try {
         if (reel.reelType === 'link') {
-           // Skip YouTube upload for external links
+          // Skip YouTube upload for external links
         } else {
           // Proactively freeze dynamic URLs if needed
           if (reel.videoUrl?.includes('cloudinary.com') && (reel.videoUrl.includes('/e_mute/') || reel.videoUrl.includes('/ac_none/') || reel.videoUrl.includes('l_video:') || reel.videoUrl.includes('l_audio:'))) {
@@ -581,7 +582,7 @@ export const adminRejectReel = asyncHandler(async (req, res) => {
   reel.status = 'rejected';
   reel.rejectReason = req.body?.reason?.trim() || null;
   await reel.save();
- 
+
   // Send notification to uploader
   try {
     const io = req.app.get('io');
@@ -597,7 +598,7 @@ export const adminRejectReel = asyncHandler(async (req, res) => {
   } catch (notifErr) {
     console.error('[Reel Reject] Notification failed:', notifErr.message);
   }
- 
+
   res.status(200).json({ success: true, message: 'Reel rejected', data: { reel: reel.toObject() } });
 });
 
@@ -715,7 +716,7 @@ export const replaceSong = asyncHandler(async (req, res) => {
       }
     }
     if (!reel.originalVideoUrl) {
-        return res.status(400).json({ success: false, message: 'Original video source not found for processing' });
+      return res.status(400).json({ success: false, message: 'Original video source not found for processing' });
     }
   }
 
@@ -733,9 +734,9 @@ export const replaceSong = asyncHandler(async (req, res) => {
   let processedResult;
   try {
     processedResult = await uploadUrlToCloudinary(transformedUrl, 'reels/processed', {
-        resource_type: 'video',
-        // Optional: you can specify a public_id based on reel ID to avoid file clutter if replaced multiple times,
-        // but here we let Cloudinary generate one to ensure we don't have cache issues.
+      resource_type: 'video',
+      // Optional: you can specify a public_id based on reel ID to avoid file clutter if replaced multiple times,
+      // but here we let Cloudinary generate one to ensure we don't have cache issues.
     });
   } catch (err) {
     console.error('[replaceSong] Cloudinary processing failed:', err.message);
@@ -746,9 +747,9 @@ export const replaceSong = asyncHandler(async (req, res) => {
   // We only delete if audioStatus was already 'replaced', meaning videoPublicId points to a processed file
   // We NEVER delete if it's the original file (audioStatus === 'original')
   if (reel.audioStatus === 'replaced' && reel.videoPublicId) {
-      deleteFromCloudinary(reel.videoPublicId, 'video').catch((e) => {
-          console.error('[replaceSong] Failed to delete old processed video:', e.message);
-      });
+    deleteFromCloudinary(reel.videoPublicId, 'video').catch((e) => {
+      console.error('[replaceSong] Failed to delete old processed video:', e.message);
+    });
   }
 
   // Update reel state
@@ -792,8 +793,8 @@ function isMongoId(id) {
 export const getFeed = asyncHandler(async (req, res) => {
   const playlistId = process.env.YOUTUBE_REELS_PLAYLIST_ID;
 
-  const isFiltering = req.query.propertyOnly || req.query.productOnly || req.query.category || req.query.vendorId || req.query.search;
-  
+  const isFiltering = req.query.propertyOnly || req.query.productOnly || req.query.category || req.query.categoryId || req.query.vendorId || req.query.search;
+
   if (playlistId && !isFiltering) {
     // Reels from YouTube only – no DB storage, global general feed
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
@@ -838,6 +839,7 @@ export const getFeed = asyncHandler(async (req, res) => {
   const limit = Math.min(30, Math.max(1, parseInt(req.query.limit) || 10));
   const skip = (page - 1) * limit;
   const categoryName = req.query.category;
+  const categoryIdFilter = req.query.categoryId || null; // B2BCategory _id — admin-rename-proof
   const vendorIdFilter = req.query.vendorId || null;
   const propertyOnly = req.query.propertyOnly === 'true';
   const productOnly = req.query.productOnly === 'true';
@@ -852,20 +854,20 @@ export const getFeed = asyncHandler(async (req, res) => {
         ],
       },
       {
-        $nor: [ 
-            { reelType: 'link', externalLinkType: 'youtube', isYouTubeLinkValid: false } 
+        $nor: [
+          { reelType: 'link', externalLinkType: 'youtube', isYouTubeLinkValid: false }
         ]
       }
     ]
   };
 
-  const propertyCategories = ['Flat Properties', 'Villa / Row house Properties', 'Commercial Properties'];
+  const propertyCategories = ['Flat Properties', 'Villa / Row house Properties', 'Commercial Properties', 'Commercial Property', 'Flat Property', 'Villa Property'];
   const excludeCategoryKeywords = [/saree/i, /textile/i, /garment/i, /jewellery/i, /product/i, /bulk saree/i, /designer saree/i];
 
   if (propertyOnly) {
     filter.$and.push({
       $or: [
-        { categoryName: { $in: propertyCategories.map(c => new RegExp(`^${c}$`, 'i')) } },
+        { categoryName: { $in: propertyCategories.map(c => new RegExp(c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')) } },
         { propertyId: { $ne: null } }
       ]
     });
@@ -873,14 +875,128 @@ export const getFeed = asyncHandler(async (req, res) => {
     filter.$and.push({ categoryName: { $nin: excludeCategoryKeywords } });
   } else if (productOnly) {
     filter.$and.push({ propertyId: null });
-    filter.$and.push({ categoryName: { $nin: propertyCategories.map(c => new RegExp(`^${c}$`, 'i')) } });
+    filter.$and.push({ categoryName: { $nin: propertyCategories.map(c => new RegExp(c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')) } });
   }
-   // Note: We don't check 'status' here because if it's on YouTube, it's implicitly approved/live.
-  if (categoryName) filter.categoryName = new RegExp(categoryName, 'i');
+
+  // Note: We don't check 'status' here because if it's on YouTube, it's implicitly approved/live.
+  /**
+   * Smart category filter — supports two modes:
+   *
+   * 1. ID-based (preferred): ?categoryId=<B2BCategory._id>
+   *    Looks up the B2BCategory by its stable MongoDB _id.
+   *    Collects the root category name + ALL subcategory names.
+   *    This works even if admin renames the category.
+   *
+   * 2. Name-based (fallback): ?category=<name>
+   *    Used for backward-compatible old links or externally-linked URLs.
+   *    Matches both the queried name AND the parent/sibling names.
+   */
+  if (categoryIdFilter || categoryName) {
+    const categoryNamesToMatch = new Set();
+
+    try {
+      if (categoryIdFilter) {
+        // --- Mode 1: ID-based lookup ---
+        const cat = await B2BCategory.findById(categoryIdFilter).lean();
+        if (cat) {
+          // Include root category name
+          categoryNamesToMatch.add(cat.name);
+          // Include ALL subcategory names (so "Cloth Textile" also catches "Kurti", "Banarasi Saree", etc.)
+          (cat.subcategories || []).forEach(sub => {
+            const subName = typeof sub === 'string' ? sub : sub?.name;
+            if (subName) categoryNamesToMatch.add(subName);
+          });
+        }
+        // Also add the original name param as a loose fallback (if provided alongside categoryId)
+        if (categoryName) categoryNamesToMatch.add(categoryName.trim());
+      } else {
+        // --- Mode 2: Name-based lookup (backward compat) ---
+        let searchTerm = categoryName.trim();
+        // Fix legacy hardcoded plural property names from old app versions
+        if (searchTerm.toLowerCase() === 'commercial properties') searchTerm = 'Commercial Property';
+        if (searchTerm.toLowerCase() === 'flat properties') searchTerm = 'Flat Property';
+        if (searchTerm.toLowerCase() === 'villa / row house properties') searchTerm = 'Villa Property';
+
+        categoryNamesToMatch.add(searchTerm);
+
+        // Check if this is a SUBCATEGORY name — if so, also include its parent
+        const parentCat = await B2BCategory.findOne({
+          subcategories: {
+            $elemMatch: { name: { $regex: new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }
+          }
+        }).lean();
+
+        if (parentCat) {
+          categoryNamesToMatch.add(parentCat.name);
+          categoryNamesToMatch.add(searchTerm); // Must include the search term itself!
+          if (parentCat.subcategories?.length) {
+            parentCat.subcategories.forEach(sub => {
+              const subName = typeof sub === 'string' ? sub : sub?.name;
+              if (subName) categoryNamesToMatch.add(subName);
+            });
+          }
+        } else {
+          // It might be a ROOT category name — include all its subcategories
+          const rootCat = await B2BCategory.findOne({
+            name: { $regex: new RegExp(searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }
+          }).lean();
+          if (rootCat?.subcategories?.length) {
+            rootCat.subcategories.forEach(sub => {
+              const subName = typeof sub === 'string' ? sub : sub?.name;
+              if (subName) categoryNamesToMatch.add(subName);
+            });
+          }
+        }
+      }
+    } catch (catErr) {
+      console.error('[ReelFeed] Category lookup failed:', catErr.message);
+      // Last-resort fallback: simple regex
+      if (categoryName) categoryNamesToMatch.add(categoryName.trim());
+    }
+
+    if (categoryNamesToMatch.size > 0) {
+      // Build patterns with word-boundary-like matching to avoid partial false hits
+      const categoryPatterns = Array.from(categoryNamesToMatch).map(n =>
+        new RegExp(n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      );
+      filter.$and.push({ categoryName: { $in: categoryPatterns } });
+      console.log('Category Patterns used for filter:', Array.from(categoryNamesToMatch));
+    } else if (categoryName || categoryIdFilter) {
+      // If we failed to build patterns but they requested a filter, at least filter by the name they requested
+      const fallback = categoryName ? categoryName.trim() : '';
+      if (fallback) {
+         filter.$and.push({ categoryName: new RegExp(fallback.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') });
+         console.log('Fallback Category Pattern used:', fallback);
+      }
+    }
+  }
   if (vendorIdFilter) {
     filter.uploaderType = 'vendor';
     filter.uploaderId = vendorIdFilter;
+
+    // Ensure the requested vendor is active/approved
+    const validVendor = await Vendor.findOne({ _id: vendorIdFilter, status: 'approved', isActive: true }).select('_id').lean();
+    if (!validVendor) {
+      return res.status(200).json({ success: true, data: { reels: [] }, pagination: { page, limit, total: 0, pages: 0 } });
+    }
+  } else {
+    // Only fetch reels from currently active/approved vendors to prevent JavaScript-level filtering from breaking pagination
+    // Include vendors where vendorType is missing (legacy data) or explicitly 'b2b'
+    const validVendors = await Vendor.find({
+      status: 'approved',
+      isActive: true
+    }).select('_id').lean();
+    const validVendorIds = validVendors.map(v => v._id);
+
+    filter.$and.push({
+      $or: [
+        { uploaderType: { $ne: 'vendor' } },
+        { uploaderType: 'vendor', uploaderId: { $in: validVendorIds } }
+      ]
+    });
   }
+
+  const total = await Reel.countDocuments(filter);
 
   const reels = await Reel.find(filter)
     .sort({ approvedAt: -1 })
@@ -888,38 +1004,21 @@ export const getFeed = asyncHandler(async (req, res) => {
     .limit(limit)
     .lean();
 
-  console.log("=== GET FEED DEBUG ===");
-  console.log("Filter used:", JSON.stringify(filter, null, 2));
-  console.log("Reels found:", reels.length);
-  const allReels = await Reel.countDocuments();
-  console.log("Total reels in DB (any status):", allReels);
-
   const vendorIds = reels
     .filter((r) => r.uploaderType === 'vendor')
     .map((r) => r.uploaderId);
   let vendorMap = new Map();
   if (vendorIds.length) {
     const [vendors, b2bSettings] = await Promise.all([
-      Vendor.find({ 
+      Vendor.find({
         _id: { $in: vendorIds },
         status: 'approved',
-        isActive: true,
-        vendorType: 'b2b'
+        isActive: true
       })
         .select('phone storeName currentSubscription businessType businessTypeRef')
         .lean(),
-      B2BSettings.findOne().sort({ createdAt: -1 }).lean()
     ]);
-    
-    // DEBUG: If vendors returned are empty, fetch the raw vendors to see what properties they actually have
-    if (vendors.length === 0 && vendorIds.length > 0) {
-        const rawVendors = await Vendor.find({ _id: { $in: vendorIds } }).lean();
-        console.log("=== VENDOR FILTER DIAGNOSTIC ===");
-        rawVendors.forEach(v => {
-            console.log(`Vendor ${v._id}: status='${v.status}', isActive=${v.isActive}, vendorType='${v.vendorType}'`);
-        });
-    }
-    
+
     // Enrich with enquiry status in a more optimized way
     // We pass the pre-fetched settings to avoid N+1 queries for settings
     const vendorStatusPromises = vendors.map(async (v) => {
@@ -959,10 +1058,9 @@ export const getFeed = asyncHandler(async (req, res) => {
 
     // Filter out vendor reels where the vendor is no longer approved or active
     if (r.uploaderType === 'vendor' && !vendorInfo) {
-       console.log(`[Reel Debug] Reel ${r._id} filtered out because uploader ${r.uploaderId} (Type: ${r.uploaderType}) was not found in approved/active b2b vendors map.`);
-       return null;
+      return null;
     }
-    
+
     return {
       ...r,
       likeCount: likeMap.get(r._id.toString()) || 0,
@@ -977,14 +1075,11 @@ export const getFeed = asyncHandler(async (req, res) => {
     };
   }).filter(Boolean);
 
-  const total = await Reel.countDocuments(filter);
-  
-  console.log("Final feed length after vendor filter:", feed.length);
-
+  // Total count is now accurate because filtering is done at DB level
   res.status(200).json({
     success: true,
-    data: { 
-      reels: feed.map(r => ({ ...r, videoUrl: fixLegacyDynamicUrl(r) })) 
+    data: {
+      reels: feed.map(r => ({ ...r, videoUrl: fixLegacyDynamicUrl(r) }))
     },
     pagination: { page, limit, total, pages: Math.ceil(total / limit) },
   });
@@ -1021,9 +1116,9 @@ export const getReelById = asyncHandler(async (req, res) => {
   }
 
   const reel = await Reel.findById(id).lean();
-  if (!reel || 
-      (!reel.youtubeVideoId && reel.reelType !== "link") || 
-      (reel.reelType === 'link' && reel.externalLinkType === 'youtube' && reel.isYouTubeLinkValid === false)) {
+  if (!reel ||
+    (!reel.youtubeVideoId && reel.reelType !== "link") ||
+    (reel.reelType === 'link' && reel.externalLinkType === 'youtube' && reel.isYouTubeLinkValid === false)) {
     return res.status(404).json({
       success: false,
       message: "Reel not found or not published to YouTube",
@@ -1032,13 +1127,13 @@ export const getReelById = asyncHandler(async (req, res) => {
 
   let vendorInfo = null;
   if (reel.uploaderType === 'vendor' && reel.uploaderId) {
-    const v = await Vendor.findOne({ 
+    const v = await Vendor.findOne({
       _id: reel.uploaderId,
       status: 'approved',
       isActive: true,
       vendorType: 'b2b'
     }).select('phone storeName').lean();
-    
+
     // If it's a vendor reel but vendor is no longer approved/active
     if (!v) {
       return res.status(404).json({ success: false, message: 'Vendor store is no longer active' });
@@ -1069,8 +1164,8 @@ export const getReelById = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: { 
-      reel: { ...feedItem, videoUrl: fixLegacyDynamicUrl(feedItem) } 
+    data: {
+      reel: { ...feedItem, videoUrl: fixLegacyDynamicUrl(feedItem) }
     },
   });
 });
@@ -1263,73 +1358,73 @@ export const getPlaylistByCategory = asyncHandler(async (req, res) => {
  * GET /api/reels/share/:id
  */
 export const getReelSharePage = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const reel = await Reel.findById(id).populate('productId propertyId').lean();
+  const { id } = req.params;
+  const reel = await Reel.findById(id).populate('productId propertyId').lean();
 
-    const fUrl = (process.env.FRONTEND_URL || 'https://dealingindia.com').replace(/\/+$/, '');
-    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' || req.get('host').includes('dealingindia.com') ? 'https' : 'http';
-    const bUrl = `${protocol}://${req.get('host')}`;
-    const shareUrl = `${bUrl}${req.originalUrl || req.url}`;
-    const redirectUrl = `${fUrl}/b2b/reels/${id}`;
+  const fUrl = (process.env.FRONTEND_URL || 'https://dealingindia.com').replace(/\/+$/, '');
+  const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' || req.get('host').includes('dealingindia.com') ? 'https' : 'http';
+  const bUrl = `${protocol}://${req.get('host')}`;
+  const shareUrl = `${bUrl}${req.originalUrl || req.url}`;
+  const redirectUrl = `${fUrl}/b2b/reels/${id}`;
 
-    // Default values
-    let title = "Check out this Reel on Dealing India";
-    let description = "Watch high-quality product reels and bulk deals on India's premiere B2B marketplace.";
-    let image = `${bUrl}/upload/dealing-india-logo.png`; 
+  // Default values
+  let title = "Check out this Reel on Dealing India";
+  let description = "Watch high-quality product reels and bulk deals on India's premiere B2B marketplace.";
+  let image = `${bUrl}/upload/dealing-india-logo.png`;
 
-    if (reel) {
-        const type = reel.propertyId ? "Property" : (reel.productId ? "Product" : "Reel");
-        
-        // Handle custom title based on product/property if available
-        if (reel.productId && reel.productId.name) {
-            title = `Check out this product: ${reel.productId.name}`;
-            description = reel.description || `Watch this ${reel.categoryName || ''} product in action on Dealing India.`;
-        } else if (reel.propertyId && reel.propertyId.title) {
-            title = `Check out this property: ${reel.propertyId.title}`;
-            description = reel.description || `Explore this property listing on Dealing India.`;
-        } else {
-            title = reel.title || `${type} from ${reel.uploaderName || 'Dealing India'}`;
-            if (reel.price > 0) title = `₹${reel.price} - ${title}`;
-            description = reel.description || `Watch this ${reel.categoryName || ''} ${type.toLowerCase()} in action on Dealing India.`;
-        }
-        
-        // Handle images with fallback hierarchy
-        if (reel.thumbnailUrl) {
-            image = reel.thumbnailUrl;
-        } else if (reel.youtubeVideoId) {
-            image = `https://img.youtube.com/vi/${reel.youtubeVideoId}/maxresdefault.jpg`;
-        } else if (reel.videoUrl && reel.videoUrl.includes('cloudinary.com')) {
-            // Generate a high-quality thumbnail from Cloudinary video (start of video)
-            // Replace extension with jpg and add transformations for better social preview
-            image = reel.videoUrl.replace(/\.(mp4|mkv|mov|avi|webm)$/, ".jpg")
-                                .replace("/upload/", "/upload/w_1200,h_630,c_fill,so_0/");
-        } else if (reel.videoUrl && (reel.videoUrl.includes('youtube.com') || reel.videoUrl.includes('youtu.be'))) {
-            const ytMatch = reel.videoUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|embed\/|shorts\/))([^&?\/ ]{11})/);
-            if (ytMatch && ytMatch[1]) {
-                image = `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
-            }
-        } else if (reel.productId && (reel.productId.image || reel.productId.images?.[0])) {
-            image = reel.productId.image || reel.productId.images[0];
-        } else if (reel.propertyId && reel.propertyId.images?.[0]) {
-            image = reel.propertyId.images[0];
-        }
-    } else if (id && !isMongoId(id)) {
-        // Handle non-Mongo IDs (potentially direct YouTube IDs)
-        try {
-            const ytVideo = await fetchVideoById(id);
-            if (ytVideo) {
-                title = ytVideo.title;
-                description = ytVideo.description || description;
-                image = ytVideo.thumbnailUrl || image;
-            }
-        } catch (e) {
-            console.error("[Share Page] YouTube fetch failed:", e.message);
-        }
+  if (reel) {
+    const type = reel.propertyId ? "Property" : (reel.productId ? "Product" : "Reel");
+
+    // Handle custom title based on product/property if available
+    if (reel.productId && reel.productId.name) {
+      title = `Check out this product: ${reel.productId.name}`;
+      description = reel.description || `Watch this ${reel.categoryName || ''} product in action on Dealing India.`;
+    } else if (reel.propertyId && reel.propertyId.title) {
+      title = `Check out this property: ${reel.propertyId.title}`;
+      description = reel.description || `Explore this property listing on Dealing India.`;
+    } else {
+      title = reel.title || `${type} from ${reel.uploaderName || 'Dealing India'}`;
+      if (reel.price > 0) title = `₹${reel.price} - ${title}`;
+      description = reel.description || `Watch this ${reel.categoryName || ''} ${type.toLowerCase()} in action on Dealing India.`;
     }
 
-    // Generate SEO/Social HTML
-    // We avoid inline scripts here as some WAFs flag them in API responses
-    const html = `
+    // Handle images with fallback hierarchy
+    if (reel.thumbnailUrl) {
+      image = reel.thumbnailUrl;
+    } else if (reel.youtubeVideoId) {
+      image = `https://img.youtube.com/vi/${reel.youtubeVideoId}/maxresdefault.jpg`;
+    } else if (reel.videoUrl && reel.videoUrl.includes('cloudinary.com')) {
+      // Generate a high-quality thumbnail from Cloudinary video (start of video)
+      // Replace extension with jpg and add transformations for better social preview
+      image = reel.videoUrl.replace(/\.(mp4|mkv|mov|avi|webm)$/, ".jpg")
+        .replace("/upload/", "/upload/w_1200,h_630,c_fill,so_0/");
+    } else if (reel.videoUrl && (reel.videoUrl.includes('youtube.com') || reel.videoUrl.includes('youtu.be'))) {
+      const ytMatch = reel.videoUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|embed\/|shorts\/))([^&?\/ ]{11})/);
+      if (ytMatch && ytMatch[1]) {
+        image = `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
+      }
+    } else if (reel.productId && (reel.productId.image || reel.productId.images?.[0])) {
+      image = reel.productId.image || reel.productId.images[0];
+    } else if (reel.propertyId && reel.propertyId.images?.[0]) {
+      image = reel.propertyId.images[0];
+    }
+  } else if (id && !isMongoId(id)) {
+    // Handle non-Mongo IDs (potentially direct YouTube IDs)
+    try {
+      const ytVideo = await fetchVideoById(id);
+      if (ytVideo) {
+        title = ytVideo.title;
+        description = ytVideo.description || description;
+        image = ytVideo.thumbnailUrl || image;
+      }
+    } catch (e) {
+      console.error("[Share Page] YouTube fetch failed:", e.message);
+    }
+  }
+
+  // Generate SEO/Social HTML
+  // We avoid inline scripts here as some WAFs flag them in API responses
+  const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1378,8 +1473,8 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
 </html>
   `.trim();
 
-    res.set('Content-Type', 'text/html');
-    res.send(html);
+  res.set('Content-Type', 'text/html');
+  res.send(html);
 });
 
 /**
@@ -1388,55 +1483,55 @@ export const getReelSharePage = asyncHandler(async (req, res) => {
  * Body: { reason: string, comment?: string }
  */
 export const reportReel = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { reason, comment } = req.body;
-    const userId = req.user?.vendorId || req.user?.id;
-    const userType = req.user.role === 'vendor' ? 'vendor' : 'user';
+  const { id } = req.params;
+  const { reason, comment } = req.body;
+  const userId = req.user?.vendorId || req.user?.id;
+  const userType = req.user.role === 'vendor' ? 'vendor' : 'user';
 
-    if (!userId) {
-        return res.status(401).json({ success: false, message: 'Login required to report' });
+  if (!userId) {
+    return res.status(401).json({ success: false, message: 'Login required to report' });
+  }
+
+  const reel = await Reel.findById(id);
+  if (!reel) {
+    return res.status(404).json({ success: false, message: 'Reel not found' });
+  }
+
+  if (!reason || reason.trim().length === 0) {
+    return res.status(400).json({ success: false, message: 'Reason is required' });
+  }
+
+  const report = await ReelReport.create({
+    reelId: id,
+    reporterId: userId,
+    reporterType: userType,
+    reason: reason.trim(),
+    comment: comment?.trim() || '',
+  });
+
+  // Notify Vendor about the report (Uploader)
+  if (reel.uploaderType === 'vendor') {
+    try {
+      const io = req.app.get('io');
+      await notificationService.createNotification({
+        recipientId: reel.uploaderId,
+        recipientType: 'vendor',
+        type: 'reel_report',
+        title: 'Reel Reported',
+        message: `One of your reels "${reel.title}" has been reported for: ${reason}. Please review your content.`,
+        actionUrl: '/b2b-vendor/reels',
+        metadata: { reelId: reel._id, reportId: report._id, reason }
+      }, io);
+    } catch (notifErr) {
+      console.error('[Reel Report] Notification to vendor failed:', notifErr.message);
     }
+  }
 
-    const reel = await Reel.findById(id);
-    if (!reel) {
-        return res.status(404).json({ success: false, message: 'Reel not found' });
-    }
-
-    if (!reason || reason.trim().length === 0) {
-        return res.status(400).json({ success: false, message: 'Reason is required' });
-    }
-
-    const report = await ReelReport.create({
-        reelId: id,
-        reporterId: userId,
-        reporterType: userType,
-        reason: reason.trim(),
-        comment: comment?.trim() || '',
-    });
-
-    // Notify Vendor about the report (Uploader)
-    if (reel.uploaderType === 'vendor') {
-        try {
-            const io = req.app.get('io');
-            await notificationService.createNotification({
-                recipientId: reel.uploaderId,
-                recipientType: 'vendor',
-                type: 'reel_report',
-                title: 'Reel Reported',
-                message: `One of your reels "${reel.title}" has been reported for: ${reason}. Please review your content.`,
-                actionUrl: '/b2b-vendor/reels',
-                metadata: { reelId: reel._id, reportId: report._id, reason }
-            }, io);
-        } catch (notifErr) {
-            console.error('[Reel Report] Notification to vendor failed:', notifErr.message);
-        }
-    }
-
-    res.status(201).json({
-        success: true,
-        message: 'Report submitted successfully. Our team will review it.',
-        data: { report }
-    });
+  res.status(201).json({
+    success: true,
+    message: 'Report submitted successfully. Our team will review it.',
+    data: { report }
+  });
 });
 
 /**
@@ -1444,31 +1539,31 @@ export const reportReel = asyncHandler(async (req, res) => {
  * GET /api/admin/reels/reports
  */
 export const adminListReelReports = asyncHandler(async (req, res) => {
-    const { status, page = 1, limit = 20 } = req.query;
-    const filter = {};
-    if (status) filter.status = status;
+  const { status, page = 1, limit = 20 } = req.query;
+  const filter = {};
+  if (status) filter.status = status;
 
-    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(50, Math.max(1, parseInt(limit)));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+  const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(50, Math.max(1, parseInt(limit)));
+  const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
 
-    const [reports, total] = await Promise.all([
-        ReelReport.find(filter)
-            .populate({
-                path: 'reelId',
-                select: 'title videoUrl thumbnailUrl uploaderId uploaderType uploaderName status'
-            })
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limitNum)
-            .lean(),
-        ReelReport.countDocuments(filter),
-    ]);
+  const [reports, total] = await Promise.all([
+    ReelReport.find(filter)
+      .populate({
+        path: 'reelId',
+        select: 'title videoUrl thumbnailUrl uploaderId uploaderType uploaderName status'
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean(),
+    ReelReport.countDocuments(filter),
+  ]);
 
-    res.status(200).json({
-        success: true,
-        data: { reports },
-        pagination: { page: parseInt(page), limit: limitNum, total, pages: Math.ceil(total / limitNum) },
-    });
+  res.status(200).json({
+    success: true,
+    data: { reports },
+    pagination: { page: parseInt(page), limit: limitNum, total, pages: Math.ceil(total / limitNum) },
+  });
 });
 
 /**
@@ -1477,87 +1572,87 @@ export const adminListReelReports = asyncHandler(async (req, res) => {
  * Body: { action: 'delete' | 'dismiss', comment?: string }
  */
 export const adminResolveReelReport = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { action, comment } = req.body; 
-    const adminId = req.user.adminId || req.user.id;
+  const { id } = req.params;
+  const { action, comment } = req.body;
+  const adminId = req.user.adminId || req.user.id;
 
-    const report = await ReelReport.findById(id).populate('reelId');
-    if (!report) {
-        return res.status(404).json({ success: false, message: 'Report not found' });
-    }
+  const report = await ReelReport.findById(id).populate('reelId');
+  if (!report) {
+    return res.status(404).json({ success: false, message: 'Report not found' });
+  }
 
-    if (report.status !== 'pending') {
-        return res.status(400).json({ success: false, message: 'Report is already resolved' });
-    }
+  if (report.status !== 'pending') {
+    return res.status(400).json({ success: false, message: 'Report is already resolved' });
+  }
 
-    if (action === 'delete') {
-        const reel = report.reelId;
-        if (reel) {
-            // Delete the reel logic
-            if (reel.youtubeVideoId) {
-                await deleteVideoFromYouTube(reel.youtubeVideoId).catch(err => {
-                    console.error('[adminResolveReport] YouTube delete failed:', err.message);
-                });
-            }
+  if (action === 'delete') {
+    const reel = report.reelId;
+    if (reel) {
+      // Delete the reel logic
+      if (reel.youtubeVideoId) {
+        await deleteVideoFromYouTube(reel.youtubeVideoId).catch(err => {
+          console.error('[adminResolveReport] YouTube delete failed:', err.message);
+        });
+      }
 
-            if (reel.videoPublicId) {
-                await deleteFromCloudinary(reel.videoPublicId, 'video').catch(() => { });
-            }
-            if (reel.thumbnailUrl && reel.thumbnailUrl.includes('cloudinary.com')) {
-                await deleteFromCloudinary(reel.thumbnailUrl, 'image').catch(() => { });
-            }
+      if (reel.videoPublicId) {
+        await deleteFromCloudinary(reel.videoPublicId, 'video').catch(() => { });
+      }
+      if (reel.thumbnailUrl && reel.thumbnailUrl.includes('cloudinary.com')) {
+        await deleteFromCloudinary(reel.thumbnailUrl, 'image').catch(() => { });
+      }
 
-            await ReelLike.deleteMany({ reelId: reel._id });
-            await ReelComment.deleteMany({ reelId: reel._id });
-            await ReelView.deleteMany({ reelId: reel._id });
-            await Reel.findByIdAndDelete(reel._id);
-            
-            // Resolve all other pending reports for this reel
-            await ReelReport.updateMany(
-                { reelId: reel._id, status: 'pending', _id: { $ne: report._id } },
-                {
-                    $set: {
-                        status: 'resolved',
-                        actionTaken: 'deleted',
-                        resolvedBy: adminId,
-                        resolvedAt: new Date(),
-                        comment: 'Automatically resolved because the reel was deleted.'
-                    }
-                }
-            );
+      await ReelLike.deleteMany({ reelId: reel._id });
+      await ReelComment.deleteMany({ reelId: reel._id });
+      await ReelView.deleteMany({ reelId: reel._id });
+      await Reel.findByIdAndDelete(reel._id);
 
-            try {
-                const io = req.app.get('io');
-                await notificationService.createNotification({
-                    recipientId: reel.uploaderId,
-                    recipientType: reel.uploaderType,
-                    type: 'reel_removed',
-                    title: 'Reel Removed',
-                    message: `Your reel "${reel.title}" was removed by admin following reports.`,
-                    actionUrl: '/b2b-vendor/reels',
-                    metadata: { reelId: reel._id, reason: report.reason, action: 'deleted' }
-                }, io);
-            } catch (notifErr) {
-                console.error('[Reel Resolve] Notification failed:', notifErr.message);
-            }
+      // Resolve all other pending reports for this reel
+      await ReelReport.updateMany(
+        { reelId: reel._id, status: 'pending', _id: { $ne: report._id } },
+        {
+          $set: {
+            status: 'resolved',
+            actionTaken: 'deleted',
+            resolvedBy: adminId,
+            resolvedAt: new Date(),
+            comment: 'Automatically resolved because the reel was deleted.'
+          }
         }
-        report.actionTaken = 'deleted';
-        report.status = 'resolved';
-    } else {
-        report.actionTaken = 'no_action';
-        report.status = 'dismissed';
+      );
+
+      try {
+        const io = req.app.get('io');
+        await notificationService.createNotification({
+          recipientId: reel.uploaderId,
+          recipientType: reel.uploaderType,
+          type: 'reel_removed',
+          title: 'Reel Removed',
+          message: `Your reel "${reel.title}" was removed by admin following reports.`,
+          actionUrl: '/b2b-vendor/reels',
+          metadata: { reelId: reel._id, reason: report.reason, action: 'deleted' }
+        }, io);
+      } catch (notifErr) {
+        console.error('[Reel Resolve] Notification failed:', notifErr.message);
+      }
     }
+    report.actionTaken = 'deleted';
+    report.status = 'resolved';
+  } else {
+    report.actionTaken = 'no_action';
+    report.status = 'dismissed';
+  }
 
-    report.resolvedBy = adminId;
-    report.resolvedAt = new Date();
-    if (comment) report.comment = (report.comment || '') + '\nAdmin Resolution: ' + comment;
-    await report.save();
+  report.resolvedBy = adminId;
+  report.resolvedAt = new Date();
+  if (comment) report.comment = (report.comment || '') + '\nAdmin Resolution: ' + comment;
+  await report.save();
 
-    res.status(200).json({
-        success: true,
-        message: action === 'delete' ? 'Reel deleted and all related reports resolved' : 'Report dismissed',
-        data: { report }
-    });
+  res.status(200).json({
+    success: true,
+    message: action === 'delete' ? 'Reel deleted and all related reports resolved' : 'Report dismissed',
+    data: { report }
+  });
 });
 
 /**
@@ -1586,12 +1681,17 @@ export const getDailyUploadStatus = asyncHandler(async (req, res) => {
 
   const enableVideoFileUpload = settings ? settings.enableVideoFileUpload : true;
 
-  res.status(200).json({ 
-    success: true, 
-    data: { 
-      canUpload: count < 1 && enableVideoFileUpload, 
+  res.status(200).json({
+    success: true,
+    data: {
+      canUpload: count < 1 && enableVideoFileUpload,
       count,
       enableVideoFileUpload
-    } 
+    }
   });
+});
+export const debugReels = asyncHandler(async (req, res) => {
+  const recentReels = await Reel.find({}).sort({ createdAt: -1 }).limit(10).lean();
+  const blouseReels = await Reel.find({ categoryName: /readymade/i }).lean();
+  res.status(200).json({ recent: recentReels, blouse: blouseReels });
 });

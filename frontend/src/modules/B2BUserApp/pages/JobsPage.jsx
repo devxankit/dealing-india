@@ -310,7 +310,17 @@ const JobsPage = () => {
                                             <div className="flex justify-between items-start mb-4">
                                                 <div>
                                                     <h3 className="text-xl font-bold text-slate-800 line-clamp-1 group-hover:text-primary-600 transition-colors">{job.jobTitle}</h3>
-                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Firm - {job.vendorId?.storeName || job.vendorId?.businessName || job.vendorId?.name}</p>
+                                                    <p 
+                                                        className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1 cursor-pointer hover:text-primary-600 transition-colors inline-block"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (job.vendorId?._id) {
+                                                                navigate(`/b2b/vendor/${job.vendorId._id}`);
+                                                            }
+                                                        }}
+                                                    >
+                                                        Firm - {job.vendorId?.storeName || job.vendorId?.businessName || job.vendorId?.name}
+                                                    </p>
                                                 </div>
                                             </div>
 

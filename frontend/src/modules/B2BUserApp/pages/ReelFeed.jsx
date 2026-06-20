@@ -27,6 +27,7 @@ export default function ReelFeed() {
   const [showShareModal, setShowShareModal] = useState(false);
   const { categories: allCategories, initialize: fetchB2BCategories } = useB2BCategoryStore();
   const [activeCategory, setActiveCategory] = useState(searchParams.get("category") || "");
+  const [activeCategoryId, setActiveCategoryId] = useState(searchParams.get("categoryId") || "");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
   const [debouncedCategorySearch, setDebouncedCategorySearch] = useState("");
@@ -55,13 +56,13 @@ export default function ReelFeed() {
     return () => clearTimeout(timer);
   }, [categorySearch]);
 
-  // Handle URL category changes
+  // Handle URL category changes — sync both display name and ID
   useEffect(() => {
-    const cat = searchParams.get("category") || "";
-    if (cat !== activeCategory) {
-      setActiveCategory(cat);
-    }
-  }, [searchParams, activeCategory]);
+    const catName = searchParams.get("category") || "";
+    const catId = searchParams.get("categoryId") || "";
+    if (catName !== activeCategory) setActiveCategory(catName);
+    if (catId !== activeCategoryId) setActiveCategoryId(catId);
+  }, [searchParams]);
 
   const viewedRef = useRef(new Set());
   const wheelLockRef = useRef(false);
@@ -78,13 +79,21 @@ export default function ReelFeed() {
 
   const fetchFeed = useCallback(async (pageNum = 1, append = false, pageToken = null, forceCategory = null) => {
     try {
-      if (!append) setLoading(true);
+      if (!append) {
+        setLoading(true);
+        setReels([]);
+      }
       if (append) loadingMoreRef.current = true;
 
       const currentCat = forceCategory !== null ? forceCategory : activeCategory;
+      const currentCatId = activeCategoryId;
       const params = new URLSearchParams({ limit: "10" });
 
-      if (currentCat && !isShowingGeneralFeed.current) {
+      if (currentCatId && !isShowingGeneralFeed.current) {
+        // Prefer ID-based filtering (stable even if admin renames)
+        params.set("categoryId", currentCatId);
+      } else if (currentCat && !isShowingGeneralFeed.current) {
+        // Fallback: name-based filtering (for old links / hardcoded categories)
         params.set("category", currentCat);
       }
 
@@ -107,7 +116,9 @@ export default function ReelFeed() {
           });
           if (pendingAdvanceRef.current) {
             pendingAdvanceRef.current = false;
-            setCurrentIndex(prev => prev + 1);
+            if (newReels.length > 0) {
+              setCurrentIndex(prev => prev + 1);
+            }
           }
         } else {
           setReels(newReels);
@@ -132,20 +143,7 @@ export default function ReelFeed() {
           stillHasMore = newReels.length > 0;
         }
 
-        if (!stillHasMore && currentCat && !isShowingGeneralFeed.current) {
-          isShowingGeneralFeed.current = true;
-          // Load general feed immediately to provide seamless experience
-          const generalRes = await api.get(`/reels/feed?limit=10&page=1`);
-          if (generalRes.success && generalRes.data?.reels) {
-            setReels(prev => [...prev, ...generalRes.data.reels]);
-            const genPagination = generalRes.pagination || {};
-            setNextPageToken(genPagination.nextPageToken || null);
-            setHasMore(genPagination.nextPageToken ? true : (generalRes.data.reels.length > 0));
-            setPage(1);
-          }
-        } else {
-          setHasMore(stillHasMore);
-        }
+        setHasMore(stillHasMore);
       } else if (!append) {
         setReels([]);
         setHasMore(false);
@@ -162,7 +160,7 @@ export default function ReelFeed() {
       setLoading(false);
       loadingMoreRef.current = false;
     }
-  }, [activeCategory]); // Removed reelIdFromUrl to prevent loop on scroll
+  }, [activeCategory, activeCategoryId]); // Added activeCategoryId to ensure latest state is captured
 
   // Priority fetch for deep-linked reel metadata to show thumbnail immediately
   useEffect(() => {
@@ -179,28 +177,37 @@ export default function ReelFeed() {
   }, [reelIdFromUrl, reels.length === 0]); // Only if we don't have it yet
 
   const playlistCategories = useMemo(() => {
-    const subs = allCategories.flatMap((cat) => cat.subcategories || []);
-    const names = subs
-      .map((s) => (typeof s === "string" ? s : s?.name))
-      .filter(Boolean);
+    // Build a list of {_id, name} objects covering both root and sub categories.
+    // Using the B2BCategory _id means filtering works even if admin renames a category.
+    const items = [];
 
-    const extra = ["Flat Properties", "Villa / Row house Properties", "Commercial Properties"];
-    const merged = [...names, ...extra];
+    allCategories.forEach(cat => {
+      const catId = (cat._id || cat.id || '').toString();
 
-    const unique = Array.from(
-      new Map(
-        merged
-          .map((name) => (name || "").trim())
-          .filter(Boolean)
-          .map((name) => [name.toLowerCase(), name])
-      ).values()
-    );
+      // Add root category itself
+      if (cat.name) items.push({ _id: catId, name: cat.name, isRoot: true });
 
-    const sorted = unique.sort((a, b) => a.localeCompare(b));
+      // Add each subcategory (use parent ID so backend can resolve all siblings)
+      (cat.subcategories || []).forEach(sub => {
+        const subName = typeof sub === 'string' ? sub : sub?.name;
+        if (subName) items.push({ _id: catId, name: subName, isRoot: false });
+      });
+    });
 
-    if (!debouncedCategorySearch) return sorted;
-    const q = debouncedCategorySearch.toLowerCase();
-    return sorted.filter(name => name.toLowerCase().includes(q));
+    // Deduplicate by lower-cased name
+    const seen = new Set();
+    const unique = items.filter(item => {
+      const key = (item.name || '').toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const sorted = unique.sort((a, b) => a.name.localeCompare(b.name));
+
+    if (!debouncedCategorySearch.trim()) return sorted;
+    const q = debouncedCategorySearch.toLowerCase().trim();
+    return sorted.filter(item => item.name.toLowerCase().includes(q));
   }, [allCategories, debouncedCategorySearch]);
 
   useEffect(() => {
@@ -211,7 +218,7 @@ export default function ReelFeed() {
     hasAppliedInitialReelRef.current = false;
     isShowingGeneralFeed.current = false;
     fetchFeed(1, false, null, activeCategory);
-  }, [activeCategory, fetchFeed]);
+  }, [activeCategory, activeCategoryId, fetchFeed]);
 
   // Update URL as user scrolls to keep current reel reflected in the address bar
   useEffect(() => {
@@ -220,7 +227,7 @@ export default function ReelFeed() {
 
     if (reels.length > 0 && reels[currentIndex]?._id) {
       const currentId = reels[currentIndex]._id;
-      setIsPlaying(true); 
+      setIsPlaying(true);
       setIsBuffering(true); // Show loader while new video loads
       setControlsVisible(false);
       hasUserInteractedRef.current = false;
@@ -300,7 +307,7 @@ export default function ReelFeed() {
     (e) => {
       if (wheelLockRef.current) return;
 
-      const { hasNext: canNext, hasPrev: canPrev, hasMore: moreAvailable } = stateRef.current;
+      const { hasNext: canNext, hasPrev: canPrev, hasMore: moreAvailable, reelsCount } = stateRef.current;
 
       if (e.deltaY > 0) {
         if (canNext) {
@@ -315,14 +322,26 @@ export default function ReelFeed() {
           pendingAdvanceRef.current = true;
           loadMore();
           setTimeout(() => { wheelLockRef.current = false; }, 1200);
+        } else {
+          // Looping: User reached the end of all available reels, loop back to start
+          wheelLockRef.current = true;
+          setCurrentIndex(0);
+          setTimeout(() => { wheelLockRef.current = false; }, 1000);
         }
-      } else if (e.deltaY < 0 && canPrev) {
-        wheelLockRef.current = true;
-        setControlsVisible(false);
-        setIsPlaying(true);
-        hasUserInteractedRef.current = false;
-        setCurrentIndex((i) => i - 1);
-        setTimeout(() => { wheelLockRef.current = false; }, 1000);
+      } else if (e.deltaY < 0) {
+        if (canPrev) {
+          wheelLockRef.current = true;
+          setControlsVisible(false);
+          setIsPlaying(true);
+          hasUserInteractedRef.current = false;
+          setCurrentIndex((i) => i - 1);
+          setTimeout(() => { wheelLockRef.current = false; }, 1000);
+        } else {
+          // Looping: User scrolled up on the first reel, loop to end
+          wheelLockRef.current = true;
+          setCurrentIndex(reelsCount - 1);
+          setTimeout(() => { wheelLockRef.current = false; }, 1000);
+        }
       }
     },
     [loadMore]
@@ -342,6 +361,7 @@ export default function ReelFeed() {
     if (!touchStartYRef.current) return;
     const diff = touchStartYRef.current - e.changedTouches[0].clientY;
     if (Math.abs(diff) < 40) return;
+
     if (diff > 0) {
       if (hasNext) {
         setControlsVisible(false);
@@ -351,12 +371,18 @@ export default function ReelFeed() {
       } else if (hasMore) {
         pendingAdvanceRef.current = true;
         loadMore();
+      } else {
+        setCurrentIndex(0);
       }
-    } else if (diff < 0 && hasPrev) {
-      setControlsVisible(false);
-      setIsPlaying(true);
-      hasUserInteractedRef.current = false;
-      setCurrentIndex((i) => i - 1);
+    } else if (diff < 0) {
+      if (hasPrev) {
+        setControlsVisible(false);
+        setIsPlaying(true);
+        hasUserInteractedRef.current = false;
+        setCurrentIndex((i) => i - 1);
+      } else {
+        setCurrentIndex(reels.length - 1);
+      }
     }
     touchStartYRef.current = null;
   };
@@ -424,7 +450,7 @@ export default function ReelFeed() {
     if (!currentReel) return;
     const url = getShareUrl();
     const typeText = getDisplayType();
-    
+
     await handleShare({
       title: currentReel?.title || typeText,
       text: currentReel?.description || `Check out this ${typeText.toLowerCase()} on Dealing India`,
@@ -491,15 +517,19 @@ export default function ReelFeed() {
 
         // Destroy old player if exists
         if (ytPlayerRef.current) {
-          try { ytPlayerRef.current.destroy(); } catch(e) {}
+          try { ytPlayerRef.current.destroy(); } catch (e) { }
           ytPlayerRef.current = null;
         }
 
-        const container = document.getElementById('youtube-player-container');
-        if (container) {
-          container.innerHTML = '';
+        const wrapper = document.getElementById('youtube-wrapper');
+        if (wrapper) {
+          wrapper.innerHTML = '';
+          const playerDiv = document.createElement('div');
+          playerDiv.className = 'w-full h-full';
+          wrapper.appendChild(playerDiv);
+
           isYoutubeRef.current = true;
-          ytPlayerRef.current = new window.YT.Player(container, {
+          ytPlayerRef.current = new window.YT.Player(playerDiv, {
             videoId: currentYoutubeId,
             playerVars: {
               autoplay: 1,
@@ -547,7 +577,7 @@ export default function ReelFeed() {
       if (ytPlayerRef.current) {
         try {
           ytPlayerRef.current.destroy();
-        } catch (e) {}
+        } catch (e) { }
         ytPlayerRef.current = null;
       }
     };
@@ -675,23 +705,23 @@ export default function ReelFeed() {
       {!loading && reels.length === 0 && !initialMetadata && (
         <div className="absolute inset-0 z-[100] bg-black flex flex-col items-center justify-center gap-4 text-center p-6">
           <div className="w-20 h-20 bg-gray-900 rounded-full flex items-center justify-center mb-2 shadow-2xl border border-white/5">
-             <FiVideoOff className="text-4xl text-gray-500" />
+            <FiVideoOff className="text-4xl text-gray-500" />
           </div>
           <h2 className="text-2xl font-black text-white tracking-tight">No Reels Available</h2>
           <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
             We couldn't find any reels matching your criteria at the moment. Please check back later or clear your filters.
           </p>
-          <button 
-             onClick={() => {
-                if (activeCategory) {
-                    navigate('/b2b/reels');
-                    setActiveCategory("");
-                    setCategorySearch("");
-                } else {
-                    navigate('/b2b/home');
-                }
-             }}
-             className="mt-6 px-8 py-3.5 bg-primary-600 text-white rounded-2xl font-bold text-sm hover:bg-primary-500 transition-all shadow-[0_0_20px_rgba(var(--color-primary-500),0.3)] hover:scale-105 active:scale-95 flex items-center gap-2 uppercase tracking-wider"
+          <button
+            onClick={() => {
+              if (activeCategory) {
+                navigate('/b2b/reels');
+                setActiveCategory("");
+                setCategorySearch("");
+              } else {
+                navigate('/b2b/home');
+              }
+            }}
+            className="mt-6 px-8 py-3.5 bg-primary-600 text-white rounded-2xl font-bold text-sm hover:bg-primary-500 transition-all shadow-[0_0_20px_rgba(var(--color-primary-500),0.3)] hover:scale-105 active:scale-95 flex items-center gap-2 uppercase tracking-wider"
           >
             {activeCategory ? "Clear Filters" : "Go to Home"}
           </button>
@@ -704,10 +734,19 @@ export default function ReelFeed() {
         <div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden">
           {getReelYoutubeId(currentReel || initialMetadata) ? (
             <div className="w-full h-full relative z-10 bg-transparent">
-              <div id="youtube-player-container" className="w-full h-full" />
+              <div id="youtube-wrapper" className="w-full h-full" />
             </div>
           ) : (
             <>
+              {/* Preload next 2 reels in background for instant scrolling */}
+              <div className="hidden">
+                {reels[currentIndex + 1]?.videoUrl && !getReelYoutubeId(reels[currentIndex + 1]) && (
+                  <video src={reels[currentIndex + 1].videoUrl} preload="auto" muted />
+                )}
+                {reels[currentIndex + 2]?.videoUrl && !getReelYoutubeId(reels[currentIndex + 2]) && (
+                  <video src={reels[currentIndex + 2].videoUrl} preload="auto" muted />
+                )}
+              </div>
               {(() => { isYoutubeRef.current = false; })()}
               {(currentReel || initialMetadata)?.videoUrl && (
                 <video
@@ -726,7 +765,12 @@ export default function ReelFeed() {
                     setIsPlaying(true);
                     setControlsVisible(false);
                   }}
-                  onPlay={() => { setIsPlaying(true); setControlsVisible(false); }}
+                  onPlay={() => {
+                    setIsBuffering(false);
+                    setIsPlaying(true);
+                    setControlsVisible(false);
+                  }}
+                  onCanPlay={() => setIsBuffering(false)}
                   onPause={() => { setIsPlaying(false); setControlsVisible(true); }}
                   onWaiting={() => setIsBuffering(true)}
                   onLoadStart={() => setIsBuffering(true)}
@@ -736,84 +780,74 @@ export default function ReelFeed() {
           )}
         </div>
 
-        <AnimatePresence>
+        <div className="absolute inset-0 z-20 pointer-events-none">
           {(currentReel || initialMetadata) && (
-            <motion.div
-              key={currentReel?._id || "initial"}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute inset-0 z-20 pointer-events-none"
-            >
-              <div className="h-full w-full flex items-center justify-center relative">
-                {/* Immediate Feedback Thumbnail layer - stays visible until video is ready */}
-                <div className={`absolute inset-0 z-20 transition-opacity duration-700 ${(isBuffering || loading) ? 'opacity-100' : 'opacity-0'}`}>
-                  <img
-                    src={getReelYoutubeId(currentReel || initialMetadata) 
-                      ? `https://img.youtube.com/vi/${getReelYoutubeId(currentReel || initialMetadata)}/maxresdefault.jpg` 
-                      : ((currentReel || initialMetadata)?.thumbnailUrl || "/placeholder-reel.jpg")
-                    }
-                    className="w-full h-full object-cover blur-md brightness-50"
-                    alt=""
-                  />
-                  {(isBuffering || loading) && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Interaction blocker/event catcher for iframes - enables play on tap */}
-                <div
-                  className="absolute inset-0 z-[25] cursor-pointer pointer-events-auto"
-                  onClick={() => {
-                    if (controlsVisible) {
-                      togglePlay();
-                    } else {
-                      // Show controls briefly on tap
-                      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-                      setControlsVisible(true);
-                      controlsTimeoutRef.current = setTimeout(() => setControlsVisible(false), 2000);
-                    }
-                  }}
+            <div className="h-full w-full flex items-center justify-center relative">
+              {/* Immediate Feedback Thumbnail layer - stays visible until video is ready */}
+              <div className={`absolute inset-0 z-20 transition-opacity duration-700 ${(isBuffering || loading) ? 'opacity-100' : 'opacity-0'}`}>
+                <img
+                  src={getReelYoutubeId(currentReel || initialMetadata)
+                    ? `https://img.youtube.com/vi/${getReelYoutubeId(currentReel || initialMetadata)}/maxresdefault.jpg`
+                    : ((currentReel || initialMetadata)?.thumbnailUrl || "/placeholder-reel.jpg")
+                  }
+                  className="w-full h-full object-cover blur-md brightness-50"
+                  alt=""
                 />
-
-                {/* Play/Pause/Skip Controls Overlay - Only visible after user interaction or when paused */}
-                <div
-                  className={`absolute inset-0 z-[30] flex items-center justify-center gap-8 transition-all duration-300 pointer-events-none ${controlsVisible || !isPlaying ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
-                >
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleSkip('prev'); }}
-                    className={`p-4 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all active:scale-90 pointer-events-auto ${!hasPrev ? 'opacity-30' : 'hover:bg-black/60 shadow-xl'}`}
-                    disabled={!hasPrev}
-                  >
-                    <FiSkipBack className="text-2xl" />
-                  </button>
-
-                  <button
-                    onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-                    className="w-20 h-20 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-xl text-white border border-white/20 shadow-2xl transition-all hover:scale-110 active:scale-95 pointer-events-auto"
-                  >
-                    {isPlaying ? (
-                      <FiPause className="text-4xl" />
-                    ) : (
-                      <FiPlay className="text-4xl ml-1" />
-                    )}
-                  </button>
-
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleSkip('next'); }}
-                    className={`p-4 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all active:scale-90 pointer-events-auto ${(!hasNext && !hasMore) ? 'opacity-30' : 'hover:bg-black/60 shadow-xl'}`}
-                    disabled={!hasNext && !hasMore}
-                  >
-                    <FiSkipForward className="text-2xl" />
-                  </button>
-                </div>
+                {(isBuffering || loading) && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  </div>
+                )}
               </div>
 
+              {/* Interaction blocker/event catcher for iframes - enables play on tap */}
+              <div
+                className="absolute inset-0 z-[25] cursor-pointer pointer-events-auto"
+                onClick={() => {
+                  if (controlsVisible) {
+                    togglePlay();
+                  } else {
+                    // Show controls briefly on tap
+                    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+                    setControlsVisible(true);
+                    controlsTimeoutRef.current = setTimeout(() => setControlsVisible(false), 2000);
+                  }
+                }}
+              />
 
-              {/* OVERLAYS INSIDE MOTION DIV */}
+              {/* Play/Pause/Skip Controls Overlay - Only visible after user interaction or when paused */}
+              <div
+                className={`absolute inset-0 z-[30] flex items-center justify-center gap-8 transition-all duration-300 pointer-events-none ${controlsVisible || !isPlaying ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
+              >
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleSkip('prev'); }}
+                  className={`p-4 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all active:scale-90 pointer-events-auto ${!hasPrev ? 'opacity-30' : 'hover:bg-black/60 shadow-xl'}`}
+                  disabled={!hasPrev}
+                >
+                  <FiSkipBack className="text-2xl" />
+                </button>
+
+                <button
+                  onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                  className="w-20 h-20 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-xl text-white border border-white/20 shadow-2xl transition-all hover:scale-110 active:scale-95 pointer-events-auto"
+                >
+                  {isPlaying ? (
+                    <FiPause className="text-4xl" />
+                  ) : (
+                    <FiPlay className="text-4xl ml-1" />
+                  )}
+                </button>
+
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleSkip('next'); }}
+                  className={`p-4 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 transition-all active:scale-90 pointer-events-auto ${(!hasNext && !hasMore) ? 'opacity-30' : 'hover:bg-black/60 shadow-xl'}`}
+                  disabled={!hasNext && !hasMore}
+                >
+                  <FiSkipForward className="text-2xl" />
+                </button>
+              </div>
+
+              {/* OVERLAYS */}
               <div className="absolute bottom-0 left-0 right-0 p-4 pb-[calc(110px+env(safe-area-inset-bottom))] bg-gradient-to-t from-black/80 z-30 pointer-events-none transition-opacity duration-300" style={{ opacity: (currentReel || initialMetadata) ? 1 : 0 }}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -885,14 +919,13 @@ export default function ReelFeed() {
                 </button>
                 {(currentReel || initialMetadata)?.vendorPhone && (
                   <div className="flex flex-col items-center">
-                    <button 
-                      onClick={handleWhatsApp} 
+                    <button
+                      onClick={handleWhatsApp}
                       disabled={currentReel?.enquiryStatus && !currentReel.enquiryStatus.canAcceptEnquiries}
-                      className={`flex flex-col items-center transition-all ${
-                        currentReel?.enquiryStatus && !currentReel.enquiryStatus.canAcceptEnquiries
-                          ? "grayscale opacity-50 cursor-not-allowed pointer-events-none"
-                          : "text-[#25D366] hover:scale-110 active:scale-95 pointer-events-auto"
-                      }`}
+                      className={`flex flex-col items-center transition-all ${currentReel?.enquiryStatus && !currentReel.enquiryStatus.canAcceptEnquiries
+                        ? "grayscale opacity-50 cursor-not-allowed pointer-events-none"
+                        : "text-[#25D366] hover:scale-110 active:scale-95 pointer-events-auto"
+                        }`}
                     >
                       <FaWhatsapp className="text-5xl shadow-glow-green" />
                     </button>
@@ -904,9 +937,9 @@ export default function ReelFeed() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </div>
       </div>
 
       <div className="h-full w-full relative z-40 pointer-events-none">
@@ -964,18 +997,19 @@ export default function ReelFeed() {
                         All Reels
                       </button>
                       {playlistCategories.length > 0 ? (
-                        playlistCategories.map((name) => (
+                        playlistCategories.map((item) => (
                           <button
-                            key={name}
+                            key={`${item._id}-${item.name}`}
                             onClick={() => {
-                              navigate(`/b2b/reels?category=${encodeURIComponent(name)}`);
+                              // Navigate with both ID (for stable filtering) and name (for display)
+                              navigate(`/b2b/reels?category=${encodeURIComponent(item.name)}&categoryId=${encodeURIComponent(item._id)}`);
                               setShowCategoryDropdown(false);
                               setCategorySearch("");
                             }}
-                            className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${activeCategory === name ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
+                            className={`w-full px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider transition-colors ${activeCategory === item.name ? "text-primary-500 bg-white/5" : "text-gray-400 hover:text-white hover:bg-white/5"
                               }`}
                           >
-                            {name}
+                            {item.name}
                           </button>
                         ))
                       ) : (

@@ -42,17 +42,25 @@ const B2BVendorProfile = () => {
 
     const handleShareReferral = async () => {
         if (!referralData?.referralLink) return;
+        // Derive the backend OG share URL for rich WhatsApp/social preview
+        const apiBase = api.defaults.baseURL || '';
+        const backendBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase.replace(/\/api\/?$/, '');
+        const shareUrl = `${backendBase}/api/referrals/share/${referralData.referralCode}`;
         await handleShare({
-            title: "Join Dealing India",
-            text: `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`
+            title: "Join Dealing India - B2B Marketplace",
+            text: `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`,
+            url: shareUrl,
         });
     };
 
     const copyReferralLink = async () => {
         if (!referralData?.referralLink) return;
         try {
-            const shareText = `Join Dealing India using my referral code: ${referralData.referralCode}\nDownload App: https://play.google.com/store/apps/details?id=com.dealingindia.app`;
-            await navigator.clipboard.writeText(shareText);
+            // Copy the backend OG share URL — pasting it in WhatsApp shows the rich preview
+            const apiBase = api.defaults.baseURL || '';
+            const backendBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase.replace(/\/api\/?$/, '');
+            const shareUrl = `${backendBase}/api/referrals/share/${referralData.referralCode}`;
+            await navigator.clipboard.writeText(shareUrl);
             toast.success("Referral link copied");
         } catch (error) {
             toast.error("Failed to copy link");

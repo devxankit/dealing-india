@@ -57,7 +57,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         };
     }, []);
 
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState(initialData || {
         name: "",
         category: "",
         subcategory: "",
@@ -264,16 +264,29 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
                     if (field.type === 'select') {
                         const strVal = typeof val === 'string' ? val : (Array.isArray(val) ? val[0] : String(val));
-                        const isInOptions = fieldOpts.some(opt => String(opt).toLowerCase() === String(strVal).toLowerCase());
-                        if (isInOptions) {
-                            if (!newValues[field.label]) newValues[field.label] = strVal;
+                        const matchedOpt = fieldOpts.find(opt => String(opt).toLowerCase() === String(strVal).toLowerCase());
+                        if (matchedOpt) {
+                            if (!newValues[field.label]) newValues[field.label] = matchedOpt;
                         } else {
                             newValues[field.label] = '__OTHER__';
                             newValues[`${field.label}_custom`] = strVal || '';
                         }
                     } else if (field.type === 'multi-select') {
-                        const arrVal = Array.isArray(val) ? val : [val];
-                        if (!newValues[field.label]) newValues[field.label] = arrVal.map(v => (v != null ? String(v) : ''));
+                        let arrVal = [];
+                        if (Array.isArray(val)) {
+                            arrVal = val;
+                        } else if (typeof val === 'string') {
+                            arrVal = val.split(',').map(v => v.trim()).filter(Boolean);
+                        } else {
+                            arrVal = [val];
+                        }
+                        
+                        if (!newValues[field.label]) {
+                            newValues[field.label] = arrVal.map(v => {
+                                const matchedOpt = fieldOpts.find(opt => String(opt).toLowerCase() === String(v).toLowerCase());
+                                return matchedOpt ? matchedOpt : (v != null ? String(v) : '');
+                            });
+                        }
                     } else if (!newValues[field.label]) {
                         newValues[field.label] = val;
                     }

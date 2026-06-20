@@ -125,9 +125,8 @@ const B2BBanner = () => {
                 <div
                     ref={containerRef}
                     className="group relative w-full overflow-hidden rounded-xl"
-                    style={{
-                        aspectRatio: "3/1",
-                    }}>
+                    style={{ aspectRatio: "16/6" }}
+                >in
                     <motion.div
                         className="flex h-full"
                         style={{
@@ -154,7 +153,7 @@ const B2BBanner = () => {
                                 <img
                                     src={banner.image || banner.bannerImage}
                                     alt={banner.title || `B2B Banner ${index + 1}`}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-contain bg-black/5"
                                     loading={index === 0 ? "eager" : "lazy"}
                                     onError={(e) => {
                                         console.error(`❌ Failed to load banner image:`, banner.image || banner.bannerImage);
@@ -213,9 +212,8 @@ const B2BBanner = () => {
             <div className="md:hidden">
                 <div
                     className="relative w-full overflow-hidden rounded-xl"
-                    style={{
-                        aspectRatio: "16/9",
-                    }}>
+                    style={{ aspectRatio: "16/6" }}
+                >
                     <motion.div
                         className="flex h-full cursor-grab active:cursor-grabbing"
                         drag="x"
@@ -249,7 +247,7 @@ const B2BBanner = () => {
                                 <img
                                     src={banner.image || banner.bannerImage}
                                     alt={banner.title || `B2B Banner ${index + 1}`}
-                                    className="w-full h-full object-cover select-none"
+                                    className="w-full h-full object-contain bg-black/5 select-none"
                                     draggable="false"
                                     onError={(e) => {
                                         console.error(`❌ Failed to load banner image:`, banner.image || banner.bannerImage);

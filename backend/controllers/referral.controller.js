@@ -72,7 +72,8 @@ export const getReferralSharePage = asyncHandler(async (req, res) => {
     const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' || req.get('host').includes('dealingindia.com') ? 'https' : 'http';
     const bUrl = `${protocol}://${req.get('host')}`;
     const shareUrl = `${bUrl}${req.originalUrl || req.url}`;
-    const image = `${bUrl}/upload/dealing-india-logo.png`;
+    // OG_LOGO_URL can be set to a Cloudinary/CDN URL so WhatsApp can always fetch the image
+    const image = process.env.OG_LOGO_URL || `${bUrl}/upload/dealing-india-logo.png`;
 
     const html = `
 <!DOCTYPE html>
