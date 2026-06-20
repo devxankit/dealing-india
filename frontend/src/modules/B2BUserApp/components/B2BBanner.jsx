@@ -126,7 +126,7 @@ const B2BBanner = () => {
                     ref={containerRef}
                     className="group relative w-full overflow-hidden rounded-xl"
                     style={{ aspectRatio: "16/6" }}
-                >in
+                >
                     <motion.div
                         className="flex h-full"
                         style={{
