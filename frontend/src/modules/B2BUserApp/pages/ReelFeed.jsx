@@ -227,23 +227,38 @@ export default function ReelFeed() {
     fetchFeed(1, false, null, activeCategory);
   }, [activeCategory, activeCategoryId, fetchFeed]);
 
-  // Update URL as user scrolls to keep current reel reflected in the address bar
+  // Always reset the video player state when the current reel changes.
+  // This must run regardless of filter state — otherwise the new reel won't play.
+  const currentReelId = reels[currentIndex]?._id;
+  useEffect(() => {
+    if (currentReelId) {
+      setIsPlaying(true);
+      setIsBuffering(true);
+      setControlsVisible(false);
+      hasUserInteractedRef.current = false;
+    }
+  }, [currentReelId]);
+
+  // Update URL as user scrolls to keep current reel reflected in the address bar.
+  // IMPORTANT: Only do this when NOT filtering by category, because switching between
+  // /b2b/reels?category=X and /b2b/reels/:id?category=X causes React Router to
+  // unmount/remount the component, which breaks scroll.
   useEffect(() => {
     // Only update URL if we've successfully settled on the initial shared reel (if any)
     if (reelIdFromUrl && !hasAppliedInitialReelRef.current) return;
 
+    // When a category filter is active, keep the URL as /b2b/reels?category=...
+    // Don't embed the reel ID — that would cause a route switch and component remount.
+    if (activeCategory || activeCategoryId) return;
+
     if (reels.length > 0 && reels[currentIndex]?._id) {
       const currentId = reels[currentIndex]._id;
-      setIsPlaying(true);
-      setIsBuffering(true); // Show loader while new video loads
-      setControlsVisible(false);
-      hasUserInteractedRef.current = false;
       if (currentId !== reelIdFromUrl) {
         const search = searchParams.toString();
         navigate(`/b2b/reels/${currentId}${search ? `?${search}` : ""}`, { replace: true });
       }
     }
-  }, [currentIndex, reels, navigate, reelIdFromUrl, searchParams]);
+  }, [currentIndex, reels, navigate, reelIdFromUrl, searchParams, activeCategory, activeCategoryId]);
 
   /* When opened via shared link /b2b/reels/:reelId – show that reel */
   useEffect(() => {
@@ -337,6 +352,20 @@ export default function ReelFeed() {
           loadMore();
           setTimeout(() => { wheelLockRef.current = false; }, 1200);
         } else {
+          // Reached the very end of the feed
+          if (activeCategory || activeCategoryId) {
+            toast.success("End of category. Now showing general feed!", { id: "general-feed" });
+            setActiveCategory("");
+            setActiveCategoryId("");
+            navigate('/b2b/reels', { replace: true });
+            wheelLockRef.current = false;
+            return;
+          }
+          if (reelsCount === 1) {
+            toast("You've reached the end of the feed.", { id: "only-reel" });
+            wheelLockRef.current = false;
+            return;
+          }
           // Looping: User reached the end of all available reels, loop back to start
           wheelLockRef.current = true;
           setCurrentIndex(0);
@@ -351,6 +380,11 @@ export default function ReelFeed() {
           setCurrentIndex((i) => i - 1);
           setTimeout(() => { wheelLockRef.current = false; }, 1000);
         } else {
+          if (reelsCount === 1) {
+            toast("This is the first reel.", { id: "first-reel" });
+            wheelLockRef.current = false;
+            return;
+          }
           // Looping: User scrolled up on the first reel, loop to end
           wheelLockRef.current = true;
           setCurrentIndex(reelsCount - 1);
@@ -358,7 +392,7 @@ export default function ReelFeed() {
         }
       }
     },
-    [loadMore]
+    [loadMore, activeCategory, activeCategoryId, navigate]
   );
 
   useEffect(() => {
@@ -386,6 +420,18 @@ export default function ReelFeed() {
         pendingAdvanceRef.current = true;
         loadMore();
       } else {
+        // Reached the very end of the feed
+        if (activeCategory || activeCategoryId) {
+          toast.success("End of category. Now showing general feed!", { id: "general-feed" });
+          setActiveCategory("");
+          setActiveCategoryId("");
+          navigate('/b2b/reels', { replace: true });
+          return;
+        }
+        if (reels.length === 1) {
+          toast("You've reached the end of the feed.", { id: "only-reel" });
+          return;
+        }
         setCurrentIndex(0);
       }
     } else if (diff < 0) {
@@ -395,6 +441,10 @@ export default function ReelFeed() {
         hasUserInteractedRef.current = false;
         setCurrentIndex((i) => i - 1);
       } else {
+        if (reels.length === 1) {
+          toast("This is the first reel.", { id: "first-reel" });
+          return;
+        }
         setCurrentIndex(reels.length - 1);
       }
     }
