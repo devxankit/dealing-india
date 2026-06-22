@@ -27,6 +27,7 @@ import api from "../../../../shared/utils/api";
 import { getBusinessTypes } from "../../../../shared/utils/businessTypeCache";
 import toast from "react-hot-toast";
 import B2BVendorDetailModal from "./components/B2BVendorDetailModal";
+import StarRating from "../../../../shared/components/StarRating";
 
 const AdminVendorDashboardView = () => {
     const { id } = useParams();
@@ -36,6 +37,7 @@ const AdminVendorDashboardView = () => {
     const [billingHistory, setBillingHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [averageRating, setAverageRating] = useState(0);
 
     useEffect(() => {
         const fetchAll = async () => {
@@ -75,6 +77,16 @@ const AdminVendorDashboardView = () => {
                 const billingRes = await api.get(`/admin/b2b-vendors/subscriptions/vendor/${id}/billing`);
                 if (billingRes.success) {
                     setBillingHistory(billingRes.data);
+                }
+
+                // 5. Fetch Rating Summary
+                try {
+                    const ratingRes = await api.get(`/rating/summary`, { params: { targetType: 'shop', targetId: id } });
+                    if (ratingRes.success) {
+                        setAverageRating(ratingRes.data.averageRating);
+                    }
+                } catch (e) {
+                    console.error("Error fetching rating", e);
                 }
             } catch (error) {
                 console.error("❌ Error fetching vendor dashboard:", error);
@@ -210,6 +222,12 @@ const AdminVendorDashboardView = () => {
                                 {vendor?.businessType}
                             </span>
                         </div>
+                        {averageRating > 0 && (
+                            <div className="flex items-center gap-1 mb-2">
+                                <StarRating rating={averageRating} size={16} />
+                                <span className="text-[10px] font-bold text-gray-500 ml-1">Avg Rating</span>
+                            </div>
+                        )}
                         <p className="text-slate-400 font-medium flex items-center gap-2 text-left">
                             <FiCheckCircle className="text-emerald-500" /> Account Dashboard Overview
                         </p>

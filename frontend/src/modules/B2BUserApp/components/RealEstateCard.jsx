@@ -5,13 +5,37 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../shared/utils/api';
 import { getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
-import StarRating from './StarRating';
+import StarRating from '../../../shared/components/StarRating';
 import { useAuthStore } from '../../../shared/store/authStore';
+import { getRatingSummary } from '../../../shared/services/ratingService';
 
 const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForActions = false }) => {
     const navigate = useNavigate();
     const { isAuthenticated, user } = useAuthStore();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [ratingSummary, setRatingSummary] = useState({ averageRating: 0, ratingCount: 0, type: 'product' });
+
+    React.useEffect(() => {
+        const fetchRating = async () => {
+            if (property._id) {
+                const pSummary = await getRatingSummary('property', property._id);
+                if (pSummary && pSummary.ratingCount > 0) {
+                    setRatingSummary({ ...pSummary, type: 'product' });
+                } else {
+                    const vid = property.vendorId?._id || property.vendorId?.id || property.vendorIdRef || property.vendorId;
+                    if (vid) {
+                        const sSummary = await getRatingSummary('shop', vid);
+                        if (sSummary && sSummary.ratingCount > 0) {
+                            setRatingSummary({ ...sSummary, type: 'shop' });
+                        } else {
+                            setRatingSummary({ averageRating: 0, ratingCount: 0, type: 'product' });
+                        }
+                    }
+                }
+            }
+        };
+        fetchRating();
+    }, [property._id, property.vendorId]);
 
     const redirectToLoginIfRequired = (event) => {
         if (requireAuthForActions && !isAuthenticated) {
@@ -312,9 +336,12 @@ const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForAct
                             {displayLocation}
                         </p>
                     </div>
-                    {(property.ratingCount > 0 || property.averageRating > 0) && (
-                        <div className="mt-1">
-                            <StarRating averageRating={property.averageRating} ratingCount={property.ratingCount || 0} size="sm" />
+                    {ratingSummary.ratingCount > 0 && (
+                        <div className="flex items-center gap-1 mt-1">
+                            <StarRating rating={ratingSummary.averageRating} size={10} />
+                            <span className="text-[9px] font-black text-gray-700">{ratingSummary.averageRating.toFixed(1)}</span>
+                            <span className="text-[8px] font-bold text-gray-400">({ratingSummary.ratingCount})</span>
+                            {ratingSummary.type === 'shop' && <span className="text-[7px] font-black text-primary-500 bg-primary-50 px-1 rounded">SHOP</span>}
                         </div>
                     )}
                 </div>

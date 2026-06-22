@@ -6,11 +6,38 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
 import toast from '../../../shared/utils/toast';
 import { useAuthStore } from '../../../shared/store/authStore';
+import StarRating from '../../../shared/components/StarRating';
+import { getRatingSummary } from '../../../shared/services/ratingService';
 
 const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemType, requireAuthForActions = false, showSecureDeal = false }) => {
     const navigate = useNavigate();
     const { isAuthenticated, user } = useAuthStore();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const [ratingSummary, setRatingSummary] = useState({ averageRating: 0, ratingCount: 0, type: 'product' });
+
+    React.useEffect(() => {
+        const fetchRating = async () => {
+            if (product._id) {
+                const type = product.itemType === 'lotslot' ? 'lotslot' : 'product';
+                const pSummary = await getRatingSummary(type, product._id);
+                if (pSummary && pSummary.ratingCount > 0) {
+                    setRatingSummary({ ...pSummary, type: 'product' });
+                } else {
+                    const vid = product.vendorId?._id || product.vendorId?.id || product.vendorIdRef || product.vendorId;
+                    if (vid) {
+                        const sSummary = await getRatingSummary('shop', vid);
+                        if (sSummary && sSummary.ratingCount > 0) {
+                            setRatingSummary({ ...sSummary, type: 'shop' });
+                        } else {
+                            setRatingSummary({ averageRating: 0, ratingCount: 0, type: 'product' });
+                        }
+                    }
+                }
+            }
+        };
+        fetchRating();
+    }, [product._id, product.itemType, product.formType, product.vendorId]);
+
     let allImages = [];
     if (product.formType === 'shop-listing' && product.items?.length > 0) {
         allImages = [
@@ -198,10 +225,19 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                         </div>
                     )}
 
-                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
+                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate mt-0.5">
                         <span className="text-gray-500">Mfg:</span>{' '}
                         {vendor?.mfgOfWork ? vendor.mfgOfWork : (product.category || '—')}
                     </p>
+
+                    {ratingSummary.ratingCount > 0 && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                            <StarRating rating={ratingSummary.averageRating} size={10} />
+                            <span className="text-[9px] font-black text-gray-700">{ratingSummary.averageRating.toFixed(1)}</span>
+                            <span className="text-[8px] font-bold text-gray-400">({ratingSummary.ratingCount})</span>
+                            {ratingSummary.type === 'shop' && <span className="text-[7px] font-black text-primary-500 bg-primary-50 px-1 rounded">SHOP</span>}
+                        </div>
+                    )}
                 </div>
 
                 {/* Info Row: Unit and Vendor (no min order on catalog cards) */}

@@ -14,6 +14,8 @@ import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 import { formatPrice, getGoogleMapsUrl, getWhatsAppUserDetailsSuffix } from '../../../shared/utils/helpers';
 import { handleShare } from '../../../shared/utils/share';
+import { getRatingSummary, getUserRating, submitRating } from '../../../shared/services/ratingService';
+import StarRating from '../../../shared/components/StarRating';
 
 const B2BProductDetail = () => {
     const { id } = useParams();
@@ -28,10 +30,60 @@ const B2BProductDetail = () => {
     const [inquiryAttachment, setInquiryAttachment] = useState(null);
     const [hasInquiry, setHasInquiry] = useState(false);
     const [enquiryStatus, setEnquiryStatus] = useState({ canAcceptEnquiries: true });
+    const [ratingSummary, setRatingSummary] = useState({ averageRating: 0, ratingCount: 0, type: 'product' });
+    const [userRating, setUserRating] = useState(null);
+    const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
     useEffect(() => {
         fetchProductDetails();
     }, [id]);
+
+    useEffect(() => {
+        const fetchRatings = async () => {
+            if (id) {
+                const summary = await getRatingSummary('product', id);
+                if (summary && summary.ratingCount > 0) {
+                    setRatingSummary({ ...summary, type: 'product' });
+                } else if (product?.vendorId) {
+                    const vid = product.vendorId._id || product.vendorId.id || product.vendorId;
+                    const sSummary = await getRatingSummary('shop', vid);
+                    if (sSummary && sSummary.ratingCount > 0) {
+                        setRatingSummary({ ...sSummary, type: 'shop' });
+                    } else {
+                        setRatingSummary({ averageRating: 0, ratingCount: 0, type: 'product' });
+                    }
+                }
+
+                if (isAuthenticated) {
+                    const userR = await getUserRating('product', id);
+                    if (userR) setUserRating(userR);
+                }
+            }
+        };
+        // wait for product to be fetched so we have vendorId
+        if (product) {
+            fetchRatings();
+        }
+    }, [id, isAuthenticated, product]);
+
+    const handleRatingSubmit = async (ratingValue) => {
+        if (!isAuthenticated) {
+            toast.error('Please login to submit a rating');
+            navigate('/b2b/login');
+            return;
+        }
+        setIsSubmittingRating(true);
+        try {
+            const result = await submitRating('product', id, ratingValue);
+            if (result) {
+                setUserRating(result);
+                const summary = await getRatingSummary('product', id);
+                if (summary) setRatingSummary(summary);
+            }
+        } finally {
+            setIsSubmittingRating(false);
+        }
+    };
 
     const fetchProductDetails = async () => {
         setLoading(true);
@@ -298,7 +350,17 @@ const B2BProductDetail = () => {
                                     Shop: {product.unitDetails?.name || product.name}
                                 </p>
                             )}
-                            <div className="h-1 w-20 bg-primary-600 rounded-full"></div>
+
+                            {ratingSummary.ratingCount > 0 && (
+                                <div className="flex items-center gap-2 mt-3">
+                                    <StarRating rating={ratingSummary.averageRating} size={16} />
+                                    <span className="text-sm font-black text-gray-700">{ratingSummary.averageRating.toFixed(1)}</span>
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">({ratingSummary.ratingCount} Reviews)</span>
+                                    {ratingSummary.type === 'shop' && <span className="text-[10px] font-black text-primary-500 bg-primary-50 px-2 py-0.5 rounded ml-2">SHOP RATING</span>}
+                                </div>
+                            )}
+
+                            <div className="h-1 w-20 bg-primary-600 rounded-full mt-4"></div>
                         </div>
 
                         <div className="bg-white p-6 md:p-10 rounded-3xl md:rounded-[3.5rem] shadow-xl border border-gray-100 relative overflow-hidden group">
@@ -440,6 +502,27 @@ const B2BProductDetail = () => {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Rating Submission Card */}
+                        <div className="bg-white p-6 md:p-10 rounded-3xl md:rounded-[3.5rem] shadow-xl border border-gray-100 relative overflow-hidden">
+                            <h3 className="text-xs md:text-sm font-black text-gray-800 uppercase tracking-widest mb-4">
+                                {userRating ? 'Your Rating' : 'Rate this Product'}
+                            </h3>
+                            <div className="flex items-center gap-4">
+                                <StarRating 
+                                    rating={userRating?.rating || 0} 
+                                    interactive={true} 
+                                    onRatingChange={handleRatingSubmit}
+                                    size={24}
+                                />
+                                {isSubmittingRating && <span className="text-[10px] md:text-xs text-primary-600 font-black uppercase animate-pulse">Saving...</span>}
+                            </div>
+                            {!isAuthenticated && (
+                                <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest mt-4">
+                                    Please login to rate this product
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>

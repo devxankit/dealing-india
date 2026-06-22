@@ -28,6 +28,8 @@ import { useAuthStore } from "../../../shared/store/authStore";
 import RealEstateCard from "../components/RealEstateCard";
 import { useB2BCategoryStore } from "../../../shared/store/b2bCategoryStore";
 import toast from "react-hot-toast";
+import StarRating from "../../../shared/components/StarRating";
+import { getRatingSummary, getUserRating, submitRating } from "../../../shared/services/ratingService";
 
 const B2BVendorStore = () => {
     const { id } = useParams();
@@ -44,6 +46,8 @@ const B2BVendorStore = () => {
     const [followerCount, setFollowerCount] = useState(0);
     const [isFollowing, setIsFollowing] = useState(false);
     const [followingLoading, setFollowingLoading] = useState(false);
+    const [ratingSummary, setRatingSummary] = useState({ averageRating: 0, ratingCount: 0 });
+    const [userStoreRating, setUserStoreRating] = useState(0);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState("grid");
     const [sortBy, setSortBy] = useState("popular");
@@ -96,7 +100,7 @@ const B2BVendorStore = () => {
             try {
 
                 // OPTIMIZED: Fetch vendor, products, and properties in parallel
-                const [vendorRes, productsRes, propertiesRes, reelsRes] = await Promise.all([
+                const [vendorRes, productsRes, propertiesRes, reelsRes, ratingSummaryRes] = await Promise.all([
                     api.get(`/vendors/${id}`, { silent: true }),
                     api.get(`/products`, {
                         params: {
@@ -114,7 +118,8 @@ const B2BVendorStore = () => {
                     api.get(`/reels/feed`, {
                         params: { vendorId: id, limit: 50 },
                         silent: true
-                    })
+                    }),
+                    getRatingSummary('shop', id)
                 ]);
 
                 // Process vendor response
@@ -140,6 +145,10 @@ const B2BVendorStore = () => {
                     const list = reelsRes.data?.reels || [];
                     setReels(list);
                 }
+
+                if (ratingSummaryRes) {
+                    setRatingSummary(ratingSummaryRes);
+                }
             } catch (error) {
                 console.error("Error fetching vendor store data:", error);
                 toast.error("Failed to load store details");
@@ -153,12 +162,11 @@ const B2BVendorStore = () => {
         }
     }, [id, itemType]);
 
-    // Fetch follow status
+    // Fetch follow status and user rating
     useEffect(() => {
-        const fetchFollowData = async () => {
+        const fetchUserData = async () => {
             if (!id) return;
             try {
-                // Determine user orientation (user or vendor)
                 const res = await api.get(`/follow/vendor/${id}`);
                 if (res.success) {
                     setFollowerCount(res.data.followerCount);
@@ -167,8 +175,18 @@ const B2BVendorStore = () => {
             } catch (error) {
                 console.error("Error fetching follow status:", error);
             }
+            if (isAuthenticated) {
+                try {
+                    const ratingRes = await getUserRating('shop', id);
+                    if (ratingRes && ratingRes.rating) {
+                        setUserStoreRating(ratingRes.rating);
+                    }
+                } catch (error) {
+                    console.error("Error fetching user rating:", error);
+                }
+            }
         };
-        fetchFollowData();
+        fetchUserData();
     }, [id, isAuthenticated]);
 
     const handleToggleFollow = async () => {
@@ -193,6 +211,23 @@ const B2BVendorStore = () => {
         }
     };
 
+    const handleRateStore = async (ratingVal) => {
+        if (!isAuthenticated) {
+            toast.error('Please login to rate this store');
+            navigate('/b2b/login', { state: { from: location } });
+            return;
+        }
+        try {
+            const res = await submitRating('shop', id, ratingVal);
+            if (res) {
+                setUserStoreRating(res.rating);
+                const updatedSummary = await getRatingSummary('shop', id);
+                setRatingSummary(updatedSummary);
+            }
+        } catch (error) {
+            console.error('Rating failed', error);
+        }
+    };
 
     // Find shop listing for specific UI details - merged with vendor.shopUnit if available
     const shopListing = useMemo(() => {
@@ -435,6 +470,13 @@ const B2BVendorStore = () => {
                                             ].filter(part => part && String(part).trim()).join(', ')}
                                         </p>
                                     </div>
+                                    <div className="flex items-center gap-3 mt-3">
+                                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
+                                            <StarRating rating={ratingSummary.averageRating} size={14} />
+                                            <span className="text-[11px] font-black text-gray-900">{ratingSummary.averageRating.toFixed(1)}</span>
+                                            <span className="text-[9px] font-bold text-gray-400">({ratingSummary.ratingCount})</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -499,6 +541,21 @@ const B2BVendorStore = () => {
                                         </div>
                                     </div>
                                 )}
+                                
+                                {/* Rate Store Module */}
+                                <div className="col-span-2 flex flex-col p-3 md:p-4 bg-gray-50/40 rounded-3xl border border-gray-100/50 transition-all">
+                                    <span className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Your Rating</span>
+                                    <div className="flex items-center gap-2">
+                                        <StarRating 
+                                            rating={userStoreRating} 
+                                            interactive={true} 
+                                            onRate={handleRateStore} 
+                                            size={20} 
+                                            className="bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm"
+                                        />
+                                        {!isAuthenticated && <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">Login to rate</span>}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

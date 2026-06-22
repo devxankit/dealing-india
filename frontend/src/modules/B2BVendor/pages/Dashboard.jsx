@@ -21,18 +21,30 @@ import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../hooks/useVendorSettings";
 import { useDashboardStore } from "../store/dashboardStore";
 import { useEffect, useState } from "react";
+import { getRatingSummary } from "../../../shared/services/ratingService";
+import StarRating from "../../../shared/components/StarRating";
 
 const B2BVendorDashboard = () => {
     const navigate = useNavigate();
     const { vendor } = useB2BVendorAuthStore();
     const { settings, loading: settingsLoading } = useVendorSettings();
     const { data: dashboardData, loading: dashboardLoading, fetchDashboardData } = useDashboardStore();
-    // const [selectedTransaction, setSelectedTransaction] = useState(null); // No longer needed
-
+    const [shopRating, setShopRating] = useState({ averageRating: 0, ratingCount: 0 });
 
     useEffect(() => {
         fetchDashboardData();
     }, [fetchDashboardData]);
+
+    useEffect(() => {
+        const fetchRating = async () => {
+            const vendorId = vendor?._id || vendor?.id;
+            if (vendorId) {
+                const res = await getRatingSummary('shop', vendorId);
+                if (res) setShopRating(res);
+            }
+        };
+        fetchRating();
+    }, [vendor]);
 
     const loading = settingsLoading || dashboardLoading;
 
@@ -168,9 +180,19 @@ const B2BVendorDashboard = () => {
                                 {vendor?.businessType || 'B2B Vendor'}
                             </span>
                         </div>
-                        <p className="text-slate-400 font-medium flex items-center justify-center sm:justify-start gap-2 text-sm sm:text-base">
-                            <FiCheckCircle className="text-emerald-500 flex-shrink-0" /> Account Verified & Active
-                        </p>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                            <p className="text-slate-400 font-medium flex items-center justify-center sm:justify-start gap-2 text-sm sm:text-base">
+                                <FiCheckCircle className="text-emerald-500 flex-shrink-0" /> Account Verified & Active
+                            </p>
+                            
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-100 rounded-lg">
+                                <StarRating rating={shopRating.averageRating} size={14} />
+                                <span className="text-sm font-black text-amber-700">{shopRating.averageRating.toFixed(1)}</span>
+                                <span className="text-[10px] font-bold text-amber-600/70 uppercase tracking-widest">
+                                    ({shopRating.ratingCount} Reviews)
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
