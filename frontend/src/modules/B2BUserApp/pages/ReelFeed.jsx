@@ -597,6 +597,7 @@ export default function ReelFeed() {
             videoId: currentYoutubeId,
             playerVars: {
               autoplay: 1,
+              playsinline: 1,
               mute: isMuted ? 1 : 0,
               loop: 1,
               controls: 0,
