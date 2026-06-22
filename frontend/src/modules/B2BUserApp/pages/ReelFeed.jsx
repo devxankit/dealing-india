@@ -589,7 +589,7 @@ export default function ReelFeed() {
         if (wrapper) {
           wrapper.innerHTML = '';
           const playerDiv = document.createElement('div');
-          playerDiv.className = 'w-full h-full';
+          playerDiv.className = 'w-full h-full pointer-events-none';
           wrapper.appendChild(playerDiv);
 
           isYoutubeRef.current = true;
@@ -798,8 +798,8 @@ export default function ReelFeed() {
         {/* Stable Player Container: Hoisted outside AnimatePresence to prevent re-mount conflicts */}
         <div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden">
           {getReelYoutubeId(currentReel || initialMetadata) ? (
-            <div className="w-full h-full relative z-10 bg-transparent">
-              <div id="youtube-wrapper" className="w-full h-full" />
+            <div className="w-full h-full relative z-10 bg-transparent pointer-events-none">
+              <div id="youtube-wrapper" className="w-full h-full pointer-events-none" />
             </div>
           ) : (
             <>
