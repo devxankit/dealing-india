@@ -48,6 +48,8 @@ const B2BVendorStore = () => {
     const [followingLoading, setFollowingLoading] = useState(false);
     const [ratingSummary, setRatingSummary] = useState({ averageRating: 0, ratingCount: 0 });
     const [userStoreRating, setUserStoreRating] = useState(0);
+    const [pendingRating, setPendingRating] = useState(0);
+    const [isSubmittingRating, setIsSubmittingRating] = useState(false);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState("grid");
     const [sortBy, setSortBy] = useState("popular");
@@ -226,6 +228,7 @@ const B2BVendorStore = () => {
             }
         } catch (error) {
             console.error('Rating failed', error);
+            toast.error('Failed to submit rating');
         }
     };
 
@@ -545,14 +548,31 @@ const B2BVendorStore = () => {
                                 {/* Rate Store Module */}
                                 <div className="col-span-2 flex flex-col p-3 md:p-4 bg-gray-50/40 rounded-3xl border border-gray-100/50 transition-all">
                                     <span className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Your Rating</span>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-3">
                                         <StarRating 
-                                            rating={userStoreRating} 
+                                            rating={pendingRating || userStoreRating} 
                                             interactive={true} 
-                                            onRate={handleRateStore} 
+                                            onRate={(val) => setPendingRating(val)} 
                                             size={20} 
                                             className="bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm"
                                         />
+                                        <button
+                                            onClick={async () => {
+                                                if (pendingRating > 0) {
+                                                    setIsSubmittingRating(true);
+                                                    await handleRateStore(pendingRating);
+                                                    setIsSubmittingRating(false);
+                                                }
+                                            }}
+                                            disabled={isSubmittingRating || pendingRating === 0 || pendingRating === userStoreRating}
+                                            className={`px-3 py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-colors shadow-sm uppercase tracking-wider ${
+                                                (pendingRating > 0 && pendingRating !== userStoreRating)
+                                                    ? 'bg-primary-600 text-white hover:bg-primary-700'
+                                                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            {isSubmittingRating ? 'Submitting...' : 'Submit Rating'}
+                                        </button>
                                         {!isAuthenticated && <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">Login to rate</span>}
                                     </div>
                                 </div>

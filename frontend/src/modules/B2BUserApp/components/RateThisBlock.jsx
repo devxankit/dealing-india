@@ -18,6 +18,7 @@ const RateThisBlock = ({ targetType, targetId, averageRating = 0, ratingCount = 
     const navigate = useNavigate();
     const { isAuthenticated } = useAuthStore();
     const [userRating, setUserRating] = useState(null);
+    const [selectedStar, setSelectedStar] = useState(0);
     const [hoverStar, setHoverStar] = useState(0);
     const [loading, setLoading] = useState(false);
     const [fetchingUser, setFetchingUser] = useState(true);
@@ -44,7 +45,9 @@ const RateThisBlock = ({ targetType, targetId, averageRating = 0, ratingCount = 
         fetchUserRating();
     }, [targetType, targetId, isAuthenticated]);
 
-    const handleSubmitRating = async (stars) => {
+    const handleSubmitRating = async () => {
+        const stars = selectedStar;
+        if (!stars) return;
         if (!isAuthenticated) {
             navigate('/b2b/login');
             return;
@@ -58,7 +61,8 @@ const RateThisBlock = ({ targetType, targetId, averageRating = 0, ratingCount = 
                 comment: '',
             });
             setUserRating(stars);
-            toast.success('Rating saved');
+            setSelectedStar(0);
+            toast.success('Rating submitted successfully');
             onRated?.();
         } catch (err) {
             toast.error(err?.response?.data?.message || 'Failed to save rating');
@@ -90,10 +94,10 @@ const RateThisBlock = ({ targetType, targetId, averageRating = 0, ratingCount = 
                                 disabled={loading}
                                 onMouseEnter={() => setHoverStar(star)}
                                 onMouseLeave={() => setHoverStar(0)}
-                                onClick={() => handleSubmitRating(star)}
+                                onClick={() => setSelectedStar(star)}
                                 className="p-1 rounded hover:opacity-80 transition-opacity disabled:opacity-50"
                             >
-                                {(hoverStar ? hoverStar >= star : userRating >= star) ? (
+                                {(hoverStar ? hoverStar >= star : (selectedStar || userRating) >= star) ? (
                                     <FaStar size={22} style={{ color: '#fbbf24' }} />
                                 ) : (
                                     <FiStar size={22} style={{ color: '#e5e7eb' }} />
@@ -101,8 +105,20 @@ const RateThisBlock = ({ targetType, targetId, averageRating = 0, ratingCount = 
                             </button>
                         ))}
                     </div>
-                    {userRating && (
-                        <span className="text-xs text-gray-500 font-bold">{userRating}/5</span>
+                    {(userRating || selectedStar > 0) && (
+                        <div className="flex items-center gap-3 mt-1">
+                            <span className="text-xs text-gray-500 font-bold">{(selectedStar || userRating)}/5</span>
+                            {selectedStar > 0 && selectedStar !== userRating && (
+                                <button
+                                    type="button"
+                                    onClick={handleSubmitRating}
+                                    disabled={loading}
+                                    className="px-3 py-1.5 bg-primary-600 text-white text-xs font-bold rounded-lg hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50"
+                                >
+                                    {loading ? 'Submitting...' : 'Submit Rating'}
+                                </button>
+                            )}
+                        </div>
                     )}
                 </div>
             )}

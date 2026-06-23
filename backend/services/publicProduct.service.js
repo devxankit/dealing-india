@@ -425,15 +425,14 @@ export const getPublicProducts = async (filters) => {
 /**
  * Get single product by ID
  */
-// Product schema has no shopUnitId; LotSlot has shopUnitId – only populate where defined
 export const getPublicProductById = async (id) => {
-    let item = await Product.findById(id)
+    let item = await Product.findOne({ _id: id, isActive: true })
         .populate('vendorId', 'name storeName description logo phone address mfgOfWork')
         .lean();
 
     let isLotSlot = false;
     if (!item) {
-        item = await LotSlot.findById(id)
+        item = await LotSlot.findOne({ _id: id, isActive: true })
             .populate('vendorId', 'name storeName description logo phone address mfgOfWork')
             .populate('shopUnitId')
             .lean();
