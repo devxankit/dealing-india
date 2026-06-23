@@ -108,10 +108,8 @@ const B2BUserRegister = () => {
             newErrors.businessName = 'Business Name must contain at least one letter or number';
         }
 
-        // 2. Business Email Validation: Required
-        if (!formData.email.trim()) {
-            newErrors.email = 'Business Email is required';
-        } else {
+        // 2. Business Email Validation: Optional
+        if (formData.email.trim()) {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
             if (!emailRegex.test(formData.email)) {
                 newErrors.email = 'Enter a valid email (e.g., name@company.com)';

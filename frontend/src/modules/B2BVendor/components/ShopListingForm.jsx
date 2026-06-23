@@ -301,9 +301,6 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
 
         // 3. Validate Staff Details & Duplicate Checks
         const validDetails = formData.details.filter(d => d.name.trim() || d.post.trim() || d.mobile.trim());
-        if (validDetails.length === 0) {
-            return toast.error("At least one staff contact detail is required");
-        }
 
         const seenMobile = new Set();
         const seenName = new Set();
