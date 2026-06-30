@@ -51,7 +51,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["recharts", "@headlessui/react"],
+    include: ["react", "react-dom", "react-router-dom", "recharts", "@headlessui/react"],
     force: true,
   },
   server: {

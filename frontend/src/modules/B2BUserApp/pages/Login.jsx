@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { FiPhone, FiLock, FiEye, FiEyeOff, FiBriefcase, FiShoppingBag, FiArrowLeft, FiUser } from 'react-icons/fi';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from '../../../shared/utils/toast';
 
@@ -76,9 +76,7 @@ const B2BUserLogin = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+            <div
                 className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-6 sm:p-8 w-full max-w-sm shadow-2xl relative overflow-hidden"
             >
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary-400 to-primary-600"></div>
@@ -181,7 +179,7 @@ const B2BUserLogin = () => {
                         </div>
                     </div>
                 </form>
-            </motion.div>
+            </div>
         </div >
     );
 };

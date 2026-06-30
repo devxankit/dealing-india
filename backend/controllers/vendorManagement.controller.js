@@ -10,6 +10,7 @@ import {
   deleteB2BVendor,
 } from '../services/vendorManagement.service.js';
 import notificationService from '../services/notification.service.js';
+import { sendVendorApprovalEmail, sendVendorRejectionEmail } from '../services/email.service.js';
 
 
 import redisService from '../services/redis.service.js';
@@ -122,10 +123,20 @@ export const updateStatus = async (req, res, next) => {
       if (status === 'approved') {
         title = 'Account Approved!';
         message = 'Congratulations! Your vendor account has been approved. You can now start adding products and services.';
+        if (vendor && vendor.email) {
+            await sendVendorApprovalEmail(vendor.email, vendor.name || vendor.storeName || 'Vendor');
+        }
       } else if (status === 'rejected') {
         title = 'Account Application Update';
         message = `Your vendor application was not approved. ${reason ? `Reason: ${reason}` : 'Please contact support for more details.'}`;
+        if (vendor && vendor.email) {
+            await sendVendorRejectionEmail(vendor.email, vendor.name || vendor.storeName || 'Vendor', reason);
+        }
       }
+
+      const isB2B = vendor && vendor.vendorType === 'b2b';
+      const dashboardUrl = isB2B ? '/b2b-vendor/dashboard' : '/vendor/dashboard';
+      const profileUrl = isB2B ? '/b2b-vendor/profile' : '/vendor/profile';
 
       await notificationService.createNotification({
         recipientId: id,
@@ -133,7 +144,7 @@ export const updateStatus = async (req, res, next) => {
         type: 'system',
         title: title,
         message: message,
-        actionUrl: status === 'approved' ? '/vendor/dashboard' : '/vendor/profile',
+        actionUrl: status === 'approved' ? dashboardUrl : profileUrl,
       }, req.app.get('io'));
     } catch (notifError) {
       console.error('Failed to send vendor status notification:', notifError);

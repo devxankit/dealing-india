@@ -377,3 +377,66 @@ export const sendWelcomeEmail = async (email, name) => {
 
   return sendEmail(email, subject, html, `Welcome to Dealing India, ${name}!`, logoAttachment ? [logoAttachment] : undefined);
 };
+
+/**
+ * Send vendor approval email
+ */
+export const sendVendorApprovalEmail = async (email, name) => {
+  const subject = 'Your Vendor Account is Approved! - Dealing India';
+  const logoAttachment = getInlineLogoAttachment();
+  const logoSrc = logoAttachment ? `cid:${EMAIL_LOGO_CID}` : EMAIL_LOGO_URL;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background:#f3f4f6;">
+      <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; border: 1px solid #e5e7eb; text-align: center;">
+        <img src="${logoSrc}" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:24px;display:block;margin-left:auto;margin-right:auto;" />
+        <h1 style="color:${EMAIL_BRAND_PRIMARY};">Account Approved!</h1>
+        <p>Hello ${name},</p>
+        <p>Congratulations! Your vendor profile has been approved by the admin.</p>
+        <p>You can now log in to your vendor dashboard to start adding products, managing orders, and growing your business with Dealing India.</p>
+        <div style="margin: 30px 0;">
+          <a href="https://dealingindia.com/b2b-vendor/login" style="background-color: ${EMAIL_BRAND_PRIMARY}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Go to Dashboard</a>
+        </div>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Dealing India. All rights reserved.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(email, subject, html, `Congratulations! Your vendor account has been approved.`, logoAttachment ? [logoAttachment] : undefined);
+};
+
+/**
+ * Send vendor rejection email
+ */
+export const sendVendorRejectionEmail = async (email, name, reason) => {
+  const subject = 'Update on Your Vendor Application - Dealing India';
+  const logoAttachment = getInlineLogoAttachment();
+  const logoSrc = logoAttachment ? `cid:${EMAIL_LOGO_CID}` : EMAIL_LOGO_URL;
+
+  const reasonHtml = reason ? `<p style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px; border-radius: 8px; text-align: left; margin: 16px 0;"><strong>Reason:</strong> ${reason}</p>` : '';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background:#f3f4f6;">
+      <div style="background-color: #ffffff; padding: 30px; border-radius: 16px; border: 1px solid #e5e7eb; text-align: center;">
+        <img src="${logoSrc}" alt="Dealing India" style="max-width:160px;height:auto;margin-bottom:24px;display:block;margin-left:auto;margin-right:auto;" />
+        <h1 style="color:#dc2626;">Application Update</h1>
+        <p>Hello ${name},</p>
+        <p>We have reviewed your vendor application for Dealing India.</p>
+        <p>Unfortunately, your application was not approved at this time.</p>
+        ${reasonHtml}
+        <p>If you have any questions or would like to appeal this decision, please contact our support team.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+        <p style="color: #9ca3af; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Dealing India. All rights reserved.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(email, subject, html, `Your vendor application was not approved.`, logoAttachment ? [logoAttachment] : undefined);
+};

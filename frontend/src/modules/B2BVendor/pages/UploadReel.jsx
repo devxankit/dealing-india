@@ -79,14 +79,11 @@ export default function UploadReel() {
         const res = await api.get("/reels/daily-status");
         if (res.success) {
           setCanUploadDaily(res.data.canUpload);
-          const isEnabled = res.data.enableVideoFileUpload !== false;
+          // Force disable file upload for now as requested
+          const isEnabled = false; // res.data.enableVideoFileUpload !== false;
           setEnableVideoFileUpload(isEnabled);
           
-          if (!isEnabled || !res.data.canUpload) {
-            setSubmissionType("link");
-          } else {
-            setSubmissionType("file");
-          }
+          setSubmissionType("link");
         }
       } catch (err) {
         console.error("Daily status check failed:", err);
@@ -334,33 +331,6 @@ export default function UploadReel() {
       )}
 
       <SubscriptionGate action="reels" showLimitInfo={false} fullPage={true}>
-        {/* Toggle between File and Link */}
-        <div className="flex bg-gray-100 p-1 rounded-2xl mb-6">
-          {enableVideoFileUpload && (
-            <button
-              type="button"
-              disabled={!canUploadDaily}
-              onClick={() => setSubmissionType("file")}
-              className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
-                submissionType === "file"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              } ${!canUploadDaily ? "opacity-50 cursor-not-allowed" : ""}`}
-            >
-              Upload File {!canUploadDaily && "(1/day reached)"}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setSubmissionType('link')}
-            className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
-              submissionType === 'link' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Video Link
-          </button>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-6">
         
         {submissionType === 'file' ? (
