@@ -28,6 +28,12 @@ export const submitRating = async (req, res, next) => {
       } catch (e) {
         console.error('Redis cache invalidation after rating:', e);
       }
+    } else if (targetType === 'product' && targetId) {
+      try {
+        await redisService.clearPattern(`product:details:*${targetId}*`);
+      } catch (e) {
+        console.error('Redis cache invalidation after rating:', e);
+      }
     }
     res.status(200).json({
       success: true,

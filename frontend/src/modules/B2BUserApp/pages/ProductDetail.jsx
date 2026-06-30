@@ -31,7 +31,10 @@ const B2BProductDetail = () => {
     const [hasInquiry, setHasInquiry] = useState(false);
     const [enquiryStatus, setEnquiryStatus] = useState({ canAcceptEnquiries: true });
     const [ratingSummary, setRatingSummary] = useState({ averageRating: 0, ratingCount: 0, type: 'product' });
+    const [shopRatingSummary, setShopRatingSummary] = useState({ averageRating: 0, ratingCount: 0, type: 'shop' });
     const [userRating, setUserRating] = useState(null);
+    const [draftRating, setDraftRating] = useState(0);
+    const [draftComment, setDraftComment] = useState('');
     const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
     useEffect(() => {
@@ -42,21 +45,25 @@ const B2BProductDetail = () => {
         const fetchRatings = async () => {
             if (id) {
                 const summary = await getRatingSummary('product', id);
-                if (summary && summary.ratingCount > 0) {
+                if (summary) {
                     setRatingSummary({ ...summary, type: 'product' });
-                } else if (product?.vendorId) {
+                }
+
+                if (product?.vendorId) {
                     const vid = product.vendorId._id || product.vendorId.id || product.vendorId;
                     const sSummary = await getRatingSummary('shop', vid);
-                    if (sSummary && sSummary.ratingCount > 0) {
-                        setRatingSummary({ ...sSummary, type: 'shop' });
-                    } else {
-                        setRatingSummary({ averageRating: 0, ratingCount: 0, type: 'product' });
+                    if (sSummary) {
+                        setShopRatingSummary({ ...sSummary, type: 'shop' });
                     }
                 }
 
                 if (isAuthenticated) {
                     const userR = await getUserRating('product', id);
-                    if (userR) setUserRating(userR);
+                    if (userR) {
+                        setUserRating(userR);
+                        setDraftRating(userR.rating || 0);
+                        setDraftComment(userR.comment || '');
+                    }
                 }
             }
         };
@@ -66,19 +73,23 @@ const B2BProductDetail = () => {
         }
     }, [id, isAuthenticated, product]);
 
-    const handleRatingSubmit = async (ratingValue) => {
+    const handleRatingSubmit = async () => {
         if (!isAuthenticated) {
             toast.error('Please login to submit a rating');
             navigate('/b2b/login');
             return;
         }
+        if (!draftRating) {
+            toast.error('Please select a rating before submitting');
+            return;
+        }
         setIsSubmittingRating(true);
         try {
-            const result = await submitRating('product', id, ratingValue);
+            const result = await submitRating('product', id, draftRating, draftComment);
             if (result) {
                 setUserRating(result);
                 const summary = await getRatingSummary('product', id);
-                if (summary) setRatingSummary(summary);
+                if (summary) setRatingSummary({ ...summary, type: 'product' });
             }
         } finally {
             setIsSubmittingRating(false);
@@ -351,12 +362,15 @@ const B2BProductDetail = () => {
                                 </p>
                             )}
 
-                            {ratingSummary.ratingCount > 0 && (
+                            {ratingSummary.ratingCount > 0 ? (
                                 <div className="flex items-center gap-2 mt-3">
                                     <StarRating rating={ratingSummary.averageRating} size={16} />
                                     <span className="text-sm font-black text-gray-700">{ratingSummary.averageRating.toFixed(1)}</span>
                                     <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">({ratingSummary.ratingCount} Reviews)</span>
-                                    {ratingSummary.type === 'shop' && <span className="text-[10px] font-black text-primary-500 bg-primary-50 px-2 py-0.5 rounded ml-2">SHOP RATING</span>}
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 mt-3">
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">0 Reviews</span>
                                 </div>
                             )}
 
@@ -499,6 +513,13 @@ const B2BProductDetail = () => {
                                         <div className="flex items-center gap-2 text-primary-100 text-[9px] md:text-[11px] font-black uppercase tracking-widest mt-2 md:mt-3">
                                             <FiCheckCircle className="text-white" /> Platinum Verified
                                         </div>
+                                        {shopRatingSummary.ratingCount > 0 && (
+                                            <div className="flex items-center gap-1.5 mt-2 text-white">
+                                                <StarRating rating={shopRatingSummary.averageRating} size={14} />
+                                                <span className="text-xs font-bold ml-1">{shopRatingSummary.averageRating.toFixed(1)}</span>
+                                                <span className="text-[10px] opacity-75 ml-1">({shopRatingSummary.ratingCount} Ratings)</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -509,14 +530,33 @@ const B2BProductDetail = () => {
                             <h3 className="text-xs md:text-sm font-black text-gray-800 uppercase tracking-widest mb-4">
                                 {userRating ? 'Your Rating' : 'Rate this Product'}
                             </h3>
-                            <div className="flex items-center gap-4">
-                                <StarRating 
-                                    rating={userRating?.rating || 0} 
-                                    interactive={true} 
-                                    onRatingChange={handleRatingSubmit}
-                                    size={24}
-                                />
-                                {isSubmittingRating && <span className="text-[10px] md:text-xs text-primary-600 font-black uppercase animate-pulse">Saving...</span>}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                    <StarRating 
+                                        rating={draftRating} 
+                                        interactive={true} 
+                                        onRate={setDraftRating}
+                                        size={24}
+                                    />
+                                    {isSubmittingRating && <span className="text-[10px] md:text-xs text-primary-600 font-black uppercase animate-pulse">Saving...</span>}
+                                </div>
+                                
+                                {draftRating > 0 && (
+                                    <div className="space-y-3 mt-4">
+                                        <button
+                                            onClick={handleRatingSubmit}
+                                            disabled={isSubmittingRating || !isAuthenticated}
+                                            className={`w-full py-3 px-4 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wide shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${
+                                                isSubmittingRating || !isAuthenticated
+                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                                                    : 'bg-primary-600 text-white hover:bg-primary-700 shadow-primary-200/50'
+                                            }`}
+                                        >
+                                            <FiSend className="text-sm" /> 
+                                            {isSubmittingRating ? 'Submitting...' : 'Submit Review'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                             {!isAuthenticated && (
                                 <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest mt-4">
