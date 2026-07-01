@@ -8,6 +8,7 @@ import ConfirmModal from "../../../Admin/components/ConfirmModal";
 import toast from "../../../../shared/utils/toast";
 import api from "../../../../shared/utils/api";
 import SubscriptionGate from "../../components/SubscriptionGate";
+import RatingSummaryBadge from "../../../../shared/components/RatingSummaryBadge";
 
 const ManageProducts = () => {
     const navigate = useNavigate();
@@ -224,7 +225,10 @@ const ManageProducts = () => {
                                                     </div>
 
                                                     <div className="p-6">
-                                                        <h3 className="text-lg font-black text-slate-800 mb-4 truncate leading-tight">{product.name}</h3>
+                                                        <h3 className="text-lg font-black text-slate-800 mb-2 truncate leading-tight">{product.name}</h3>
+                                                        <div className="mb-4">
+                                                            <RatingSummaryBadge targetType="product" targetId={product._id} />
+                                                        </div>
                                                         
                                                         <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl mb-6">
                                                             <div className="text-center">
