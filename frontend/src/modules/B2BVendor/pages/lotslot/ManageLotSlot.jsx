@@ -9,6 +9,7 @@ import toast from "../../../../shared/utils/toast";
 import api from "../../../../shared/utils/api";
 import SubscriptionGate from "../../components/SubscriptionGate";
 import QuotaBanner from "../../components/QuotaBanner";
+import RatingSummaryBadge from "../../../../shared/components/RatingSummaryBadge";
 
 const ManageLotSlot = () => {
     const navigate = useNavigate();
@@ -243,7 +244,10 @@ const ManageLotSlot = () => {
                                                     </div>
 
                                                     <div className="p-6">
-                                                        <h3 className="text-lg font-black text-slate-800 mb-4 truncate leading-tight">{lot.name}</h3>
+                                                        <h3 className="text-lg font-black text-slate-800 mb-2 truncate leading-tight">{lot.name}</h3>
+                                                        <div className="mb-4">
+                                                            <RatingSummaryBadge targetType="lotslot" targetId={lot._id} />
+                                                        </div>
                                                         
                                                         <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl mb-6">
                                                             <div className="text-center">

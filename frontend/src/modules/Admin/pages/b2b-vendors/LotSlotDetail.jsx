@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
+import RatingSummaryBadge from "../../../../shared/components/RatingSummaryBadge";
 
 const LotSlotDetail = () => {
     const { id } = useParams();
@@ -131,7 +132,10 @@ const LotSlotDetail = () => {
                             )}
                         </div>
 
-                        <h2 className="text-3xl font-black text-gray-900 mb-6">{lotSlot.name}</h2>
+                        <h2 className="text-3xl font-black text-gray-900 mb-2">{lotSlot.name}</h2>
+                        <div className="mb-6">
+                            <RatingSummaryBadge targetType="lotslot" targetId={lotSlot._id} />
+                        </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6 bg-slate-50 rounded-2xl border border-gray-100">
                             <div>
