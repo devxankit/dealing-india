@@ -4,6 +4,7 @@ import { FiArrowLeft, FiCheckCircle, FiXCircle, FiHome, FiMapPin, FiCalendar, Fi
 import { motion } from "framer-motion";
 import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
+import RatingSummaryBadge from "../../../../shared/components/RatingSummaryBadge";
 
 const PropertyDetail = () => {
     const { id } = useParams();
@@ -171,6 +172,9 @@ const PropertyDetail = () => {
                         <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                             <div>
                                 <h1 className="lg:hidden text-3xl font-bold text-gray-900 mb-2">{property.title}</h1>
+                                <div className="mb-2">
+                                    <RatingSummaryBadge targetType="property" targetId={property._id} />
+                                </div>
                                 <div className="flex flex-wrap gap-2 text-gray-500 text-sm">
                                     <div className="flex items-center gap-1">
                                         <FiMapPin className="text-primary-500" />
