@@ -4,6 +4,7 @@ import { FiArrowLeft, FiCheckCircle, FiXCircle, FiPackage, FiDollarSign, FiUser,
 import { motion } from "framer-motion";
 import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
+import RatingSummaryBadge from "../../../../shared/components/RatingSummaryBadge";
 
 const AdminB2BProductDetail = () => {
     const { id } = useParams();
@@ -128,6 +129,9 @@ const AdminB2BProductDetail = () => {
                                     <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded">{product.brandName || 'Brand Not specified'}</span>
                                 </div>
                                 <h1 className="lg:hidden text-3xl font-black text-gray-900 leading-tight mb-2">{product.name}</h1>
+                                <div className="mb-2">
+                                    <RatingSummaryBadge targetType="product" targetId={product._id} />
+                                </div>
                                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1">
                                     <FiTag /> SKU: {product.sku || 'N/A'}
                                 </p>
