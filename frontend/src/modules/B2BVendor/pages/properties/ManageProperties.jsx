@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
 import SubscriptionGate from "../../components/SubscriptionGate";
+import RatingSummaryBadge from "../../../../shared/components/RatingSummaryBadge";
 
 const ManageProperties = () => {
     const navigate = useNavigate();
@@ -184,6 +185,9 @@ const ManageProperties = () => {
                                 {/* Middle: Core Info */}
                                 <div className="mb-4">
                                     <h3 className="text-lg font-black text-slate-800 mb-1 truncate leading-tight">{property.title}</h3>
+                                    <div className="mb-2">
+                                        <RatingSummaryBadge targetType="property" targetId={property._id} />
+                                    </div>
                                     <div className="flex items-center gap-1.5 text-gray-400 text-[10px] font-black uppercase tracking-wider">
                                         <FiMapPin size={12} className="text-red-500" />
                                         <span className="truncate">{property.location.area}, {property.location.city}</span>
